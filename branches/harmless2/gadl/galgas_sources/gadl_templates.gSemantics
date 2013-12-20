@@ -1,7 +1,7 @@
 semantics gadl_templates :
   import "gadl_options.gOption" ;
   import "gadl_semantics.gSemantics" ;
-  import "gadl_semantics_default.gSemantics";
+#  import "gadl_semantics_default.gSemantics";
   import "template_invocation.gSemantics";
 
 #----------------------------------------------------------------------------
@@ -57,100 +57,30 @@ function computeTemplate
     ?*;
 end function;
 
-
-#this routine should not be called outside of this file
-#(internal use). Use the 'writeTemplates' routine instead.
-#routine retrieveTemplateString
-#  ?? @string templateName
-#  !  @string templateStr
-#:
-#  # Get the template directory
-#  @string templateDir := templates_directory[] ;
-#  @string templateFullPath := templateDir.templateName.".tpl" ;
-#  if [templateFullPath fileExists]
-#  then 
-#    #ok. Found
-#    templateStr := [@string stringWithContentsOfFile !templateFullPath] ;
-#  else
-#    #error.
-#    error here: "No template found with name ".templateName." in directory ".
-#                templateDir.".If the directory is not correct, please define the ".
-#                "GADL_TEMPLATES environnement variable or pass the correct parameter".
-#                " in the command line";
-#    templateStr := "";
-#  end if;
-#end routine;
-
-# populate init template with:
-#MODELNAME           : name of model, used everywhere, including generated directory name
-#DATE                : current date: no more used, to prevent whole compilation time.
-#HEADER_C            : standard header for each .c/.h file generated.
-#INST_DEFAULT_C_SIZE : default C Size for instructionSize (used in formats)
-#INST_SIZE_IN_BITS   : corresponding to the instructionSize value in default section
-#INST_SIZE_IN_BYTES  : corresponding to the instructionSize value in default section.
-#                      the value is equal or greater than INST_SIZE_IN_BITS/8.
-#NO_BEHAVIOR         : command line option.
-#HOST_COMPILATION_64_BITS : used in Makefile for default simulator compilation mode
-routine initTemplateWithDefaults
-  ?! @TfieldMap templateStruct
+## populate init template with:
+##MODELNAME           : name of model, used everywhere, including generated directory name
+##DATE                : current date: no more used, to prevent whole compilation time.
+##HEADER_C            : standard header for each .c/.h file generated.
+##NO_BEHAVIOR         : command line option.
+##HOST_COMPILATION_64_BITS : used in Makefile for default simulator compilation mode
+#TODO constructor.
+modifier @TfieldMap initTemplate
   ?? @lstring modelName
-  ?? @defaultSection defaultValues
 :
+  @TfieldMap templateStructCopy := selfcopy;
   #model name
-  addLStringValue !?templateStruct !"MODELNAME" !modelName;
+  addLStringValue !?templateStructCopy !"MODELNAME" !modelName;
   #date
   @string date := [@string stringWithCurrentDateTime];
-  addStringValue !?templateStruct !lstringWith[!"DATE"] !date;
-  #INST_DEFAULT_C_SIZE
-  #default size of instructions
-  @string instructionDefaultSizeCString;
-  @uint defaultInstructionSize := [[defaultValues instructionSize] uint];
-  getCTypeFor !defaultInstructionSize ?instructionDefaultSizeCString ?*;
-  @uint instructionSizeInBytes := defaultInstructionSize/8;
-  if (defaultInstructionSize & 7) != 0 then
-    instructionSizeInBytes := instructionSizeInBytes + 1;
-  end if;
-  @uint instructionSizeInHalfBytes := instructionSizeInBytes*2;
-  @string endiannes;
-  if [defaultValues isBigEndian] then 
-    endiannes := "define";
-  else 
-    endiannes := "undef";
-  end if;
-  addStringValue !?templateStruct !lstringWith[!"INST_DEFAULT_C_SIZE"] ! instructionDefaultSizeCString;
-  addStringValue !?templateStruct !lstringWith[!"INST_SIZE_IN_BITS"] ![defaultInstructionSize string];
-  addStringValue !?templateStruct !lstringWith[!"INST_SIZE_IN_BYTES"] ![instructionSizeInBytes string];
-  addStringValue !?templateStruct !lstringWith[!"INST_SIZE_IN_HALF_BYTES"] ![instructionSizeInHalfBytes string];
-  addStringValue !?templateStruct !lstringWith[!"IS_BIG_ENDIAN"] ! endiannes;
-  @bool useGDB;
-  if [[defaultValues debugComponentName] string] == "" then useGDB := true;
-  else useGDB := false;
-  end if;
-  addBoolValue !?templateStruct !lstringWith[!"USE_GDB"] !useGDB;
-  addStringValue !?templateStruct !lstringWith[!"GDB_DEBUG_COMPONENT"] ![[defaultValues debugComponentName] string];
-  #linker address translation.
-  addLStringValue !?templateStruct !"progReadComponentName" ![defaultValues progReadComponentName];
-  addLStringValue !?templateStruct !"progReadMethodName" ![defaultValues progReadMethodName];
-  addLStringValue !?templateStruct !"fetchAddressComponentName" ![defaultValues fetchAddressComponentName];
-  addLStringValue !?templateStruct !"fetchAddressMethodName" ![defaultValues fetchAddressMethodName];
-
-  #interrupt
-  if [[defaultValues interruptComponentName] string] == "" then
-    #no interrupt
-    addStringValue !?templateStruct !lstringWith[!"INTERRUPT_HANDLING"] !"";
-  else
-    @string interruptCall;
-    getComponentMethodImplementationName ![[defaultValues interruptComponentName] string] 
-                                         ![[defaultValues interruptMethodName] string] !"" ?interruptCall; 
-    interruptCall .= "(trapId);";
-    addStringValue !?templateStruct !lstringWith[!"INTERRUPT_HANDLING"] !interruptCall;
-  end if;
+  addStringValue !?templateStructCopy !lstringWith[!"DATE"] !date;
   #behavior
-  addBoolValue !?templateStruct !lstringWith[!"NO_BEHAVIOR"] ![option gadl_options.noBehavior value];
+  #addBoolValue !?templateStructCopy !lstringWith[!"NO_BEHAVIOR"] ![option gadl_options.noBehavior value];
   #compilation mode
   @uint comp := [@uint compilationMode];
-  addBoolValue !?templateStruct !lstringWith[!"HOST_COMPILATION_64_BITS"] !comp==64;
-end routine ;
+  addBoolValue !?templateStructCopy !lstringWith[!"HOST_COMPILATION_64_BITS"] !comp==64;
+  #Ok. Get the copy.
+  self := templateStructCopy;
+end modifier;
 
 end semantics ;
 # vim:ft=ggs:ts=2:sw=2

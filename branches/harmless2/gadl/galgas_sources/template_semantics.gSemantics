@@ -17,8 +17,30 @@
 #                                                                           *
 #---------------------------------------------------------------------------*
 
+# * addBoolValue
+# * addUnsignedValue
+# * addLUnsignedValue
+# * addStringValue
+# * addLStringValue
+# * addListValue
+# * addStructValue
+# * addEnumValue
+
 semantics template_semantics :
-  import "gadl_semantics.gSemantics" ; #tabs function.
+
+function tabsTpl 
+  ?? @uint nbTabulation
+  -> @string code
+:
+  code := "";
+  @uint val := nbTabulation;
+  loop nbTabulation + 1:
+  while val > 0 do
+    code .= "\t";
+    val--;
+  end loop;
+end function;
+
 
 #------------------------------------------------------------------------------*
 
@@ -445,11 +467,11 @@ function printValue
     str .= [[mValue mUnsigned64Value] string];
   when stringType:
   when listType:
-    str .= extractListTemplateStructureRec[![mValue mMapListValue] !nbTab+1].tabs[!nbTab];
+    str .= extractListTemplateStructureRec[![mValue mMapListValue] !nbTab+1].tabsTpl[!nbTab];
   when mapType:
-    str .= extractMapTemplateStructureRec[![mValue mStructValue] !nbTab+1].tabs[!nbTab];
+    str .= extractMapTemplateStructureRec[![mValue mStructValue] !nbTab+1].tabsTpl[!nbTab];
   when structType:
-    str .= extractMapTemplateStructureRec[![mValue mStructValue] !nbTab+1].tabs[!nbTab];
+    str .= extractMapTemplateStructureRec[![mValue mStructValue] !nbTab+1].tabsTpl[!nbTab];
   when enumType:
     str .= [mValue mStringValue];
   when unconstructedType:
@@ -473,7 +495,7 @@ function extractMapTemplateStructureRec
 :
   str := "";
   foreach templateVariableMap (@lstring key @Ttype mType @Tvalue mValue) do
-    str .= "\n".tabs[!nbTab]."<item key=\"".[key string]."\" type=\"".[mType messageGoilTemplateType]."\">";
+    str .= "\n".tabsTpl[!nbTab]."<item key=\"".[key string]."\" type=\"".[mType messageGoilTemplateType]."\">";
     str .= printValue[!mType !mValue !nbTab];
     str .= "</item>";
   end foreach;

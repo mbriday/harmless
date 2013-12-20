@@ -1,6 +1,6 @@
 %template headerC%
 #include "instructionBase.h"
-#include "arch.h"
+#include "core.h"
 #include "instDecoder.h"
 #include "utils.h"
 #include <unistd.h>
@@ -23,10 +23,10 @@ using namespace std;
 /* GDB socket */
 int GDBsock;
 bool continu;
-arch *ZeArch = NULL;
+core *ZeCore = NULL;
 int sig_pipe_received = 0;
 
-extern int handle_exception(arch &, int);
+extern int handle_exception(core &, int);
 extern void putpacket(char *buffer);
 
 void Die(char *mess)
@@ -46,8 +46,8 @@ void print_usage(const char *prog_name)
 void sig_usr1(int sigval)
 {
 	printf("SIGUSR!\\n");
-	if(ZeArch != NULL)
-		ZeArch->stopSimu(18);
+	if(ZeCore != NULL)
+		ZeCore->stopSimu(18);
 }
 
 /* Handle du signal SIGTERM */
@@ -55,8 +55,8 @@ void sig_term(int sigval)
 {
 	printf("SIGTERM!\\n");
 	continu = false;
-	if(ZeArch != NULL)
-		ZeArch->stopSimu(18); /* Stop la simulation */
+	if(ZeCore != NULL)
+		ZeCore->stopSimu(18); /* Stop la simulation */
 	fflush(stdout);
 }
 
@@ -108,15 +108,15 @@ int main(int argc, char *argv[])
 	}
 
 	/* Init du simulateur */
-	ZeArch = new arch();
-	if(!(ZeArch->readCodeFile(pcf)))
+	ZeCore = new core();
+	if(!(ZeCore->readCodeFile(pcf)))
 	{
 		fprintf(stderr, "Error during reading of code file\\n");
 		exit(1);
 	}
 	free(pcf);
-	ZeArch->setExecutionMode(arch::ISS);
-	ZeArch->setProgramCounter(0x0);
+	ZeCore->setExecutionMode(core::ISS);
+	ZeCore->setProgramCounter(0x0);
 
 	/* Init du serveur TCP/IP */
 
@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
 	int h_e_ret = 0;
 
 	/* Donne la main à GDB */
-	if((h_e_ret = handle_exception(*ZeArch, sigval))<0)
+	if((h_e_ret = handle_exception(*ZeCore, sigval))<0)
 		continu = 0;
 
 	while(continu)
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
 #ifdef DEBUG
 		printf("Execution du programme\\n");
 #endif
-		while(!(sigval = ZeArch->execInst(1000))); /* Execute en boucle 1000 instruction */
+		while(!(sigval = ZeCore->execInst(1000))); /* Execute en boucle 1000 instruction */
 
 #ifdef DEBUG
 		printf("Programme interrompu [\%d]\\n", sigval);
@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
 		if(!h_e_ret && continu)
 		{
 			/* Donne la main à GDB */
-			if((h_e_ret = handle_exception(*ZeArch, sigval)) < 0)
+			if((h_e_ret = handle_exception(*ZeCore, sigval)) < 0)
 				continu = 0;
 		}
 

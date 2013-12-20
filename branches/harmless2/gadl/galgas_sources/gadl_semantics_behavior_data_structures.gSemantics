@@ -5,137 +5,214 @@ semantics gadl_semantics_behavior_data_structures :
   import "gadl_semantics_implementation.gSemantics" ;
   import "gadl_semantics_function.gSemantics" ;  
 
-#############  Chunk definition ##############  
+abstract class @ASTbehaviorChunk{
+  @location loc;
+}
 
-#a chunk is an implementation part, a ref, an agg or an alt.
-abstract class @behaviorChunk
+#We use a list here, because we need to keep the declaration order.
+list @ASTbehaviorChunkList
 {
+  @ASTbehaviorChunk chunk;
 }
 
-# chunk is an implementation part.
-class @behaviorImplementation extends @behaviorChunk 
-{
-  @instructionList instList;
+class @ASTBehBody {
+  @location loc;
+  @ASTInstructionList fieldList;          #declaration of fields
+  @ASTInstructionList varDeclarationList; #declaration of local vars (outside implementation part).
+  @stringset referenceSet;                #reference -> for instruction signature
+  @ASTbehaviorChunkList chunkList;        #either implementation, select or behavior call.
 }
 
-# used to know if it is a ref or an idf (agg or alt).
-abstract class @idfOrRefBehavior extends @behaviorChunk 
-{
-  @lstring name;
+list @ASTBehBodyList {
+  @ASTBehBody body;
 }
 
-class @idfOrRefBehaviorIsIdf extends @idfOrRefBehavior
-{
-  @parameterCallList paramCall;
-  @lstring postRefName; #string to add in the called behavior. (suffix)
-}
-
-#get the field.
-map @fieldBehaviorMap {
-  @varType type;
-  insert insertKey error message "the field '%K' is already declared in %L" ; 
-  search searchKey error message "the field '%K' is not defined in the behavior" ;
-}
-
-class @idfOrRefBehaviorIsRef extends @idfOrRefBehavior
-{
-  @instructionList instList;
-  @fieldBehaviorMap fieldMap;
-}
-
-class @idfOrRefBehaviorIsDeclarationRef extends @idfOrRefBehavior
-{
-}
-
-list @behaviorChunkList {
-  @behaviorChunk chunk;
-}
-
-#This map is used to get back instruction list for each CPU instruction.
-#Key is the CPU instruction..
-map @instructionListMap {
-  @instructionList instList;
-  insert insertKey error message "the field '%K' is already declared in %L" ; 
-  search searchKey error message "the field '%K' is not defined in the instruction map" ;
-}
-
-
-list @behaviorChunkListWithSuffix {
-  @behaviorChunk chunk;
-  @stringlist suffixList;
-  @idfOrRefBehaviorIsIdf parent; #caller of this behavior chunk (in the tree).
-  @stringlist parentSuffixList;
-}
-
-list @idfOrRefBehaviorList
-{
-  @idfOrRefBehavior format;
-}
-
-list @behaviorChunkListWithSuffixList {
-  @behaviorChunkListWithSuffix chunkList;
-}
-
-#map with ref, agg, alt call only (one map for each alternative).
-#only used to check for redundancy.
-map @behaviorCallMap {
-  insert insertKey error message "the '%K' reference behavior is already defined in %L" ; 
-  search searchKey error message "the '%K' reference behavior is not defined" ;
-}
-
-#this map is filled during the first pass.
-#each agg/alt have a different name.
-map @behaviorPrototypeMap {
-  @parameterDefList param;
-  insert insertKey error message "the '%K' behavior is already defined in %L" ; 
-  search searchKey error message "the '%K' behavior is not defined" ;
-}
-
-########### data storage ##############
-
-#What is contained into a behavior (agg or alt).
-abstract class @behavior {
-  @behaviorChunkList chunkList;
-  @fieldBehaviorMap fieldMap;
-}
-
-class @aggBehavior extends @behavior {
-}
-
-class @altBehavior extends @behavior {
-}
-
-map @behaviorMap {
-  @behavior behavior;
+#base.
+map @ASTbehaviorMap {
+  @parameterDefList parameterDefList;     #for non root behavior only
+  @ASTBehBody body;
   insert insertKey error message "the '%K' behavior is already defined in %L" ; 
   search searchKey error message "the '%K' behavior is not defined in map" ;
   remove removeKey error message "the '%K' behavior is not defined and cannot be removed." ;
 }
 
-#This map stores all information about the instruction behavior 
-#of a correct behavior (fields match with format):
-# * the key is the instruction name
-# * the behavior chunk list (including suffix)
-# * the reference sequence (#A #B ...). It is a set.
+#implementation part
+class @ASTbehChunkImplementation extends @ASTbehaviorChunk 
+{
+  @ASTInstructionList instList;
+}
+
+#call another behavior
+class @ASTbehChunkCall extends @ASTbehaviorChunk
+{
+  @lstring behaviorCallName;
+  @ASTExpressionlist idfExpList;
+  @lstring postRefName; 
+}
+
+#select part
+class @ASTbehChunkSelect extends @ASTbehaviorChunk
+{
+  @ASTBehBodyList bodyList;
+}
+
+#list used to build the structure for each instruction
+# -> This list is used only in the generation process, when the 
+#    final signature of the instruction is not known.
+# -> After, the list is transformed to a map, for an 
+#    easier access, and to check for double declaration.
+list @decodedBehaviorList {
+  @stringset refSet;         #references (signature) 
+  @lstringlist path;         #debug use: give the path. Used for errors/debug.
+  @instructionList instList; #code
+}
+
+
+#final structure that is exported.
 # NOTE THAT if an instruction does not have a corresponding format, the instruction
 #      should not appear in this map.
-map @decodedInstBehaviorMap
-{
-  @behaviorChunkListWithSuffix chunkList;
-  @stringset referenceSeq;
+map @decodedBehaviorMap {
+  @stringset refSet;          #references (signature) 
+  @instructionList instList;  #code
+  @lstringlist path;          #debug use: give the path. Used for errors/debug.
   insert insertKey error message "the '%K' behavior is already defined in %L" ; 
   search searchKey error message "the '%K' behavior is not defined in map" ;
-  remove removeKey error message "the '%K' instruction is not defined and cannot be removed." ;
+  remove removeKey error message "the '%K' behavior is not defined and cannot be removed." ;
 }
 
-#to store branch instruction
-map @branchInstMap {
-  @instructionList targetEvalInstList;
-  @bool noCond;
-  @bool unknownStaticTarget;
-  insert insertKey error message "the '%K' branch instruction is already defined in %L" ; 
-  search searchKey error message "the '%K' branch instruction is not defined" ;
-}
 
+
+##############  Chunk definition ##############  
+#
+##a chunk is an implementation part, a ref, an agg or an alt.
+#abstract class @behaviorChunk
+#{
+#}
+#
+## chunk is an implementation part.
+#class @behaviorImplementation extends @behaviorChunk 
+#{
+#  @instructionList instList;
+#}
+#
+## used to know if it is a ref or an idf (agg or alt).
+#abstract class @idfOrRefBehavior extends @behaviorChunk 
+#{
+#  @lstring name;
+#}
+#
+#class @idfOrRefBehaviorIsIdf extends @idfOrRefBehavior
+#{
+#  @parameterCallList paramCall;
+#  @lstring postRefName; #string to add in the called behavior. (suffix)
+#}
+#
+##get the field.
+#map @fieldBehaviorMap {
+#  @varType type;
+#  insert insertKey error message "the field '%K' is already declared in %L" ; 
+#  search searchKey error message "the field '%K' is not defined in the behavior" ;
+#}
+#
+#class @idfOrRefBehaviorIsRef extends @idfOrRefBehavior
+#{
+#  @instructionList instList;
+#  @fieldBehaviorMap fieldMap;
+#}
+#
+#class @idfOrRefBehaviorIsDeclarationRef extends @idfOrRefBehavior
+#{
+#}
+#
+#list @behaviorChunkList {
+#  @behaviorChunk chunk;
+#}
+#
+##This map is used to get back instruction list for each CPU instruction.
+##Key is the CPU instruction..
+#map @instructionListMap {
+#  @instructionList instList;
+#  insert insertKey error message "the field '%K' is already declared in %L" ; 
+#  search searchKey error message "the field '%K' is not defined in the instruction map" ;
+#}
+#
+#
+#list @behaviorChunkListWithSuffix {
+#  @behaviorChunk chunk;
+#  @stringlist suffixList;
+#  @idfOrRefBehaviorIsIdf parent; #caller of this behavior chunk (in the tree).
+#  @stringlist parentSuffixList;
+#}
+#
+#list @idfOrRefBehaviorList
+#{
+#  @idfOrRefBehavior format;
+#}
+#
+#list @behaviorChunkListWithSuffixList {
+#  @behaviorChunkListWithSuffix chunkList;
+#}
+#
+##map with ref, agg, alt call only (one map for each alternative).
+##only used to check for redundancy.
+#map @behaviorCallMap {
+#  insert insertKey error message "the '%K' reference behavior is already defined in %L" ; 
+#  search searchKey error message "the '%K' reference behavior is not defined" ;
+#}
+#
+##this map is filled during the first pass.
+##each agg/alt have a different name.
+#map @behaviorPrototypeMap {
+#  @parameterDefList param;
+#  insert insertKey error message "the '%K' behavior is already defined in %L" ; 
+#  search searchKey error message "the '%K' behavior is not defined" ;
+#}
+#
+############ data storage ##############
+#
+##What is contained into a behavior (agg or alt).
+#abstract class @behavior {
+#  @behaviorChunkList chunkList;
+#  @fieldBehaviorMap fieldMap;
+#}
+#
+#class @aggBehavior extends @behavior {
+#}
+#
+#class @altBehavior extends @behavior {
+#}
+#
+#map @behaviorMap {
+#  @behavior behavior;
+#  insert insertKey error message "the '%K' behavior is already defined in %L" ; 
+#  search searchKey error message "the '%K' behavior is not defined in map" ;
+#  remove removeKey error message "the '%K' behavior is not defined and cannot be removed." ;
+#}
+#
+##This map stores all information about the instruction behavior 
+##of a correct behavior (fields match with format):
+## * the key is the instruction name
+## * the behavior chunk list (including suffix)
+## * the reference sequence (#A #B ...). It is a set.
+## NOTE THAT if an instruction does not have a corresponding format, the instruction
+##      should not appear in this map.
+#map @decodedInstBehaviorMap
+#{
+#  @behaviorChunkListWithSuffix chunkList;
+#  @stringset referenceSeq;
+#  insert insertKey error message "the '%K' behavior is already defined in %L" ; 
+#  search searchKey error message "the '%K' behavior is not defined in map" ;
+#  remove removeKey error message "the '%K' instruction is not defined and cannot be removed." ;
+#}
+#
+##to store branch instruction
+#map @branchInstMap {
+#  @instructionList targetEvalInstList;
+#  @bool noCond;
+#  @bool unknownStaticTarget;
+#  insert insertKey error message "the '%K' branch instruction is already defined in %L" ; 
+#  search searchKey error message "the '%K' branch instruction is not defined" ;
+#}
+#
 end semantics ;
 # vim:ft=ggs:ts=2:sw=2

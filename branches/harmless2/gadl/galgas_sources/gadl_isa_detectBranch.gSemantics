@@ -1,0 +1,382 @@
+semantics gadl_isa_detectBranch:
+  import "gadl_semantics_behavior.gSemantics"; #@decodedBehaviorMap
+  import "gadl_semantics_expression_eval.gSemantics";
+  import "gadl_templates.gSemantics" ;
+
+##################################################################
+## This method:
+## * detect if PC can be modified (i.e. is it a branch instruction?)
+## * generate the code (instructionList) to calculate the branch Target.
+## It should go inside components'method code
+## if there is a condition ('if'), then there are different cases:
+##   * the evaluation of the condition is const -> unconditional branch -> no pb.
+##   * only one branch can modifiy the PC -> conditional branch. 
+##     We only take the branch that updates PC.
+##   * 2 branch modify PC. With is an unknown behavior 
+##     -> impossible to detect statically.
+##################################################################
+#Main routine and functions:
+# map @branchInstMap (map definition)
+# method:
+# * @branchInstMap updateTemplateForJumpInstructions : template export.
+# * @branchInstMap debug : debug message
+# reader:
+# * @branchInstMap getBranchInstructions: populate the map.
+# other:
+# * @instruction processBranchTarget (and sub-classes).
+
+#at this date, cannot get the static target of branch (as in gadl1).
+map @branchInstMap {
+  @instructionList targetEvalInstList;
+  @bool noCond;
+  @bool unknownStaticTarget;
+
+  insert insertKey error message "the '%K' branch instruction is already defined in %L" ; 
+  search searchKey error message "the '%K' branch instruction is not defined" ;
+}
+
+method @branchInstMap updateTemplateForJumpInstructions
+  ?! @TfieldMap templateStruct
+:
+  @TfieldMapList branchTpl [emptyList];
+  foreach selfcopy (@lstring instName * * *) do
+    @TfieldMap branchTplBody [emptyMap];
+    addLStringValue !?branchTplBody !"name" !instName;
+    branchTpl += !branchTplBody;
+  end foreach;
+  addListValue !?templateStruct !lstringWith[!"branchInstList"] !branchTpl;
+end method;
+
+method @branchInstMap debug
+:
+  message "branch detection\n";
+  foreach selfcopy do
+    message "####################################################################\n";
+    message "Instruction ".[lkey string]." : ";
+    if noCond then message "unconditionnal, "; else message "conditionnal, "; end if;
+    if unknownStaticTarget then message "unkown target"; else message "target OK"; end if;
+    if not unknownStaticTarget then
+      message "##########################\n";
+      message generateCode[!targetEvalInstList !1 ![@codeCtx C]];
+    end if;
+    message "####################################################################\n";
+  end foreach;
+end method;
+
+#return list of instructions that can modify the PC
+reader @decodedBehaviorMap getBranchInstructions
+  ?? @varIdfStruct idfStruct
+  -> @branchInstMap branchInstMap
+:
+  branchInstMap := [@branchInstMap emptyMap];
+  foreach selfcopy do
+    @instructionList targetEvalInstList [emptyList];
+    #becomes true if PC may be written
+    @bool isABranch := false;
+    #is true if PC is always written (unconditional branch)
+    @bool noCond := true ;
+    #become true if it can't be resolved statically (indirect branch for instance).
+    @bool unknownStaticTarget := false;
+    #stores value of symbol if they are constants.
+    @symbolValueMap symbolValueMap [emptyMap];
+
+    foreach instList while not isABranch do
+      targetEvalInstList += !inst;
+      [inst processBranchTarget !idfStruct !?targetEvalInstList !?isABranch !?noCond !?unknownStaticTarget !?symbolValueMap];
+    end foreach;
+
+    if isABranch then
+      [!?branchInstMap insertKey !lkey !targetEvalInstList !noCond !unknownStaticTarget];
+    end if;
+  end foreach;
+end reader;
+
+#back from gadl1
+
+abstract method @instruction processBranchTarget 
+  ?? @varIdfStruct idfStruct 
+  ?! @instructionList unused targetEvalInstList
+  ?! @bool isABranch
+  ?! @bool noCond
+  ?! @bool unknownStaticTarget
+  ?! @symbolValueMap symbolValueMap
+;
+
+override method @instError processBranchTarget 
+  ?? @varIdfStruct unused idfStruct 
+  ?! @instructionList unused targetEvalInstList
+  ?! @bool unused isABranch
+  ?! @bool unused noCond
+  ?! @bool unused unknownStaticTarget
+  ?! @symbolValueMap unused symbolValueMap
+:
+end method;
+
+override method @instMessage processBranchTarget 
+  ?? @varIdfStruct unused idfStruct 
+  ?! @instructionList unused targetEvalInstList
+  ?! @bool unused isABranch
+  ?! @bool unused noCond
+  ?! @bool unused unknownStaticTarget
+  ?! @symbolValueMap unused symbolValueMap
+:
+end method;
+
+override method @instPrint processBranchTarget 
+  ?? @varIdfStruct unused idfStruct 
+  ?! @instructionList unused targetEvalInstList
+  ?! @bool unused isABranch
+  ?! @bool unused noCond
+  ?! @bool unused unknownStaticTarget
+  ?! @symbolValueMap unused symbolValueMap
+:
+end method;
+
+override method @instNop processBranchTarget 
+  ?? @varIdfStruct unused idfStruct 
+  ?! @instructionList unused targetEvalInstList
+  ?! @bool unused isABranch
+  ?! @bool unused noCond
+  ?! @bool unused unknownStaticTarget
+  ?! @symbolValueMap unused symbolValueMap
+:
+end method;
+
+override method @instIf processBranchTarget 
+  ?? @varIdfStruct idfStruct 
+  ?! @instructionList targetEvalInstList
+  ?! @bool isABranch
+  ?! @bool noCond
+  ?! @bool unknownStaticTarget
+  ?! @symbolValueMap symbolValueMap
+:
+  #first evaluate condition expression.
+  @expression expEval := [cond eval !symbolValueMap];
+  @bool expConst := false; #true if the expression is constant -> can be evaluated statically
+  @bool expState := false; #result of the condition (usable only if expConst is true).
+  cast expEval
+    when == @expIntConst constVal :
+      expConst := true;
+      expState := ([constVal value] != 0L);
+    else
+  end cast;
+
+  @bool isABranchIf := isABranch; #isABranch in 'if' instruction flow
+  @bool isABranchElse := isABranch; #isABranch in 'else' instruction flow
+  @instructionList targetEvalInstListIf [emptyList];
+  @instructionList targetEvalInstListElse [emptyList];
+
+  if not expConst | expState then #evaluated if condition is not const or if condition is true
+    #TODO: variable allocation not taken into account in instruction if block.
+    @symbolValueMap symbolValueMapIf := symbolValueMap;
+    foreach instIfList while not isABranchIf do
+        targetEvalInstListIf += !inst;
+        [inst processBranchTarget !idfStruct !?targetEvalInstListIf !?isABranchIf !?noCond !?unknownStaticTarget !?symbolValueMapIf];
+    end foreach ;
+  end if;
+  if not expConst | not expState then #evaluated if condition is not const or if condition is false
+    @symbolValueMap symbolValueMapElse := symbolValueMap;
+    foreach instElseList while not isABranchElse do
+        targetEvalInstListElse += !inst;
+        [inst processBranchTarget !idfStruct !?targetEvalInstListElse !?isABranchElse !?noCond !?unknownStaticTarget !?symbolValueMapElse];
+    end foreach ;
+  end if;
+
+  #detect unconditional branches.
+  if (not expConst) & (isABranchIf != isABranchElse) then
+    #only one instruction list updated the PC. This is a conditional branch.
+    noCond := false;
+    isABranch := true; #as at least one instruction flow changed PC.
+  else
+    if expConst then
+      if expState then isABranch := isABranchIf;
+      else isABranch := isABranchElse;
+      end if;
+    else
+      isABranch := isABranchIf; #as they are identical.
+    end if;
+  end if;
+  #If the 2 branches change PC, the target can't be detected statically.
+  if (not expConst) & isABranchIf==true & isABranchElse==true then
+    unknownStaticTarget := true;
+  end if;
+  #update the targetEvalInstList to generate the code to detect the branch.
+  if isABranch then
+    if isABranchIf then
+      targetEvalInstList := targetEvalInstList.targetEvalInstListIf;
+    else
+      targetEvalInstList := targetEvalInstList.targetEvalInstListElse;
+    end if;
+  end if;
+end method;
+
+override method @instDeclaration processBranchTarget 
+  ?? @varIdfStruct unused idfStruct 
+  ?! @instructionList unused targetEvalInstList
+  ?! @bool unused isABranch
+  ?! @bool unused noCond
+  ?! @bool unused unknownStaticTarget
+  ?! @symbolValueMap unused symbolValueMap
+:
+end method;
+
+override method @instTypeDefinition processBranchTarget 
+  ?? @varIdfStruct unused idfStruct 
+  ?! @instructionList unused targetEvalInstList
+  ?! @bool unused isABranch
+  ?! @bool unused noCond
+  ?! @bool unused unknownStaticTarget
+  ?! @symbolValueMap unused symbolValueMap
+:
+end method;
+
+override method @instLoop processBranchTarget 
+  ?? @varIdfStruct unused idfStruct 
+  ?! @instructionList unused targetEvalInstList
+  ?! @bool unused isABranch
+  ?! @bool unused noCond
+  ?! @bool unused unknownStaticTarget
+  ?! @symbolValueMap unused symbolValueMap
+:
+  #TODO: does not explore inside a loop.
+  ##search in instruction list.
+  #foreach code (@cInstruction inst) while not isABranch do
+  #    [inst processBranchTarget !idfStruct !?targetEvalInstList !?isABranch !?noCond !?unknownStaticTarget !?symbolValueMapInComponent];
+  #end foreach ;
+end method;
+
+#import "gadl_semantics_implementation_code_generation.gSemantics";
+
+reader @varMap isProgramCounter
+  ?? @expIdf idf
+  -> @bool result
+:
+  result := false;
+  if [idf detectedType] == [@idfType registerAccess] then
+    @lstring name;
+    [[idf idfList] first ?name ?* ?*];
+    if [selfcopy hasKey ![name string]] then
+      @varClass varClass;
+      [selfcopy searchKey !name ?* ?* ?varClass ?*];
+      if varClass == [@varClass programCounter] then
+        result := true;
+      end if;
+    end if;
+  end if;
+end reader;
+
+override method  @instAssignment processBranchTarget 
+  ?? @varIdfStruct idfStruct 
+  ?! @instructionList unused targetEvalInstList
+  ?! @bool isABranch
+  ?! @bool unused noCond
+  ?! @bool unused unknownStaticTarget
+  ?! @symbolValueMap symbolValueMap
+:
+  if [idfStruct->varMap isProgramCounter !idf] then
+    isABranch := true;
+  end if;
+  if [idf detectedType] == [@idfType registerAccess] |
+     [idf detectedType] == [@idfType localVar] then
+     [[idf idfList] first ?@lstring name ?* ?*];
+     updateSymbolMap !?symbolValueMap !name !exp;
+  end if;
+end method;
+
+override method @instReturn processBranchTarget 
+  ?? @varIdfStruct unused idfStruct 
+  ?! @instructionList unused targetEvalInstList
+  ?! @bool unused isABranch
+  ?! @bool unused noCond
+  ?! @bool unused unknownStaticTarget
+  ?! @symbolValueMap unused symbolValueMap
+:
+end method;
+
+method @varIdfStruct getComponentMethodCode
+  ?? @expIdf idf
+  ! @instructionList instList 
+  ! @parameterDefList param
+  ! @expressionlist methParamList
+:
+  #check that it is a component call.
+  @idfItemList idfListCopy := [idf idfList];
+  #first item  -> component name
+  #second item -> method name
+  [!?idfListCopy popFirst ?@lstring componentName ?@idfItemType CompType ?@expressionlist compParamList];
+  if [selfcopy->componentMap hasKey ![componentName string]] then 
+    #ok, it is a component call.
+    [!?idfListCopy popFirst ?@lstring methodName ?@idfItemType methType ?methParamList];
+    #and only 2 items.
+    if [idfListCopy length] != 0 then
+      error componentName: "a component call should have bot the component name and the associated method name";
+    end if;
+    #check item types.
+    if CompType != [@idfItemType basic] then 
+      error componentName: "Type of component mismatch.";
+    end if;
+    if [compParamList length] >0 then
+      error componentName : "Cannot handle a tabular of components";
+    end if;
+    if methType != [@idfItemType functionCall] then 
+      error methodName : "The method name is not refered as a function call";
+    end if;
+    #Then get code.
+    [selfcopy->componentMap searchKey !componentName ?@functionMap methodMap];
+    #may check again parameters? only done.
+    [methodMap searchKey !methodName ?param ?* ?instList];
+  else
+    #this is not a component call.
+    instList := [@instructionList emptyList];
+    param := [@parameterDefList emptyList];
+    methParamList := [@expressionlist emptyList];
+  end if;
+end method;
+
+override method @instFunctionCall processBranchTarget 
+  ?? @varIdfStruct idfStruct 
+  ?! @instructionList targetEvalInstList
+  ?! @bool isABranch
+  ?! @bool noCond
+  ?! @bool unknownStaticTarget
+  ?! @symbolValueMap symbolValueMap
+:
+  [idfStruct getComponentMethodCode !exp ?@instructionList instList ?@parameterDefList paramDef ?@expressionlist paramList];
+  #
+  #update the symbol map with values in parameter.
+  #
+  @symbolValueMap symbolValueMapInComponent := symbolValueMap;
+  foreach paramDef(* * @lstring name) do
+    if [symbolValueMapInComponent hasKey ![name string]] then
+      #same name used in component. the symbol is now associated to the one in the component.
+      [!?symbolValueMapInComponent removeKey !name ?* ?*];
+    end if;
+  end foreach;
+  foreach paramList (@expression exp), paramDef(@bool out * @lstring name) do
+    updateSymbolMap !?symbolValueMapInComponent !name !exp;
+  end foreach;
+
+  #then search in instruction list.
+  foreach instList (@instruction inst) while not isABranch do
+    targetEvalInstList += !inst;
+    [inst processBranchTarget !idfStruct !?targetEvalInstList !?isABranch !?noCond !?unknownStaticTarget !?symbolValueMapInComponent];
+  end foreach ;
+
+  #update with parameters that are defined as out.
+  foreach paramList (@expression exp), paramDef(@bool out * @lstring name) do
+    if out then
+      @lstring varName := [exp getLocalVar !loc];
+      #this is an out expression. Get back the value.
+      if [symbolValueMapInComponent hasKey ![varName string]] then
+        @uint64 value;
+        @bool negative;
+        [symbolValueMapInComponent searchKey !varName ?value ?negative];
+        [!?symbolValueMap insertKey !varName !value !negative];
+      end if;
+    end if;
+  end foreach;
+end method;
+
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

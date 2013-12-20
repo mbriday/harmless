@@ -1,18 +1,23 @@
 program gadl_program :
-import "gadl_grammar.gGrammar" ;
+import "gadl_semantics.gSemantics" ;
+import "gadl_core_grammar.gGrammar" ;
 
+#--- Prologue routine
 before {
 }
 
-when . "hadl"
-  message "a gadl file that can be parsed with an LL1 grammar"
-  indexing with gadl_grammar
-  ??@lstring inSourceFile {
-    grammar gadl_grammar in inSourceFile;
-  }
+#--- 'when' clauses
+when . "core"
+message "a source text file with the .core extension"
+??@lstring inSourceFile {
+  grammar gadl_core_grammar in inSourceFile ;
+}
 
+#--- Epilogue routine
 after {
 }
+
+#---
 
 end program ;
 # vim:ft=ggs:ts=2:sw=2

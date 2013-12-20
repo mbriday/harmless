@@ -2,6 +2,11 @@ semantics gadl_semantics_syntax :
   import "gadl_options.gOption" ;
   import "gadl_semantics.gSemantics" ;
   import "gadl_semantics_format.gSemantics" ;
+  import "gadl_semantics_GetExp.gSemantics" ;
+  import "gadl_semantics_expression_code_generation.gSemantics" ; #castCode routine;
+  import "gadl_semantics_implementation_code_generation.gSemantics" ; #tabs
+
+
 
 #----------------------------------------------------------------------------
 #--- Syntax
@@ -16,17 +21,15 @@ map @printNumberTypeMap {
 #############  Chunk definition ############## 
 abstract class @syntaxChunk{
 }
-abstract method @syntaxChunk printImplementation ??@uint indentation ??@string currentSuffixStr ?!@string code ??@printNumberTypeMap typeMap ??@bool switchGenerate;
+abstract method @syntaxChunk printImplementation ??@varMap fieldMapWithoutSuffix ??@uint indentation ??@string currentSuffixStr ?!@string code ??@printNumberTypeMap typeMap ??@bool switchGenerate;
 
 
 list @syntaxChunkList {
   @syntaxChunk chunk;
 }
 
-#TODO: remove the type associated :-/
 list @syntaxArgsList {
-  @cExpression exp;
-  @varType varType;
+  @ASTExpression exp;
 }
 
 class @printInst {
@@ -38,7 +41,7 @@ routine printTypeName
   ?? @printNumberTypeMap typeMap 
   ?? @char charNext
   ?! @string reg
-  ?? @varType expType
+  ?? @varBaseType expType
 :
   @lstring prefixDec := [@lstring new ![charNext string] . "_p" !here];
   @lstring suffixDec := [@lstring new ![charNext string] . "_s" !here];
@@ -73,6 +76,7 @@ end routine;
 #and in case of generating of Syntax.log, it returns file1 containing for example: AND Rrd1Index, Rrs1Index
 #and file2 is empty (file2 := "";)
 routine print
+  ?? @varMap fieldMapWithoutSuffix
   ?? @printInst printInst
   ?? @printNumberTypeMap typeMap
   ?? @string currentSuffixStr
@@ -96,29 +100,37 @@ routine print
       charNext := [str characterAtIndex !(i+1)];
     end if ;
     if [args length] != 0 then
-      foreach args(@cExpression arg *) do
+      foreach args(@ASTExpression ASTargUnused) do
         if not ok then
           if (char == '\\') & ((charNext == 'd') | (charNext == 'x') | (charNext == 'b') | (charNext == 'o')) then
-            @cExpression exp;
-            @varType expType;
-            [!?args popFirst ?exp ?expType];
+            [!?args popFirst ?@ASTExpression ASTarg];    
+            @expression arg;
+            @lstring emptyLString := [@lstring new !"" !here];
+            @varIdfStruct idfStruct [default];
+            idfStruct->varMap := fieldMapWithoutSuffix;
+            idfStruct->idfSuffixName := currentSuffixStr;
+            #message "arg -> ".[[ASTarg loc] locationString]."\n";
+            arg := [ASTarg getExp ![@expressionContext syntaxView] ![@symbolValueMap emptyMap] !idfStruct];
+          
+            @varBaseType type := [[arg type] getBaseType];
             if switchGenerate then
-              printTypeName !typeMap !charNext !?reg !expType;
+              printTypeName !typeMap !charNext !?reg !type;
               file2 .= ",";
               if charNext == 'b' then
                 file2 .= "dtobin(";
               end if;
               #cast for correct print.
               @location loc := [[printInst str] location];
-#              @varType expType;
-#              checkOneExpressionOutType !exp ?expType;
-              if [expType size] <= 32 then
+              if [type size] <= 32 then
                 file2 .= "(u32)(";
-                castCode !exp ![@varType new ![@varKind unsigned] !32 !loc] !"" !currentSuffixStr !?file2 ! false ![@codeCtx C];
+
+                castCode !arg ![@varBaseType new ![@varKind unsigned] !32 !loc] !?file2 ! false ![@codeCtx C];
+                #castCode !exp ![@varType new ![@varKind unsigned] !32 !loc] !"" !currentSuffixStr !?file2 ! false ![@codeCtx C];
                 file2 .=")";
-              elsif [expType size] <= 64 then #TODO: fix with '63' for galgas 1.8.6
+              elsif [type size] <= 64 then
                 file2 .= "(u64)(";
-                castCode !exp ![@varType new ![@varKind unsigned] !63 !loc] !"" !currentSuffixStr !?file2 ! false ![@codeCtx C];
+                castCode !arg ![@varBaseType new ![@varKind unsigned] !64 !loc] !?file2 ! false ![@codeCtx C];
+                #castCode !exp ![@varType new ![@varKind unsigned] !63 !loc] !"" !currentSuffixStr !?file2 ! false ![@codeCtx C];
                 file2 .=")";
               else
                 error loc: "cannot print value > 64 bits in mnemo.";
@@ -129,7 +141,7 @@ routine print
             end if;
             file1 .= reg;
             if not switchGenerate then
-              file1 .= [exp generateCode !"" !currentSuffixStr ![@codeCtx C]];
+              file1 .= [arg generateCode ![@codeCtx C]];
             end if;
             reg := "";
             i++;
@@ -154,6 +166,7 @@ class @printChunk extends @syntaxChunk {
 }
 
 override method @printChunk printImplementation 
+  ?? @varMap fieldMapWithoutSuffix
   ?? @uint indentation
   ?? @string currentSuffixStr
   ?! @string code
@@ -163,12 +176,12 @@ override method @printChunk printImplementation
   code .= tabs[!indentation];
   @string file1 := "";
   @string file2 := "";
-  print !printInst !typeMap !currentSuffixStr !switchGenerate !?file1 !?file2;
+  print !fieldMapWithoutSuffix !printInst !typeMap !currentSuffixStr !switchGenerate !?file1 !?file2;
   code .= "index += sprintf (result + index,\"" . file1 . "\"" . file2 . ");\n"; 
 end method ;
 
 list @ifElsifList {
-  @cExpression elsifCondition ;
+  @ASTExpression elsifCondition ;
   @syntaxChunkList elsifInstructions ;
 }
 
@@ -176,27 +189,45 @@ class @ifChunk extends @syntaxChunk {
   @ifElsifList elsifList ;
   @syntaxChunkList elseInstructions ;
 }
-override method @ifChunk printImplementation ??@uint indentation ??@string currentSuffixStr ?!@string code ??@printNumberTypeMap typeMap ??@bool switchGenerate:
+
+override method @ifChunk printImplementation 
+  ?? @varMap fieldMapWithoutSuffix
+  ??@uint indentation 
+  ??@string currentSuffixStr 
+  ?!@string code 
+  ??@printNumberTypeMap typeMap 
+  ??@bool switchGenerate
+:
   # imprimer ifCondition
   @bool foundIf := false;
-  foreach elsifList (@cExpression elsifCondition @syntaxChunkList elsifInstructions) do
+  foreach elsifList (@ASTExpression ASTElsifCondition @syntaxChunkList elsifInstructions) do
+    @expression elsifCondition;
+    @lstring emptyLString := [@lstring new !"" !here];
+    @varIdfStruct idfStruct [default];
+    idfStruct->varMap := fieldMapWithoutSuffix;
+    idfStruct->idfSuffixName := currentSuffixStr;
+    elsifCondition := [ASTElsifCondition getExp ![@expressionContext syntaxView] ![@symbolValueMap emptyMap] !idfStruct];
+    @bool hasParenthesis := [elsifCondition hasParenthesis];
+  
     code .= tabs[!indentation];
     if not foundIf then
-      code .= "if(";
+      code .= "if";
       foundIf := true;
     else 
-      code .= "}else if(";
+      code .= "}else if";
     end if;
-    code .= [elsifCondition generateCode !"" ! currentSuffixStr ![@codeCtx C]];
-    code .= "){\n";
+    if not hasParenthesis then code .= "("; end if;  
+    code .= [elsifCondition generateCode ![@codeCtx C]];
+    if not hasParenthesis then code .= ")"; end if;      
+    code .= "{\n";
     foreach elsifInstructions (@syntaxChunk chunk) do
-      [chunk printImplementation !indentation+1 !currentSuffixStr !?code !typeMap !switchGenerate] ;
+      [chunk printImplementation !fieldMapWithoutSuffix !indentation+1 !currentSuffixStr !?code !typeMap !switchGenerate] ;
     end foreach ;
   end foreach ;
   if [elseInstructions length] > 0 then
     code .= tabs[!indentation]."}else{\n";
     foreach elseInstructions (@syntaxChunk chunk) do
-      [chunk printImplementation !indentation+1 !currentSuffixStr !?code !typeMap !switchGenerate] ;
+      [chunk printImplementation !fieldMapWithoutSuffix !indentation+1 !currentSuffixStr !?code !typeMap !switchGenerate] ;
     end foreach ;
   end if ;
   code .= tabs[!indentation]."}\n";
@@ -206,6 +237,7 @@ abstract class @idfOrRefSyntax extends @syntaxChunk {
   @lstring name;
 }
 override method @idfOrRefSyntax printImplementation 
+  ?? @varMap unused fieldMapWithoutSuffix
   ?? @uint unused indentation 
   ?? @string unused currentSuffixStr 
   ?! @string unused code 
@@ -259,9 +291,9 @@ list @syntaxLStringListList
   @lstringlist stringList;
 }
 
-############################################################################
-##  Routines to check Syntax's arguments 
-############################################################################
+###########################################################################
+#  Routines to check Syntax's arguments 
+###########################################################################
 routine giveSequenceSyntax
   ?? @syntaxChunkListWithSuffix chunkList 
 :
@@ -359,15 +391,14 @@ routine checkSyntaxInstructionWithFormatCompatibility
   foreach instructionList (@syntaxChunkListWithSuffix chunkList),
           referenceSeqList (@stringset referenceSeq),
           instructionSeqList (@lstringlist instList) do
-    @string instName;
-    getInstructionName !referenceSeq ![modelName string] ?instName;
+    @string instName := getInstructionName[!referenceSeq ![modelName string]];
     #first that the instruction extracted from syntax was declared in the format part.
     if not [impMap hasKey !instName] then
        error here : "internal error: The syntax signature of the instruction does not match any format instruction :-/";
     else
       #ok matching
       #then checks that each field is correctly set (name and type).
-      @instFieldMap instructionFieldMap;
+      @varBaseTypeMap instructionFieldMap;
       @lstring instNameLoc := [@lstring new !instName !here];
       [impMap searchKey !instNameLoc ?* ?* ?* ?* ?* ?* ?instructionFieldMap];
       #now get all the fields in the behavior.
@@ -385,43 +416,38 @@ routine checkSyntaxInstructionWithFormatCompatibility
         else fieldMap := [@varMap emptyMap];
         end cast;
         #check that each entry in the field Map is declared in the format.
-        foreach fieldMap (@lstring name @abstractVar abstractVar) do
+        foreach fieldMap (@lstring name @varAbstractType abstractType ...) do
           @lstring nameWithSuffix := [@lstring new ![name string].suffixName ![name location]];
-          cast abstractVar
-          when == @classicVar classicVar :
-            @varType type := [classicVar type];
-            #field declared?
-            nbFields := nbFields + 1;
-            @varType formatType;
-            @bool errorFound := false;
-            if [instructionFieldMap hasKey ![nameWithSuffix string]] then
-              [instructionFieldMap searchKey !nameWithSuffix ?formatType];
-            else
-              @string errorStr := "cannot find the field ".[nameWithSuffix string].
-                                  " in the format description of instruction ";
-              printInstructionId ! referenceSeq !? errorStr;
-              error [name location]: errorStr :formatType;
-            end if;
-            #size?
-            if [type size] < [formatType size] then
-              error [name location]: "the type size (".[[type size] string]." bits) for the data field". 
-                                     "in instruction is not compatible with the one declared ".
-                                     "in the format description (".[[formatType size] string]." bits)".
-                                     "\nThe syntax sequence found is:\n";
-              errorFound := true;
-            end if;
-            #sign?
-            if [type kind] != [formatType kind] then
-              error [name location]: "the kind (unsigned, signed or float) for the data field in instruction is ".
-                                     "not compatible with the one declared in the format ".
-                                     "description\nThe syntax sequence found is:\n";
-              errorFound := true;
-            end if;
-            if errorFound then 
-              giveSequenceSyntax !chunkList ;
-            end if;
-          else error here: "internal error. Found a register instead of a classic var in syntax.";
-          end cast;
+          @varBaseType type := [abstractType getBaseType];
+          nbFields := nbFields + 1;
+          @varBaseType formatType;
+          @bool errorFound := false;
+          if [instructionFieldMap hasKey ![nameWithSuffix string]] then
+            [instructionFieldMap searchKey !nameWithSuffix ?formatType];
+          else
+            @string errorStr := "cannot find the field ".[nameWithSuffix string].
+                                " in the format description of instruction ";
+            printInstructionId ! referenceSeq !? errorStr;
+            error [name location]: errorStr :formatType;
+          end if;
+          #size?
+          if [type size] < [formatType size] then
+            error [name location]: "the type size (".[[type size] string]." bits) for the data field". 
+                                   "in instruction is not compatible with the one declared ".
+                                   "in the format description (".[[formatType size] string]." bits)".
+                                   "\nThe syntax sequence found is:\n";
+            errorFound := true;
+          end if;
+          #sign?
+          if [type kind] != [formatType kind] then
+            error [name location]: "the kind (unsigned, signed or float) for the data field in instruction is ".
+                                   "not compatible with the one declared in the format ".
+                                   "description\nThe syntax sequence found is:\n";
+            errorFound := true;
+          end if;
+          if errorFound then 
+            giveSequenceSyntax !chunkList ;
+          end if;
         end foreach;
       end foreach;
     end if;
@@ -455,9 +481,9 @@ routine setInstructionSequencesSyntaxForOneInstruction
     end cast;
   end foreach;
 end routine;
-
-# instructionSeqList -> for logs
-# referenceSeqList -> internal use
+#
+## instructionSeqList -> for logs
+## referenceSeqList -> internal use
 routine setInstructionSequencesSyntax
   ?? @syntaxChunkListWithSuffixList instructionList  
   !  @syntaxLStringListList instructionSeqList
@@ -478,7 +504,7 @@ routine setInstructionSequencesSyntax
     referenceSeqList += !referenceSeq;
   end foreach;
 end routine;
-
+#
 #used only in the syntax log.
 routine printFieldName 
   ?? @syntaxMap syntaxMap
@@ -503,21 +529,43 @@ routine printFieldName
       else file .= "\t               ";
       end if;
       @bool start := true;
-      foreach fieldMap (@lstring name @abstractVar abstractVar) do
-        cast abstractVar
-        when == @classicVar classicVar :
-          @varType type := [classicVar type];
-          if not start then file .= "\t               "; end if;
-          file .= [name string]." (".[[type size] string]." bits)\n";
-          start := false;
-        else error here : "internal error.Found a register instead of a classic var in syntax.";
-        end cast;
+      foreach fieldMap (@lstring name @varAbstractType VATtype ...) do
+        if not start then file .= "\t               "; end if;
+        start := false;
+        @varBaseType type := [VATtype getBaseType];
+        file .= [name string]." (".[[type size] string]." bits)\n";
       end foreach;
     end if;
   end foreach;
 end routine;
 
+#generate the whole fieldmap 
+#(without any suffix (@). This is useful for code generation).
+function getSyntaxFieldMap
+  ?? @syntaxMap syntaxMap
+  ?? @syntaxChunkListWithSuffix chunkList
+  -> @varMap fieldMapWithoutSuffix
+:
+  fieldMapWithoutSuffix := [@varMap emptyMap];
+  foreach chunkList (@syntaxChunk chunk @stringlist suffixList) do
+    cast chunk
+    when == @idfOrRefSyntaxIsIdf chunkIsIdf :
+      @syntaxBody syntaxBody;
+      [syntaxMap searchKey ![chunkIsIdf name] ?syntaxBody];
+      @varMap fieldMap := [syntaxBody fieldMap];
+      #merge.
+      foreach fieldMap do
+        if not [fieldMapWithoutSuffix hasKey ![lkey string]] then
+          @instDeclaration instDec := [@instDeclaration new ![lkey location] !type !lkey ![@varClass field] !""];  
+          [!?fieldMapWithoutSuffix insertKey !lkey !type !constant !varClass !instDec];
+        end if;
+      end foreach;
+    end cast;
+  end foreach;
+end function;
+
 routine instructionSyntax
+  ?? @syntaxMap syntaxMap
   ?? @syntaxChunkListWithSuffix chunkList
   ?? @printNumberTypeMap typeMap
   ?? @bool switchGenerate 
@@ -526,6 +574,7 @@ routine instructionSyntax
   ?! @string codeC
 :
   @uint nbTabulation := 1;
+  @varMap fieldMapWithoutSuffix := getSyntaxFieldMap[!syntaxMap !chunkList];
   foreach chunkList (@syntaxChunk chunk @stringlist suffixList) do
     @string currentSuffixStr;
     getSuffixString !suffixList ?* ?currentSuffixStr;
@@ -536,12 +585,12 @@ routine instructionSyntax
     cast chunk
     when == @printChunk printChunk :
       @printInst printInst := [printChunk printInst];
-      print !printInst !typeMap !currentSuffixStr !switchGenerate !?file1 !?file2; #!?codeC !?ifBlocFound !?nbTabulation;
+      print !fieldMapWithoutSuffix !printInst !typeMap !currentSuffixStr !switchGenerate !?file1 !?file2;
       if switchGenerate then
         codeC .= "\tindex += sprintf (result + index,\"" . file1 . "\"" . file2 . ");\n";
       end if;
     when == @ifChunk ifChunk :
-      [ifChunk printImplementation !nbTabulation !currentSuffixStr !?codeC !typeMap !switchGenerate]; 
+      [ifChunk printImplementation !fieldMapWithoutSuffix !nbTabulation !currentSuffixStr !?codeC !typeMap !switchGenerate]; 
     else 
     end cast; 
   end foreach;
@@ -590,8 +639,7 @@ routine isThereACorrespondingFormat
   @stringset referenceSeq;
   setInstructionSequencesSyntaxForOneInstruction !instructionSyntaxList ?* ?referenceSeq;
   #get the name of the instruction
-  @string instName;
-  getInstructionName !referenceSeq ![modelName string] ?instName;
+  @string instName := getInstructionName[!referenceSeq ![modelName string]];
   ok := [impMap hasKey !instName];
 end routine;
 
@@ -734,13 +782,10 @@ routine constructSyntaxInstructionTree
   if [option .verbose_output value] then
     message "\nFound a total of ".[[decodedInstructionList length] string]." instructions syntaxes.\n";
   end if;
-#  foreach decodedInstructionList(@syntaxChunkListWithSuffix chunkList) do
-#    message "instruction:";
-#    foreach chunkList (
-#  end foreach;
 end routine;
 
 routine generateSyntaxImplementationFiles
+  ?? @syntaxMap syntaxMap
   ?? @string modelName
   ?? @syntaxChunkListWithSuffixList instructionList
   ?! @TfieldMap templateStruct
@@ -759,8 +804,7 @@ routine generateSyntaxImplementationFiles
   foreach instructionList (@syntaxChunkListWithSuffix chunkList), referenceSeqList (@stringset refSet) do
     @TfieldMap instMnemoTplBody [emptyMap];
     @string functionName := modelName;
-    @string instName;
-    getInstructionName !refSet !modelName ?instName;
+    @string instName := getInstructionName[!refSet !modelName];
 
     #first check that the instruction extracted from syntax was declared in the format part.
     if [impMap hasKey !instName] then
@@ -773,7 +817,7 @@ routine generateSyntaxImplementationFiles
       codeC .= "\tint index = 0;\n";
       @string file1 := "";
       @string file2 := "";
-      instructionSyntax !chunkList !typeMap !true !?file1 !?file2 !?codeC;
+      instructionSyntax !syntaxMap !chunkList !typeMap !true !?file1 !?file2 !?codeC;
       codeC .= "\t#ifdef DEBUG_MNEMO\n";
       codeC .= "\t\tindex += sprintf (result + index, \" (".functionName.")\");\n";
       codeC .= "\t#endif\n";
@@ -802,7 +846,7 @@ routine instructionSyntaxPart
     @bool noError;
     checkSyntaxInstructionWithFormatCompatibility !syntaxMap !decodedSyntaxInstructionList !impMap !instructionSeqList !referenceSeqList !modelName ?noError;
     if noError then
-      generateSyntaxImplementationFiles ![modelName string] !decodedSyntaxInstructionList !?templateStruct !typeMap !impMap;
+      generateSyntaxImplementationFiles !syntaxMap ![modelName string] !decodedSyntaxInstructionList !?templateStruct !typeMap !impMap;
     end if;
   end if;
 end routine;

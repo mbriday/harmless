@@ -8,7 +8,7 @@
 #include <iostream>
 using namespace std;
 
-#include "arch.h"
+#include "core.h"
 
 virtualToPhysicalAddr::virtualToPhysicalAddr(const u32 v_addr, const u32 p_addr, const u32 size)
 : m_v_addr(v_addr), m_p_addr(p_addr), m_size(size)
@@ -97,7 +97,7 @@ unsigned int elfReader::getProgramCounter()
 	return (unsigned int)(pc);
 }
 
-bool elfReader::readFile(const char * filename, arch *_arch, const bool verbose)
+bool elfReader::readFile(const char * filename, core *_core, const bool verbose)
 {
 	bool ok = true;
 	FILE* codeFile = fopen(filename, "r");
@@ -132,7 +132,7 @@ bool elfReader::readFile(const char * filename, arch *_arch, const bool verbose)
 
 				Elf_Data *data = elf_getdata (section, NULL);
 
-				ok = ok && manageBinaryCode(data, &sectionHeader, verbose, name, _arch);
+				ok = ok && manageBinaryCode(data, &sectionHeader, verbose, name, _core);
 				manageSymbols(data, &sectionHeader, verbose, name);
 			}
 			if(verbose) cout << (ok ? "ok" : "failed") << endl;
@@ -148,7 +148,7 @@ bool elfReader::readFile(const char * filename, arch *_arch, const bool verbose)
 	return ok;
 }
 
-bool elfReader::manageBinaryCode(Elf_Data *data, GElf_Shdr *sectionHeader, const bool verbose, const char *name, arch *_arch)
+bool elfReader::manageBinaryCode(Elf_Data *data, GElf_Shdr *sectionHeader, const bool verbose, const char *name, core *_core)
 {
 	bool ok = true;
 	//check if section contains executable code and load it in simulator
@@ -159,7 +159,7 @@ bool elfReader::manageBinaryCode(Elf_Data *data, GElf_Shdr *sectionHeader, const
 	{
 		if(verbose) cout << endl << "\t" << sectionHeader->sh_size << " bytes from section " << name << "...";
 		const unsigned int v_addr_start = sectionHeader->sh_addr;
-		ok = loadIntoSimulator(v_addr_start, data, _arch);
+		ok = loadIntoSimulator(v_addr_start, data, _core);
 		if(ok) m_codeSectionVector.push_back(new codeSection(v_addr_start, data->d_size));
 	}
 	return ok;
@@ -167,7 +167,7 @@ bool elfReader::manageBinaryCode(Elf_Data *data, GElf_Shdr *sectionHeader, const
 
 #include <iomanip> //setioflags (setw)
 
-bool elfReader::loadIntoSimulator(unsigned int v_addr_start,Elf_Data * data, arch *_arch)
+bool elfReader::loadIntoSimulator(unsigned int v_addr_start,Elf_Data * data, core *_core)
 {
 	bool ok = true;
 	const size_t size = data->d_size;
@@ -182,8 +182,8 @@ bool elfReader::loadIntoSimulator(unsigned int v_addr_start,Elf_Data * data, arc
 			ok = false;
 			cerr << "Cannot retrieve physical address from virtual: 0x" << hex << offset+i << "." << endl;
 		} else {
-			unsigned int _addr = _arch->linkerAddressTranslation(addr);
-			storage *chunk = _arch->getProgramChunk(_addr);
+			unsigned int _addr = _core->linkerAddressTranslation(addr);
+			storage *chunk = _core->getProgramChunk(_addr);
 			if(chunk == NULL) // error, no memory!
 			{
 				ok = false;

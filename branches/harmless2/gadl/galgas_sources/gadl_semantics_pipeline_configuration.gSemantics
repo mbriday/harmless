@@ -1,6 +1,8 @@
 semantics gadl_semantics_pipeline_configuration :
   import "gadl_semantics_instruction_classes.gSemantics" ;
   import "gadl_semantics_register_access.gSemantics" ;
+  import "gadl_isa.gSemantics" ; #instructionImplementationMap
+
 #give instruction class for each instruction. Implemented in instruction.h
 #This works even if there is no architecture (instToInstructionClassMap and icMap are empty maps).
 routine giveInstructionItsClass

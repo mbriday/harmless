@@ -48,7 +48,7 @@
 #include <signal.h>
 #include <stdio.h>
 
-#include "arch.h"
+#include "core.h"
 
 /************************************************************************
  *
@@ -195,14 +195,14 @@ int putpacket(char *buffer)
  * Return a pointer to the last char put in buf (null).
  */
 
-static char *mem2hex(int addr, char *buf, int count, arch & archi)
+static char *mem2hex(int addr, char *buf, int count, core & corei)
 {
 	unsigned char ch;
 	int countInit = count;
 
 	while(count-- > 0)
 	{
-		ch = archi.%!GDB_DEBUG_COMPONENT%_read8(addr + countInit - count - 1);
+		ch = corei.%!GDB_DEBUG_COMPONENT%_read8(addr + countInit - count - 1);
 #ifdef DEBUG
 		printf("\%02X@\%X", ch, addr + countInit - count - 1);	/* Affiche la lecture mémoire sur fond jaune */
 #endif
@@ -218,7 +218,7 @@ static char *mem2hex(int addr, char *buf, int count, arch & archi)
 /* convert the hex array pointed to by buf into binary to be placed in mem
  * return a pointer to the character AFTER the last byte written */
 
-static char *hex2mem(char *buf, int addr, int count, arch & archi)
+static char *hex2mem(char *buf, int addr, int count, core & corei)
 {
 	int i;
 	unsigned char ch;
@@ -227,7 +227,7 @@ static char *hex2mem(char *buf, int addr, int count, arch & archi)
 	{
 		ch = hex(*buf++) << 4;
 		ch |= hex(*buf++);
-		archi.%!GDB_DEBUG_COMPONENT%_write8(addr+i, ch);
+		corei.%!GDB_DEBUG_COMPONENT%_write8(addr+i, ch);
 #ifdef DEBUG
 		printf("\%02X@\%X", ch, addr + i);	/* Affiche l'écriture mémoire sur fond cyan */
 #endif
@@ -264,44 +264,44 @@ static int hexToInt(char **ptr, int *intValue)
 	return (numChars);
 }
 
-void writeTPacket(char *ptr, arch & archi, int sigval)
+void writeTPacket(char *ptr, core & corei, int sigval)
 {
 	unsigned int val;
 	unsigned char nbBits;
-	const unsigned char nb = archi.%!GDB_DEBUG_COMPONENT%_getNBRegister();
+	const unsigned char nb = corei.%!GDB_DEBUG_COMPONENT%_getNBRegister();
 	*ptr++ = 'T';
 	ptr += sprintf(ptr, "\%02X", sigval);
     for(unsigned int i = 0; i < nb; i++)
 	{
-		val = archi.%!GDB_DEBUG_COMPONENT%_getRegister(i, nbBits);
+		val = corei.%!GDB_DEBUG_COMPONENT%_getRegister(i, nbBits);
 		ptr += sprintf(ptr, "\%02X:\%0*X;", i, nbBits >> 2, val); 
 	}
 	*ptr++ = '\0';
 }
 
-void writegRepPacket(char **ptr, arch & archi)
+void writegRepPacket(char **ptr, core & corei)
 {
 	unsigned int val;
 	unsigned char nbBits;
-	const unsigned char nb = archi.%!GDB_DEBUG_COMPONENT%_getNBRegister();
+	const unsigned char nb = corei.%!GDB_DEBUG_COMPONENT%_getNBRegister();
     for(unsigned int i = 0; i < nb; i++)
 	{
-		val = archi.%!GDB_DEBUG_COMPONENT%_getRegister(i, nbBits);
+		val = corei.%!GDB_DEBUG_COMPONENT%_getRegister(i, nbBits);
 		*ptr += sprintf(*ptr, "\%0*X", nbBits >> 2, val); 
 	}
 	*(*ptr++) = '\0';
 }
 
-void writeGPacketToReg(char *ptr, arch & archi)
+void writeGPacketToReg(char *ptr, core & corei)
 {
 	unsigned int val;
 	unsigned char ch;
 	unsigned char nbBits;
-	const unsigned char nb = archi.%!GDB_DEBUG_COMPONENT%_getNBRegister();
+	const unsigned char nb = corei.%!GDB_DEBUG_COMPONENT%_getNBRegister();
     for(unsigned int i = 0; i < nb; i++)
 	{
 		//get size.
-		val = archi.%!GDB_DEBUG_COMPONENT%_getRegister(i, nbBits);
+		val = corei.%!GDB_DEBUG_COMPONENT%_getRegister(i, nbBits);
 		val = 0;
 		//get value
 		const unsigned char nbBytes = nbBits >> 3;
@@ -312,7 +312,7 @@ void writeGPacketToReg(char *ptr, arch & archi)
 			val |= ch << ((nbBytes-j-1) << 3);
 		}
 		//update simulator
-		archi.%!GDB_DEBUG_COMPONENT%_setRegister(i, val);
+		corei.%!GDB_DEBUG_COMPONENT%_setRegister(i, val);
 	}
 }
 
@@ -323,7 +323,7 @@ void writeGPacketToReg(char *ptr, arch & archi)
  * link (Detach)., <0 if the simulation should be stopped (kill).
  */
 
-int handle_exception(arch & archi, int sigval)
+int handle_exception(core & corei, int sigval)
 {
 	char *ptr;
 	int addr, length;
@@ -331,7 +331,7 @@ int handle_exception(arch & archi, int sigval)
 
 	ptr = remcomOutBuffer;
 
-	writeTPacket(remcomOutBuffer, archi, sigval);
+	writeTPacket(remcomOutBuffer, corei, sigval);
 
 	if(putpacket(remcomOutBuffer))
 		return 2;
@@ -354,11 +354,11 @@ int handle_exception(arch & archi, int sigval)
 
 			case 'g':	/* return the value of the CPU registers */
 				ptr = remcomOutBuffer;
-				writegRepPacket(&ptr, archi);
+				writegRepPacket(&ptr, corei);
 				break;
 
 			case 'G':	/* set the value of the CPU registers - return OK */
-				writeGPacketToReg(ptr, archi);
+				writeGPacketToReg(ptr, corei);
 
 				strcpy(remcomOutBuffer, "OK");
 				break;
@@ -368,7 +368,7 @@ int handle_exception(arch & archi, int sigval)
 				if(hexToInt(&ptr, &addr) && *ptr++ == ','
 				  && hexToInt(&ptr, &length))
 				{
-					mem2hex(addr, remcomOutBuffer, length, archi);
+					mem2hex(addr, remcomOutBuffer, length, corei);
 					break;
 				}
 				else
@@ -379,7 +379,7 @@ int handle_exception(arch & archi, int sigval)
 				if(hexToInt(&ptr, &addr) && *ptr++ == ','
 				  && hexToInt(&ptr, &length) && *ptr++ == ':')
 				{
-					if(hex2mem(ptr, addr, length, archi))
+					if(hex2mem(ptr, addr, length, corei))
 						strcpy(remcomOutBuffer, "OK");
 					else
 						strcpy(remcomOutBuffer, "E03");	/* écriture fail */
@@ -391,7 +391,7 @@ int handle_exception(arch & archi, int sigval)
 			case 'c':	/* cAA..AA    Continue at address AA..AA(optional) */
 				if(hexToInt(&ptr, &addr))
 				{
-					archi.setProgramCounter(addr);
+					corei.setProgramCounter(addr);
 				}
 				return 0;
 
@@ -401,15 +401,15 @@ int handle_exception(arch & archi, int sigval)
 			case 's':	/*sAA..AA Execute one instruction from AA..AA (optional) */
 				if(hexToInt(&ptr, &addr))
 				{
-					archi.setProgramCounter(addr);
+					corei.setProgramCounter(addr);
 					printf("{step from addr \%d}", addr);
 				}
 
 #ifdef DEBUG
-				printf("\%s", (archi.disassemble(archi.programCounter(), 2)).c_str());	/* print instruction to execute */
+				printf("\%s", (corei.disassemble(corei.programCounter(), 2)).c_str());	/* print instruction to execute */
 #endif
-				printf("{\%d}", archi.execInst(1));
-				writeTPacket(remcomOutBuffer, archi, 5);
+				printf("{\%d}", corei.execInst(1));
+				writeTPacket(remcomOutBuffer, corei, 5);
 
 				break;
 			case 'Z':
@@ -420,7 +420,7 @@ int handle_exception(arch & archi, int sigval)
 						if(*ptr++ == ',' && hexToInt(&ptr, &addr)
 						  && *ptr++ == ',' && hexToInt(&ptr, &length))
 						{
-							archi.addBreakpoint(addr);
+							corei.addBreakpoint(addr);
 							strcpy(remcomOutBuffer, "OK");
 						}
 						else
@@ -443,7 +443,7 @@ int handle_exception(arch & archi, int sigval)
 						if(*ptr++ == ',' && hexToInt(&ptr, &addr)
 						  && *ptr++ == ',' && hexToInt(&ptr, &length))
 						{
-							archi.removeBreakpoint(addr);
+							corei.removeBreakpoint(addr);
 							strcpy(remcomOutBuffer, "OK");
 						}
 						else
@@ -470,7 +470,7 @@ int handle_exception(arch & archi, int sigval)
 #ifdef DEBUG
 				printf("{[Stub] Reset!}");
 #endif
-				archi.reset();
+				corei.reset();
 				break;
 			case 'D':
 #ifdef DEBUG

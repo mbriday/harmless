@@ -1,10 +1,23 @@
 semantics gadl_semantics_format :
   import "gadl_options.gOption" ;
   import "gadl_semantics.gSemantics" ;
-  import "gadl_semantics_implementation.gSemantics" ;
-  import "gadl_semantics_memory.gSemantics" ; #for updateTemplateForProgramCounter routine
+#  import "gadl_semantics_implementation.gSemantics" ;
+#  import "gadl_semantics_memory.gSemantics" ; #for updateTemplateForProgramCounter routine
+  import "gadl_expression_functions.gSemantics";# nbBitsToCodeUnsigned
   import "gadl_semantics_default.gSemantics";
+  import "gadl_types.gSemantics" ; #@varBaseType
   import "gadl_templates.gSemantics";
+
+list @formatFieldList {
+  @uint64 from;
+  @uint64 to;
+  @location loc;
+}
+
+list @sliceList {
+  @formatFieldList field;
+  @sint      fetchPart; #used for instruction codes of different sizes: relative value, 0 is the current slice, -1 is previous slice, 1 is next slice, ...
+}
 
 #ne pas mettre d'instruction, mais un truc qui n'a que les infos qu'il faut:
 # * le nom.
@@ -17,7 +30,7 @@ semantics gadl_semantics_format :
 list @assignSliceList {
   @lstring name;
   @sliceList slice;
-  @varType type;
+  @varBaseType type;
   @uint shiftType; #0 <=> nothing, 1 <=> left shift, 2 <=> right shift, 
   @luint shiftVal;
 }
@@ -122,14 +135,6 @@ list @variableInstructionCodeList {
 # It gets information about name and size.
 # This informat is extracted from @assignSliceList and stored in @instructionImplementationMap
 
-# This map should contains field names with the suffix (@SRC...)
-map @instFieldMap {
-  @varType type;
-
-  insert insertKey error message "the '%K' data field is declared twice in the instruction" ; 
-  search searchKey error message "the '%K' data field is not defined in the instruction" ;
-}
-
 #structure that saves all the information about an instruction (format related).
 map @instructionImplementationMap
 {
@@ -140,7 +145,7 @@ map @instructionImplementationMap
   @instructionCodeOffset offsetList;
   #nb of chunks of the instruction. The real instruction length is codeLength*instructionSize bits.
   @uint codeLength;
-  @instFieldMap instructionFieldMap;
+  @varBaseTypeMap instructionFieldMap;
 
   insert insertKey error message "the '%K' instruction has the same signature (same references sequence) than another one." ; 
   search searchKey error message "the '%K' instruction is not defined" ;
@@ -163,16 +168,16 @@ list @lstringListList
   @lstringlist lstringList;
 }
 
-routine getInstructionName
+function getInstructionName
   ?? @stringset instructionId
   ?? @string modelName
-  !  @string instName
+  -> @string instName
 :
   instName := modelName;
   foreach instructionId (@string idPart) do
     instName .= "_" . idPart;
   end foreach;
-end routine;
+end function;
 
 ######
 # routine used for logs and debug (error code).
@@ -308,7 +313,7 @@ routine setInstructionImplementationNames
           instructionSeqList(@lstringlist instructionSeq),
           referenceSeqList(@stringset instructionID),
           variableInstructionCodeList(@instructionCodeOffset offsetList @uint codeLength) do
-    @instFieldMap instructionFieldMap [emptyMap];
+    @varBaseTypeMap instructionFieldMap [emptyMap];
     #one instruction
     foreach fslist (@idfOrRefFormat idfOrRefFormat @stringlist suffixList) do
       cast idfOrRefFormat 
@@ -321,7 +326,7 @@ routine setInstructionImplementationNames
         getSuffixString !suffixList ?* ?suffixStr;
         [formatMap searchKey !currentFormatString ?format];
         @assignSliceList asList := [format asList];
-        foreach asList (@lstring ASname * @varType AStype ...) do
+        foreach asList (@lstring ASname * @varBaseType AStype ...) do
           @lstring fieldName := [@lstring new ![ASname string].suffixStr ![ASname location]];
           if [instructionFieldMap hasKey ![fieldName string]] then
             #there is a problem
@@ -341,8 +346,7 @@ routine setInstructionImplementationNames
       else
       end cast;
     end foreach;
-    @string instName;
-    getInstructionName !instructionID !modelName ?instName;
+    @string instName := getInstructionName[!instructionID !modelName];
     @lstring idf := [@lstring new !instName !here];
     [!?instructionMap insertKey !idf !code !fslist !instructionSeq !instructionID !offsetList !codeLength !instructionFieldMap];
   end foreach;
@@ -447,7 +451,7 @@ routine checkISOrthogonality
   ?? @instructionImplementationMap impMap
 :
   if [option .verbose_output value] then
-    message "checking instruction code orthogonality...";
+    message "checking instruction binary code coherency...";
   end if;
   @bool errorFound := false;
   @uint i1 := 0;
@@ -593,7 +597,8 @@ routine computeImplementationConditions
   ?! @string file
 :
   @string instructionDefaultSizeCString;
-  getCTypeFor !instructionSize ?instructionDefaultSizeCString ?*;
+  instructionDefaultSizeCString := "u".[getCSize[!instructionSize] string];
+  #getCTypeFor !instructionSize ?instructionDefaultSizeCString ?*;
   @uint nbConditionDone := 0;
   @uint currentSize := 0; #nb of chunks.
   @uint nbChunks32 := 0; #nb of chunks of 32 bits (used fo conditions)
@@ -652,6 +657,10 @@ routine generateDecoder
   @uint tabNbBits := 8; #size of the tab for the decoder (in bits)
   @uint shift;
   @uint instructionSize := [[defaultValues instructionSize] uint];
+  if instructionSize == 0 then
+    error here: "The instruction default size is not defined in the default section, assuming 32 bits";
+    instructionSize := 32;
+  end if;  
   if instructionSize <= tabNbBits then
     tabNbBits := instructionSize;
     shift := 0;
@@ -661,17 +670,21 @@ routine generateDecoder
 
   @string instructionDefaultSizeCString;
   @uint instructionDefaultSizeC;
-  getCTypeFor !instructionSize ?instructionDefaultSizeCString ?instructionDefaultSizeC;
+  #getCTypeFor !instructionSize ?instructionDefaultSizeCString ?instructionDefaultSizeC;
+  instructionDefaultSizeC := getCSize[!instructionSize];
+  instructionDefaultSizeCString := "u".[instructionDefaultSizeC string];
   addStringValue !?templateStruct !lstringWith[!"INST_DEFAULT_SIZE_C_STR"] !instructionDefaultSizeCString;
   addUnsignedValue !?templateStruct !lstringWith[!"INST_DEFAULT_SIZE_C"] ![instructionDefaultSizeC uint64];
   @binaryCodeList tabCodeList [emptyList];
   addStringValue !?templateStruct !lstringWith[!"INST_SHIFT"] ![shift string];
   addStringValue !?templateStruct !lstringWith[!"DECODER_FUNC_TABLE_SIZE_IN_BITS"] ![tabNbBits string];
   foreach impMap (* @binaryset code ...) do
+    #log code;
     @binaryset tabRelatedCode := code >> shift;
     tabRelatedCode := [tabRelatedCode existOnBitIndexAndBeyond !tabNbBits]; #mask..
     tabCodeList += !tabRelatedCode;
   end foreach;
+  #log tabCodeList;
   @uint nbCases := 1 << tabNbBits;
   @uint i := 0; #loop value
   loop nbCases:
@@ -704,6 +717,90 @@ end routine;
 ############################################################################
 ##  generate instruction constructors.
 ############################################################################
+function getFormatFieldListSize
+  ?? @formatFieldList fieldlist
+  -> @uint size
+:
+  size := 0;
+  foreach fieldlist(@uint64 from @uint64 to *) do
+    size := size + [from uint] - [to uint] + 1;
+  end foreach;
+end function;
+
+function basicFormatFieldCode
+  ?? @string chunkName
+  ?? @formatFieldList fieldList
+  -> @string code
+:
+  code := "";
+  @uint offset := 0;
+  #iterate in the reverse order.
+  foreach > fieldList(@uint64 expFrom @uint64 expTo @location loc)
+  do
+    @uint offsetInc := 0;
+    if offset != 0 then code .= "("; end if;  
+    if expFrom == expTo then
+      code .= "FIELD_ONE_BIT(".chunkName.",".[expFrom string]."U)";
+      offsetInc := 1;
+    else #general case.
+      code .= "FIELD(".chunkName.",(".[expFrom string]."U),(".[expTo string]."U))";
+      #should get the size of the increment:
+      offsetInc := [expFrom uint]-[expTo uint]+1;
+    end if;
+    if offset != 0 then code .= "<<" . [offset string] . ")"; end if;
+    offset := offset+offsetInc;
+  between code .= "|";
+  end foreach;
+end function;
+
+
+function getFormatAssignString
+  ?? @sliceList sliceList
+  ?? @uint globalOffset
+  -> @string code
+:
+  @string expPrefix := "chunk";
+  code := "";
+  #slice fields (used in instruction format, for constructors.)
+  @uint chunkOffset := 0;
+  @bool start := true;
+  @sliceList tempSliceList := sliceList; #can be modified 
+  @uint nbSlices := [sliceList length];
+  if nbSlices != 1 then code .= "("; end if;
+  loop nbSlices:
+  while [tempSliceList length] > 0 do
+    @formatFieldList fieldList; 
+    @uint fieldSize;
+    #take the last slice.
+    @sint fetchPart;
+    [!?tempSliceList popLast ?fieldList ?fetchPart];
+    #field size.
+    fieldSize := getFormatFieldListSize[!fieldList];
+    if fieldSize > 0 then
+      #put the 'or' between fields
+      if not start then code .= "|"; end if;
+      #get the offset.
+      @sint signedOffset := [globalOffset sint] + fetchPart;
+      @uint offset := [signedOffset uint] + 1; #must be > 0. chunk idx start at 1.
+      #name of idf is prefix concatened with the offset (starting at 1)
+      #@varBaseType varType := [@varType new ![@varKind unsigned] !fieldSize !here];
+      #@classicVar var := [@classicVar new !varType !false !expPrefix !""];
+      #@cIdf idf := [@cIdf new !getTypeListFrom[!varType] ![@lstring new ![offset string] !here] !var];
+      #@cBitFieldOp bitFieldOp := [@cBitFieldOp new !getTypeListFrom[!varType] !idf !fieldList];
+      #generate slice code.
+      if chunkOffset != 0 then code .= "("; end if;
+      #code .= [bitFieldOp generateCode !componentPrefix !idfSuffix !cgc];
+      code .= basicFormatFieldCode[!"chunk".[offset string] !fieldList];
+      #shift field if needed.
+      if chunkOffset != 0 then code .= "<<" . [chunkOffset string].")"; end if;
+      #compute next shift value.
+      chunkOffset := chunkOffset + fieldSize;
+      start := false;
+    end if;
+  end loop;
+  if nbSlices != 1 then code .= ")"; end if;  
+end function;
+
 routine constructAssign 
   ?? @format format
   ?? @uint globalOffset
@@ -713,27 +810,26 @@ routine constructAssign
   @assignSliceList asList := [format asList];
   foreach asList (@lstring name
                   @sliceList sliceList
-                  @varType type
+                  @varBaseType type
                   @uint shiftType
                   @luint shiftVal) do
     @string nameWithSuffix := [name string].suffixStr;
-    @string realTypeString;
-    [type getStringType ?realTypeString];
-    instCode .= "\t// construct ".nameWithSuffix;
-    instCode .= " (".realTypeString.")\n";
+    @string realTypeString := [type string];
+    instCode .= "\t// construct ".nameWithSuffix." (".realTypeString.")\n";
     instCode .= "\t". nameWithSuffix." = ";
     @bool signExtend := false;
     if [type kind] == [@varKind signed] then #signed var.
-      @uint CSize; [type getCSize ?CSize];
+      @uint CSize := [type getCSize];
       if [type size] != CSize then
         signExtend := true;
         instCode .= "SIGN_EXTEND(";
       end if;
-    elsif [type kind] == [@varKind float] then 
+    elsif [type kind] == [@varKind float] then
       error here: "internal error: not yet imlplemented: format constructor";
     end if;
-    @cSliceFieldOp sliceOp := [@cSliceFieldOp new !getTypeListFrom[!type] !"chunk" !sliceList !globalOffset];
-    instCode .= [sliceOp generateCode !"" !"" ![@codeCtx C]];
+    instCode .= getFormatAssignString[!sliceList !globalOffset];
+    #@cSliceFieldOp sliceOp := [@cSliceFieldOp new !getTypeListFrom[!type] !"chunk" !sliceList !globalOffset];
+    #instCode .= [sliceOp generateCode !"" !"" ![@codeCtx C]];
     #Shift management.
     #0 <=> nothing, 1 <=> left shift, 2 <=> right shift, 
     if shiftType != 0 then
@@ -744,7 +840,7 @@ routine constructAssign
       instCode .= [[shiftVal uint] string];
     end if;
     if signExtend then
-      @uint CSize; [type getCSize ?CSize];
+      @uint CSize := [type getCSize];
       instCode .= ", ".[[type size] string].", ".[CSize string].")";
     end if;
     instCode .= ";\n";
@@ -759,11 +855,10 @@ routine constructDef
 :
   @assignSliceList asList := [format asList];
   foreach asList (@lstring name *
-                  @varType type ...) do
+                  @varBaseType type ...) do
     @string nameWithSuffix := [name string].suffixStr;
     @string CTypeString := [type getCType];
-    @string realTypeString;
-    [type getStringType ?realTypeString];
+    @string realTypeString := [type string];
     def .= "\t".CTypeString." ".nameWithSuffix.";";
     def .= "  /* ".realTypeString." */\n";
   end foreach;
@@ -966,17 +1061,10 @@ routine getRelativeBinarySet
   # this routine generate the a and b parts (and the followers if any) and then compute the binary set.
   @uint offset := sliceSize;
   set := [@binaryset fullBinarySet];
-  foreach sliceList (@fieldList field @sint fetchPart) do 
+  foreach sliceList (@formatFieldList field @sint fetchPart) do 
     #one instruction slice.
-    foreach field (@cExpression fromExp @cExpression toExp @uint rangeSize * @location loc) do 
-      #one field part in the slice.
-      @uint64 from; @uint64 to;
-      @bool ok1; @bool ok2;
-      getConstFromExp !fromExp ?from ?* ?ok1;
-      getConstFromExp !toExp ?to ?* ?ok2;
-      if not (ok1 & ok2) then
-        error loc: "there is an expression in a format field. Only constant values are allowed.";
-      end if;
+    foreach field (@uint64 from @uint64 to @location loc) do 
+      @uint rangeSize := [from uint]-[to uint]+1;
       if offset < rangeSize then 
         error loc : "slice size is is too small. Cannot fill with the corresponding fields...";
       end if;
@@ -1187,8 +1275,13 @@ routine instructionFormatPart
 
   #default size of instructions
   @uint instructionSize := [[defaultValues instructionSize] uint];
+  if instructionSize == 0 then
+    error here: "The instruction default size is not defined in the default section, assuming 32 bits";
+    instructionSize := 32;
+  end if;
   @string instructionDefaultSizeCString;
-  getCTypeFor !instructionSize ?instructionDefaultSizeCString ?*;
+  #getCTypeFor !instructionSize ?instructionDefaultSizeCString ?*;
+  instructionDefaultSizeCString := "u".[getCSize[!instructionSize] string];
   @uint instructionSizeInBytes := instructionSize/8;
   if (instructionSize & 7) != 0 then
     instructionSizeInBytes := instructionSizeInBytes + 1;
@@ -1201,13 +1294,13 @@ routine instructionFormatPart
   @string fetchImplementationName;
   getUserFetchFunction !defaultValues ?fetchImplementationName;
   if hasUserFetch then 
-    fetchFunctionCondition := "defaultFetch ? _arch->defaultFetch(pc) : _arch->".fetchImplementationName."()";
-    multipleFetchFunctionConditionInCache := "if(defaultFetch) {\n\t\t\tfor(int _i=0; _i<chunks; _i++) _arch->defaultFetch(codeAddr);";
+    fetchFunctionCondition := "defaultFetch ? _core->defaultFetch(pc) : _core->".fetchImplementationName."()";
+    multipleFetchFunctionConditionInCache := "if(defaultFetch) {\n\t\t\tfor(int _i=0; _i<chunks; _i++) _core->defaultFetch(codeAddr);";
     multipleFetchFunctionConditionInCache .= "\n\t\t\t}else{";
-    multipleFetchFunctionConditionInCache .= "\n\t\t\t\tfor(int _i=0; _i<chunks; _i++) _arch->".fetchImplementationName."();";
+    multipleFetchFunctionConditionInCache .= "\n\t\t\t\tfor(int _i=0; _i<chunks; _i++) _core->".fetchImplementationName."();";
     multipleFetchFunctionConditionInCache .= "\n\t\t\t}";
   else
-    fetchFunctionCondition := "_arch->defaultFetch(pc)";
+    fetchFunctionCondition := "_core->defaultFetch(pc)";
     @uint tmp := instructionSizeInBytes-1;
     @uint nbBits := nbBitsToCodeUnsigned[![tmp uint64]];
     if instructionSizeInBytes == (1 << nbBits) then #power  of 2?

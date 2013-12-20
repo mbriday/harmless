@@ -1,8 +1,0 @@
-
-model HADLd:KM3:EBNF
-model HADLd:TCS:EBNF
-model HADL2HADLd:ATL:EBNF
-model HADLdDep:ATL:EBNF
-model HADLdMerge:ATL:EBNF
-model HADLdReduce:ATL:EBNF
-   

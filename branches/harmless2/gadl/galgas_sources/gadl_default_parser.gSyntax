@@ -1,20 +1,9 @@
 syntax gadl_default_parser ("gadl_lexique.gLexique") :
 
 import "gadl_options.gOption" ;
-import "gadl_components.gSemantics" ;
+#import "gadl_components.gSemantics" ;
 import "gadl_semantics_default.gSemantics";
-import "gadl_semantics_expression.gSemantics" ; #@expressionContext
-
-nonterminal  <componentMethodCall> 
-  !  @lstring methodName 
-  !  @parameterCallList param 
-  ?? @varMap varMap
-  ?? @componentMap componentMap
-  ?? @lstring componentName
-  !  @bool isBitRegisterAccess
-  ?? @bool checkParameters
-  ?? @expressionContext expContext
-;
+#import "gadl_semantics_expression.gSemantics" ; #@expressionContext
 
 rule <default>
   ?! @defaultSection defaultValues
@@ -28,8 +17,6 @@ rule <default>
   @lstring progReadComponentName := [defaultValues progReadComponentName];
   @lstring progReadMethodName := [defaultValues progReadMethodName];
   @lstring debugComponentName := [defaultValues debugComponentName];
-  @lstring interruptComponentName := [defaultValues interruptComponentName];
-  @lstring interruptMethodName := [defaultValues interruptComponentName];
 
   $default$; ${$;
   @bool endianessDefined := false;
@@ -41,23 +28,23 @@ rule <default>
     $unumber$ ?temp;
     instructionSize := [@luint new ![[temp uint64] uint] ![temp location]];
   while
-    $fetch$; 
+    $fetch$;
     select
       $:=$;
-      $idf$ ?* ; 
+      $idf$ ?fetchComponentName ; 
       $.$; 
-      <componentMethodCall> parse;
+      $idf$ ?fetchMethodName ; 
     or
       $address$; $:=$;
-      $idf$ ?* ; 
+      $idf$  ?fetchAddressComponentName ; 
       $.$; 
-      <componentMethodCall> parse;
+      $idf$  ?fetchAddressMethodName ; 
     end select;
   while
     $program$; $read$; $:=$;
-    $idf$ ?*; 
+    $idf$ ?progReadComponentName ; 
     $.$; 
-    <componentMethodCall> parse;
+    $idf$ ?progReadMethodName ; 
   while
     select 
       $big$;
@@ -70,13 +57,7 @@ rule <default>
     end select;
     $endian$;
   while
-    $debug$; $:=$; $idf$ ?*;
-  while
-    $interrupt$; 
-    $:=$;
-    $idf$ ?* ; 
-    $.$; 
-    <componentMethodCall> parse;
+    $debug$; $:=$; $idf$ ?debugComponentName;  
   end repeat;
   if not endianessDefined then
     error here: "The endianness of the processor should be defined". 
@@ -85,133 +66,7 @@ rule <default>
   $}$;
   defaultValues := [@defaultSection new !instructionSize !isBigEndian !fetchComponentName
                    !fetchMethodName !fetchAddressComponentName !fetchAddressMethodName
-                   !progReadComponentName !progReadMethodName !debugComponentName
-                   !interruptComponentName !interruptMethodName];
-label secondPass
-  ?! @defaultSection defaultValues
-  ?? @componentMap componentMap
-:
-  @luint instructionSize := [defaultValues instructionSize];
-  @bool  isBigEndian := [defaultValues isBigEndian];
-  @lstring fetchComponentName := [defaultValues fetchComponentName];
-  @lstring fetchMethodName := [defaultValues fetchMethodName];
-  @lstring fetchAddressComponentName := [defaultValues fetchAddressComponentName];
-  @lstring fetchAddressMethodName := [defaultValues fetchAddressMethodName];
-  @lstring progReadComponentName := [defaultValues progReadComponentName];
-  @lstring progReadMethodName := [defaultValues progReadMethodName];
-  @lstring debugComponentName := [defaultValues debugComponentName];
-  @lstring interruptComponentName := [defaultValues interruptComponentName];
-  @lstring interruptMethodName := [defaultValues interruptComponentName];
-
-  $default$; ${$;
-  repeat
-  while
-    $instruction$;
-    $:=$;
-    $unumber$ ?*;
-  while
-    $fetch$;
-    select
-      @parameterCallList parameterCallList;
-      $:=$;
-      $idf$ ?fetchComponentName ; 
-      $.$; 
-      @varMap varMap [emptyMap]; #used for register bit access. Not suitable here.
-      <componentMethodCall> ?fetchMethodName ?parameterCallList !varMap !componentMap !fetchComponentName ?* !true ![@expressionContext defaultSection];
-      #check that parameter call list is empty..
-      if [parameterCallList length] != 0 then
-        error here: "the method used for fetch should have a prototype like: \"u8 fetchCode();\", where the instruction default code size is 8 bytes";
-      end if;
-    or
-      @parameterCallList parameterCallList;
-      $address$; $:=$;
-      $idf$  ?fetchAddressComponentName ; 
-      $.$; 
-      @varMap varMap [emptyMap]; #used for register bit access. Not suitable here.
-      <componentMethodCall> ?fetchAddressMethodName ?parameterCallList !varMap !componentMap !fetchAddressComponentName ?* !false ![@expressionContext defaultSection]; ##no check
-      if [parameterCallList length] != 0 then
-        error here: "the method used for accessing the program memory should not have any parameter in declaration.";
-      end if;
-    end select;
-  while
-    @parameterCallList parameterCallList;
-    $program$; $read$; $:=$;
-    $idf$ ?progReadComponentName ; 
-    $.$; 
-    @varMap varMap [emptyMap]; #used for register bit access. Not suitable here.
-    <componentMethodCall> ?progReadMethodName ?parameterCallList !varMap !componentMap !progReadComponentName ?* !false ![@expressionContext defaultSection]; ##no check
-    #check that parameter call list is empty..
-    if [parameterCallList length] != 0 then
-      error here: "the method used for interfacing the object program file memory with the real memory organisation should not have any parameter in declaration.";
-    end if;
-  while
-    select 
-      $big$;
-    or
-      $little$;
-    end select;
-    $endian$;
-  while
-    $debug$; $:=$; $idf$ ?debugComponentName;
-#    checkDebugComponent !debugComponentName;
-#    @functionMap methodMap;
-#    [componentMap searchKey !debugComponentName ?* ?* ? methodMap ?* ?* ?* ?*];
-#    #required functions
-#    @boolMap debugMethodMap [emptyMap];
-#    [!?debugMethodMap insertKey ![@lstring new !"getNBRegister" !here]];
-#    [!?debugMethodMap insertKey ![@lstring new !"getRegister" !here]];
-#    #check
-#    foreach debugMethodMap (@lstring methodName) do
-#      @functionOutType fOutType;
-#      [methodMap searchKey !methodName ?* ?fOutType ?*];
-#    end foreach;
-  while
-    $interrupt$;
-    @parameterCallList parameterCallList;
-    $:=$;
-    $idf$ ?interruptComponentName ; 
-    $.$; 
-    @varMap varMap [emptyMap]; #used for register bit access. Not suitable here.
-    <componentMethodCall> ?interruptMethodName ?parameterCallList !varMap !componentMap !interruptComponentName ?* !false ![@expressionContext defaultSection];##no check
-    #TODO check the correct type for the interrupt handler.
-    #check that parameter call list is empty..
-    if [parameterCallList length] != 0 then
-      error here: "the method used to define interrupt handler should have a prototype like: \"void interruptHandler(u32 trapId);\".";
-    end if;
-  end repeat;
-
-  @bool hasUserFetch := ([fetchComponentName string] != "");
-  #TODO: check instruction default size is the same as in fetch function return type.
-  if hasUserFetch then 
-    @functionMap methodMap;
-    [componentMap searchKey !fetchComponentName ?* ?* ?methodMap ?* ?* ?* ?* ?* ?*];    
-    @returnTypeList funcOutTypeList;
-    [methodMap searchKey !fetchMethodName ?* ?funcOutTypeList ?*];
-    if [funcOutTypeList length] != 1 then
-      error here: "the fetch function should return one value exactly.";
-    else
-      @functionOutType funcOutType := [funcOutTypeList functionOutTypeAtIndex !0];
-      cast funcOutType
-      when == @functionOutTypeClassic functionOutTypeInt:
-        @varType outType := [functionOutTypeInt outType];
-        if [outType kind] != [@varKind unsigned] then 
-          error [fetchComponentName location]: "the return type of the fetch fonction hould be unsigned";
-          error [outType location]:"the return type of the fetch fonction hould be unsigned";
-        end if;
-        if [outType size] != [instructionSize uint] then 
-          error [fetchComponentName location]: "the size of the value returned in the fetch fonction does not match the instruction code size.";
-          error [outType location]: "the size of the value returned in the fetch fonction does not match the instruction code size.";
-          error [instructionSize location]: "the size of the value returned in the fetch fonction does not match the instruction code size.";
-        end if;
-      else error here : "internal error: return type of fetch fonction";
-      end cast;
-    end if; #nb of return args.
-  end if;
-  $}$;
-  defaultValues := [@defaultSection new !instructionSize !isBigEndian !fetchComponentName
-                   !fetchMethodName !fetchAddressComponentName !fetchAddressMethodName
-                   !progReadComponentName !progReadMethodName !debugComponentName
-                   !interruptComponentName !interruptMethodName];
+                   !progReadComponentName !progReadMethodName !debugComponentName];
 end rule;
 
 end syntax ;

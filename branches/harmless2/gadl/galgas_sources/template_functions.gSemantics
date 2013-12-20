@@ -69,6 +69,17 @@ function tab ??@uint64 nbTab -> @string result:
   end loop; 
 end function;
 
+#type 0 -> unsigned
+#type 1 -> signed
+function CType ??@uint64 size -> @string result:
+  if    size <= 8L  then result := "8";
+  elsif size <= 16L then result := "16";
+  elsif size <= 32L then result := "32";
+  elsif size <= 64L then result := "64";
+  else error here: "type too large to be encoded." :result;
+  end if;
+end function;
+
 #number of bits required to encode an unsigned number. tested.
 #function nbBitsToCodeUnsigned
 #  ?@uint64 val

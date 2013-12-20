@@ -3,7 +3,7 @@
 #include <string.h>
 #include <iostream>
 #include "storage.h"
-#include "arch.h"
+#include "core.h"
 #include "sRecordReader.h"
 
 using namespace std;
@@ -130,7 +130,7 @@ bool sRecordReader::isCorrectFileFormat()
 	return result;
 }
 
-bool sRecordReader::readFile(const char * filename, arch *_arch, const bool verbose)
+bool sRecordReader::readFile(const char * filename, core *_core, const bool verbose)
 {
 	u32 address; 
 	u32 code_size = 0;
@@ -154,8 +154,8 @@ bool sRecordReader::readFile(const char * filename, arch *_arch, const bool verb
 					{
 						for (u32 i = 0; i < size; i++) 
 						{
-							const u32 addrLink = _arch->linkerAddressTranslation(address + i);
-							chunk = _arch->getProgramChunk(addrLink);
+							const u32 addrLink = _core->linkerAddressTranslation(address + i);
+							chunk = _core->getProgramChunk(addrLink);
 							if(chunk == NULL) // error, no memory!
 							{
 								ok = false;
@@ -169,7 +169,7 @@ bool sRecordReader::readFile(const char * filename, arch *_arch, const bool verb
 			} else {
 				if (stype == '7') 
 				{
-					_arch->setProgramCounter(address);
+					_core->setProgramCounter(address);
 				}
 			}
 			//a program is loaded, the cpu exits from infinite loop.

@@ -1,16 +1,13 @@
 semantics gadl_semantics_instruction_classes :
-#  import "gadl_options.gOption" ;
-  import "gadl_semantics.gSemantics" ;  #@methodList
-  import "gadl_semantics_behavior_data_structures.gSemantics"; #@decodedInstBehaviorMap
-  import "gadl_components.gSemantics"; #getComponentMethodImplementationName
-  import "gadl_semantics_behavior.gSemantics" ; #getInstructionList
-  import "gadl_graph.gSemantics"; #@graphNode
+#  import "gadl_semantics.gSemantics" ;  #@methodList
+#  import "gadl_semantics_behavior_data_structures.gSemantics"; #@decodedInstBehaviorMap
+#  import "gadl_components.gSemantics"; #getComponentMethodImplementationName
+#  import "gadl_semantics_behavior.gSemantics" ; #getInstructionList
+#  import "gadl_graph.gSemantics"; #@graphNode
   import "gadl_semantics_architecture.gSemantics"; #@instructionPipelinePath
-
-#  import "gadl_semantics_hard_arch.gSemantics" ;
-#  import "gadl_semantics_hard_pipeline.gSemantics" ;
-#  import "gadl_semantics_get_methods_in_instructions.gSemantics"; #returnCompAndMethNameForInst
-#
+  import "gadl_semantics_hard_pipeline.gSemantics"; #stageBodyList, pipelineMap
+  import "gadl_graph.gSemantics"; #graphNodeMap
+  import "gadl_templates.gSemantics"; #templates
 
 #list of pipeline stages (+port/devices) for one pipeline sequence.
 list @flatPipelineStageList {

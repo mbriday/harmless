@@ -1,7 +1,7 @@
 %template headerC%
 #include <string.h>
 #include "iHexReader.h"
-#include "arch.h"
+#include "core.h"
 
 #include <iostream>
 using namespace std;
@@ -117,7 +117,7 @@ bool iHexReader::isCorrectFileFormat()
 	return result;
 }
 
-bool iHexReader::readFile(const char * filename, arch *_arch, const bool verbose)
+bool iHexReader::readFile(const char * filename, core *_core, const bool verbose)
 {
 	u32 address;
 	u8 length;
@@ -142,12 +142,12 @@ bool iHexReader::readFile(const char * filename, arch *_arch, const bool verbose
 				for(int i = 0; i < length && ok; i++)
 				{
 					//cout << "read code : " << hex << address+i << endl; 
-					chunk = _arch->getProgramChunk(address + i);
+					chunk = _core->getProgramChunk(address + i);
 					if(chunk == NULL) // error, no memory!
 					{
 						ok = false;
 						cerr << "No memory chunk at address 0x" << hex << address+i << " to load the program file" << endl;
-					} else chunk -> put8AtAddr(_arch->linkerAddressTranslation(address + i), code[i]);
+					} else chunk -> put8AtAddr(_core->linkerAddressTranslation(address + i), code[i]);
 					code_size++;
 				}
 				code = readLine(address, length);

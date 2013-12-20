@@ -1,134 +1,119 @@
 semantics gadl_components :
   import "gadl_options.gOption" ;
-  import "gadl_semantics.gSemantics" ;
-  import "gadl_memory.gSemantics" ;
-  import "gadl_semantics_implementation.gSemantics" ;
-  import "gadl_semantics_function.gSemantics";
-  import "gadl_memory.gSemantics";
-  import "gadl_semantics_peripherals_data_structures.gSemantics";
+  import "gadl_semantics_function.gSemantics" ;
+  import "gadl_semantics_implementation_code_generation.gSemantics" ;
 
-
+# class @componentMap 
+# -> reader getInstList
+# 
 #----------------------------------------------------------------------------
 # components
 #----------------------------------------------------------------------------
 
+#the componentMap structure is declared in gadl_varIdfStruct.gSemantics (galgas restriction).
+#map @componentMap {
+#  @functionMap methodMap;
+#  #idfStruct that embedds local vars (in varMap) and types
+#  @varIdfStruct idfStruct;
+#  #instructions dedicated to type definitions and local var declaration.
+#  @instructionList instDeclareList;
+#  insert insertKey error message "the '%K' component is already defined in %L" ; 
+#  search searchKey error message "the '%K' component is not defined" ;
+#  remove removeKey error message "the '%K' component is not defined and cannot be removed." ;
+#}
 
-map @componentMap {
-  @varMap componentVar; # variables that may be used inside a component (including local and global var)
-  @instructionList componentDeclarationList;
-  @functionMap methodMap;
-  @memoryChunkMap memoryMap;
-  @memoryAliasMap memoryAliasMap;
-  @varMap localVar; # only local vars. (used for code generation: declaration of these vars).
-  @readWriteActionList readWriteActionList; #part related to peripherals
-  @cyclicPartList cyclicPartList;           #part related to peripherals
-  @TypeStructDefMap TypeStructDefList;
+
+
+#used during parsing.
+map @ASTComponentMap {
+  @ASTFunctionMap ASTmethodMap;
+  @ASTInstructionList regDefList;
   insert insertKey error message "the '%K' component is already defined in %L" ; 
   search searchKey error message "the '%K' component is not defined" ;
   remove removeKey error message "the '%K' component is not defined and cannot be removed." ;
 }
 
-routine getComponentMethodImplementationName
-  ??@string componentName
-  ??@string methodName
-  ??@string componentPrefix
-  !@string implementationName
-:
-  implementationName := componentPrefix . componentName . "_" . methodName;
-end routine;
 
-###########################################
-## component call expression 
-###########################################
-class @cComponentMethod extends @cExpression {
-  @lstring componentName;
-  @lstring methodName;
-  @parameterCallList param;
-  @uint outputBaseId; #id of the first temp variable for return values.
-}
-
-override reader @cComponentMethod generateCode
-  ?? @string componentPrefix #prefix used for object call.
-  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
-  ?? @codeCtx cgc
-  -> @string code
+method @ASTComponentMap getComponentMap
+  ?! @varIdfStruct varIdfStruct
+  ?? @lstringMap componentMapOrder
 :
-  @string implementation;
-  getComponentMethodImplementationName ![componentName string] ![methodName string] !componentPrefix ?implementation;
-  code := implementation . "(";
-  @bool first := true; #for the ',' between arguments.
-  #first, return args. The return values (except first) should be here:
-  @varTypeList typeListCopy := typeList;
-  @uint outputId := outputBaseId;
-  if [typeListCopy length] > 0 then #remove the first
-    [!?typeListCopy popFirst ?*];
-    #message "func: ".[componentName string].".".[methodName string]."\n";
-  end if;
-  foreach typeListCopy(@varType type) do
-    if not first then 
-      code .= ", ";
-    end if;
-    code .= "__tmp_".[outputId string]."__";
-    outputId := outputId + 1;
-    first := false;
+  @expressionContext ctx := [@expressionContext component];
+  @componentMap componentMap [emptyMap];
+  @componentMap componentMapProto [emptyMap]; #without methods body.
+  #one should have exactly the same order as in the description
+  #because registers are global and may be used in other components
+  foreach componentMapOrder (* @lstring componentName) do
+    #first get the AST component data, in the description order
+    @ASTFunctionMap ASTmethodMap;
+    @ASTInstructionList regDefList;
+    [selfcopy searchKey !componentName ?ASTmethodMap ?regDefList];
+    #then, do the job.
+    #prepare empty structures
+#    @varIdfStruct varIdfStructLocalCopy := varIdfStruct;
+    @symbolValueMap symbolMap [emptyMap];
+#    @instructionList instDeclareList [emptyList]; #declare and type defs.
+    #set a prefix for local vars implementation.
+    #varIdfStructLocalCopy->idfPrefixLocal := [componentName string]."_";
+    #get local vars and typedefs.
+    #-> it sets the idfStruct with varMap and type definitions.
+    foreach regDefList (@ASTInstruction ASTinst) do
+      @instruction inst;
+      [ASTinst getInst !ctx !?symbolMap !?varIdfStruct ?inst];
+#      instDeclareList += !inst;
+#      #registers should be inserted in the varMap, and stay as global definition.
+#      #so, it is both inserted in the varIdfStructLocalCopy, and in varIdfStruct
+#      if(inst is >= @instDeclaration) then #including @instDeclarationRegSlice
+#        @instDeclaration iDec := (cast inst : @instDeclaration);
+#        switch [iDec access]
+#        when localVar,field: #nothing -> stay local var.
+#        when programCounter,GPR,SFR,registerSlice:
+#          #should be set in global varMap
+#          #re-genere the instruction, with other idfStruct.
+#          [ASTinst getInst !ctx !?symbolMap !?varIdfStruct ?inst];
+#        end switch;
+#      end if;
+    end foreach;
+    #functions.
+    #-> first insert prototype.
+    @functionMap methodPrototypeMap := [ASTmethodMap getFunctionPrototypeMap];
+    [!?componentMapProto insertKey !componentName !methodPrototypeMap];
+    varIdfStruct->componentMap := componentMapProto;
+
+    #->then compute the body of methods
+    #  -> may use methods defined elsewhere in the component.
+    @functionMap methodMap := [ASTmethodMap getFunctionMap !ctx !varIdfStruct];
+    [!?componentMap insertKey !componentName !methodMap];    
   end foreach;
-  foreach param (@cExpression expCall *) do
-    if not first then 
-      code .= ", ";
-    end if;
-    code .= [expCall generateCode !componentPrefix !idfSuffix !cgc];
-    first := false;
+
+  varIdfStruct->componentMap := componentMap;
+end method;
+
+method @componentMap setInTemplate
+  ?! @TfieldMap templateStruct
+:
+  @TfieldMapList componentTpl [emptyList];
+  foreach selfcopy do
+    @TfieldMap componentTplBody [emptyMap];
+    addLStringValue !?componentTplBody !"name" !lkey;
+
+    #@string declareLocals := generateCode[!instDeclareList !2 ![@codeCtx C]];
+    #addStringValue !?componentTplBody !lstringWith[!"declareLocals"] !declareLocals;
+    addListValue !?componentTplBody !lstringWith[!"methodList"] ![methodMap getFunctionTemplate];
+    componentTpl += !componentTplBody;
   end foreach;
-  code .= ")";
+  addListValue   !?templateStruct !lstringWith[!"componentList"] !componentTpl;
+end method;
+
+reader @componentMap getInstList
+  ?? @idfItemList idfList
+  -> @instructionList instList
+:
+  @lstring compName := [idfList idfAtIndex !0];
+  @lstring funcName := [idfList idfAtIndex !1];
+  [selfcopy searchKey !compName ?@functionMap funcMap];
+  [funcMap searchKey !funcName ?* ?* ?instList];
 end reader;
 
-routine getComponentOutType
-  ?? @componentMap componentMap
-  ?? @lstring componentName
-  ?? @lstring methodName
-  !  @varTypeList outTypeList
-:
-  outTypeList := [@varTypeList emptyList];
-  @functionMap methodMap;
-  [componentMap searchKey !componentName ?* ?* ?methodMap ?* ?* ?* ?* ?* ?*];
-  @returnTypeList funcOutTypeList;
-  [methodMap searchKey !methodName ?* ?funcOutTypeList ?*];
-  foreach funcOutTypeList (@functionOutType funcOutType) do
-    cast funcOutType
-    when == @functionOutTypeClassic outTypeInt :
-      outTypeList += ![outTypeInt outType];
-    when == @functionOutTypeCustom :
-      error here: "Cannot get out type. It's a custom type!";
-    else error here : "internal error: cannot set out type in component method!";
-    end cast;
-  end foreach;
-end routine;
-
-###########################################
-## component call instruction
-###########################################
-
-class @cCompMethodCall extends @cInstruction{
-  @lstring componentName;
-  @lstring methodName;
-  @parameterCallList paramList;
-}
-
-function isComponentMethodValid
-  ?? @componentMap componentMap
-  ?? @lstring componentName
-  ?? @lstring methodName
-  -> @bool valid
-:
-  valid := false;
-  @functionMap methodMap [emptyMap];
-  [componentMap searchKey !componentName ?* ?* ?methodMap ?* ?* ?* ?* ?* ?*];
-  if [methodMap hasKey ![methodName string]] then
-    valid := true;
-  else error [methodName location]: "No method named :". methodName ."in component ".componentName."\n";
-  end if;
-end function;
-
 end semantics ;
-
 # vim:ft=ggs:ts=2:sw=2

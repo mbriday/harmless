@@ -1,7 +1,9 @@
 option gadl_options :
 
-@bool warnIfResultMayBeTruncated : 'w', "warn-trunc" 
-      -> "Warn if the result of an expression may be truncated";
+@bool templateLogFile: '\0', "template-log"
+      -> "Generate a template log file in xml format. The file embedds all symbols that are exported to the template processor. Use for debugging purpose only";
+
+@string template_dir    : '\0', "templates" -> "Template directory" ;
 
 @bool noCheck: 'c', "no-check" 
       -> "Remove time consuming checks: coherence of instruction set.";
@@ -9,27 +11,11 @@ option gadl_options :
 @bool noDesassemble: 'a', "no-deasm" 
       -> "does not take into account instruction syntax part. It is not possible to generate a dissassembler";
 
-@bool noBehavior: 'b', "no-behavior"
-      -> "does not take into account instruction behavior part. It is not possible to generate an instruction set simulator (ISS)";
-
-@bool noInstCycle: '\0', "no-instruction-cycle"
-      -> "does not take into account instruction cycle count part (when no pipeline is defined). Simulation should be faster.";
-
-@bool messageIfNoCorrespondingFormat: 'f', "message-if-no-format"
-      -> "get a message when an instruction signature found in a behavior or a syntax part have no corresponding format.";
-
-@bool speed: 's', "speed" 
-      -> "speed option. May be more difficult to debug. Inline component methods.";
+@bool warnIfResultMayBeTruncated : 'w', "warn-trunc" 
+      -> "Warn if the result of an expression may be truncated";
 
 @bool pipelineDebug: 'p', "pipeline-debug"
       -> "pipeline debug: generate notifications for each pipeline stage to reconstruct the pipeline content. It may slow the simulation.";
-
-@bool templateLogFile: '\0', "template-log"
-      -> "Generate a template log file in xml format. The file embedds all symbols that are exported to the template processor. Use for debugging purpose only";
-
-@string template_dir    : '\0', "templates" -> "Template directory" ;
-
-@string modelName    : '\0', "model" -> "model name that will be generated. By default, all the model defined in the description file are generated." ;
 
 end option ;
 # vim:ft=ggs:ts=2:sw=2

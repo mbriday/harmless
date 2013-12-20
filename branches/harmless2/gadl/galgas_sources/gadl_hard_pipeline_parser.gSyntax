@@ -8,16 +8,6 @@ nonterminal <readOrWriteOrFetchOrIdf>
   ! @lstring idf
 ;
 
-#implementation related functions
-nonterminal  <implementation> 
-  ?! @varMap varMap 
-  ?! @instructionList instList 
-  ?? @componentMap componentMap
-  ?? @lstring currentComponent
-  ?? @expressionContext expContext
-  ?? @returnTypeList returnList
-;
-
 rule <pipeline> 
   ?? @architectureMap architectureMap
   ?! @pipelineMap pipelineMap
@@ -97,7 +87,6 @@ end rule;
 #----------------------------------------------------
 
 rule <machine>
-  ?? @componentMap unused componentMap
   ?! @machineMap machineMap
   ?? @pipelineMap pipelineMap
 :
@@ -105,25 +94,11 @@ rule <machine>
   @lstring machineName;
   $idf$ ?machineName;
   ${$;
-#  <pipelineInit> !componentMap;
   @pipelineExpression outPipelineExpression;
   <pipelineExpression> ?outPipelineExpression !pipelineMap;
   [!?machineMap insertKey !machineName !outPipelineExpression];
   $}$;
 end rule;      
-
-#rule <pipelineInit> 
-#  ??@componentMap componentMap 
-#:
-#  $init$; ${$;
-#  @varMap varMap := [@varMap emptyMap]; 
-#  @instructionList instList := [@instructionList emptyList];
-#  @lstring noComp := [@lstring new !"" !here];
-#  @returnTypeList returnList [emptyList]; #no return allowed
-#  <implementation> !? varMap !?instList !componentMap !noComp  ![@expressionContext architecture] !returnList;
-#  warning here: "The 'init' section of machine does not generate any code.";
-#  $}$;
-#end rule;
 
 #----------------------------------------------------
 #-- ex: p1 fetch1 | p1 fetch2,(p2|p3),p4 finish3 | p4 finish4

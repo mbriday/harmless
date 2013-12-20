@@ -8,7 +8,7 @@
 #include "codeReader.h"
 #include "types.h"
 
-class arch;
+class core;
 
 #define SRR_BUF_SIZE 256
 
@@ -33,7 +33,7 @@ class sRecordReader : public codeReader
 	sRecordReader(const sRecordReader&);
 	sRecordReader &operator=(const sRecordReader& sr);
 	virtual ~sRecordReader() {};
-	virtual bool readFile(const char * filename, arch *_arch, const bool verbose);	
+	virtual bool readFile(const char * filename, core *_core, const bool verbose);	
 
 };
 

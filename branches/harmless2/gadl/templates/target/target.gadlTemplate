@@ -4,16 +4,18 @@ write to MODELNAME."/main.cpp":
   template main_cpp in target
 end write
 
-#arch.i is related to target 'python' -> interface between python and C++ using Swig
-write to MODELNAME."/arch.i":
-  template arch_i in target
+#core.i is related to target 'python' -> interface between python and C++ using Swig
+write to MODELNAME."/core.i":
+  template core_i in target
 end write
 
 #gdb target related files.
-write to MODELNAME."/gdbServerInterface.cpp":
-  template gdbServerInterface_cpp in target
-end write
+if exists GDB_DEBUG_COMPONENT then
+  write to MODELNAME."/gdbServerInterface.cpp":
+    template gdbServerInterface_cpp in target
+  end write
 
-write to MODELNAME."/main_gdb.cpp":
-  template main_gdb_cpp in target
-end write
+  write to MODELNAME."/main_gdb.cpp":
+    template main_gdb_cpp in target
+  end write
+end if

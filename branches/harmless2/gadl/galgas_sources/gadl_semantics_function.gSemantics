@@ -1,151 +1,171 @@
 semantics gadl_semantics_function :
   import "gadl_options.gOption" ;
+  import "gadl_types.gSemantics" ;
+  import "gadl_semantics_AST_implementation.gSemantics" ;
   import "gadl_semantics_implementation.gSemantics" ;
+  import "gadl_semantics_getInst.gSemantics" ; #getInst
+  import "gadl_semantics_implementation_code_generation.gSemantics" ;
+  
 
 #----------------------------------------------------------------------------
 # function def and calls end return.
 #----------------------------------------------------------------------------
-list @parameterCallList {
-  @cExpression exp;
-  @location loc;
-}
+# @parameterDefList definition of params in a function: 
+#             (defined in gadl_varIdfStruct.gSemantics)
+# -> reader @parameterDefList checkParams ?@expressionlist idfExpList 
+#             (defined in gadl_semantics_GetExp.gSemantics)
+# -> method @parameterDefList getInlinedInsts
+# -> reader @parameterDefList getFunctionParam (implementation using templates.)
 
-list @parameterDefList {
-  @bool out; #true out, false in.
-  @lstring name;
-  @classicVar variable;
-}
+#
+# @ASTFunctionMap AST related function
+# -> method @ASTFunctionMap getFunctionMap -> get decorated structure.
+# -> method @ASTFunctionMap getFunctionPrototypeMap -> get only the prototype.
+#
+# @functionMap : decorated structure (defined in gadl_varIdfStruct.gSemantics).
+# ->reader @functionMap getFunctionTemplate
 
-abstract class @functionOutType {
-}
-
-list @returnTypeList {
-  @functionOutType functionOutType;
-}
-
-# define an abstract method for @functionOutType to get the corresponding C code
-# and define 2 subclasses (with a type, or custom (memory)).
-abstract method @functionOutType getTypeCString
-  ! @string code;
-
-class @functionOutTypeClassic extends @functionOutType {
-  @varType outType;
-}
-override method @functionOutTypeClassic getTypeCString
-  ! @string code
-:
-  code := [outType getCType];
-end method;
-
-class @functionOutTypeCustom extends @functionOutType {
-  @string outType;
-}
-override method @functionOutTypeCustom getTypeCString
-  ! @string code
-:
-  code := outType;
-end method;
-
-map @functionMap {
+ 
+#used during parsing.
+map @ASTFunctionMap {
   @parameterDefList param;
-  @returnTypeList outTypeList;
-  @instructionList code;
+  @varAbstractType outType;
+  @ASTInstructionList code;
   insert insertKey error message "the '%K' component method is already defined in %L" ; 
   search searchKey error message "the '%K' component method is not defined" ;
 }
 
-######## function call expression.
-class @cfunctionCall extends @cExpression {
-  @lstring idf;
-  @parameterCallList paramList;
-}
-override reader @cfunctionCall generateCode
-  ?? @string componentPrefix #prefix used for object call.
-  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
-  ?? @codeCtx cgc
-  -> @string code
-:    
-  code := "gadl_" . [idf string] . "(";
-  @bool first := true;
-  foreach paramList (@cExpression expParam *) do
-    code .= [expParam generateCode !componentPrefix !idfSuffix !cgc];
-    if not first then 
-      code .= ", "; 
-    end if;
-    first := false;
+reader @ASTFunctionMap getFunctionMap
+  ?? @expressionContext ctx
+  ?? @varIdfStruct idfStruct
+  -> @functionMap functionMap
+:
+  functionMap := [@functionMap emptyMap];
+  foreach selfcopy (@lstring key @parameterDefList param @varAbstractType outType @ASTInstructionList code) do
+    #first add params to varMap
+    @varMap varMap [mapWithMapToOverride ![idfStruct varMap]];
+    foreach param(@bool out @varAbstractType type @lstring name) do
+      @instDeclaration instDec := [@instDeclaration new !here !type !name ![@varClass localVar] !""];
+      [!?varMap insertKey !name !type !not out ![@varClass localVar] !instDec];
+    end foreach;
+    #update the IdfStruct accordingly (copy to modify).
+    @varIdfStruct idfStructCopy := idfStruct;
+    idfStructCopy->varMap := varMap;
+    #then get instructions from their AST.
+    @instructionList instList := getInst[!code !ctx ![@symbolValueMap emptyMap] !idfStructCopy];
+    [!?functionMap insertKey !key !param !outType !instList];
   end foreach;
-  code .= ");\n";
 end reader;
 
-#############
-## instruction 'return'.
-#############
-
-class @cReturn extends @cInstruction{
-  @cExpressionList expressionList;
-  @lstring currentComponent;
-  @returnTypeList returnList; #required to get return types.
-}
-
-#check that the number of arguments is ok, and types are matching (i.e. 
-#return value can fit in the return type specified).
-method @cReturn checkArguments
+#return only the prototype (i.e. instList is empty).
+reader @ASTFunctionMap getFunctionPrototypeMap
+  -> @functionMap functionMap
 :
-  #check returns arguments types.
-  if [returnList length] != [expressionList length] then
-    error here: "the return expression has ".[[expressionList length] string]." elements, while ".
-                [[returnList length] string]." are expected.";
-  else #same size, check each expression with the type awaitted.
-    foreach expressionList (@cExpression exp),
-            returnList (@functionOutType functionOutType) do
-        cast functionOutType
-        when == @functionOutTypeClassic classicOut :
-         @varType expType;
-         checkOneExpressionOutType !exp ?expType; #TODO; Restriction to remove... later.
-         checkCorrectOutType ![classicOut outType] !expType;
-        else #custom type. No check at this time.
-        end cast;
-    end foreach;
-  end if;
-end method;
-
-routine checkCallDefParameters 
-  ?? @parameterCallList paramCall
-  ?? @parameterDefList paramDef
-  ?? @location callLocation
-:
-  #check size.
-  if [paramDef length] != [paramCall length] then
-    error callLocation : "behavior was called with a bad number of parameters!";
-  end if;
-   
-  #then check types.
-  foreach paramCall (@cExpression expCall *), paramDef(2* @classicVar var) do
-    @varType typeCall;
-    checkOneExpressionOutType !expCall ?typeCall;
-    checkCorrectOutType ![var type] !typeCall;
+  functionMap := [@functionMap emptyMap];
+  foreach selfcopy (@lstring key @parameterDefList param @varAbstractType outType *) do
+    [!?functionMap insertKey !key !param !outType ![@instructionList emptyList]];    
   end foreach;
+end reader;
 
-  #check that expression for an 'out' argument is only an idf.
-  foreach paramCall (@cExpression exp @location loc), paramDef(@bool out @lstring name *) do
+#This reader returns the instructions to generate the function call.
+#when used in an inlining approach (as in behaviors)
+method @parameterDefList getInlinedInsts
+  ?? @ASTExpressionlist ASTexpList #expression list from the caller.
+  ?? @expressionContext ctx
+  ?? @location callLoc
+  ?? @location defLoc
+  ?? @varIdfStruct fromIdfStruct
+  ?! @varIdfStruct toIdfStruct
+  !  @instructionList instList
+:
+  #here, we have to generate a special assignment, as
+  #the idf is related to the new 'toIdfStruct' -> the varMap should be update
+  #the expression should be computed using the old 'fromIdfStruct'
+  #if there is no 'out', the value is constant, but assigned first (TODO)
+  instList := [@instructionList emptyList];
+  @expressionlist expList := [ASTexpList getExp !ctx ![@symbolValueMap emptyMap] !fromIdfStruct];
+#  @expressionlist expList [emptyList];
+  @symbolValueMap symbolValueMap [emptyMap];
+#  foreach ASTexpList(@ASTExpression ASTexp) do
+#    expList += ![ASTexp getExp !ctx !symbolValueMap !fromIdfStruct];
+#  end foreach;
+  #check parameters.
+  [selfcopy checkParams !expList !callLoc !defLoc];
+  #then generate the instructions.
+  foreach expList(@expression exp), selfcopy(@bool out @varAbstractType type @lstring name) do
+    #declaration
+    @ASTInstDeclaration ASTinstDec := [@ASTInstDeclaration new ![name location] ![@varClass localVar] !type !name];
+    @instruction instDec;
+    [ASTinstDec getInst !ctx !?symbolValueMap !?toIdfStruct ?instDec];
     if out then
-      #expression must be an identifier. 
-      cast exp
-      when == @cIdf idf :
-        #this is an idf. Check that it can be modified.
-        if [[idf var] constant] then 
-          error loc: "variable in method call (".[[idf idf] string].") is constant, be has been declared".
-                     " as an input/output parameter (using the 'out' keyword).";
-        end if;
-      else
-        #this is not an idf. An error should be generated.
-        error loc: "The parameter ".[name string]." at ".[[name location] locationString].
-                   " is an output argument. It must be called with an identifier and not ".
-                   "a complex expression.";
-      end cast;
+      const @instDeclaration instDecOk := (cast instDec : @instDeclaration);
+      @lstring idf := [instDecOk name];
+      #now get the idf in the expression call.
+      @lstring idfCall := [exp getLocalVar !callLoc];
+      #then replace it.
+      [!?toIdfStruct->replaceMap insertKey !idf !idfCall];
+      #We add the corresponding entry in the new varMap
+      @varAbstractType idfItemType;
+      @bool constant; #true if the variable should not be modified.
+      @varClass varClass;
+      [fromIdfStruct->varMap searchKey !idfCall ?idfItemType ?constant ?varClass ?@instDeclaration idec];
+      [!?toIdfStruct->varMap insertKey !idfCall !idfItemType !constant !varClass !idec];
+      if constant then
+        error callLoc: "The variable is constant, but defined as in/out parameter";
+      end if;
+      #that's all, folks.
+    else
+      instList += !instDec;
+      #get the expression related to the idf.
+      @ASTIdf ASTidf := [name getASTExp];
+      @expIdf expIdf := (cast [ASTidf getExp !ctx !symbolValueMap !toIdfStruct] : @expIdf);    
+      #then assign
+      instList += ![@instAssignment new ![name location] !expIdf ![@fieldList emptyList] !exp];
     end if;
   end foreach;
-end routine;
+end method;
+
+reader @functionMap getFunctionTemplate
+  -> @TfieldMapList methodTplList
+:
+  methodTplList := [@TfieldMapList emptyList];
+  foreach selfcopy do
+    @TfieldMap methodTplBody [emptyMap];
+    addLStringValue !?methodTplBody !"name" !lkey;
+    #return type.
+    @string returnTypeStr := [[outType getBaseType] getCType];
+    addStringValue !?methodTplBody !lstringWith[!"returnTypeStr"] !returnTypeStr;
+    #parameters
+    @string paramStr := [param getFunctionParam];
+    addStringValue !?methodTplBody !lstringWith[!"paramStr"] !paramStr;
+    #then body implementation
+    @string codeStr := "";
+    codeStr .= generateCode[!instList !3 ![@codeCtx C]];
+    addStringValue !?methodTplBody !lstringWith[!"codeStr"] !codeStr;
+    #end
+    methodTplList += !methodTplBody;
+  end foreach;
+end reader;
+
+reader @parameterDefList getFunctionParam
+  -> @string code
+:
+  code := "";
+  foreach selfcopy do
+    @string typeStr := [[type getBaseType] getCType]; #only base types supported for now.
+    if out then
+      code .= typeStr; 
+      code .= " &";  # C++ only!
+    else 
+      code .= "const "; 
+      code .= typeStr; 
+      code .= " "; 
+    end if;
+    code .= [name string];
+  between
+    code .= ", ";
+  end foreach;
+end reader;
 
 end semantics ;
 # vim:ft=ggs:ts=2:sw=2

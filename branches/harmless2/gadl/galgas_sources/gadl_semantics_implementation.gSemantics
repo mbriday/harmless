@@ -1,304 +1,133 @@
 semantics gadl_semantics_implementation:
-  import "gadl_semantics.gSemantics" ;
-  import "gadl_semantics_expression.gSemantics";
+  import "gadl_options.gOption" ;
+  import "gadl_semantics_AST_implementation.gSemantics" ;
+  import "gadl_semantics_expression.gSemantics";  
+  import "gadl_semantics_instruction.gSemantics";  #define @instruction and instruction List
 
-abstract class @cInstruction {
-  @location loc;
-}
+# basic instructions (extends @instruction):
+# + @instIf
+# + @instReturn
+# + @instNop
+# + @instLoop
+# + @instError
+# + @instPrint
+# + @instMessage
+# + @instFunctionCall
+# + @instAssignment
+# + @instDeclaration   -> declared in gadl_variable.gSemantics
+#   -> @instDeclarationRegSlice 
+# + @instTypeDefinition
 
-list @instructionList {
-  @cInstruction exp;
-}
+#reader:
+# @instructionList getDeclarations -> return the map of variable, fields, etc.
 
-#return a temporary variable for implementation part.
-#* the tmpId allows to get different tmp variable in the same implementation bloc. It should only be updated
-#in that routine (except init)
-#the type is the type of the temp var that should be used.
-routine getTempVar
-  ?! @uint tmpId
-  ?? @varType type
-  !  @lstring name
-  !  @classicVar var
+## get name for instDeclaration -> because there is a subclass for slice registers.
+
+#abstract class @instruction {
+#  @location loc;
+#}
+#
+#list @instructionList {
+#  @instruction inst;
+#}
+
+#mainly used for debug and trace.
+reader @instructionList getDeclarations
+  ?? @varClass varClass
+  -> @varBaseTypeMap varBaseTypeMap
 :
-  var := [@classicVar new !type !false !"" !""];
-  name := [@lstring new !"__tmp_".[tmpId string]."__" !here];
-  tmpId := tmpId+1;
-end routine;
-
-function commentCurrentDescriptionLine
-  ?? @uint nbTabulation
-  ?? @location loc
-  -> @string comment
-:
-  comment := tabs[!nbTabulation];
-  @stringlist l1 := [[loc locationString] componentsSeparatedByString !"'"];
-  @string longPath := [l1 mValueAtIndex !1];
-  @string shortPath := [longPath lastPathComponent];
-  comment .= "// '".shortPath."', l.".[[loc line] string]."\n";
-end function;
-
-#dummy instruction. the string contains the C code directly
-class @cDummy extends @cInstruction{
-  @string codeStr;
-}
-
-class @cInterruptInst extends @cInstruction{
-  @expressionContext expContext;
-  @luint64 trapId;
-}
-
-class @cErrorInst extends @cInstruction{
-  @bool onlyAWarn;
-  @lstring msg; #The error string and the location in the description file.
-  #conditionnal error. The condition is evaluated only in debug mode. 
-  #This should only be use for debugging purpose.
-}
-
-class @cMessageInst extends @cInstruction{
-  @lstring msg; #The message string and the location in the description file.
-}
-
-class @cPrintInst extends @cInstruction{
-  @cExpression exp; #The text to print on stderr.
-}
-
-class @cNopInst extends @cInstruction{
-  @expressionContext expContext;
-  @cExpression condition; #the condition is evaluated when the instruction is executed.
-}
-
-class @cInsertStall extends @cInstruction{
-  @cExpression condition; #the condition is evaluated when the instruction is executed.
-}
-
-class @cAddCycleInst extends @cInstruction{
-  @cExpression condition; #the condition is evaluated when the instruction is executed.
-}
-
-map @ifOrElseBlockMethodMap {
-  @lstring compName; 
-  @lstring methName; 
-  @uint ifCount;
-  insert insertKey error message "the '%K' method is already defined in %L" ; 
-  search searchKey error message "the '%K' method is not defined in map" ;
-  remove removeKey error message "the '%K' method is not defined and cannot be removed." ;
-}
-
-map @ifOrElseBlockParamMap { 
-  @uint paramCount;
-  insert insertKey error message "the '%K' method is already defined in %L" ; 
-  search searchKey error message "the '%K' method is not defined in map" ;
-  remove removeKey error message "the '%K' method is not defined and cannot be removed." ;
-}
-
-routine calculateTheMaxOfParam
-  ?? @ifOrElseBlockParamMap  ifBlockParamMap
-  ?? @ifOrElseBlockParamMap  elseBlockParamMap
-  ?! @lstringlist paramNameList
-:
-  @stringset paramSet := [ifBlockParamMap keySet] | [elseBlockParamMap keySet];
-  @ifOrElseBlockParamMap paramMap := [@ifOrElseBlockParamMap emptyMap];
-  foreach paramSet (@string paramName) do
-    @uint nbInIf := 0;
-#    @lstring compName := [@lstring new !"" !here];
-#    @lstring methName := [@lstring new !"" !here];
-    if [ifBlockParamMap hasKey !paramName] then
-      [ifBlockParamMap searchKey ![@lstring new !paramName !here] ?nbInIf];         
-    end if;
-    @uint nbInElse := 0;
-    if [elseBlockParamMap hasKey !paramName] then
-      [elseBlockParamMap searchKey ![@lstring new !paramName !here] ?nbInElse];         
-    end if;
-    if nbInIf > nbInElse then
-      [!?paramMap insertKey ![@lstring new !paramName !here] !nbInIf];
-    else
-      [!?paramMap insertKey ![@lstring new !paramName !here] !nbInElse];
-    end if;
-  end foreach;
-  foreach paramMap (@lstring paramN @uint nb) do
-    @uint nbTemp := nb;
-    loop nbTemp :
-    while nbTemp != 0 do
-      paramNameList += !paramN;
-      nbTemp := nbTemp - 1;
-    end loop;
-  end foreach;
-end routine;
-
-routine countNbOfEachParamInList
-  ?? @lstringlist paramNameList  
-  ?! @ifOrElseBlockParamMap paramMap
-:
-  foreach paramNameList (@lstring paramName) do
-    if [paramMap hasKey ![paramName string]] then
-      @uint paramCount; 
-      [paramMap searchKey !paramName ?paramCount];
-      paramCount := paramCount + 1;
-      [!?paramMap removeKey !paramName ?*];
-      [!?paramMap insertKey !paramName !paramCount];
-    else
-      [!?paramMap insertKey !paramName !1];
-    end if;
-  end foreach;
-end routine;
-
-#This class is only used in the 'timing' view.
-#If the method is accessed by an instruction, then the instList is
-#added. Else, no code is executed.
-class @cTimingMethodAccessBlock extends @cInstruction{
-  @lstring componentName;
-  @lstring methodName;
-  @instructionList instList;
-}
-
-#type in order: if, else if
-class @cIfBlock extends @cInstruction{
-  @cExpression condition;
-  @instructionList ifInstList;
-  @instructionList elseInstList;
-}
-
-list @leftAssignPart {
-  @cExpression exp;
-  @fieldList fieldLeft; #empty list if there is no fields.
-}
-
-
-class @cDeclareVar extends @cInstruction{
-  @lstring idf;
-  @classicVar variable;
-}
-
-
-#type in order: if, else if
-class @cLoopBlock extends @cInstruction{
-  @luint64 guard; #const value: max number of loops.
-  @cExpression condition;
-  @instructionList loopInstructionList;
-  @uint     tmpId; #used to get unique tmp var names (loop index)
-}
-
-#generate only one assignment, i.e. if there is the description:
-# a,b := 3,4+5 -> then there will be 2 call to generateOneAssigment 
-#(and one tmp variable used.
-# The generateOneAssigment rule generate the following code:
-# * 'std' assignment : left = (right) & mask, 
-#                      where mask limits the result size to fit in 'left'
-# * 'register' assignement : setReg(right)
-#                      when left is a register.
-# * 'type' assignment : memcpy(left, right, sizeof(left));
-#                      when left is a structured type.
-routine generateOneAssigment
-  ?? @cExpression expLeft
-  ?? @fieldList fieldLeft      #leftPart related stuff
-  ?? @string rightAssignPart   #right part related stuff.
-  ?! @string code
-  ?? @string componentPrefix #prefix used for object call.
-  ?? @string idfSuffix        #suffix used for fields (syntax and behaviors)
-  ?? @codeCtx cgc
-:
-  @varType leftType;
-  checkOneExpressionOutType !expLeft ?leftType;
-
-  #check if left exp is a type
-  if [leftType kind] == [@varKind type] then
-    cast leftType
-      when == @VarTypeDef vtd :
-        @string typeName;
-        @string idTabType := [vtd idTabType];
-        @lstring CompName := [vtd CompName];
-        #message "copy struct".[CompName string].".".idTabType."\n";
-        typeName := "gadl_type_".[CompName string]."_". idTabType;
-        @string expLeftCode := "";
-        expLeftCode .= [expLeft generateCode !componentPrefix !idfSuffix !cgc];
-        code .= "memcpy(&(".expLeftCode."), &(".rightAssignPart."), sizeof(".typeName."));\n";
-      when == @varTabType :
-      else 
-        error [leftType location]: "left part of assignment not yet implemented";
-        log leftType;
-    end cast;
-  else #not a structured type (-> scalar value)
-    #mask for assign type.
-    @string maskStr := getMaskFor [![leftType size] ![leftType location] !cgc];
-    #generated left part.
-    @string idfReadAccess  := "";
-    @string postInstruction := "";
-    @bool isReg := false;
-    cast expLeft
-      when == @cIdf idf :
-        cast [idf var]
-          when >= @registerVar :
-            code .= componentPrefix."set" . [[idf idf] string] . "(";
-            #the register may be in read/write access for a field access.
-            idfReadAccess := "(".componentPrefix.[[idf idf] string] . "())"; 
-            postInstruction := ")";
-            isReg := true;
-          else
-        end cast;
-      else
-    end cast;
-    if not isReg then
-      @string expLeftCode := "";
-      expLeftCode .= [expLeft generateCode !componentPrefix !idfSuffix !cgc];
-      idfReadAccess := expLeftCode;
-      code .= expLeftCode . " = ";
-    end if;
-    if cgc == [@codeCtx C] then    
-      code .= "(";
-    end if;
-    if [fieldLeft length] == 0 then
-      #no field
-      code .= rightAssignPart;
-    else
-      @fieldList tempList := fieldLeft ; #copy that can be modified.
-      @bool start := true;
-      @uint offset := 0;
-      @bool canAcceptAnotherField := true;
-      @location loc := here; #location for error if the field size is not known.
-      loop [tempList length] + 1:
-      while [tempList length] > 0 do
-        if not canAcceptAnotherField then 
-          error loc : "can not determine field size exactly here. Can not generate code.";
+  varBaseTypeMap := [@varBaseTypeMap emptyMap];
+  foreach selfcopy do
+    if (inst is == @instDeclaration) then
+      const @instDeclaration instCast := (cast inst: @instDeclaration) ;      
+      if varClass == [instCast access] then
+        if not [varBaseTypeMap hasKey ![[instCast name] string]] then
+          [!?varBaseTypeMap insertKey ![instCast name] ![[instCast type] getBaseType]];
         end if;
-        #take the last field.
-        @cExpression fromExp; @cExpression toExp;
-        @uint maxSize;
-        [!?tempList popLast ?fromExp ?toExp ?maxSize ?canAcceptAnotherField ?loc] ;
-        @string fromExpCode := "";
-        fromExpCode .= [fromExp generateCode !componentPrefix !idfSuffix !cgc];
-        @string toExpCode := "";
-        toExpCode .= [toExp generateCode !componentPrefix !idfSuffix !cgc];
-        #put the 'or' between fields
-        if not start then code .= " | "; end if;
-        #call the Macro.
-        code .= "FIELD_ASSIGN(". idfReadAccess.",(".fromExpCode."),(".toExpCode."),(".rightAssignPart.")";
-        #set the offset
-        if offset != 0 then code .= " >> " . [offset string]; end if;
-        code .= ")";
-        #calculate next offset.
-        offset := offset + maxSize;
-        start := false;
-      end loop ;
+      end if;
     end if;
-    if cgc == [@codeCtx C] then
-      code .= ") & " . maskStr.postInstruction.";\n";
-    end if;
-  end if; #type
-end routine;
+  end foreach;
+end reader;
 
 
-class @cAssign extends @cInstruction{
-  @leftAssignPart leftPart; #left  part
-  @cExpression exp;         #right exp.
-  @uint     tmpId;          #used to get unique tmp var names. It will use (n-1) tmp var (n=nb of assignments)
+
+class @instIf extends @instruction {
+  @expression cond;
+  @instructionList instIfList;
+  @instructionList instElseList;
 }
 
-class @cAssignFunc extends @cInstruction{
+class @instReturn extends @instruction {
+  @expression exp;
+}
+
+class @instNop extends @instruction {
+  @expressionContext expContext;
+  @expression cond;
+}
+
+class @instLoop extends @instruction {
+  @expression guard;
+  @expression expCondition;
+  @instructionList loopInstList;
+}
+
+class @instError extends @instruction {
+  @bool onlyWarn;
+  @lstring msg;
+}
+
+class @instPrint extends @instruction {
+  @expression exp;
+}
+
+class @instMessage extends @instruction {
+  @lstring msg;
+}
+
+class @instFunctionCall extends @instruction {
+  @expIdf exp;
+}
+
+class @instAssignment extends @instruction {
+  @expIdf idf;
+  @fieldList flist;
+  @expression exp;
+}
+
+#  @instDeclaration declared in gadl_variable.gSemantics
+
+#class @instDeclaration extends @instruction {
+#  @varAbstractType type;
+#  @lstring idf feature nogetter; #should not be used directly -> use the 'name' reader instead.
+#  @varClass access;
+#  @string prefixLocal; #used to get a unique local var name.
+#}
+
+class @instDeclarationRegSlice extends @instDeclaration {
+  @lstring sliceName;
+  @fieldList fieldList;
+}
+
+class @instTypeDefinition extends @instruction {
   @lstring idf;
-  @classicVar variable;
-  @cExpression expression ;
-  @bool out; #true for an output expression.
+  @typedefMemberMap memberList;
 }
 
-end semantics ;
+##########
+## get name for instDeclaration
+reader @instDeclaration name
+  -> @lstring fullName
+:
+  fullName := idf;
+end reader;
+
+override reader @instDeclarationRegSlice name
+  -> @lstring fullName
+:
+  fullName := [@lstring new ![idf string]."_".[sliceName string] ![sliceName location]];
+end reader;
+
+
+end semantics;
 # vim:ft=ggs:ts=2:sw=2

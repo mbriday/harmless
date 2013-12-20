@@ -1,0 +1,15 @@
+indexing grammar gadl_isa_grammar "LL1":
+with "gadl_isa_syntax.gSyntax" ;
+with "gadl_expression_parser.gSyntax" ;
+with "gadl_implementation_parser.gSyntax";
+with "gadl_instruction_format_parser.gSyntax";
+with "gadl_instruction_syntax_parser.gSyntax";
+with "gadl_default_parser.gSyntax";
+with "gadl_components_parser.gSyntax";
+with "gadl_function_parser.gSyntax";
+with "gadl_instruction_behavior_parser.gSyntax";
+
+root <isa> !@ASTIsa ASTIsa;
+
+end grammar ;
+# vim:ft=ggs:ts=2:sw=2

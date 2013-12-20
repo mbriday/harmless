@@ -1,7 +1,7 @@
 syntax gadl_instruction_format_parser ("gadl_lexique.gLexique") :
 
   import "gadl_options.gOption" ;
-  import "gadl_semantics.gSemantics" ;
+#  import "gadl_semantics.gSemantics" ;
   import "gadl_semantics_format.gSemantics" ;
 
 #specific bit field for formats (not allowing expression). Using the standard one leads to a 
@@ -10,11 +10,11 @@ syntax gadl_instruction_format_parser ("gadl_lexique.gLexique") :
 #     error are generated if the bit access is not in the variable range.
 #     Then, type is updated using the correct number of bits.
 rule <formatBitField> 
-  !  @fieldList fieldList 
-  ?! @varType type
+  !  @formatFieldList fieldList 
+  ?! @varBaseType type
 :
   @uint nbBits := 0;
-  fieldList := [@fieldList emptyList];
+  fieldList := [@formatFieldList emptyList];
   ${$;
   select
     $-$; # empty field.
@@ -22,37 +22,29 @@ rule <formatBitField>
     repeat
       @luint64 fromBit;
       $unumber$ ? fromBit;
-      @uint sizeOfConst := nbBitsToCodeUnsigned[![fromBit uint64]];
-      @cIntConst fromExp := [@cIntConst new !getTypeListFrom[![@varType new ![@varKind unsigned] !sizeOfConst !here]] ![fromBit uint64] !false];
-      if [[fromBit uint64] uint] >= [type size] then
-        error fromBit : "bit access impossible with the type considered\n".
-          "size of data is ".[[type size] string]." bits";
-      end if;
+      @uint64 from := [fromBit uint64];
       select
-   #only a bit -> bitfield size is 1.
-        fieldList += !fromExp !fromExp !1 !true !here;
+        #only a bit -> bitfield size is 1.
+        fieldList += !from !from !here;
         nbBits := nbBits+1;
       or
         $..$;
         @luint64 toBit;
         $unumber$ ? toBit;
-        @uint sizeOfConst2 := nbBitsToCodeUnsigned[![toBit uint64]];
-
-        @cIntConst toExp := [@cIntConst new !getTypeListFrom[![@varType new ![@varKind unsigned] !sizeOfConst2 !here]] ![toBit uint64] !false];
-        if([fromBit uint64] < [toBit uint64]) then 
+        @uint64 to := [toBit uint64];
+        if(from < to) then 
           error toBit : "value is higher than the previous one in the range :".
-                        [[toBit uint64] string]." > ".[[fromBit uint64] string];
+                        [to string]." > ".[from string];
         end if;
-        @uint64 maxSize := [fromBit uint64]-[toBit uint64]+1L;
-        fieldList += !fromExp !toExp ![maxSize uint] !true !here;
-        nbBits := nbBits+[maxSize uint];
+        fieldList += !from !to !here;
+        nbBits := nbBits+[from uint]-[to uint]+1;
         end select;
     while 
     $,$;
     end repeat;
   end select;
   $}$;
-  type := [@varType new ![@varKind unsigned] !nbBits !here];
+  type := [@varBaseType new ![@varKind unsigned] !nbBits !here];
 end rule;
 
 rule <callFormat>
@@ -101,12 +93,12 @@ rule <sliceDef>
     #no slice. Using the current chunk.
     sliceSize := [defaultInstructionSize uint];
     #get a default field, using the whole
-    @fieldList defaultField := [@fieldList emptyList];
+    @formatFieldList defaultField := [@formatFieldList emptyList];
     @uint tmp := sliceSize-1;
-    @uint sizeOfConstFrom := nbBitsToCodeUnsigned[![tmp uint64]];    
-    @cIntConst fromExp := [@cIntConst new !getTypeListFrom[![@varType new ![@varKind unsigned] !sizeOfConstFrom !here]] ![tmp uint64] !false];
-    @cIntConst toExp   := [@cIntConst new !getTypeListFrom[![@varType new ![@varKind unsigned] !0 !here]] !0L !false];
-    defaultField += !fromExp !toExp !1 !true !here;
+    #@uint sizeOfConstFrom := nbBitsToCodeUnsigned[![tmp uint64]];    
+    #@cIntConst fromExp := [@cIntConst new !getTypeListFrom[![@varBaseType new ![@varKind unsigned] !sizeOfConstFrom !here]] ![tmp uint64] !false];
+    #@cIntConst toExp   := [@cIntConst new !getTypeListFrom[![@varBaseType new ![@varKind unsigned] !0 !here]] !0L !false];
+    defaultField += ![tmp uint64] !0L !here;
     sliceList += !defaultField !0s;
     nbSlicesBeforeAPlus := 1;
   or
@@ -121,8 +113,8 @@ rule <sliceDef>
         end if;
         foundAPlus := true;
       end select;
-      @varType tempType := [@varType new ![@varKind unsigned] ![defaultInstructionSize uint] !here];
-      @fieldList field;
+      @varBaseType tempType := [@varBaseType new ![@varKind unsigned] ![defaultInstructionSize uint] !here];
+      @formatFieldList field;
       <formatBitField> ?field !?tempType;
       sliceSize := sliceSize + [tempType size];
       nbSlices := nbSlices + 1;
@@ -130,7 +122,7 @@ rule <sliceDef>
       tempSliceList += !field ![nbSlices sint];
     end repeat;
     #update, using the correct offset.
-    foreach tempSliceList (@fieldList f @sint p) do
+    foreach tempSliceList (@formatFieldList f @sint p) do
       sliceList += !f !(p - [nbSlicesBeforeAPlus sint]);
     end foreach;
   end select;
@@ -175,6 +167,10 @@ rule <format>
   ?! @formatMap formatMap
   ?! @uint internalFormatId
 :
+  if [defaultInstructionSize uint] == 0 then 
+    error here: "no default instruction size specified! ";
+  end if;
+
   $format$;
   @lstring formatName;
   $idf$ ?formatName indexing formatDef;
@@ -335,6 +331,7 @@ rule <assignFormat>
   ?? @lstring idf
   ?! @assignSliceList assignList
 :
+  @location loc := here;
   $:=$;
   @sliceList slice := [@sliceList emptyList];
   @uint typeLength := 0; #final length of the slice.
@@ -350,8 +347,8 @@ rule <assignFormat>
   end select;
   $slice$;
   repeat
-    @fieldList fieldList;
-    @varType typeSlice := [@varType new ![@varKind unsigned] ![defaultInstructionSize uint] !here]; #TODO: update.
+    @formatFieldList fieldList;
+    @varBaseType typeSlice := [@varBaseType new ![@varKind unsigned] ![defaultInstructionSize uint] !here]; #TODO: update.
     <formatBitField> ?fieldList !?typeSlice; #type updated.(no size verification ....)
     typeLength := typeLength + [typeSlice size];
     nbSlicesInAssign := nbSlicesInAssign + 1;
@@ -378,7 +375,7 @@ rule <assignFormat>
     end if;
     shiftType := 2;
   end select;
-  @varType type := [@varType new !kind !typeLength !here]; #return type
+  @varBaseType type := [@varBaseType new !kind !typeLength !loc]; #return type
   assignList += !idf !slice !type !shiftType !shift;
 end rule;
 

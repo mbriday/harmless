@@ -1,412 +1,139 @@
 syntax gadl_instruction_behavior_parser ("gadl_lexique.gLexique") :
 
 import "gadl_options.gOption" ;
-import "gadl_semantics.gSemantics" ;
-import "gadl_semantics_behavior.gSemantics" ;
+import "gadl_semantics_function.gSemantics" ; #@parameterDefList
+import "gadl_semantics_behavior_data_structures.gSemantics" ;
 
-#implementation related functions.
-nonterminal  <typeDeclaration> 
-  !  @varType type
-  ?? @componentMap componentMap
-  ?? @lstring compName
-;
-nonterminal  <implementationWithoutDeclaration> 
-  ?! @varMap varMap 
-  ?! @instructionList instList 
-  ?? @componentMap componentMap
-  ?? @lstring currentComponent
-  ?! @uint tmpId
-  ?? @expressionContext expContext
-  ?? @returnTypeList returnList
-;
-nonterminal  <basicDeclaration> 
-  ?? @varType type 
-  ?? @lstring idf
-  ?? @bool isConstant
-  ?? @bool noDeclarationInstruction
-  ?? @bool isRegister
-  ?! @varMap varMap 
-  ?! @instructionList instList
-  ?? @componentMap componentMap
-  ?? @string prefix
-  ?! @uint tmpId
-  ?? @expressionContext expContext
-  !  @bool assign #return true if there is an assignment
-;
+#TODO: faire en sorte qu'une variable placee dans un 
+#      select n'utilise pas un mapToOvverride, car si c'est le même nom, ça va coincer!!!
+#      il n'y a pas de vérification à ce niveau là (dans le même behavior).
 
-nonterminal  <parameterCall>  
-  ! @parameterCallList param 
-  ?? @varMap varMap
-  ?? @componentMap componentMap
-  ?? @expressionContext expContext
-;
 
-#expressions related functions.
-nonterminal  <functionDef> 
-  ?? @varMap varMap 
-  !  @lstring functionName 
-  !  @parameterDefList param 
-  !  @varMap functionVarMap
-;
+#from gadl_function_parser
+nonterminal <functionDefParam> !@parameterDefList parameterDefList;
+
+#from gadl_implementation_parser
+nonterminal <typeDeclaration> ! @varAbstractType type;
+nonterminal <assignmentLeft> ?? @ASTExpression idf ?! @ASTInstructionList instList;
+nonterminal <implementation> ?! @ASTInstructionList instList;
+nonterminal <declaration> ?! @ASTInstructionList instList;
+nonterminal <implementationOrEmpty> ?! @ASTInstructionList instList;
+
+
+#from gadl_expression_parser
+nonterminal <paramCall> !@ASTExpressionlist idfExpList;
 
 rule <behaviorImplementationPart>
-  ?? @varMap varMap
-  ?? @componentMap componentMap
-  ?? @lstring behaviorName
-  !  @instructionList instList 
-  ?! @fieldBehaviorMap fieldMap
+  ?! @ASTbehaviorChunkList chunkList
 :
-    $do$; 
-    @varMap implementationVarMap := [@varMap mapWithMapToOverride !varMap];
-    instList := [@instructionList emptyList];
-    select
-      or
-      <implementationInBehavior> !componentMap !behaviorName !?implementationVarMap !?instList !?fieldMap;
-    end select;
-    $end$;
-    $do$; 
+  @ASTInstructionList instList [ emptyList];
+  $do$;
+  @location loc := here;
+  <implementationOrEmpty> !?instList;
+  $end$; $do$; 
+  chunkList += ![@ASTbehChunkImplementation new !loc !instList];
 end rule;
 
-#implementation with the "field" keyword for format related var declaration.
-rule <implementationInBehavior> 
-  ?? @componentMap componentMap
-  ?? @lstring behaviorName
-  ?! @varMap varMap 
-  ?! @instructionList instList
-  ?! @fieldBehaviorMap fieldMap
+rule <behaviorFieldDeclaration>
+  ?! @ASTInstructionList instList
 :
-  @uint tmpId := 0; #used to declare unique tmp variables.
-  #declaration before implementation.
-  repeat
-  while
-    <behaviorDeclarationPart> !behaviorName !?varMap !componentMap !?instList !?fieldMap !?tmpId;
-  end repeat;
-  @lstring noComp := [@lstring new !"" !here];
-  @returnTypeList returnList [emptyList]; #no return statement allowed in behavior implementation
-  <implementationWithoutDeclaration> !?varMap !?instList !componentMap !noComp !?tmpId ![@expressionContext behavior] !returnList;
-end rule;
-
-rule <behaviorDeclarationPart>
-  ?? @lstring behaviorName
-  ?! @varMap varMap 
-  ?? @componentMap componentMap
-  ?! @instructionList instList 
-  ?! @fieldBehaviorMap fieldMap
-  ?! @uint tmpId
-:
-  @bool hasField;
-  select
-    hasField := false;
-  or
-    $field$; 
-    hasField := true;
-  end select;
-  @varType type;
-  @TypeStructDefMap TypeList [emptyMap];
-  @lstring compName := [@lstring new !"CompNameNotdefined behaviorDeclarationPart" !here];
-  <typeDeclaration> ?type !componentMap  !compName;
+  $field$; 
+  @varAbstractType type;
+  <typeDeclaration> ?type;
   @lstring idf;
   $idf$ ?idf;
-  @string prefix;
-  if hasField then
-    prefix := "this->"; #no prefix for fields.
-  else 
-    prefix := [behaviorName string]."_";
-  end if;
-  @bool assign;
-  @instructionList declareAndAssignInstList [emptyList];
-  #if variable has is a field, it should be constant.
-  <basicDeclaration> !type !idf !hasField !false !false !?varMap !?declareAndAssignInstList !componentMap !prefix !?tmpId ![@expressionContext behavior] ?assign;
-  if hasField then
-    [!?fieldMap insertKey !idf !type];
-    if assign then
-      error here: "a binary field cannot be assigned. It is already assigned ".
-                  "in instruction binary format";
-    end if;
-  else
-    instList := instList . declareAndAssignInstList;
-  end if;
+  instList += ![@ASTInstDeclaration new !here ![@varClass field] !type !idf];
 end rule;
 
-#rule <referenceInBehaviorDeclaration>
-#  ?! @behaviorChunkList chunkList 
-#:
-#  repeat
-#  while
-#    @lstring refName;
-#    $reference$ ?refName; 
-#    @idfOrRefBehaviorIsDeclarationRef ref := [@idfOrRefBehaviorIsDeclarationRef new !refName];
-#    chunkList += !ref;
-#  end repeat;
-#end rule;
-
 rule <otherBehaviorCall> 
-  !  @lstring functionName 
-  !  @parameterCallList param 
-  !  @lstring postRefName
-  ?? @varMap varMap
-  ?? @componentMap componentMap
+  ?! @ASTbehaviorChunkList chunkList
 :
-  $idf$ ?functionName;
-  #parameters?
+  @lstring postRefName;
+  @lstring behaviorCallName;
+  $idf$ ?behaviorCallName;
+  @ASTExpressionlist idfExpList;
   select
-    param := [@parameterCallList emptyList];
+    <paramCall> ?idfExpList;
   or
-    <parameterCall> ?param !varMap !componentMap ![@expressionContext behavior]; #parameter check done after.
+    #nothing.
+    idfExpList := [@ASTExpressionlist emptyList];
   end select;
   #suffix?
   select
     #no post ref name.
-    postRefName := [@lstring new !"" !here];
+    postRefName := [@lstring new !"" !here];    
   or
-    $postReference$ ? postRefName;
+    $postReference$ ?postRefName;
   end select;
+  chunkList += ![@ASTbehChunkCall new ![behaviorCallName location] !behaviorCallName !idfExpList !postRefName];
 end rule;
 
-rule <behavior>  
-  ?? @varMap varMap 
-  ?! @behaviorPrototypeMap behaviorPrototypeMap 
+rule <behavior>
+  ?! @ASTbehaviorMap ASTbehaviorMap
+  ?! @uint unused internalBehaviorId #TODO: remove?
 :
-  #first pass. get the prototype, and that's all.
   $behavior$;
-  @lstring  behaviorName;
-  @parameterDefList param;
-  <functionDef> !varMap ?behaviorName ?param ?*;
-#  <referenceInBehaviorDeclaration> parse;
-
-  <aggregateBehaviorBody> parse;
-  #this checks that a behavior map is not declared twice.
-  [!?behaviorPrototypeMap insertKey !behaviorName !param];
-  $end$;
-  $behavior$;
-label secondPass
-  ?! @behaviorMap behaviorMap 
-  ?? @varMap varMap 
-  ?? @componentMap componentMap
-  ?! @behaviorPrototypeMap behaviorPrototypeMap 
-  ?! @uint internalBehaviorId
-:
-  #second pass.
-  @behaviorChunkList chunkList := [@behaviorChunkList emptyList];
-  @fieldBehaviorMap fieldMap [emptyMap];
-  $behavior$;
-  @lstring  behaviorName;
-  @varMap aggVarMap;
-  <functionDef> !varMap ?behaviorName ?* ?aggVarMap;
-#  <referenceInBehaviorDeclaration> !?chunkList;
-  <aggregateBehaviorBody> !?behaviorMap !?aggVarMap !componentMap !?chunkList 
-                          !?behaviorPrototypeMap !behaviorName !?fieldMap !?internalBehaviorId;
-  @aggBehavior agg := [@aggBehavior new !chunkList !fieldMap];
-  [!?behaviorMap insertKey !behaviorName !agg];
-  $end$;
-  $behavior$;
+  @lstring behaviorName;
+  $idf$ ?behaviorName;
+  @parameterDefList parameterDefList;
+  select
+    <functionDefParam> ?parameterDefList;
+  or
+    parameterDefList :=[@parameterDefList emptyList];
+  end select;
+  @ASTBehBody body;
+  <behaviorBody> ?body;
+  $end$; $behavior$;
+  [!?ASTbehaviorMap insertKey !behaviorName !parameterDefList !body];
 end rule;
 
-
-
-rule <aggregateBehaviorBody>  
-  ?! @behaviorMap behaviorMap 
-  ?! @varMap aggVarMap 
-  ?? @componentMap componentMap
-  ?! @behaviorChunkList chunkList 
-  ?! @behaviorPrototypeMap behaviorPrototypeMap #should be modified by "virtual" behaviors (in select).
-  ?? @lstring behaviorName
-  ?! @fieldBehaviorMap fieldMap
-  ?! @uint internalBehaviorId
+rule <behaviorBody>
+  !@ASTBehBody body
 :
-  @behaviorCallMap behaviorCallMap [emptyMap]; #to check for redundancy.
+  @ASTInstructionList fieldList [emptyList];
+  @ASTInstructionList varDeclarationList [emptyList];
+  @stringset referenceSet [emptySet];
+  @ASTbehaviorChunkList chunkList [emptyList];
+  @location loc := here;
   repeat
   while
-    #declaration
-    @instructionList instList [emptyList];
-    @uint tmpId := 0; #used to declare unique tmp variables.
-    <behaviorDeclarationPart> !behaviorName !?aggVarMap !componentMap !?instList !?fieldMap !?tmpId;
-    @behaviorImplementation ic := [@behaviorImplementation new !instList];
-    chunkList += !ic;
+    <behaviorFieldDeclaration> !?fieldList;
+  while
+    <declaration> !?varDeclarationList;
   while
     #implementation
-    @instructionList instList;
-    <behaviorImplementationPart> !aggVarMap !componentMap !behaviorName ?instList !?fieldMap;
-    @behaviorImplementation ic := [@behaviorImplementation new !instList];
-    chunkList += !ic;
+    <behaviorImplementationPart> !?chunkList;
   while
     #ref only. Add it.
     @lstring refName;
-    $reference$ ?refName; 
-    @idfOrRefBehaviorIsDeclarationRef ref := [@idfOrRefBehaviorIsDeclarationRef new !refName];
-    chunkList += !ref;
+    $reference$ ?refName;
+    referenceSet += ![refName string];
   while
-    <selectPart> !?behaviorMap !?internalBehaviorId !?chunkList !aggVarMap !componentMap !?behaviorPrototypeMap !fieldMap;
+    <selectPart> !?chunkList;
   while
     #other behaviors call.
-    @lstring  functionName;
-    @parameterCallList paramCall;
-    @lstring postRefName;
-    <otherBehaviorCall> ?functionName ?paramCall ?postRefName !aggVarMap !componentMap;
-    checkBehaviorCallParameters !functionName !behaviorPrototypeMap !paramCall;
-
-    @idfOrRefBehaviorIsIdf idfCall := [@idfOrRefBehaviorIsIdf new !functionName !paramCall !postRefName];
-    #concatenate function name with suffix, to check for redundancy.
-    @lstring behaviorCallID := [@lstring new ![functionName string].[postRefName string] ![functionName location]];
-    [!?behaviorCallMap insertKey ! behaviorCallID];
-    chunkList += !idfCall;
+    <otherBehaviorCall> !?chunkList;
   end repeat;
+  body := [@ASTBehBody new !loc !fieldList !varDeclarationList !referenceSet !chunkList];
 end rule;
 
 rule <selectPart>
-  ?! @behaviorMap behaviorMap 
-  ?! @uint internalBehaviorId
-  ?! @behaviorChunkList chunkList 
-  ?? @varMap varMap 
-  ?? @componentMap componentMap
-  ?! @behaviorPrototypeMap behaviorPrototypeMap 
-  ?? @fieldBehaviorMap fieldMap
+  ?! @ASTbehaviorChunkList chunkList
 :
-  #create an alternative behavior structure...
-  @behaviorChunkList selectBehaviorChunkList := [@behaviorChunkList emptyList];
-  @lstring selectBehaviorName := [@lstring new !"behavior_select_case_".[internalBehaviorId string] !here];
-  #message "insert ".[selectBehaviorName string]."\n";
-  internalBehaviorId := internalBehaviorId + 1;
-  #.. then populates it...
+  @ASTBehBodyList bodyList [emptyList];
   $select$;
-  #TODO:check atLeastOneCall -> should be easier: chunklist > 1
+  @location loc := here;
   repeat
   while
     $case$;
-    #a case is a behavior.
-    @lstring caseBehaviorName := [@lstring new !"behavior_case_".[internalBehaviorId string] !here];
-    internalBehaviorId := internalBehaviorId + 1;
-    @varMap caseVarMap := varMap; #inherits variables.
-    @fieldBehaviorMap  caseBehaviorFieldMap := fieldMap;
-    @behaviorChunkList caseBehaviorChunkList := [@behaviorChunkList emptyList];
-    <aggregateBehaviorBody> !?behaviorMap !?caseVarMap !componentMap !?caseBehaviorChunkList 
-                            !?behaviorPrototypeMap !caseBehaviorName !?caseBehaviorFieldMap 
-                            !?internalBehaviorId;
-    @aggBehavior caseAgg := [@aggBehavior new !caseBehaviorChunkList !caseBehaviorFieldMap];
-    [!?behaviorMap insertKey !caseBehaviorName !caseAgg];
-
-    #this new aggregate is called from the "select" behavior. Add it.
-    @parameterCallList paramCall [emptyList]; #this is a "virtual behavior": no parameter list.
-    @parameterDefList paramDef [emptyList]; #this is a "virtual behavior": no parameter list.
-    @lstring postRefName := [@lstring new !"" !here]; #this is a "virtual behavior": no post ref.
-    @idfOrRefBehaviorIsIdf idfCall := [@idfOrRefBehaviorIsIdf new !caseBehaviorName !paramCall !postRefName];
-    [!?behaviorPrototypeMap insertKey !caseBehaviorName ! paramDef];
-    selectBehaviorChunkList += !idfCall;
+    @ASTBehBody body;
+    <behaviorBody> ?body;
+    bodyList += !body;
   end repeat;
   $end$;
-  $select$;  
-  #@varMap selectVarMap [emptyMap]; ##no more variables in alternative....
-  @fieldBehaviorMap  selectBehaviorFieldMap [emptyMap]; #no more fields in alternative...
-  @altBehavior selectBehavior := [@altBehavior new !selectBehaviorChunkList !selectBehaviorFieldMap];
-  [!?behaviorMap insertKey ! selectBehaviorName !selectBehavior];
-
-  #...and finally call this new alternative behavior (in the current behavior).
-  @parameterCallList paramCall [emptyList]; #this is a "virtual behavior": no parameter list.
-  @parameterDefList paramDef [emptyList]; #this is a "virtual behavior": no parameter list.
-  @lstring postRefName := [@lstring new !"" !here]; #this is a "virtual behavior": no post ref.
-  @idfOrRefBehaviorIsIdf selectCall := [@idfOrRefBehaviorIsIdf new !selectBehaviorName !paramCall !postRefName];
-  [!?behaviorPrototypeMap insertKey !selectBehaviorName ! paramDef];
-  chunkList += !selectCall;
+  $select$;
+  chunkList += ![@ASTbehChunkSelect new !loc !bodyList];
 end rule;
-
-
-
-
-#rule <alternativeBehavior>  
-#  ?? @varMap varMap 
-#  ?! @behaviorPrototypeMap behaviorPrototypeMap 
-#:
-#  # $alternative$ already called in syntax.ggs (to preserve LL1 grammar 
-#  #against conflict with format and syntax)
-#  $behavior$;
-#  @lstring  behaviorName;
-#  @parameterDefList param;
-#  <functionDef> !varMap ?behaviorName ?param ?*;
-#  <referenceInBehaviorDeclaration> parse;
-#  <alternativeBehaviorBody> parse;
-#  [!?behaviorPrototypeMap insertKey !behaviorName !param];
-#label secondPass
-#  ?! @behaviorMap behaviorMap 
-#  ?? @varMap varMap 
-#  ?? @componentMap componentMap
-#  ?? @behaviorPrototypeMap behaviorPrototypeMap 
-#:
-#  #second pass.
-#  @behaviorChunkList chunkList := [@behaviorChunkList emptyList];
-#  @fieldBehaviorMap fieldMap [emptyMap];
-#  $behavior$;
-#  @lstring  behaviorName;
-#  @varMap altVarMap;
-#  <functionDef> !varMap ?behaviorName ?* ?altVarMap;
-#  <referenceInBehaviorDeclaration> !?chunkList;
-#  <alternativeBehaviorBody> !?altVarMap !componentMap !?chunkList !behaviorPrototypeMap !behaviorName !?fieldMap;
-#  @altBehavior alt := [@altBehavior new !chunkList !fieldMap];
-#  [!?behaviorMap insertKey !behaviorName !alt];
-#end rule;
-#
-#rule <alternativeBehaviorBody>
-#  ?! @varMap altVarMap 
-#  ?? @componentMap componentMap
-#  ?! @behaviorChunkList chunkList 
-#  ?? @behaviorPrototypeMap behaviorPrototypeMap 
-#  ?? @lstring behaviorName
-#  ?! @fieldBehaviorMap fieldMap
-#:
-#  @behaviorCallMap behaviorCallMapIdf [emptyMap]; #to check for redundancy.
-#  @behaviorCallMap behaviorCallMapRef [emptyMap]; #to check for redundancy.
-#  #used to check if there is at least one ref or one other behavior call.
-#  @bool atLeastOneCall := false; 
-#  ${$;
-#  repeat
-#  while
-#    #reference
-#    @lstring refName;
-#    $reference$ ?refName; 
-#    ${$; 
-#    @instructionList instList := [@instructionList emptyList];
-#    @fieldBehaviorMap fieldinRefMap [emptyMap];
-#    select
-#      or
-#      @varMap implementationVarMap := [@varMap mapWithMapToOverride !altVarMap];
-#      <implementationInBehavior> !componentMap !behaviorName !?implementationVarMap !?instList !?fieldinRefMap;
-#    end select;
-#    $}$;
-#    @idfOrRefBehaviorIsRef refCall := [@idfOrRefBehaviorIsRef new !refName !instList !fieldinRefMap];
-#    [!?behaviorCallMapRef insertKey !refName];
-#    chunkList += !refCall;
-#    atLeastOneCall := true;
-#  while
-#    #other behavior
-#    @lstring  functionName;
-#    @parameterCallList paramCall;
-#    @lstring postRefName;
-#    <otherBehaviorCall> ?functionName ?paramCall ?postRefName !altVarMap !componentMap;
-#    checkBehaviorCallParameters !functionName !behaviorPrototypeMap !paramCall;
-#    
-#    @idfOrRefBehaviorIsIdf idfCall := [@idfOrRefBehaviorIsIdf new !functionName !paramCall !postRefName];
-#    #concatenate function name with suffix, to check for redundancy.
-#    @lstring behaviorCallID := [@lstring new ![functionName string].[postRefName string] ![functionName location]];
-#    [!?behaviorCallMapIdf insertKey !behaviorCallID];
-#    chunkList += !idfCall;
-#    atLeastOneCall := true;
-#  while
-#    #declaration
-#    @instructionList instList [emptyList];
-#    <behaviorDeclarationPart> !behaviorName !?altVarMap !componentMap !?instList !?fieldMap;
-#    @behaviorImplementation ic := [@behaviorImplementation new !instList];
-#    chunkList += !ic;
-#  while
-#    #implementation
-#    @instructionList instList;
-#    <behaviorImplementationPart> !altVarMap !componentMap !behaviorName ?instList !?fieldMap;
-#    @behaviorImplementation ic := [@behaviorImplementation new !instList];
-#    chunkList += !ic;
-#  end repeat;
-#  $}$;
-#  if not atLeastOneCall then
-#    error here : "there is no reference nor other behavior call in this ALTERNATIVE behavior";
-#  end if;
-#end rule;
 
 end syntax ;
 # vim:ft=ggs:ts=2:sw=2

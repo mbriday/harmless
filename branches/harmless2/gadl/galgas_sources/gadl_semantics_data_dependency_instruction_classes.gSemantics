@@ -2,128 +2,128 @@ semantics gadl_semantics_data_dependency_instruction_classes :
   import "gadl_components.gSemantics" ;
   import "gadl_semantics_hard_arch.gSemantics" ;
   import "gadl_semantics_hard_pipeline.gSemantics";
-  import "gadl_semantics_hard_component.gSemantics"; #getRegisters
   import "gadl_semantics_register_access.gSemantics";
+  import "gadl_isa.gSemantics";
   
-
-routine getRegistersInMemoryRegions
-  ?? @componentMap componentMap
-  !  @lstringlist componentsWithRegs
-  !  @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
-:
-  componentsWithRegs := [@lstringlist emptyList];
-  DDCMemoryRegisterInfoMap := [@DDCMemoryRegisterInfoMap emptyMap];
-  foreach componentMap (@lstring compName * * * @memoryChunkMap memoryMap * * * * *) do
-    @bool found := false;
-    foreach memoryMap(@lstring memName @memoryParam param * * @memoryChunkAliasMap memoryChunkAliasMap) while not found do
-      if [param type] == 2 then #register
-        if not found then 
-          componentsWithRegs += !compName; 
-        end if;
-        #found := true;
-        @uint nbElt := getNbOfElementsInChunk[!param];
-        @string key := [compName string]."_".[memName string];
-        [!?DDCMemoryRegisterInfoMap insertKey ![@lstring new !key ![compName location]] !compName !memName ![@lstring new !"" !here] !nbElt ![param width] !-1s !0];
-      else #not register
-        #Maybe one part is..
-        foreach memoryChunkAliasMap(@lstring memChunkName @memoryParam param * * *) while not found do
-          @uint nbElt := getNbOfElementsInChunk[!param];
-          @string key := [compName string]."_".[memName string]."_".[memChunkName string];
-          [!?DDCMemoryRegisterInfoMap insertKey ![@lstring new !key ![compName location]] !compName !memName !memChunkName !nbElt ![param width] !-1s !0];
-          if not found then componentsWithRegs += !compName; end if;
-          #found := true;
-        end foreach;
-      end if;
-    end foreach;
-  end foreach;
-end routine;
-
-#This routine will find the pipeline stages where 
-# - registers are read
-# - registers are written.
-## To do this, we have to:
-# 1* find memory chunks with type=register.
-# 2* find the associated component
-# 3* find the associated device
-# 4* find the associated port
-# 5* find the pipeline stage! \o/
-routine DDCfindReadAndWritePipelineStages
-  ?? @componentMap componentMap
-  ?? @architectureMap architectureMap
-  ?? @pipelineMap pipelineMap
-  !  @DDCPipelineInfoList DDCPipelineInfoList
-  !  @bool ok #at least one register bank is mapped on the pipeline.
-:
-  DDCPipelineInfoList := [@DDCPipelineInfoList emptyList];
-  @bool okRead := false;
-  @bool okWrite := false;
-  @lstring pipelineReadName       := [@lstring new !"" !here];
-  @lstring pipelineStageReadName  := [@lstring new !"" !here];
-  @lstring pipelineWriteName      := [@lstring new !"" !here];
-  @lstring pipelineStageWriteName := [@lstring new !"" !here];
-# 1* find memory chunks with type=register.
-# 2* find the associated components
-  @lstringlist componentsWithRegs;
-  getRegistersInMemoryRegions !componentMap ?componentsWithRegs ?*;
-  if [option .verbose_output value] then
-    message "Data dependancy controller generation:\n";
-    foreach componentsWithRegs(@lstring name) do
-      message "\tcomponent for DDC is ".[name string]."\n";
-    end foreach;
-  end if;
-# 3* find the associated device
-  foreach componentsWithRegs (@lstring compNameRegs) do
+#
+#routine getRegistersInMemoryRegions
+#  ?? @componentMap componentMap
+#  !  @lstringlist componentsWithRegs
+#  !  @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+#:
+#  componentsWithRegs := [@lstringlist emptyList];
+#  DDCMemoryRegisterInfoMap := [@DDCMemoryRegisterInfoMap emptyMap];
+#  foreach componentMap (@lstring compName * * * @memoryChunkMap memoryMap * * * * *) do
+#    @bool found := false;
+#    foreach memoryMap(@lstring memName @memoryParam param * * @memoryChunkAliasMap memoryChunkAliasMap) while not found do
+#      if [param type] == 2 then #register
+#        if not found then 
+#          componentsWithRegs += !compName; 
+#        end if;
+#        #found := true;
+#        @uint nbElt := getNbOfElementsInChunk[!param];
+#        @string key := [compName string]."_".[memName string];
+#        [!?DDCMemoryRegisterInfoMap insertKey ![@lstring new !key ![compName location]] !compName !memName ![@lstring new !"" !here] !nbElt ![param width] !-1s !0];
+#      else #not register
+#        #Maybe one part is..
+#        foreach memoryChunkAliasMap(@lstring memChunkName @memoryParam param * * *) while not found do
+#          @uint nbElt := getNbOfElementsInChunk[!param];
+#          @string key := [compName string]."_".[memName string]."_".[memChunkName string];
+#          [!?DDCMemoryRegisterInfoMap insertKey ![@lstring new !key ![compName location]] !compName !memName !memChunkName !nbElt ![param width] !-1s !0];
+#          if not found then componentsWithRegs += !compName; end if;
+#          #found := true;
+#        end foreach;
+#      end if;
+#    end foreach;
+#  end foreach;
+#end routine;
+#
+##This routine will find the pipeline stages where 
+## - registers are read
+## - registers are written.
+### To do this, we have to:
+## 1* find memory chunks with type=register.
+## 2* find the associated component
+## 3* find the associated device
+## 4* find the associated port
+## 5* find the pipeline stage! \o/
+#routine DDCfindReadAndWritePipelineStages
+#  ?? @componentMap componentMap
+#  ?? @architectureMap architectureMap
+#  ?? @pipelineMap pipelineMap
+#  !  @DDCPipelineInfoList DDCPipelineInfoList
+#  !  @bool ok #at least one register bank is mapped on the pipeline.
+#:
+#  DDCPipelineInfoList := [@DDCPipelineInfoList emptyList];
+#  @bool okRead := false;
+#  @bool okWrite := false;
+#  @lstring pipelineReadName       := [@lstring new !"" !here];
+#  @lstring pipelineStageReadName  := [@lstring new !"" !here];
+#  @lstring pipelineWriteName      := [@lstring new !"" !here];
+#  @lstring pipelineStageWriteName := [@lstring new !"" !here];
+## 1* find memory chunks with type=register.
+## 2* find the associated components
+#  @lstringlist componentsWithRegs;
+#  getRegistersInMemoryRegions !componentMap ?componentsWithRegs ?*;
+#  if [option .verbose_output value] then
+#    message "Data dependancy controller generation:\n";
+#    foreach componentsWithRegs(@lstring name) do
+#      message "\tcomponent for DDC is ".[name string]."\n";
+#    end foreach;
+#  end if;
+## 3* find the associated device
+#  foreach componentsWithRegs (@lstring compNameRegs) do
+##        found := [componentName string] == [compNameRegs string];
+##      end foreach;
+#    @bool found := false;
+#    foreach architectureMap (@lstring archName @deviceMap deviceMap *) while not found do
+#      foreach deviceMap (@lstring deviceName @lstring componentName @portMap portMap @aliasMap readAliasMap @aliasMap writeAliasMap) while not found do
+#        #is it Dze device?
 #        found := [componentName string] == [compNameRegs string];
+#        if found then
+## 4* find the associated port
+#          if [option .verbose_output value] then
+#            message "\tdevice for DDC is ".[archName string].".".[deviceName string].
+#                    " (component is ".[compNameRegs string].")\n";
+#          end if;
+#          #OK, search the "read"
+#          @stringset strReadSet;
+#          getPortsWithMethod !"read" !portMap ?strReadSet;
+#          if [strReadSet count] != 1 then
+#            error deviceName: "The device ".[deviceName string]."is associated to a register bank, ".
+#                              "but I can't find the 'read' port. ".
+#                              "This is needed to generate the data dependency controller.";
+#          end if;
+#          #OK, only 1 loop. We have found the right port.
+#          foreach strReadSet (@string readPort) do
+#            getPipelineStageForDevicePort !pipelineMap !archName !deviceName !readPort ?pipelineReadName ?pipelineStageReadName ?okRead;
+#            #now we have to find the pipeline stage.
+#          end foreach;
+#          @stringset strWriteSet;
+#          getPortsWithMethod !"write" !portMap ?strWriteSet;
+#                  if [strWriteSet count] != 1 then
+#            error deviceName: "The device ".[deviceName string]."is associated to a register bank, ".
+#                              "but I can't find the 'write' port. ".
+#                              "This is needed to generate the data dependency controller.";
+#          end if;
+#          #OK, only 1 loop. We have found the right port.
+#          foreach strWriteSet (@string writePort) do
+#            getPipelineStageForDevicePort !pipelineMap !archName !deviceName !writePort ?pipelineWriteName ?pipelineStageWriteName ?okWrite;
+#          end foreach;
+#        end if; #found
 #      end foreach;
-    @bool found := false;
-    foreach architectureMap (@lstring archName @deviceMap deviceMap *) while not found do
-      foreach deviceMap (@lstring deviceName @lstring componentName @portMap portMap @aliasMap readAliasMap @aliasMap writeAliasMap) while not found do
-        #is it Dze device?
-        found := [componentName string] == [compNameRegs string];
-        if found then
-# 4* find the associated port
-          if [option .verbose_output value] then
-            message "\tdevice for DDC is ".[archName string].".".[deviceName string].
-                    " (component is ".[compNameRegs string].")\n";
-          end if;
-          #OK, search the "read"
-          @stringset strReadSet;
-          getPortsWithMethod !"read" !portMap ?strReadSet;
-          if [strReadSet count] != 1 then
-            error deviceName: "The device ".[deviceName string]."is associated to a register bank, ".
-                              "but I can't find the 'read' port. ".
-                              "This is needed to generate the data dependency controller.";
-          end if;
-          #OK, only 1 loop. We have found the right port.
-          foreach strReadSet (@string readPort) do
-            getPipelineStageForDevicePort !pipelineMap !archName !deviceName !readPort ?pipelineReadName ?pipelineStageReadName ?okRead;
-            #now we have to find the pipeline stage.
-          end foreach;
-          @stringset strWriteSet;
-          getPortsWithMethod !"write" !portMap ?strWriteSet;
-                  if [strWriteSet count] != 1 then
-            error deviceName: "The device ".[deviceName string]."is associated to a register bank, ".
-                              "but I can't find the 'write' port. ".
-                              "This is needed to generate the data dependency controller.";
-          end if;
-          #OK, only 1 loop. We have found the right port.
-          foreach strWriteSet (@string writePort) do
-            getPipelineStageForDevicePort !pipelineMap !archName !deviceName !writePort ?pipelineWriteName ?pipelineStageWriteName ?okWrite;
-          end foreach;
-        end if; #found
-      end foreach;
-    end foreach;
-    if not (okRead & okWrite) then
-      warning compNameRegs: "Cannot map register bank from ".[compNameRegs string]." on a pipeline!\n".
-                            "There is a device, but it is not mapped on any pipeline.\n".
-                            "This is required to generate the data dependancy controller.\n";
-    else
-      DDCPipelineInfoList += !compNameRegs !pipelineReadName !pipelineStageReadName !pipelineWriteName !pipelineStageWriteName;
-    end if;
-  end foreach;
-  ok := [DDCPipelineInfoList length] > 0;
-end routine;
-
+#    end foreach;
+#    if not (okRead & okWrite) then
+#      warning compNameRegs: "Cannot map register bank from ".[compNameRegs string]." on a pipeline!\n".
+#                            "There is a device, but it is not mapped on any pipeline.\n".
+#                            "This is required to generate the data dependancy controller.\n";
+#    else
+#      DDCPipelineInfoList += !compNameRegs !pipelineReadName !pipelineStageReadName !pipelineWriteName !pipelineStageWriteName;
+#    end if;
+#  end foreach;
+#  ok := [DDCPipelineInfoList length] > 0;
+#end routine;
+#
 routine getPortsWithMethod
   ?? @string methodToSearch
   ?? @portMap portMap
@@ -163,13 +163,12 @@ function logRegisterAccess
 :
   str := "";
   #register file access.
-  if [registerFileAccess count] > 0 then
-    foreach registerFileAccess (@lstring memId @lstring compName * @stringMap methodAccessMap) do
-      foreach methodAccessMap (@lstring methName @string accessType) do
-        str .= "\t".accessType.":".[compName string]." -> ".[methName string]."\n";
-      end foreach;
-    end foreach;
-  end if;
+  foreach registerFileAccess do
+    str .= "\tbank ".[lkey string].":";
+    if read then str .= " read"; end if;
+    if write then str .= " write"; end if;
+    str .= "\n";
+  end foreach;
   #other registers access.
   foreach registerReadAccess (@lstring regName) 
   before str .= "\tread regs (static check): ";
@@ -178,7 +177,7 @@ function logRegisterAccess
   after str .= "\n";
   end foreach;
   
-  foreach registerWriteAccess (@lstring regName) 
+  foreach registerWriteAccess (@lstring regName)
   before str .= "\twrite regs: (static check)";
   do str .= [regName string];
   between str .= " ";
@@ -187,371 +186,371 @@ function logRegisterAccess
 end function;
 
 
-routine getRegistersInInstructions
-  ?? @componentMap componentMap
-  ?? @instructionListMap instListMap 
-  !  @DDCRegisterAccessMap DDCRegisterAccessMap
-  !  @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+function getRegistersInInstructions
+  ?? @varIdfStruct varIdfStruct
+  ?? @decodedBehaviorMap decodedBehaviorMap 
+  ?? @boolMap memSpaceWithRegister
+  ->  @DDCRegisterAccessMap DDCRegisterAccessMap
 :
   DDCRegisterAccessMap := [@DDCRegisterAccessMap emptyMap];
-  getRegistersInMemoryRegions !componentMap ?* ?DDCMemoryRegisterInfoMap;
+  #getRegistersInMemoryRegions !componentMap ?* ?DDCMemoryRegisterInfoMap;
   #for each instruction.
-  foreach instListMap (@lstring instName @instructionList instList) do
+  foreach decodedBehaviorMap (@lstring instName * @instructionList instList *) do
     #first, get the instruction list (without components!).
     @boolMap registerReadAccess [emptyMap];
     @boolMap registerWriteAccess [emptyMap];
     @DDCRegisterFileAccess registerFileAccess [emptyMap];
     #first get the registers defined in components or memory (using the 'register' keyword).
-    foreach instList (@cInstruction inst) do
-      [inst getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
+    foreach instList do
+      [inst getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
     end foreach;
     [!?DDCRegisterAccessMap insertKey !instName !registerReadAccess !registerWriteAccess !registerFileAccess];
   end foreach;
   #log TODO: new templates.
-  #foreach DDCRegisterAccessMap (@lstring instName @boolMap registerReadAccess @boolMap registerWriteAccess @DDCRegisterFileAccess registerFileAccess) do
-  #  message "instruction ".[instName string].":\n";
-  #  message logRegisterAccess[!registerReadAccess !registerWriteAccess !registerFileAccess];
-  #end foreach;
-end routine;
-
-function addDDCComponentMethodForRWAccess
-  ?? @string funcName
-  ?? @string RWAccess #read or write
-  ?? @uint width
-  ?? @string memId
-  -> @TfieldMap DDCRegFileChunkBody
-:
-  DDCRegFileChunkBody := [@TfieldMap emptyMap];
-  addStringValue   !?DDCRegFileChunkBody !lstringWith[!"access"]   !RWAccess;
-  addUnsignedValue !?DDCRegFileChunkBody !lstringWith[!"width"]    ![width uint64];
-  addStringValue   !?DDCRegFileChunkBody !lstringWith[!"key"]      !funcName;
-  addStringValue   !?DDCRegFileChunkBody !lstringWith[!"memoryId"] !memId;
-end function;
-
-#This routine have to detect DDC related R/W compoentn methods in the arch.h file.
-routine getDDCRWComponentMethodAccessInArch
-  ?? @uint memWidth
-  ?? @lstring DDCcomponentName
-  ?? @lstring DDCmemoryName
-  ?? @lstring DDCmemoryChunkName
-  ?! @TfieldMapList DDCRegFileChunk
-:
-  @uintlist RWMethodAccessWidth [emptyList];
-  RWMethodAccessWidth += !8;
-  RWMethodAccessWidth += !16;
-  RWMethodAccessWidth += !32;
-  RWMethodAccessWidth += !64;
-  if(memWidth != 8 & memWidth != 16 & memWidth != 32 & memWidth != 64) then RWMethodAccessWidth += !memWidth; end if;
-  foreach RWMethodAccessWidth(@uint width) do
-    @string methodName := [DDCmemoryName string];
-    @stringlist RWAccessList [emptyList];
-    RWAccessList += !"read";
-    RWAccessList += !"write";
-    foreach RWAccessList(@string RWAccess) do
-      @string access := RWAccess.[width string];
-      @string memId := [DDCcomponentName string]."_".[DDCmemoryName string];
-      if [DDCmemoryChunkName string] != "" then
-        @string func := [DDCcomponentName string]."_".[DDCmemoryName string]."_".[DDCmemoryChunkName string]."_".access;
-        DDCRegFileChunk += !addDDCComponentMethodForRWAccess[!func !RWAccess !width !memId];
-      end if;
-      @string func := [DDCcomponentName string]."_".[DDCmemoryName string]."_".access;
-      DDCRegFileChunk += !addDDCComponentMethodForRWAccess[!func !RWAccess !width !memId];
-      func := [DDCcomponentName string]."_".access;
-      DDCRegFileChunk += !addDDCComponentMethodForRWAccess[!func !RWAccess !width !memId]; #TODO: and if there are 2 banks in 1 component...
-    end foreach;
-  end foreach;
-end routine;
-
-#update the execute instruction of instructions so that it call for arch to get back
-#the registers used in a register file.
-routine getDDCRegisterFileRWinInstruction
-  ?? @DDCRegisterAccessMap DDCRegisterAccessMap
-  ?! @TfieldMap templateStruct  
-:
-  @TfieldMapList DDCRegFileRW [emptyList];
-  foreach DDCRegisterAccessMap (@lstring instName * * @DDCRegisterFileAccess registerFileAccess) do
-    @TfieldMap DDCRegFileRWBody [emptyMap];
-    addLStringValue !?DDCRegFileRWBody !"name" !instName; #will be the 'key' of the map.
-    @TfieldMapList DDCRegFileRWBodyList [emptyList];
-    foreach registerFileAccess (@lstring memId @lstring compName * @stringMap methodAccessList) do
-      @TfieldMap DDCRegFileRWBodyListBody [emptyMap];
-      @bool read := false;
-      @bool write := false;
-      foreach methodAccessList (@lstring methodName @string RW) do
-        read  := read  | (RW == "read");
-        write := write | (RW == "write");
-      end foreach;
-      addBoolValue !?DDCRegFileRWBodyListBody !lstringWith[!"R"] !read;
-      addBoolValue !?DDCRegFileRWBodyListBody !lstringWith[!"W"] !write; #'write' reserved keyword of template system. 
-      addLStringValue !?DDCRegFileRWBodyListBody !"memoryId" !memId;
-      DDCRegFileRWBodyList += !DDCRegFileRWBodyListBody;
-    end foreach;
-    addListValue !?DDCRegFileRWBody !lstringWith[!"regFileAccess"] !DDCRegFileRWBodyList; 
-    DDCRegFileRW += !DDCRegFileRWBody;
-  end foreach;
-  addListValue !?templateStruct !lstringWith[!"DDCReagisterFileAccessType"] !DDCRegFileRW; 
-end routine;
-
-routine getClassicalRegistersAndCheckSize
-  ?? @varMap globalVarMap
-  !  @varMap regMap
-  !  @uint classicRegistersNb
-:
-  regMap := getRegisters[!globalVarMap !false];
-  if [option .verbose_output value] then
-    foreach regMap (@lstring name *)
-    before message "\tThere are ".[[regMap count] string]." registers defined (for data dependancy controller): ";
-    do message [name string];
-    between message " ";
-    after message "\n";
-    end foreach;
-  end if;
-  classicRegistersNb := [regMap count];
-  if [regMap count] > 64 then 
-    error here : "There are more than 64 registers, and that can not be handled by the Data Dependancy Register ".
-                 "at this date";
-  end if;
-end routine;
-
-#This routine generate the data dep controller related methods for each instruction.
-#This means methods:
-# getDDCReadRegMask()
-# lockDDCWriteRegs()
-routine generateDDCMethodsInInstructions
-  ?? @DDCRegisterAccessMap DDCRegisterAccessMap
-  ?! @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
-  ?? @varMap globalVarMap
-  ?! @TfieldMap templateStruct
-:
-  #first get sizes.
-  @varMap regMap;
-  @uint classicRegistersNb;
-  getClassicalRegistersAndCheckSize !globalVarMap ?regMap ?classicRegistersNb;
-
-  #nb bit fields used in instruction methods.
-  #each bit field is 64 bits.
-  #associate the chunk id (bit field) to the register bank.
-  @uint nbChunk   := 1;
-  @uint nbChunkOffset := classicRegistersNb; #used to get nbChunk
-  @uint memRegistersNb := 0; #total size.
-  @TfieldMapList DDCRegFileChunk [emptyList];
-  @TfieldMapList DDCRegFileMemInfo [emptyList];
-  foreach DDCMemoryRegisterInfoMap (@lstring key @lstring DDCcomponentName @lstring DDCmemoryName @lstring DDCmemoryChunkName @uint nbElt @uint width * *) 
-  do
-    @TfieldMap DDCRegFileMemInfoBody [emptyMap];
-    @string memId := [DDCcomponentName string]."_".[DDCmemoryName string];
-    addStringValue !?DDCRegFileMemInfoBody !lstringWith[!"memoryId"] !memId;
-    nbChunkOffset := nbChunkOffset+nbElt;
-    if nbChunkOffset > 64 then #overflow
-      nbChunk := nbChunk + 1;
-      nbChunkOffset := nbElt;
-    end if;
-    memRegistersNb := memRegistersNb+nbElt;
-    [!?DDCMemoryRegisterInfoMap setChunkIdForKey ![nbChunk sint]-1 ![key string] ] ;
-    [!?DDCMemoryRegisterInfoMap setChunkOffsetForKey !nbChunkOffset ![key string] ] ;
-#    message "adding ".[nbElt string]."\n";
-    getDDCRWComponentMethodAccessInArch !width !DDCcomponentName !DDCmemoryName !DDCmemoryChunkName !?DDCRegFileChunk;
-    DDCRegFileMemInfo += !DDCRegFileMemInfoBody;
-  end foreach;
-  addListValue !?templateStruct !lstringWith[!"DDCRegFileChunk"] !DDCRegFileChunk; 
-  addListValue !?templateStruct !lstringWith[!"DDCRegFileMemInfo"] !DDCRegFileMemInfo; 
-  
-  #OK, done.
-  if [option .verbose_output value] then
-    message "\tsize of bit field required for DDC is ".[classicRegistersNb string]."+".[memRegistersNb string].
-            " -> ".[nbChunk string]." 64-bits field(s) required.\n";
-  end if;
-
-  #For register File Access, we have to inform inst that it should take care of R/W accesses in the execute method.
-  getDDCRegisterFileRWinInstruction !DDCRegisterAccessMap !?templateStruct;
-  
-  #associate a number (-> mask) for each register.
-  @TfieldMapList DDCRegMaskInfo [emptyList];
-  @uint64 i := 0L;
-  foreach regMap (@lstring regName *) do #ascending order
-    @TfieldMap DDCRegMaskInfoBody [emptyMap];
-    addLStringValue !?DDCRegMaskInfoBody !"regName" !regName;
-    addUnsignedValue !?DDCRegMaskInfoBody !lstringWith[!"id"] !i;
-    i := i+1;
-    DDCRegMaskInfo += !DDCRegMaskInfoBody;
-  end foreach;
-  addListValue !?templateStruct !lstringWith[!"DDCRegInfo"] !DDCRegMaskInfo; 
-
-  #get it for classical registers.
-  @regMaskMapMap mask [emptyMap];
-  @boolMap registerFileReadComponentMethod [emptyMap];
-  @boolMap registerFileWriteComponentMethod [emptyMap];
-  @TfieldMapList DDCClassicRegUseInfo [emptyList]; #detect if inst use classic regs.
   foreach DDCRegisterAccessMap (@lstring instName @boolMap registerReadAccess @boolMap registerWriteAccess @DDCRegisterFileAccess registerFileAccess) do
-    @TfieldMap DDCClassicRegUseInfoBody [emptyMap];
-    #if we use classicla regs, then at least one reg access is in one of these maps.
-    @bool useClassicRegs := ([registerReadAccess count] != 0) | ([registerWriteAccess count] != 0);
-    if useClassicRegs then
-      #store only instruction that use classical registers.
-      addLStringValue !?DDCClassicRegUseInfoBody !"name" !instName;
-      DDCClassicRegUseInfo += !DDCClassicRegUseInfoBody;
-    end if;
-    @regMaskMap regMaskMap [emptyMap];
-    #first are masks related to 'classic' registers.
-    #These masks are generated statically, but data dep is now done dynamically.
-    #masks 
-    @uint i := 0;
-    @uint64 regReadMask := 0L;
-    @uint64 regWriteMask := 0L;
-    foreach regMap (@lstring regName *) do #ascending order
-      @uint64 mask := 1L<<i;
-      if [registerReadAccess  hasKey ![regName string]] then regReadMask  := regReadMask  | mask; end if;
-      if [registerWriteAccess hasKey ![regName string]] then regWriteMask := regWriteMask | mask; end if;
-      i := i+1;    
-    end foreach;
-
-#    message "masks are R:".[readMask string].", W:".[writeMask string]." for ".[instName string]."\n";
-    #second are masks related to memory registers.
-    foreach registerFileAccess (@lstring memId @lstring componentName @lstring memoryName @stringMap methodAccessMap ) do #@DDCReadWriteInRegisterFileMap DDCRWInRegFileMap) do
-      @string readMaskStr  := "m_DDCRegFile".memId."MaskRead";
-      @string writeMaskStr := "m_DDCRegFile".memId."MaskWrite";
-      [!?regMaskMap insertKey !memId !readMaskStr !writeMaskStr];
-    end foreach;
-    [!?mask insertKey !instName !regReadMask !regWriteMask !regMaskMap];
+    message "instruction ".[instName string].":\n";
+    message logRegisterAccess[!registerReadAccess !registerWriteAccess !registerFileAccess];
   end foreach;
-  addListValue !?templateStruct !lstringWith[!"DDCClassicRegsUsage"] !DDCClassicRegUseInfo; 
-
-  #ok, we have extracted all the masks. Then generate code.
-  @string readString  := "";
-  @string writeString := "";
-  @uint currentOffset := 0;
-  @uint currentEltSize := [regMap count];
-  @uint nextOffset := currentOffset + currentEltSize;
-
-  addListValue !?templateStruct !lstringWith[!"instDDCLock"] !generateLockDDCWriteRegs[!mask !DDCMemoryRegisterInfoMap];
-  addListValue !?templateStruct !lstringWith[!"instDDCRequired"] !generateGetDDCReadRegs[!mask !DDCMemoryRegisterInfoMap];
-
-  @string paramDDCLock := getDDCInstructionMethodParams[!nbChunk !"lock"];
-  @string paramDDCRequire := getDDCInstructionMethodParams[!nbChunk !"regsMask"];
-  addStringValue !?templateStruct !lstringWith[!"paramDDCLock"] !paramDDCLock;
-  addStringValue !?templateStruct !lstringWith[!"paramDDCRequire"] !paramDDCRequire;
-  
-
-#  @TfieldMapList DDCComponentMethod [emptyList];
-#  foreach DDCRegisterAccessMap (@lstring instName @boolMap registerReadAccess @boolMap registerWriteAccess @DDCRegisterFileAccess registerFileAccess) do
-#    @TfieldMap DDCComponentMethodBody [emptyMap];
-#    addLStringValue !?DDCComponentMethodBody !"name" !instName;
-#    DDCComponentMethod += !DDCComponentMethodBody;
-#  end foreach;  
-#  addListValue   !?templateStruct !lstringWith[!"DDCComponentMethodBody"] !DDCComponentMethod;
-
-
-    #log: TODO: add info in new templates.
-#  foreach mask (@lstring instName @uint64 registerReadMask  @uint64 registerWriteMask @regMaskMap regMaskMap) do
-#    message [instName string].":\n";
-#    message "\tR:".[registerReadMask string].", W:".[registerWriteMask string]."\n";
-#    foreach regMaskMap (* @string readMaskStr @string writeMaskStr) do
-#      message "\treadStr: ".readMaskStr."\n";
-#      message "\twriteStr: ".writeMaskStr."\n";
+end function;
+#
+#function addDDCComponentMethodForRWAccess
+#  ?? @string funcName
+#  ?? @string RWAccess #read or write
+#  ?? @uint width
+#  ?? @string memId
+#  -> @TfieldMap DDCRegFileChunkBody
+#:
+#  DDCRegFileChunkBody := [@TfieldMap emptyMap];
+#  addStringValue   !?DDCRegFileChunkBody !lstringWith[!"access"]   !RWAccess;
+#  addUnsignedValue !?DDCRegFileChunkBody !lstringWith[!"width"]    ![width uint64];
+#  addStringValue   !?DDCRegFileChunkBody !lstringWith[!"key"]      !funcName;
+#  addStringValue   !?DDCRegFileChunkBody !lstringWith[!"memoryId"] !memId;
+#end function;
+#
+##This routine have to detect DDC related R/W compoentn methods in the arch.h file.
+#routine getDDCRWComponentMethodAccessInArch
+#  ?? @uint memWidth
+#  ?? @lstring DDCcomponentName
+#  ?? @lstring DDCmemoryName
+#  ?? @lstring DDCmemoryChunkName
+#  ?! @TfieldMapList DDCRegFileChunk
+#:
+#  @uintlist RWMethodAccessWidth [emptyList];
+#  RWMethodAccessWidth += !8;
+#  RWMethodAccessWidth += !16;
+#  RWMethodAccessWidth += !32;
+#  RWMethodAccessWidth += !64;
+#  if(memWidth != 8 & memWidth != 16 & memWidth != 32 & memWidth != 64) then RWMethodAccessWidth += !memWidth; end if;
+#  foreach RWMethodAccessWidth(@uint width) do
+#    @string methodName := [DDCmemoryName string];
+#    @stringlist RWAccessList [emptyList];
+#    RWAccessList += !"read";
+#    RWAccessList += !"write";
+#    foreach RWAccessList(@string RWAccess) do
+#      @string access := RWAccess.[width string];
+#      @string memId := [DDCcomponentName string]."_".[DDCmemoryName string];
+#      if [DDCmemoryChunkName string] != "" then
+#        @string func := [DDCcomponentName string]."_".[DDCmemoryName string]."_".[DDCmemoryChunkName string]."_".access;
+#        DDCRegFileChunk += !addDDCComponentMethodForRWAccess[!func !RWAccess !width !memId];
+#      end if;
+#      @string func := [DDCcomponentName string]."_".[DDCmemoryName string]."_".access;
+#      DDCRegFileChunk += !addDDCComponentMethodForRWAccess[!func !RWAccess !width !memId];
+#      func := [DDCcomponentName string]."_".access;
+#      DDCRegFileChunk += !addDDCComponentMethodForRWAccess[!func !RWAccess !width !memId]; #TODO: and if there are 2 banks in 1 component...
 #    end foreach;
 #  end foreach;
-end routine;
-
-#function to add code verification of dynamic and static access for classic registers.
-function checkStaticVsDynamicClassicRegisterAccess
-  ?? @string access #Read ot Write.
-  ?? @uint64 staticRegValue
-  -> @string code
-:
-  code := "\tif(m_DDCRegMask".access." != ".[staticRegValue string]
-       .") { //compare static vs dynamic approach\n";
-  code .= "\t\tcout << hex << m_DDCRegMask".access." << \" \" << ".[staticRegValue string]." << endl;\n";
-  code .= "\t\tcout << \"DDC regs (".access.") differ at \" << hex ";
-  code .= "<< getInstructionPointer() << \" : \" << mnemo() << endl;\n";
-  code .= "\t}\n";
-end function;
-
-function generateGetDDCReadRegs
-  ?? @regMaskMapMap mask
-  ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
-  -> @TfieldMapList requiredTplList
-:
-  requiredTplList := [@TfieldMapList emptyList];
-#  @string param := getDDCInstructionMethodParams[!nbParts !"regsMask"];
-  #function body
-  foreach mask (@lstring instName @uint64 registerReadMask * @regMaskMap regMaskMap) do
-    @TfieldMap requiredTplBody [emptyMap];
-    @string code := "\tregsMask0 = ";
-    if registerReadMask > 0L then
-      code .= "m_DDCRegMaskRead;\n";
-      #code .= checkStaticVsDynamicClassicRegisterAccess[!"Read" !registerReadMask];
-    else 
-      code .= "0;\n";
-    end if;
-    foreach regMaskMap (@lstring key @string readMaskStr *) do
-      @uint nbElt;
-      @sint id;
-      @uint offset;
-      [DDCMemoryRegisterInfoMap searchKey !key ?* ?* ?* ?nbElt ?* ?id ?offset];
-      if readMaskStr != "" then
-        @string regStr := "regsMask".[id string];
-        @uint realOffset := offset-nbElt;  #'offset' refers to the end.
-        code .= "\t".regStr." |= ".readMaskStr."<<".[realOffset string].";\n";
-#        code .= "\t".regStr." = (".regStr." << ".[nbElt string].") | ".readMaskStr.";\n";
-      end if;
-    end foreach;
-    #code .= "}\n\n";
-    addStringValue !?requiredTplBody !lstringWith[!"required"] !code;
-    addLStringValue !?requiredTplBody !"name" !instName;
-    requiredTplList += !requiredTplBody;
-  end foreach;
-end function;
-
-function getDDCInstructionMethodParams
-  ?? @uint nbParam     #nb parameters
-  ?? @string prefixStr #parameter prefix.
-  -> @string param
-:
-  param := "";
-  @uint i := 0;
-  loop nbParam:
-  while i < nbParam do
-    if i != 0 then param .= ", "; end if;
-    param .= "u64 &".prefixStr.[i string];
-    i := i+1;
-  end loop;
-end function;
-
-function generateLockDDCWriteRegs
-  ?? @regMaskMapMap mask
-  ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
-  -> @TfieldMapList lockTplList
-:
-  lockTplList := [@TfieldMapList emptyList];
-  #We lock registers that will be written.
-  #One 'chunk' can manage at most 64 registers -> use of u64 as a bitfield.
-  #function body
-  foreach mask (@lstring instName * @uint64 registerWriteMask @regMaskMap regMaskMap) do
-    @TfieldMap lockTplBody [emptyMap];
-    #code .= "void ".[instName string]."::lockDDCWriteRegs(".param."){\n";
-    @string code := "\tlock0 = ";
-    if registerWriteMask > 0L then
-      code .= "m_DDCRegMaskWrite;\n";
-      #code .= checkStaticVsDynamicClassicRegisterAccess[!"Write" !registerWriteMask];
-    else 
-      code .= "0;\n";
-    end if;
-    foreach regMaskMap (@lstring key * @string writeMaskStr) do
-      @uint nbElt;
-      @sint id;
-      @uint offset;
-      [DDCMemoryRegisterInfoMap searchKey !key ?* ?* ?* ?nbElt ?* ?id ?offset];
-      if writeMaskStr != "" then
-        @string lockStr := "lock".[id string];
-        @uint realOffset := offset-nbElt;  #'offset' refers to the end.
-        code .= "\t".lockStr." |= ".writeMaskStr."<<".[realOffset string].";\n";
-      end if;
-    end foreach;
-    #code .= "}\n\n";
-    addStringValue !?lockTplBody !lstringWith[!"lock"] !code;
-    addLStringValue !?lockTplBody !"name" !instName;
-    lockTplList += !lockTplBody;
-  end foreach;
-end function;
+#end routine;
+#
+##update the execute instruction of instructions so that it call for arch to get back
+##the registers used in a register file.
+#routine getDDCRegisterFileRWinInstruction
+#  ?? @DDCRegisterAccessMap DDCRegisterAccessMap
+#  ?! @TfieldMap templateStruct  
+#:
+#  @TfieldMapList DDCRegFileRW [emptyList];
+#  foreach DDCRegisterAccessMap (@lstring instName * * @DDCRegisterFileAccess registerFileAccess) do
+#    @TfieldMap DDCRegFileRWBody [emptyMap];
+#    addLStringValue !?DDCRegFileRWBody !"name" !instName; #will be the 'key' of the map.
+#    @TfieldMapList DDCRegFileRWBodyList [emptyList];
+#    foreach registerFileAccess (@lstring memId @lstring compName * @stringMap methodAccessList) do
+#      @TfieldMap DDCRegFileRWBodyListBody [emptyMap];
+#      @bool read := false;
+#      @bool write := false;
+#      foreach methodAccessList (@lstring methodName @string RW) do
+#        read  := read  | (RW == "read");
+#        write := write | (RW == "write");
+#      end foreach;
+#      addBoolValue !?DDCRegFileRWBodyListBody !lstringWith[!"R"] !read;
+#      addBoolValue !?DDCRegFileRWBodyListBody !lstringWith[!"W"] !write; #'write' reserved keyword of template system. 
+#      addLStringValue !?DDCRegFileRWBodyListBody !"memoryId" !memId;
+#      DDCRegFileRWBodyList += !DDCRegFileRWBodyListBody;
+#    end foreach;
+#    addListValue !?DDCRegFileRWBody !lstringWith[!"regFileAccess"] !DDCRegFileRWBodyList; 
+#    DDCRegFileRW += !DDCRegFileRWBody;
+#  end foreach;
+#  addListValue !?templateStruct !lstringWith[!"DDCReagisterFileAccessType"] !DDCRegFileRW; 
+#end routine;
+#
+#routine getClassicalRegistersAndCheckSize
+#  ?? @varMap globalVarMap
+#  !  @varMap regMap
+#  !  @uint classicRegistersNb
+#:
+#  regMap := getRegisters[!globalVarMap !false];
+#  if [option .verbose_output value] then
+#    foreach regMap (@lstring name *)
+#    before message "\tThere are ".[[regMap count] string]." registers defined (for data dependancy controller): ";
+#    do message [name string];
+#    between message " ";
+#    after message "\n";
+#    end foreach;
+#  end if;
+#  classicRegistersNb := [regMap count];
+#  if [regMap count] > 64 then 
+#    error here : "There are more than 64 registers, and that can not be handled by the Data Dependancy Register ".
+#                 "at this date";
+#  end if;
+#end routine;
+#
+##This routine generate the data dep controller related methods for each instruction.
+##This means methods:
+## getDDCReadRegMask()
+## lockDDCWriteRegs()
+#routine generateDDCMethodsInInstructions
+#  ?? @DDCRegisterAccessMap DDCRegisterAccessMap
+#  ?! @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+#  ?? @varMap globalVarMap
+#  ?! @TfieldMap templateStruct
+#:
+#  #first get sizes.
+#  @varMap regMap;
+#  @uint classicRegistersNb;
+#  getClassicalRegistersAndCheckSize !globalVarMap ?regMap ?classicRegistersNb;
+#
+#  #nb bit fields used in instruction methods.
+#  #each bit field is 64 bits.
+#  #associate the chunk id (bit field) to the register bank.
+#  @uint nbChunk   := 1;
+#  @uint nbChunkOffset := classicRegistersNb; #used to get nbChunk
+#  @uint memRegistersNb := 0; #total size.
+#  @TfieldMapList DDCRegFileChunk [emptyList];
+#  @TfieldMapList DDCRegFileMemInfo [emptyList];
+#  foreach DDCMemoryRegisterInfoMap (@lstring key @lstring DDCcomponentName @lstring DDCmemoryName @lstring DDCmemoryChunkName @uint nbElt @uint width * *) 
+#  do
+#    @TfieldMap DDCRegFileMemInfoBody [emptyMap];
+#    @string memId := [DDCcomponentName string]."_".[DDCmemoryName string];
+#    addStringValue !?DDCRegFileMemInfoBody !lstringWith[!"memoryId"] !memId;
+#    nbChunkOffset := nbChunkOffset+nbElt;
+#    if nbChunkOffset > 64 then #overflow
+#      nbChunk := nbChunk + 1;
+#      nbChunkOffset := nbElt;
+#    end if;
+#    memRegistersNb := memRegistersNb+nbElt;
+#    [!?DDCMemoryRegisterInfoMap setChunkIdForKey ![nbChunk sint]-1 ![key string] ] ;
+#    [!?DDCMemoryRegisterInfoMap setChunkOffsetForKey !nbChunkOffset ![key string] ] ;
+##    message "adding ".[nbElt string]."\n";
+#    getDDCRWComponentMethodAccessInArch !width !DDCcomponentName !DDCmemoryName !DDCmemoryChunkName !?DDCRegFileChunk;
+#    DDCRegFileMemInfo += !DDCRegFileMemInfoBody;
+#  end foreach;
+#  addListValue !?templateStruct !lstringWith[!"DDCRegFileChunk"] !DDCRegFileChunk; 
+#  addListValue !?templateStruct !lstringWith[!"DDCRegFileMemInfo"] !DDCRegFileMemInfo; 
+#  
+#  #OK, done.
+#  if [option .verbose_output value] then
+#    message "\tsize of bit field required for DDC is ".[classicRegistersNb string]."+".[memRegistersNb string].
+#            " -> ".[nbChunk string]." 64-bits field(s) required.\n";
+#  end if;
+#
+#  #For register File Access, we have to inform inst that it should take care of R/W accesses in the execute method.
+#  getDDCRegisterFileRWinInstruction !DDCRegisterAccessMap !?templateStruct;
+#  
+#  #associate a number (-> mask) for each register.
+#  @TfieldMapList DDCRegMaskInfo [emptyList];
+#  @uint64 i := 0L;
+#  foreach regMap (@lstring regName *) do #ascending order
+#    @TfieldMap DDCRegMaskInfoBody [emptyMap];
+#    addLStringValue !?DDCRegMaskInfoBody !"regName" !regName;
+#    addUnsignedValue !?DDCRegMaskInfoBody !lstringWith[!"id"] !i;
+#    i := i+1;
+#    DDCRegMaskInfo += !DDCRegMaskInfoBody;
+#  end foreach;
+#  addListValue !?templateStruct !lstringWith[!"DDCRegInfo"] !DDCRegMaskInfo; 
+#
+#  #get it for classical registers.
+#  @regMaskMapMap mask [emptyMap];
+#  @boolMap registerFileReadComponentMethod [emptyMap];
+#  @boolMap registerFileWriteComponentMethod [emptyMap];
+#  @TfieldMapList DDCClassicRegUseInfo [emptyList]; #detect if inst use classic regs.
+#  foreach DDCRegisterAccessMap (@lstring instName @boolMap registerReadAccess @boolMap registerWriteAccess @DDCRegisterFileAccess registerFileAccess) do
+#    @TfieldMap DDCClassicRegUseInfoBody [emptyMap];
+#    #if we use classicla regs, then at least one reg access is in one of these maps.
+#    @bool useClassicRegs := ([registerReadAccess count] != 0) | ([registerWriteAccess count] != 0);
+#    if useClassicRegs then
+#      #store only instruction that use classical registers.
+#      addLStringValue !?DDCClassicRegUseInfoBody !"name" !instName;
+#      DDCClassicRegUseInfo += !DDCClassicRegUseInfoBody;
+#    end if;
+#    @regMaskMap regMaskMap [emptyMap];
+#    #first are masks related to 'classic' registers.
+#    #These masks are generated statically, but data dep is now done dynamically.
+#    #masks 
+#    @uint i := 0;
+#    @uint64 regReadMask := 0L;
+#    @uint64 regWriteMask := 0L;
+#    foreach regMap (@lstring regName *) do #ascending order
+#      @uint64 mask := 1L<<i;
+#      if [registerReadAccess  hasKey ![regName string]] then regReadMask  := regReadMask  | mask; end if;
+#      if [registerWriteAccess hasKey ![regName string]] then regWriteMask := regWriteMask | mask; end if;
+#      i := i+1;    
+#    end foreach;
+#
+##    message "masks are R:".[readMask string].", W:".[writeMask string]." for ".[instName string]."\n";
+#    #second are masks related to memory registers.
+#    foreach registerFileAccess (@lstring memId @lstring componentName @lstring memoryName @stringMap methodAccessMap ) do #@DDCReadWriteInRegisterFileMap DDCRWInRegFileMap) do
+#      @string readMaskStr  := "m_DDCRegFile".memId."MaskRead";
+#      @string writeMaskStr := "m_DDCRegFile".memId."MaskWrite";
+#      [!?regMaskMap insertKey !memId !readMaskStr !writeMaskStr];
+#    end foreach;
+#    [!?mask insertKey !instName !regReadMask !regWriteMask !regMaskMap];
+#  end foreach;
+#  addListValue !?templateStruct !lstringWith[!"DDCClassicRegsUsage"] !DDCClassicRegUseInfo; 
+#
+#  #ok, we have extracted all the masks. Then generate code.
+#  @string readString  := "";
+#  @string writeString := "";
+#  @uint currentOffset := 0;
+#  @uint currentEltSize := [regMap count];
+#  @uint nextOffset := currentOffset + currentEltSize;
+#
+#  addListValue !?templateStruct !lstringWith[!"instDDCLock"] !generateLockDDCWriteRegs[!mask !DDCMemoryRegisterInfoMap];
+#  addListValue !?templateStruct !lstringWith[!"instDDCRequired"] !generateGetDDCReadRegs[!mask !DDCMemoryRegisterInfoMap];
+#
+#  @string paramDDCLock := getDDCInstructionMethodParams[!nbChunk !"lock"];
+#  @string paramDDCRequire := getDDCInstructionMethodParams[!nbChunk !"regsMask"];
+#  addStringValue !?templateStruct !lstringWith[!"paramDDCLock"] !paramDDCLock;
+#  addStringValue !?templateStruct !lstringWith[!"paramDDCRequire"] !paramDDCRequire;
+#  
+#
+##  @TfieldMapList DDCComponentMethod [emptyList];
+##  foreach DDCRegisterAccessMap (@lstring instName @boolMap registerReadAccess @boolMap registerWriteAccess @DDCRegisterFileAccess registerFileAccess) do
+##    @TfieldMap DDCComponentMethodBody [emptyMap];
+##    addLStringValue !?DDCComponentMethodBody !"name" !instName;
+##    DDCComponentMethod += !DDCComponentMethodBody;
+##  end foreach;  
+##  addListValue   !?templateStruct !lstringWith[!"DDCComponentMethodBody"] !DDCComponentMethod;
+#
+#
+#    #log: TODO: add info in new templates.
+##  foreach mask (@lstring instName @uint64 registerReadMask  @uint64 registerWriteMask @regMaskMap regMaskMap) do
+##    message [instName string].":\n";
+##    message "\tR:".[registerReadMask string].", W:".[registerWriteMask string]."\n";
+##    foreach regMaskMap (* @string readMaskStr @string writeMaskStr) do
+##      message "\treadStr: ".readMaskStr."\n";
+##      message "\twriteStr: ".writeMaskStr."\n";
+##    end foreach;
+##  end foreach;
+#end routine;
+#
+##function to add code verification of dynamic and static access for classic registers.
+#function checkStaticVsDynamicClassicRegisterAccess
+#  ?? @string access #Read ot Write.
+#  ?? @uint64 staticRegValue
+#  -> @string code
+#:
+#  code := "\tif(m_DDCRegMask".access." != ".[staticRegValue string]
+#       .") { //compare static vs dynamic approach\n";
+#  code .= "\t\tcout << hex << m_DDCRegMask".access." << \" \" << ".[staticRegValue string]." << endl;\n";
+#  code .= "\t\tcout << \"DDC regs (".access.") differ at \" << hex ";
+#  code .= "<< getInstructionPointer() << \" : \" << mnemo() << endl;\n";
+#  code .= "\t}\n";
+#end function;
+#
+#function generateGetDDCReadRegs
+#  ?? @regMaskMapMap mask
+#  ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+#  -> @TfieldMapList requiredTplList
+#:
+#  requiredTplList := [@TfieldMapList emptyList];
+##  @string param := getDDCInstructionMethodParams[!nbParts !"regsMask"];
+#  #function body
+#  foreach mask (@lstring instName @uint64 registerReadMask * @regMaskMap regMaskMap) do
+#    @TfieldMap requiredTplBody [emptyMap];
+#    @string code := "\tregsMask0 = ";
+#    if registerReadMask > 0L then
+#      code .= "m_DDCRegMaskRead;\n";
+#      #code .= checkStaticVsDynamicClassicRegisterAccess[!"Read" !registerReadMask];
+#    else 
+#      code .= "0;\n";
+#    end if;
+#    foreach regMaskMap (@lstring key @string readMaskStr *) do
+#      @uint nbElt;
+#      @sint id;
+#      @uint offset;
+#      [DDCMemoryRegisterInfoMap searchKey !key ?* ?* ?* ?nbElt ?* ?id ?offset];
+#      if readMaskStr != "" then
+#        @string regStr := "regsMask".[id string];
+#        @uint realOffset := offset-nbElt;  #'offset' refers to the end.
+#        code .= "\t".regStr." |= ".readMaskStr."<<".[realOffset string].";\n";
+##        code .= "\t".regStr." = (".regStr." << ".[nbElt string].") | ".readMaskStr.";\n";
+#      end if;
+#    end foreach;
+#    #code .= "}\n\n";
+#    addStringValue !?requiredTplBody !lstringWith[!"required"] !code;
+#    addLStringValue !?requiredTplBody !"name" !instName;
+#    requiredTplList += !requiredTplBody;
+#  end foreach;
+#end function;
+#
+#function getDDCInstructionMethodParams
+#  ?? @uint nbParam     #nb parameters
+#  ?? @string prefixStr #parameter prefix.
+#  -> @string param
+#:
+#  param := "";
+#  @uint i := 0;
+#  loop nbParam:
+#  while i < nbParam do
+#    if i != 0 then param .= ", "; end if;
+#    param .= "u64 &".prefixStr.[i string];
+#    i := i+1;
+#  end loop;
+#end function;
+#
+#function generateLockDDCWriteRegs
+#  ?? @regMaskMapMap mask
+#  ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+#  -> @TfieldMapList lockTplList
+#:
+#  lockTplList := [@TfieldMapList emptyList];
+#  #We lock registers that will be written.
+#  #One 'chunk' can manage at most 64 registers -> use of u64 as a bitfield.
+#  #function body
+#  foreach mask (@lstring instName * @uint64 registerWriteMask @regMaskMap regMaskMap) do
+#    @TfieldMap lockTplBody [emptyMap];
+#    #code .= "void ".[instName string]."::lockDDCWriteRegs(".param."){\n";
+#    @string code := "\tlock0 = ";
+#    if registerWriteMask > 0L then
+#      code .= "m_DDCRegMaskWrite;\n";
+#      #code .= checkStaticVsDynamicClassicRegisterAccess[!"Write" !registerWriteMask];
+#    else 
+#      code .= "0;\n";
+#    end if;
+#    foreach regMaskMap (@lstring key * @string writeMaskStr) do
+#      @uint nbElt;
+#      @sint id;
+#      @uint offset;
+#      [DDCMemoryRegisterInfoMap searchKey !key ?* ?* ?* ?nbElt ?* ?id ?offset];
+#      if writeMaskStr != "" then
+#        @string lockStr := "lock".[id string];
+#        @uint realOffset := offset-nbElt;  #'offset' refers to the end.
+#        code .= "\t".lockStr." |= ".writeMaskStr."<<".[realOffset string].";\n";
+#      end if;
+#    end foreach;
+#    #code .= "}\n\n";
+#    addStringValue !?lockTplBody !lstringWith[!"lock"] !code;
+#    addLStringValue !?lockTplBody !"name" !instName;
+#    lockTplList += !lockTplBody;
+#  end foreach;
+#end function;
 end semantics ;
 # vim:ft=ggs:ts=2:sw=2

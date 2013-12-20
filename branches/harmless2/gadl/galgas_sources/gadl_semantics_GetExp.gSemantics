@@ -1,0 +1,792 @@
+semantics gadl_semantics_GetExp:
+  import "gadl_options.gOption" ;
+  import "gadl_variable.gSemantics" ;
+  import "gadl_semantics.gSemantics";
+  import "gadl_varIdfStruct.gSemantics";
+  import "gadl_semantics_AST_expression.gSemantics";
+  import "gadl_expression_functions.gSemantics"; #nbBitsToCodeSigned
+  import "gadl_semantics_expression.gSemantics";
+  import "gadl_semantics_expression_eval.gSemantics";
+
+
+# readers:
+#  * getExp for ASTExpression, to get the corresponding expression.
+#  * getExp for ASTExpressionlist
+# method:
+#  * @parameterDefList checkParams: used in function calls.
+# routine:
+# checkCorrectAssignType -> check correct types in assignment. TODO, only partial.
+#
+## also basic functions, to check for data coherency for binary ops.
+# * typeMult
+# * typeDiv
+# * typeSub
+# * typeAdd
+# * typeShift
+# * typeCompare
+# * typeBin
+# * typeBool
+# * typeCat
+
+# * fieldListFromAST get a fieldList from its AST.
+
+#------------------------------------------------------------------------------
+# Type verification.
+#------------------------------------------------------------------------------
+#multiplication: sum of sizes. Sign changed.
+function typeMult
+  ?? @varBaseType leftType
+  ?? @varBaseType rightType
+  -> @varBaseType outType
+:
+  @varKind leftKind  := [leftType  kind];
+  @varKind rightKind := [rightType kind];
+  #check for unsigned or signed types.
+  if (leftKind  == [@varKind signed] | leftKind  == [@varKind unsigned]) &
+     (rightKind == [@varKind signed] | rightKind == [@varKind unsigned]) then
+    @varKind kind := [leftType kind];
+    if [leftType kind] != [rightType kind] then #only signed and unsigned here.
+      kind := [@varKind signed]; #unsigned by signed gives signed result.
+    end if;
+    outType := [@varBaseType new !kind ![leftType size]+[rightType size] ![leftType location]];
+  else
+    if [leftType kind] == [@varKind float] | [rightType kind] == [@varKind float] then 
+      error [leftType location]: "internal error: multiply float not implemented." :outType;
+    elsif [leftType kind] == [@varKind custom] | [rightType kind] == [@varKind custom] then
+      error [leftType location]: "cannot multiply a custom value." :outType;
+    else
+      error [leftType location]: "internal error: unknown kind." :outType;
+    end if;
+  end if;
+end function;
+
+#multiplication: sum of sizes. Sign changed.
+function typeDiv
+  ?? @varBaseType leftType
+  ?? @varBaseType rightType
+  -> @varBaseType outType
+:
+  @varKind leftKind  := [leftType  kind];
+  @varKind rightKind := [rightType kind];
+  #check for unsigned or signed types.
+  if (leftKind  == [@varKind signed] | leftKind  == [@varKind unsigned]) &
+     (rightKind == [@varKind signed] | rightKind == [@varKind unsigned]) then
+    @varKind kind := [leftType kind];
+    if leftKind != rightKind then #only signed and unsigned here.
+      error [leftType loc] : "Divide signed and unsigned expressions";
+      message "left  expression type is ".[leftKind msg]."\n";
+      message "right expression type is ".[rightKind msg]."\n";
+    end if;
+    outType := leftType;
+  else
+    if [leftType kind] == [@varKind float] | [rightType kind] == [@varKind float] then 
+      error [leftType location]: "internal error: float division not implemented." :outType;
+    elsif [leftType kind] == [@varKind custom] | [rightType kind] == [@varKind custom] then
+      error [leftType location]: "cannot multiply a custom value." :outType;
+    else
+      error [leftType location]: "internal error: unknown kind." :outType;
+    end if;
+  end if;
+end function;
+
+function typeSub
+  ?? @varBaseType leftType
+  ?? @varBaseType rightType
+  -> @varBaseType outType
+:
+  if [leftType kind] != [rightType kind] then
+    error [leftType loc] : "substract expressions of different kinds (signed/unsigned/float)";
+    message "left  expression type is ".[[leftType kind] msg]. "(".[leftType string]. ")\n";
+    message "right expression type is ".[[rightType kind] msg]."(".[rightType string].")\n";
+  end if;
+  if [leftType kind] == [@varKind unsigned] then #unsigned
+    outType := leftType;
+  elsif [leftType kind] == [@varKind signed] then #signed.
+    if [leftType size] > [rightType size] then  #max of the 2 operands
+      outType := [@varBaseType new ![leftType kind] ![leftType size] ![leftType loc]];
+    else
+      outType := [@varBaseType new ![leftType kind] ![rightType size] ![leftType loc]];
+    end if;
+  elsif [leftType kind] == [@varKind float] then #float
+    error [leftType location]: "internal error, not yet implemented with floats" :outType;
+  else 
+    error [leftType location]: "No substraction with custom types." :outType;
+  end if;
+end function;
+
+function typeAdd
+  ?? @varBaseType leftType
+  ?? @varBaseType rightType
+  -> @varBaseType outType
+:
+  if [leftType kind] != [rightType kind] then
+    error [leftType loc] : "add expressions of different kinds (signed/unsigned/float)";
+    message "left  expression type is ".[[leftType kind] msg]. "(".[leftType string]. ")\n";
+    message "right expression type is ".[[rightType kind] msg]."(".[rightType string].")\n";
+  end if;
+  if ([leftType kind] == [@varKind unsigned]) |
+     ([leftType kind] == [@varKind signed]) then
+    if [leftType size] > [rightType size] then
+      outType := [@varBaseType new ![leftType kind] ![leftType size]+1 ![leftType loc]];
+    else
+      outType := [@varBaseType new ![leftType kind] ![rightType size]+1 ![leftType loc]];
+    end if;
+  elsif [leftType kind] == [@varKind float] then #float
+    error [leftType location]: "internal error, not yet implemented with floats" :outType;
+  else 
+    error [leftType location]: "No addtions with custom types." :outType;
+  end if;
+end function;
+
+function typeShift
+  ?? @varBaseType leftType
+  ?? @varBaseType rightType
+  ?? @expression expRight
+  ?? @symbolValueMap symbolMap
+  ?? @bool shiftLeft
+  -> @varBaseType outType
+:
+  #check right type (shift) is unsigned.
+  if [rightType kind] != [@varKind unsigned] then
+    error [rightType location]:"the shift value should be an unsigned value";
+  end if;
+  #check left type is not float.
+  if ([leftType kind] == [@varKind unsigned]) |
+     ([leftType kind] == [@varKind signed]) then
+    #try to eval right exp to get the correct size.
+    @bool ok := true;
+    @uint64 shiftVal := 0L;
+    @uint nbBits := 0;
+    [[expRight eval !symbolMap] getUVal ?shiftVal ?ok];
+    if ok then #shift value is statically known.
+      if shiftLeft then #<<
+        nbBits :=  [leftType size] + shiftVal;
+      else #>>
+        nbBits :=  [leftType size] - shiftVal;
+      end if;
+    else
+      nbBits := [leftType size];
+      if shiftLeft & [option gadl_options.warnIfResultMayBeTruncated value] then #<<
+        warning [rightType location]:"cannot eval right value in shift operation. ".
+                                    "Type of Right expression may be unappropriate";
+      end if;
+    end if;
+    outType := [@varBaseType new ![leftType kind] !nbBits ![leftType location]]; 
+  else
+    error [leftType location]: "Left part expression in shift should be either a signed or unsigned value.":outType;
+  end if;
+end function;
+
+
+function typeCompare
+  ?? @varBaseType leftType
+  ?? @varBaseType rightType
+  -> @varBaseType outType
+:
+  if ([leftType kind] != [rightType kind]) then
+    warning [leftType location] : "compare expressions of different kind (unsigned, signed, float)";
+  end if;
+  outType := [@varBaseType new ![@varKind unsigned] !1 ![leftType location]]; #u1
+end function;
+
+function typeBin
+  ?? @varBaseType leftType
+  ?? @varBaseType rightType
+  -> @varBaseType outType
+:
+  if (([leftType kind] == [@varKind unsigned]) | ([leftType kind] == [@varKind signed])) then
+    if ([leftType kind] != [rightType kind]) then
+      error [leftType location]  : "left and right operands have not the same kind (unsigned/signed/float..).";
+      error [rightType location]  : "left and right operands have not the same kind (unsigned/signed/float..).";
+    end if;
+    @uint nbBits;
+    # get the max.
+    if [leftType size] > [rightType size] then nbBits := [leftType size];
+    else nbBits := [rightType size];
+    end if;
+    outType := [@varBaseType new ![leftType kind] !nbBits ![leftType location]];
+  else
+    error [leftType location]:"can use binary operations only on integers, types in the operation are ".
+                              [leftType string]." and ".[rightType string].".":outType;
+  end if;
+end function;
+
+function typeBool
+  ?? @varBaseType leftType
+  ?? @varBaseType rightType
+  -> @varBaseType outType
+:
+  [leftType checkBool];
+  [rightType checkBool];
+  outType := [@varBaseType new ![leftType kind] !1 ![leftType location]];
+end function;
+
+function typeCat
+  ?? @varBaseType leftType
+  ?? @varBaseType rightType
+  -> @varBaseType outType
+:
+  if [leftType kind] != [rightType kind] then
+    error [leftType  location]:"cannot concatenate expressions of different kinds";
+    error [rightType location]:"cannot concatenate expressions of different kinds" : outType;
+  else
+    outType := [@varBaseType new ![leftType kind] ![leftType size]+[rightType size] ![leftType location]];
+  end if;
+end function;
+#------------------------------------------------------------------------------
+# Field related methods.
+#------------------------------------------------------------------------------
+
+#return the field Size, in bits.
+reader @fieldList fieldsize
+  ?? @symbolValueMap symbolMap
+  ->  @uint size
+:
+  @uint max := 64;
+  @bool unknown := false;
+  size := 0;
+  foreach selfcopy (@expression expFrom @expression expTo * @bool only1Exp) while not unknown do
+    if only1Exp then
+      size := size + 1; #no pb: One expression -> one bit selected.
+    else
+      #TODO: should init vars, because no 'eval' nor 'getUVal' yet.
+      @uint64 rangeFrom;
+      @bool ok := true;
+      [[expFrom eval !symbolMap] getUVal ?rangeFrom ?ok];
+      if ok then #can evaluate 'from'
+        @uint64 rangeTo;
+        [[expTo eval !symbolMap] getUVal ?rangeTo ?ok];
+        if ok then #can evaluate 'to'
+          size := size + [rangeFrom uint]-[rangeTo uint]+1;
+        end if;
+      end if;
+      if not ok then 
+        unknown := true;
+        size := max;
+      end if;
+    end if;
+  end foreach;
+end reader;
+#------------------------------------------------------------------------------
+#-- reader that generates the semantic (decorated) structure
+#------------------------------------------------------------------------------
+
+reader @ASTExpressionlist getExp
+  ?? @expressionContext ctx
+  ?? @symbolValueMap symbolMap
+  ?? @varIdfStruct idfStruct
+  -> @expressionlist expList
+:
+  expList := [@expressionlist emptyList];
+  foreach selfcopy(@ASTExpression ASTexp) do
+    expList += ![ASTexp getExp !ctx !symbolMap !idfStruct];
+  end foreach;
+end reader;
+
+
+abstract reader @ASTExpression getExp
+  ?? @expressionContext ctx
+  ?? @symbolValueMap symbolMap
+  ?? @varIdfStruct idfStruct
+  -> @expression exp
+;
+
+override reader @ASTIntConst getExp
+  ?? @expressionContext unused ctx
+  ?? @symbolValueMap unused symbolMap
+  ?? @varIdfStruct unused idfStruct
+  -> @expression exp
+:
+  if kind == [@varKind unsigned] & negative == true then
+    error loc: "the value is negative, but declared as unsigned!";
+  end if;
+  @uint nbBits;
+  if kind == [@varKind signed] then
+    nbBits := nbBitsToCodeSigned[!value];
+  else
+    nbBits := nbBitsToCodeUnsigned[!value];
+  end if;
+  #nb bits must be >0, when used in the expression (s8)(0)
+  if nbBits == 0 then nbBits := nbBits + 1; end if;
+  @varBaseType outType := [@varBaseType new !kind !nbBits !loc];
+  exp := [@expIntConst new !outType !value !negative] ;
+end reader;
+
+
+override reader @ASTExpInstructionSize getExp
+  ?? @expressionContext ctx
+  ?? @symbolValueMap unused symbolMap
+  ?? @varIdfStruct unused idfStruct
+  -> @expression exp
+:
+  if ctx != [@expressionContext timing] then
+    error loc : "The 'instruction size' expression should only be used in a timing view. Here is ".[ctx msg];
+  end if;
+  @varBaseType outType := [@varBaseType new ![@varKind unsigned] !8 !loc]; #instruction size -> u8
+  exp := [@expInstructionSize new !outType];
+end reader;
+
+override reader @ASTExpInstructionAddress getExp
+  ?? @expressionContext ctx
+  ?? @symbolValueMap unused symbolMap
+  ?? @varIdfStruct unused idfStruct
+  -> @expression exp
+:
+  if ctx != [@expressionContext syntaxView] & ctx != [@expressionContext behavior] then
+    error loc : "The 'instruction address' expression should only be used in a syntax or behavior view (ISA). Here is ".[ctx msg];
+  end if;
+  @varBaseType outType := [@varBaseType new ![@varKind unsigned] !32 !loc]; #instruction address -> u32
+  exp := [@expInstructionAddress new !outType];
+end reader;
+
+override reader @ASTCast getExp
+  ?? @expressionContext ctx
+  ?? @symbolValueMap symbolMap
+  ?? @varIdfStruct idfStruct
+  -> @expression exp
+:
+  @expression expCasted := [ASTexp getExp !ctx !symbolMap !idfStruct];
+  if [toType size] == 0 then
+    error loc: "The type should have a size > 0 in the cast.\n";
+  end if;
+  exp := [@expCast new !toType !expCasted];
+end reader;
+
+#this function remove the tabular to extract the 'base' type
+#the type returned should be either varBaseType or varStructType
+function removeTabInIdf
+  ?? @varAbstractType type
+  -> @varAbstractType typeWithoutTab
+:
+  typeWithoutTab := type;
+  cast type
+  when == @varTabularType vtt : #tabular type.
+    typeWithoutTab := removeTabInIdf[![vtt type]];
+  else
+  end cast;
+  #check;
+  #if typeWithoutTab is @varTabularType then
+  #  error here: "internal error in function removeTabInIdf";
+  #end if;
+end function;
+
+
+routine handleFirstIdf
+  ?? @lstring idf
+  ?? @idfItemType itemType
+  ?? @varIdfStruct idfStruct
+  ?! @lstring itemName #name of the first item detected (register, struct, component, ..)
+  ?! @bool shouldStop
+  ?! @idfType detectedType
+  ?! @varAbstractType idfExpType
+  !  @bool found
+  ?! @bool isConst
+:
+  #message "idf is ".idf."\n";
+  #message [idfStruct->varMap string];
+  #first pass. Search in the varMap
+  if [idfStruct->varMap hasKey ![idf string]] then
+    found := true;
+    @varAbstractType type;
+    @varClass varClass;
+    [idfStruct->varMap searchKey !idf ?type ?isConst ?varClass ?*];
+    @varAbstractType typeWithoutTab := removeTabInIdf[!type];
+    cast typeWithoutTab
+    when == @varStructType vst : #struct type.
+      #Ok, first item is a struct.
+      itemName := [vst typeName];
+      detectedType := [@idfType structMember]; 
+    when == @varBaseType :
+      #Ok, first item a base type (or a tab of base type).
+      switch varClass
+      when localVar,field:
+        switch itemType
+        when basic   : shouldStop := true; 
+          detectedType := [@idfType localVar]; 
+          idfExpType := typeWithoutTab;
+        when tabular : shouldStop := true; 
+          detectedType := [@idfType tabularAccess];
+          idfExpType := typeWithoutTab;
+        when functionCall:
+          error idf: "The identifier is set as a function call, while it is a local variable";
+        end switch;
+      when programCounter,GPR,SFR: #varMap reported a register.
+        switch itemType
+        when basic   : 
+          itemName := idf;  #may not stop -> slices.
+          detectedType := [@idfType registerAccess];
+          idfExpType := typeWithoutTab;
+        when tabular : error idf: "Cannot use a register as a tabular.";
+        when functionCall: error idf: "The register is used like a function.";
+        end switch;
+      when registerSlice:
+        #only the reg_slice is in the varMap, and idf here is only 'reg' (from 'reg.slice').
+        error idf: "internal error got a register slice here, not allowed";
+      end switch;
+    else
+      error here : "internal error: invalid type in handleIdf";
+      #ok := false;
+    end cast;
+  elsif [idfStruct->componentMap hasKey ![idf string]] then
+    #try in the component Map
+    itemName := idf;
+    detectedType := [@idfType componentCall];
+    found := true;    
+  elsif [idfStruct->memSpaceMap hasKey ![idf string]] then
+    #try in the memory map?
+    itemName := idf;
+    detectedType := [@idfType memoryAccess];
+    found := true;    
+  else
+    found := false;
+  end if;
+end routine;
+
+#This routine try to determine what is the identifier
+#(struct access, register bitfield access, memory access, ...)
+routine handleIdf
+  ?? @ASTidfItemList idfList
+  ?? @varIdfStruct idfStruct
+  ?? @expressionContext ctx
+  !  @varAbstractType idfExpType #the final type of idf (the one returned by the exp)
+  !  @idfType detectedType
+  !  @ASTidfItemList idfListOut
+  !  @bool isConst
+  !  @string codePrefix #prefix used only for code generation ("_core->" for instance)
+:
+  #returned idfList: may change the first idf name.
+  idfListOut := [@ASTidfItemList emptyList];
+  #the type of the idf we have to find... 
+  detectedType := [@idfType unknown];
+  idfExpType   := [@varBaseType new ![@varKind unsigned] !0 !here]; #dummy u0.
+  #@idfItemList idfList; #may be idf1.idf2.idf3
+  #this routine can handle:
+  # 1 struct.member (toto.titi.tata)  -> toto defined as type.
+  # 2 simple var (idf)
+  # 3 tabular access (tab[<exp>]), -> tab defined as tabular.
+  # 4 register access (SP)
+  # 5 register bitfield (CR.CR0) -> CR defined as register, CR0 as slice.
+  # 6 component call (comp.method()) -> comp as container, method as function call
+  # 7 memory access -> set of related functions (read8, read16, .. write8, ..)
+  @bool ok := true;    #is set to false is an error is detected -> invalid idf.
+  @bool first := true; #set to true only for the first word
+  @lstring itemName := [@lstring new !"" !here]; #used to get first item name (register, struct, component,..)
+  isConst := false; #this information is important when expression is used in assignment.
+#  @lstring currentRegister := [@lstring new !"" !here]; #used for reg slices.
+  @bool shouldStop := false; #set to true when no other word in idfList awaited.
+  foreach idfList(@lstring idf @idfItemType itemType @ASTExpressionlist ASTParamList) while ok do
+    #message "try to determine idf:".idf."\n";
+    if shouldStop then
+      error idf: "The identifier cannot be determined.";
+    end if;
+    if first then
+      #first pass. Search in the varMap with the suffix
+      @bool found;
+      #First, search using both prefix and suffix...
+      @lstring idfPrePost := [idfStruct getReplacedIdf ![idfStruct getIdfPrePost !idf]];
+      #message "try with ".idfPrePost."\n";
+      handleFirstIdf !idfPrePost !itemType !idfStruct 
+                     !?itemName !?shouldStop !?detectedType 
+                     !?idfExpType ?found !?isConst;
+      if found then
+        idfListOut += !idfPrePost !itemType !ASTParamList;
+      else
+        #not found: try without the prefix -> fields.
+        @lstring idfPost := [idfStruct getReplacedIdf ![idfStruct getIdfPost !idf]];
+        #message "then try with ".idfPost."\n";
+        handleFirstIdf !idfPost !itemType !idfStruct
+                       !?itemName !?shouldStop !?detectedType 
+                       !?idfExpType ?found !?isConst;
+        if found then
+          idfListOut += !idfPost !itemType !ASTParamList;
+        else  
+          #message "then try with ".idf."\n";
+          #not found, try without the suffix (registers, global vars)
+          @lstring idfUse := [idfStruct getReplacedIdf !idf];
+          handleFirstIdf !idfUse !itemType !idfStruct
+                         !?itemName !?shouldStop !?detectedType
+                         !?idfExpType ?found !?isConst;
+          if found then
+            idfListOut += !idfUse !itemType !ASTParamList;
+          end if;
+        end if;
+      end if;
+      if not found then #not found with both pre/post , post and without modification.
+        #not found in varMap. -> TODO: should search in method map for local methods.
+        #TODO: check in memory map TODO:> nothing here-> all in handleFirstItem.
+        ok := false;
+        idfListOut += !idf !itemType !ASTParamList; #TODO: il faudra le mettre si on trouve un truc.
+      else #message "**ok -> found\n";
+      end if;
+    else #not first word.
+      #copy items without any modification.
+      idfListOut += !idf !itemType !ASTParamList;
+      switch detectedType
+      when structMember:
+        #it should be defined as a member.
+        @typedefMemberMap memberMap;
+        [idfStruct->typedefMap searchKey !itemName ?memberMap];
+        #ok, we check that current item is a member.
+        @varAbstractType memberType;
+        [memberMap searchKey !idf ?memberType];
+        @varAbstractType memberTypeWithoutTab := removeTabInIdf[!memberType];
+        cast memberTypeWithoutTab
+        when == @varStructType vst : #struct type.
+          #nested struct members.
+          itemName := [vst typeName];
+        else
+          #not a struct. It should be the last item.
+          shouldStop := true;
+          detectedType := [@idfType structMember];
+          idfExpType := memberTypeWithoutTab;
+        end cast;
+      when registerAccess:
+        #we detected a register acces, while it may be a register slice access.
+        @string regSlice := getRegSliceName[![itemName string] ![idf string]];
+        if [idfStruct->varMap hasKey !regSlice] then
+          #message "I've just discover a reg slice ".regSlice."\n";
+          #got a register slice.
+          #check that type is Ok.
+          @varAbstractType type;
+          @varClass varClass;
+          [idfStruct->varMap searchKey ![@lstring new !regSlice !here] ?type ?isConst ?varClass ?*];
+          if varClass != [@varClass registerSlice] then
+            error idf : "internal error: detect a register slice, while variable map does not have the same type";
+          end if;
+          shouldStop := true;
+          detectedType := [@idfType registerBitField];
+          idfExpType := type;
+        end if; #reg slice
+      when componentCall:
+        #message "I've just discover a component ".itemName.".".idf."\n";
+        @functionMap methodMap;
+        [idfStruct->componentMap searchKey !itemName ?methodMap];
+        @parameterDefList param;
+        [methodMap searchKey !idf ?param ?idfExpType ?*]; #outType is idfExpType
+        @location locDef := [methodMap locationForKey ![idf string]];
+        #compute params expressions.
+        @expressionlist paramList := [ASTParamList getExp !ctx ![@symbolValueMap emptyMap] !idfStruct];
+        [param checkParams !paramList ![idf location] !locDef];
+        shouldStop := true;
+      #elsif -> TODO: if first word was a component, should check that current idf is a function call.
+      when unknown,localVar,tabularAccess,registerBitField:
+        error here :"internal error: It should ot have more than 1 identifier here.";
+      when memoryAccess:
+        @functionMap methodMap;
+        [idfStruct->memSpaceMap searchKey !itemName ?* ?methodMap ?* ?*];
+        @location locDef := [idfStruct->memSpaceMap locationForKey ![itemName string]];
+        @parameterDefList param;        
+        [methodMap searchKey !idf ?param ?idfExpType ?*]; #outType is idfExpType
+        #compute params expressions.
+        @expressionlist paramList := [ASTParamList getExp !ctx ![@symbolValueMap emptyMap] !idfStruct];
+        [param checkParams !paramList ![idf location] !locDef];
+        shouldStop := true;
+      end switch; #testing next words (not the first).
+    end if;
+    first := false;
+  end foreach;
+  #code prefix.
+  switch detectedType
+    when structMember,unknown,localVar,tabularAccess:
+      codePrefix := "";
+    when registerAccess,registerBitField:
+      codePrefix := idfStruct->idfPrefixCore;
+    when componentCall:
+      codePrefix := idfStruct->idfPrefixCore;
+    when memoryAccess:
+      codePrefix := idfStruct->idfPrefixCore;
+  end switch;
+end routine;
+
+override reader @ASTIdf getExp
+  ?? @expressionContext ctx
+  ?? @symbolValueMap symbolMap
+  ?? @varIdfStruct idfStruct
+  -> @expression exp
+:
+  @varAbstractType idfExpType; #the final type of idf (the one returned by the exp)
+  @idfType detectedType;
+  #detect the type.
+  @ASTidfItemList idfListOut;
+  @bool isConst;
+  handleIdf !idfList !idfStruct !ctx ?idfExpType ?detectedType ?idfListOut ?isConst ?@string codePrefix;
+  if detectedType != [@idfType unknown] then
+    @idfItemList itemList [emptyList];
+    #Ok. Type detected. generate the expression.
+    foreach idfListOut(@lstring idf @idfItemType itemType @ASTExpressionlist ASTparamList) do
+      #message "found ".idf."\n";
+      @expressionlist paramList [emptyList];
+      foreach ASTparamList(@ASTExpression ASTexp) do
+        paramList += ![ASTexp getExp !ctx !symbolMap !idfStruct];
+      end foreach;
+      itemList += !idf !itemType !paramList;  
+    end foreach;
+    exp := [@expIdf new !idfExpType !itemList !detectedType !isConst !codePrefix];
+  else
+    error loc: "unknown identifier: ".[idfList string] : exp;
+    #message [idfStruct string];
+  end if;
+end reader;
+
+function fieldListFromAST
+  ?? @expressionContext ctx
+  ?? @symbolValueMap symbolMap
+  ?? @varIdfStruct idfStruct
+  ?? @ASTfieldList astFList
+  -> @fieldList flist
+:
+  flist := [@fieldList emptyList];
+  foreach astFList (@ASTExpression expFrom @ASTExpression expTo @bool only1Exp) do
+    flist += ![expFrom getExp !ctx !symbolMap !idfStruct] ![expTo getExp !ctx !symbolMap !idfStruct] ![expFrom loc] !only1Exp;
+  end foreach;
+end function;
+
+override reader @ASTBitFieldOp getExp
+  ?? @expressionContext ctx
+  ?? @symbolValueMap symbolMap
+  ?? @varIdfStruct idfStruct
+  -> @expression exp
+:
+  @expression baseExp := [ASTexp getExp !ctx !symbolMap !idfStruct];
+  @fieldList flist := fieldListFromAST[!ctx !symbolMap !idfStruct !astFList];
+  #The type
+  @varBaseType baseType := [[baseExp type] getBaseType];
+  @varBaseType type := [@varBaseType new ![baseType kind] ![flist fieldsize !symbolMap] ![baseType location]];
+  exp := [@expBitFieldOp new !type !baseExp !flist];
+end reader;
+
+override reader @ASTSliceFieldOp getExp
+  ?? @expressionContext unused ctx
+  ?? @symbolValueMap unused symbolMap
+  ?? @varIdfStruct unused idfStruct
+  -> @expression exp
+:
+  exp := [@expDummy new ![@varBaseType new ![@varKind unsigned] !1 !here] !"TODO ASTSliceFieldOp"];
+end reader;
+
+override reader @ASTUnaryOp getExp
+  ?? @expressionContext ctx
+  ?? @symbolValueMap symbolMap
+  ?? @varIdfStruct idfStruct
+  -> @expression exp
+:
+  @expression baseExp := [ASTexp getExp !ctx !symbolMap !idfStruct];
+  if id == 0 then
+    [[baseExp type] checkBool];
+  end if;
+  exp := [@expUnary new ![baseExp type] !baseExp !id];
+end reader;
+
+override reader @ASTBinaryBasicOp getExp
+  ?? @expressionContext ctx
+  ?? @symbolValueMap symbolMap
+  ?? @varIdfStruct idfStruct
+  -> @expression exp
+:
+  @expression expLeft := [ASTexpLeft getExp !ctx !symbolMap !idfStruct];
+  @expression expRight := [ASTexpRight getExp !ctx !symbolMap! idfStruct];
+  #ok, now, get the type size..
+  #first, binary ops are restricted to basic types.
+  @varBaseType baseTypeLeft  := [[expLeft  type] getBaseType];
+  @varBaseType baseTypeRight := [[expRight type] getBaseType];
+  @varBaseType type;
+  if    id == 0  then type := typeMult[!baseTypeLeft !baseTypeRight]; #*
+  elsif id == 1  then type := typeDiv[!baseTypeLeft !baseTypeRight];  #/
+  elsif id == 2  then type := typeDiv[!baseTypeLeft !baseTypeRight];  #%
+  elsif id == 3  then type := typeAdd[!baseTypeLeft !baseTypeRight];  #+
+  elsif id == 4  then type := typeSub[!baseTypeLeft !baseTypeRight];  #-
+  elsif id == 5  then type := typeShift[!baseTypeLeft !baseTypeRight !expRight !symbolMap !false];  #>>
+  elsif id == 6  then type := typeShift[!baseTypeLeft !baseTypeRight !expRight !symbolMap !true];   #<<
+  elsif id == 7  then type := typeCompare[!baseTypeLeft !baseTypeRight]; ; #<
+  elsif id == 8  then type := typeCompare[!baseTypeLeft !baseTypeRight]; ; #>
+  elsif id == 9  then type := typeCompare[!baseTypeLeft !baseTypeRight]; ; #<=
+  elsif id == 10 then type := typeCompare[!baseTypeLeft !baseTypeRight]; ; #<=
+  elsif id == 11 then type := typeCompare[!baseTypeLeft !baseTypeRight]; ; #=
+  elsif id == 12 then type := typeCompare[!baseTypeLeft !baseTypeRight]; ; #!=
+  elsif id == 13 then type := typeBin[!baseTypeLeft !baseTypeRight]; ; #&
+  elsif id == 14 then type := typeBin[!baseTypeLeft !baseTypeRight]; ; #^
+  elsif id == 15 then type := typeBin[!baseTypeLeft !baseTypeRight]; ; #|
+  elsif id == 16 then type := typeBool[!baseTypeLeft !baseTypeRight]; ; #&&
+  elsif id == 17 then type := typeBool[!baseTypeLeft !baseTypeRight]; ; #^^
+  elsif id == 18 then type := typeBool[!baseTypeLeft !baseTypeRight]; ; #||
+  elsif id == 19 then type := baseTypeLeft; #ror 
+  elsif id == 20 then type := baseTypeLeft; #rol
+  elsif id == 21 then type := typeCat[!baseTypeLeft !baseTypeRight]; ; #cat
+  else error [baseTypeLeft location]:"internal error: unknown id in ASTBinaryBasicOp":type;
+  end if;
+  exp := [@expBinary new !type !expLeft !expRight !id];
+end reader;
+
+#method related to function call.
+#check parameters.
+method @parameterDefList checkParams
+  ?? @expressionlist expList
+  ?? @location callLoc
+  ?? @location defLoc  
+:
+  #first check lengths.
+  if [expList length] != [selfcopy length] then
+    @string str := "Bad number of arguments in the function call: ".[expList length]." arguments";
+    str .= " are given, while the function requires ".[selfcopy length]." parameters";
+    error defLoc: str;
+    error callLoc: str;
+  end if;
+  #then iterate on each list
+  foreach expList(@expression exp), selfcopy(@bool out @varAbstractType type @lstring name) do
+    #check that expression fits
+    checkCorrectAssignType !type !exp !name;
+    #check that expression for an 'out' argument is only an idf.
+    if out then
+      if (exp is == @expIdf) then
+      else
+        error [[exp type] loc]: "The parameter ".[name string]." at ".[[name location] locationString].
+                   " is an output argument. It must be called with an identifier only.";
+      end if;
+    end if;
+  end foreach;
+end method;
+
+#Check that the type returned by the expression (fromType) is in phase with the type awaited ('ToType').
+#TODO: may be a method from @varAbstractType?
+routine checkCorrectAssignType
+  ?? @varAbstractType toType
+  ?? @expression exp
+  ?? @lstring idf #used to know the name of the var assigned (error string).
+:
+  @varAbstractType fromType := [exp type];
+  @string errorStr := "Try to assign expressions of different types, from ".[[fromType kind] msg];
+  errorStr .= " to ".[[toType kind] msg]."(".idf.")";
+
+  cast fromType
+  when == @varBaseType vbt:
+    if (toType is == @varBaseType) then
+      if [fromType kind] == [toType kind] then
+        @varBaseType toVbt := (cast toType : @varBaseType);
+        #ok, to vars of the same kind. Check size.
+        if [vbt size] > [toVbt size] then
+          #too few.
+          @uint vbtS := [vbt size];
+          @uint toVbtS := [toVbt size];
+          if [option gadl_options.warnIfResultMayBeTruncated value] then
+            warning [idf location] : "Try to set a value of ".vbtS." bits into a variable of ".toVbtS."bits (".idf.")";
+          end if;
+        end if;
+      else
+        #just a warning here: unsigned with signed, ..
+        warning [idf location] : errorStr;
+      end if;
+    else
+      #error from varBaseType to other type.
+      error [idf location] : errorStr;
+    end if;
+  when == @varStructType vst:
+    message "no checkCorrectAssignType for varStructType implemented\n";
+  when == @varTabularType vtt:
+    message "no checkCorrectAssignType for varTabularType implemented\n";
+  else
+    error [idf location]: "internal error in checkCorrectAssignType";
+  end cast;
+end routine;
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

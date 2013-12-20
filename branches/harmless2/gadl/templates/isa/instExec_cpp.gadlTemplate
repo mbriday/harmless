@@ -2,7 +2,7 @@
 #include "instruction.h" //first for precompiled headers
 #include <iostream>
 #include "macro.h"
-#include "arch.h"
+#include "core.h"
 #include "utils.h"
 
 using namespace std;
@@ -10,14 +10,14 @@ using namespace std;
 // instruction execute code.
 
 %foreach inst in instCodeListTmp do
-  %void %!inst::name%::execute(arch *_arch){\n%
+  %void %!inst::name%::execute(core *_core){\n%
   
   if useCAS then
-    %\t_arch->initDDCRegAccess();\n%
+    %\t_core->initDDCRegAccess();\n%
   end if
   
   if exists branchInstMap[inst::name] then #branch?
-    %\t%!PC_C_TYPE% val_pc_before = _arch->%!PC_NAME%();\n%
+    %\t%!idfStruct::PC_C_TYPE% val_pc_before = _core->%!idfStruct::PC_NAME%();\n%
   end if
   
   if exists timingInstMap[inst::name] then #timing counter?
@@ -34,7 +34,7 @@ using namespace std;
   end if
   if exists branchInstMap[inst::name] then #branch part 2.
     %\t//branch check.\n%
-    %\tm_jumpTaken = _arch->%!PC_NAME%()-val_pc_before;\n%
+    %\tm_jumpTaken = _core->%!idfStruct::PC_NAME%()-val_pc_before;\n%
   end if
   
   if useCAS then
@@ -44,12 +44,12 @@ using namespace std;
         %\t//Data Dependancy Controller related part\n%
       do
         if RFA::R | RFA::W then
-          %\t_arch->getDDCRegFile%!RFA::memoryId%AccessMask(this->m_DDCRegFile%!RFA::memoryId%MaskRead, this->m_DDCRegFile%!RFA::memoryId%MaskWrite);\n%
+          %\t_core->getDDCRegFile%!RFA::memoryId%AccessMask(this->m_DDCRegFile%!RFA::memoryId%MaskRead, this->m_DDCRegFile%!RFA::memoryId%MaskWrite);\n%
         end if
       end foreach
     end if
     if exists DDCClassicRegsUsageMap[inst::name] then
-      %\t_arch->getDDCRegAccessMask(this->m_DDCRegMaskRead, this->m_DDCRegMaskWrite);\n%
+      %\t_core->getDDCRegAccessMask(this->m_DDCRegMaskRead, this->m_DDCRegMaskWrite);\n%
     end if
   end if
   %}\n%

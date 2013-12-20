@@ -8,7 +8,6 @@ if HAS_USER_FETCH then
 end if
 
 
-
 #decoder related files -> format
 write to MODELNAME."/instDecoder.h":
   template instDecoder_h in isa
@@ -30,7 +29,7 @@ end write
 let instContructorParam := emptyMap
 foreach inst in INST_CONSTRUCTOR do
   #declaration
-  let param := "(const ".PC_C_TYPE." pc, "
+  let param := "(const ".idfStruct::PC_C_TYPE." pc, "
   loop chunk from 1 to inst::codeLength 
   do
     let param := param."const ".INST_DEFAULT_SIZE_C_STR." chunk".[chunk string]

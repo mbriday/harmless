@@ -1,22 +1,12 @@
 syntax gadl_instruction_syntax_parser ("gadl_lexique.gLexique") :
 
 import "gadl_options.gOption" ;
-import "gadl_semantics.gSemantics" ;
+#import "gadl_semantics.gSemantics" ;
 import "gadl_semantics_syntax.gSemantics" ;
+import "gadl_semantics_AST_expression.gSemantics";
 
-nonterminal  <typeDeclaration> 
-  ! @varType type
-  ?? @componentMap componentMap
-  ?? @lstring componentName
-;
 
-nonterminal  <expression> 
-  ?? @varMap varMap
-  !  @cExpression outExp 
-  ?? @componentMap componentMap
-  ?? @uint tmpId
-  ?? @expressionContext expContext
-;
+nonterminal <expression> !@ASTExpression exp;
 
 rule <printNumberType>
   ?! @printNumberTypeMap typeMap
@@ -74,16 +64,12 @@ rule <ifBlocSyntax>
   @ifElsifList elsifList [emptyList];
   $if$;
   repeat
-    @cExpression expIf;
-    @varType outTypeIf;
-    @componentMap compMap [emptyMap];
-    <expression>  !fieldMap ?expIf !compMap !0 ![@expressionContext syntaxView];
-    checkOneExpressionOutType !expIf ?outTypeIf;
-    checkBool !outTypeIf !here;
+    @ASTExpression ASTexp;
+    <expression> ?ASTexp;
     $then$;
     @syntaxChunkList scl [emptyList] ;
     <ifOrInstruction> !?fieldMap ?scl;
-    elsifList += !expIf !scl ;
+    elsifList += !ASTexp !scl ;
   while
     $elseif$;
   end repeat;
@@ -102,20 +88,24 @@ rule <fieldDeclaration>
   ?! @varMap fieldMap
 :
   $field$; 
-  @varType type;
-  @componentMap componentMap  := [@componentMap emptyMap];
-  @TypeStructDefMap TypeList [emptyMap];
-  @lstring compName := [@lstring new !"ComponentNameNotDefined" !here];
-  <typeDeclaration> ?type !componentMap  !compName;
+  @luint varSize;
+  @varBaseType typeBase;
+  select 
+    $uvar$ ? varSize;
+    typeBase := [@varBaseType new ![@varKind unsigned] ![varSize uint] !here];
+  or
+    $svar$ ? varSize; 
+    typeBase := [@varBaseType new ![@varKind signed] ![varSize uint] !here];
+  end select;
   @lstring idf;
   $idf$ ?idf;
-  @classicVar var := [@classicVar new !type !true !"" !""]; #a field is constant.
-  [!?fieldMap insertKey !idf !var]; 
+  @instDeclaration instDec := [@instDeclaration new !here !typeBase !idf ![@varClass localVar] !""];
+  [!?fieldMap insertKey !idf !typeBase !true ![@varClass localVar] !instDec]; 
 end rule;
 
 rule <syntaxString>
   !  @printInst print
-  ?? @varMap fieldMap
+  ?? @varMap unused fieldMap
 :
   @lstring registerNameOrImmValue;
   $caracterStr$ ?registerNameOrImmValue;
@@ -123,14 +113,9 @@ rule <syntaxString>
   repeat
   while
     $,$; 
-    #@lstring idfNum;
-    #$idf$ ?idfNum;
-    @varType outype;
-    @cExpression exp;
-    @componentMap compMap [emptyMap];
-    <expression> !fieldMap ?exp !compMap !0 ![@expressionContext syntaxView];
-    checkOneExpressionOutType !exp ?outype;
-    args += !exp !outype;
+    @ASTExpression ASTexp;
+    <expression> ?ASTexp;
+    args += !ASTexp;
   end repeat;
   print := [@printInst new !registerNameOrImmValue !args];
 end rule;

@@ -1,7 +1,0 @@
-\section{Conclusion}
-
-Les objectifs du langages ont été bien identifiés, tant sur la partie jeu d'instruction, que la modélisation interne d'un pipeline simple. 
-
-Au niveau du jeu d'instruction, les bases du langages ont été définies et la description de plusieurs processeurs (ARM et XGate pour l'instant) a été réalisée. Il sera certainement nécessaire d'enrichir encore le langage pour d'autre architectures. les outils sont actuellement en cours de développement, avec pour premier objectif de générer un simulateur de jeu d'instruction à partir de la description. Il faudra, dans un deuxième temps, interfacer cet outil avec le modèle de l'architecture interne. 
-
-Au niveau de l'architecture interne, deux outils permettant la génération de code à partir de la description d'un pipeline simple ont été développé: un premier permettant de générer le modèle du pipeline sous la forme d'un automate à partir de la description (\emph{p2a}), et un second qui génère le code source du modèle du pipeline à partir de l'automate (\emph{a2cpp}). Ces outils ont permis de valider l'approche par automate. Il est maintenant nécessaire d'enrichir les descriptions pour pouvoir modéliser des processeurs plus complexes (superscalaires, avec exécution ordonnée ou non), d'aborder la modélisation hiérarchie mémoire, ainsi que les composants externes (timers, I/O, ...).
