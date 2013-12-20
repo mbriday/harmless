@@ -1,0 +1,152 @@
+semantics gadl_semantics_function :
+  import "gadl_options.gOption" ;
+  import "gadl_semantics_implementation.gSemantics" ;
+
+#----------------------------------------------------------------------------
+# function def and calls end return.
+#----------------------------------------------------------------------------
+list @parameterCallList {
+  @cExpression exp;
+  @location loc;
+}
+
+list @parameterDefList {
+  @bool out; #true out, false in.
+  @lstring name;
+  @classicVar variable;
+}
+
+abstract class @functionOutType {
+}
+
+list @returnTypeList {
+  @functionOutType functionOutType;
+}
+
+# define an abstract method for @functionOutType to get the corresponding C code
+# and define 2 subclasses (with a type, or custom (memory)).
+abstract method @functionOutType getTypeCString
+  ! @string code;
+
+class @functionOutTypeClassic extends @functionOutType {
+  @varType outType;
+}
+override method @functionOutTypeClassic getTypeCString
+  ! @string code
+:
+  code := [outType getCType];
+end method;
+
+class @functionOutTypeCustom extends @functionOutType {
+  @string outType;
+}
+override method @functionOutTypeCustom getTypeCString
+  ! @string code
+:
+  code := outType;
+end method;
+
+map @functionMap {
+  @parameterDefList param;
+  @returnTypeList outTypeList;
+  @instructionList code;
+  insert insertKey error message "the '%K' component method is already defined in %L" ; 
+  search searchKey error message "the '%K' component method is not defined" ;
+}
+
+######## function call expression.
+class @cfunctionCall extends @cExpression {
+  @lstring idf;
+  @parameterCallList paramList;
+}
+override reader @cfunctionCall generateCode
+  ?? @string componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx cgc
+  -> @string code
+:    
+  code := "gadl_" . [idf string] . "(";
+  @bool first := true;
+  foreach paramList (@cExpression expParam *) do
+    code .= [expParam generateCode !componentPrefix !idfSuffix !cgc];
+    if not first then 
+      code .= ", "; 
+    end if;
+    first := false;
+  end foreach;
+  code .= ");\n";
+end reader;
+
+#############
+## instruction 'return'.
+#############
+
+class @cReturn extends @cInstruction{
+  @cExpressionList expressionList;
+  @lstring currentComponent;
+  @returnTypeList returnList; #required to get return types.
+}
+
+#check that the number of arguments is ok, and types are matching (i.e. 
+#return value can fit in the return type specified).
+method @cReturn checkArguments
+:
+  #check returns arguments types.
+  if [returnList length] != [expressionList length] then
+    error here: "the return expression has ".[[expressionList length] string]." elements, while ".
+                [[returnList length] string]." are expected.";
+  else #same size, check each expression with the type awaitted.
+    foreach expressionList (@cExpression exp),
+            returnList (@functionOutType functionOutType) do
+        cast functionOutType
+        when == @functionOutTypeClassic classicOut :
+         @varType expType;
+         checkOneExpressionOutType !exp ?expType; #TODO; Restriction to remove... later.
+         checkCorrectOutType ![classicOut outType] !expType;
+        else #custom type. No check at this time.
+        end cast;
+    end foreach;
+  end if;
+end method;
+
+routine checkCallDefParameters 
+  ?? @parameterCallList paramCall
+  ?? @parameterDefList paramDef
+  ?? @location callLocation
+:
+  #check size.
+  if [paramDef length] != [paramCall length] then
+    error callLocation : "behavior was called with a bad number of parameters!";
+  end if;
+   
+  #then check types.
+  foreach paramCall (@cExpression expCall *), paramDef(2* @classicVar var) do
+    @varType typeCall;
+    checkOneExpressionOutType !expCall ?typeCall;
+    checkCorrectOutType ![var type] !typeCall;
+  end foreach;
+
+  #check that expression for an 'out' argument is only an idf.
+  foreach paramCall (@cExpression exp @location loc), paramDef(@bool out @lstring name *) do
+    if out then
+      #expression must be an identifier. 
+      cast exp
+      when == @cIdf idf :
+        #this is an idf. Check that it can be modified.
+        if [[idf var] constant] then 
+          error loc: "variable in method call (".[[idf idf] string].") is constant, be has been declared".
+                     " as an input/output parameter (using the 'out' keyword).";
+        end if;
+      else
+        #this is not an idf. An error should be generated.
+        error loc: "The parameter ".[name string]." at ".[[name location] locationString].
+                   " is an output argument. It must be called with an identifier and not ".
+                   "a complex expression.";
+      end cast;
+    end if;
+  end foreach;
+end routine;
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2
+

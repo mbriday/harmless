@@ -1,0 +1,79 @@
+%template headerC%
+#ifndef __STACK_SPY_ACTION_H__
+#define __STACK_SPY_ACTION_H__
+#ifdef GADL_SP_CHECK_ALLOWED
+
+#include "types.h"
+#include "stackTypes.h"
+#include "action.h"
+
+//class arch;
+class stackSpyController;
+class stackInfo;
+class taskStackList;
+
+/** stackSpyAction
+ * Generic action used to spy task and context switch.
+ */
+class stackSpyAction : public executeAction{
+	protected :
+	stackSpyController *m_ctrl;	// StackController access (to add informations about stack)
+
+	public :
+	stackSpyAction(stackSpyController *ctrl):executeAction(),m_ctrl(ctrl){};
+	virtual ~stackSpyAction() {};
+	virtual bool trigger(arch *) = 0;
+};
+
+/** stackSpyActionStatic
+ * Static action recquired to detect task code execution
+ */
+class stackSpyActionStatic : public stackSpyAction{
+	private :
+	int m_taskId;				// ID of Task who add action
+	stackInfo* m_stackInfo;		// Pointer to have a direct access to stack data
+	
+	public :
+	stackSpyActionStatic(stackSpyController *ctrl,int taskId,stackInfo* stkInf):stackSpyAction(ctrl),m_taskId(taskId),m_stackInfo(stkInf){};
+	virtual ~stackSpyActionStatic() {};
+	virtual bool trigger(arch*);
+};
+
+/** stackSpyActionDynamic
+ * Dynamic action recquired to detect the next instruction execution in program memory coming just after a CALL
+ */
+class stackSpyActionDynamic : public stackSpyAction{
+	private :
+	type_prgaddr m_addr;	//address where the action is placed.
+	type_sp m_spValueOld;	// SP value before jump
+	int m_stackId;			// which is the task this action belongs to.
+	u64 m_actionId;			// Id of action
+	stackSpyActionDynamic *m_nextDA; //single linked list in stackController.
+	
+	public :
+	stackSpyActionDynamic(stackSpyController *ctrl,type_prgaddr addr,int taskId,type_sp sp,u64 actionId)
+		:stackSpyAction(ctrl),m_addr(addr),m_stackId(taskId),m_spValueOld(sp),m_actionId(actionId)
+	{
+		m_nextDA = NULL;
+	};
+	virtual ~stackSpyActionDynamic() {};
+	virtual bool trigger(arch*);
+	//single linked list used in stackController.
+	void setNextDynamicAction(stackSpyActionDynamic *next) {m_nextDA = next;};
+	//single linked list used in stackController.
+	stackSpyActionDynamic *nextDynamicAction() {return m_nextDA;};
+	//return true if:
+	//  * stackId is the same
+	//  * action location is the same
+	//  * stack pointer is higher than the parameter's one.
+	inline bool checkActionAgainst(stackSpyActionDynamic *spad) {
+		return ((spad->m_addr == m_addr) &&
+				(spad->m_stackId == m_stackId) && 
+				(m_spValueOld >= spad->m_spValueOld));
+	};	
+	const type_prgaddr address() {return m_addr;};
+	virtual std::string toString();
+};
+
+#endif // GADL_SP_CHECK_ALLOWED
+#endif // __STACK_SPY_ACTION_H__

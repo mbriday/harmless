@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Script to calcule time in mips for each instruction
+#
+# For example on 1.000.000.000 instructions :
+#  500.000.000 BRANCH = 9 sec
+#  or ADD code (1000M instr) = 50% ADD + 50% BRANCH 
+#  so 500.000.000 ADD = ADD code exec time - 9 sec
+
+echo 'Harmless simulation ...'
+echo $'\n'
+
+NBINSTR=1000000000
+
+(
+echo "BRANCH"
+echo $'\n'
+time ../../../arm_opt/arm_opt branch_sources/branch.elf 500000000 65544
+
+echo $'\n'
+
+echo "Instr 2 name"
+echo $'\n'
+time ../../../arm_opt/arm_opt instr_sources/instr2.elf $NBINSTR 65544
+
+echo $'\n'
+
+) &> resultats64.txt

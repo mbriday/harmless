@@ -1,0 +1,19 @@
+[model]
+# list of harmless models, separated by ':'. Dir relative to gadl/example.
+files=arm/arm_iss_32.hadl
+models=arm_dbg
+
+[build]
+define=
+target=python
+stubs=false
+pipelineTrace=false
+
+#[compare] ##TODO: limited to python scripts.
+#The compare test run a list of scripts (separated by ':'), and compare output to the list of files.
+#if the file is not present (first run), a message is written and the file is created.
+#script=run1.py:run2.py
+#files=result1.log:result2.log
+
+[custom]
+script=compare.py

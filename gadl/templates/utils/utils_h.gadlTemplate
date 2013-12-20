@@ -1,0 +1,38 @@
+%template headerC%
+#ifndef __UTILS_H__
+#define __UTILS_H__
+#include "types.h" //u64
+#include <string>
+
+
+///make a segfault, to help debugging.
+#ifdef DEBUG
+	#define SEGFAULTIF(cond) if(cond) {*((int *)0x0) = 0;}
+#else
+	#define SEGFAULTIF(cond) 
+#endif
+
+
+enum BASE{
+	DEC,
+	HEX
+};
+
+///fonction that converts an int to binary.
+unsigned int dtobin(unsigned char h);
+//string dtobin(unsigned int n);
+///function that converts an int to a string.
+std::string int2str(int val, BASE base=DEC, int nbBits=32);
+
+//function that prints an u64 into binary and hex for debugging purpose.
+std::string debug64(u64 val);
+
+#ifdef USE_VERBOSE
+	extern bool verbose;
+	#define VERBOSE(STREAM) if(verbose) cout << STREAM << endl;
+#else
+	#define VERBOSE(STREAM)
+#endif
+
+#endif
+

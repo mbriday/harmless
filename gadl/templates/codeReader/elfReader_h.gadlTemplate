@@ -1,0 +1,120 @@
+%template headerC%
+#ifndef __ELF_READER_H__
+#define __ELF_READER_H__
+
+#ifdef USE_LIBELF
+class arch;
+#include <libelf.h>
+#include <gelf.h>
+#include <stdio.h> //FILE
+#include <vector> // virtual to physical address translation, code sections.
+#include <map>    // symbols.
+#include <string> // symbols.
+#include "types.h"
+#include "codeReader.h"
+
+/*this class is used to associate a virtual address with a physical address.
+ * There is one object for each program segment in elf file. An instance 
+ * of that class is modelling a memory chunk ("segment").
+ **/
+class virtualToPhysicalAddr
+{
+	u32 m_v_addr; /* virtual base address */
+	u32 m_p_addr; /* physical base address */
+	u32 m_size;   /* size of memory chunk */
+	public:
+	virtualToPhysicalAddr(const u32 v_addr, const u32 p_addr, const u32 size);
+	/** @return true if the virtual address is matching the memory chunk, false, otherwise.*/
+	inline bool isMatching(const u32 v_addr) {
+		return (v_addr >= m_v_addr) && (v_addr < (m_v_addr + m_size));
+	};
+	/** @return true if the virtual address is matching, and in that case, update the p_addr, which is the physical address.*/
+	bool const getPhysicalAddr(const u32 v_addr, u32 &p_addr);
+	
+	u32 const getPhysicalAddrBase() {return m_p_addr;};
+};
+
+/* store address and size of a symbol.*/
+struct symbolEntry
+{		
+	u32 address; /** address of the symbol */
+	u32 size;    /** size of the symbol: used for tabs, functions, .. */
+};
+
+
+/* elf reader:
+ * This class is used to read an 'elf' program file and 
+ * update the memory accordingly.
+ */
+class elfReader : public codeReader
+{
+	
+	private:
+	//if false, the elf format does not use physical address -> virtual address is the physical address.
+	//ex: HCS12 with CodeWarrior
+	bool m_usingPhysicalAddr;
+	std::vector<virtualToPhysicalAddr *> m_programSegmentVector;
+	std::vector<codeSection *> m_codeSectionVector;
+	
+	std::map<std::string, symbolEntry> m_symbolObjectMap; /*symbol object: global var*/
+	std::map<std::string, symbolEntry> m_symbolFuncMap;   /*symbol functions */
+	
+	Elf *m_elfFile;
+	/* load data into simulator memory 
+	 *  @return true if there is no problem.
+	 */
+	bool loadIntoSimulator(unsigned int v_addr_start,Elf_Data * data, arch *_arch);
+	/* init elf reading (connect to library, check elf kind, get Elf *) 
+	 *  @return true if there is no problem.
+	 */
+	bool initElfReader(FILE* codeFile, const bool verbose, const char * filename);
+	/* get program headers, to make the link between virtual and physical addresses.*/
+	bool readProgramHeaders();
+	
+	bool manageBinaryCode(Elf_Data *data, GElf_Shdr *sectionHeader, const bool verbose, const char *name, arch *_arch);
+	void manageSymbols(Elf_Data *data, GElf_Shdr *sectionHeader, const bool verbose, const char *name);
+
+	public:
+	elfReader();
+	~elfReader();
+	/** read the file and update simulator program memory
+	 *  @return true if there is no problem.
+	 */
+	bool readFile(const char * filename, arch *_arch, const bool verbose);	
+	
+	/* @return the physical address. 
+	 * If no physical address is matching, the virtual address is returned
+	 * and found is set to false.
+	 */
+	u32 getPhysicalAddress(const u32 v_addr, bool &found);
+	/* this function search for the virtual address and size of the symbol name (first parameter).
+	 * @return true if a symbol have been found, and updates v_addr and size
+	 * @return false if no symbol is matching. v_addr and size are not updated.
+	 */
+	bool getSymbolObjectAddress(const char *symbolName, u32 &v_addr, u32 &size);
+	/* Find the current fontion name, corresponding to v_addr. v_addr should be the current value of 
+	 * the program counter to be informed of the current function that is executed.
+	 * @return true if a symbol have been found, and updates symbol name
+	 * @return false if no symbol is matching. no update.
+	 */
+	bool getFunctionName(const char *symbolName, u32 &v_addr);
+	/** print all object symbols */
+	void dumpObjects();
+	/** print all function symbols */
+	void dumpFunctions();
+	/** return the corresponding function at given address (typically the current value of program counter) 
+	 *  It returns an empty string if not found.
+	 */
+	std::string whichFunctionAtAddress(const u32 v_addr);
+	/** return the entry fonction pointer stored in an elf file. */
+	unsigned int getProgramCounter();
+
+	/** return the number of code chunks */
+	virtual unsigned int const getNbCodeSection() {return m_codeSectionVector.size();};
+	/** return a code section : i.e. get info about a code chunk, its size and virtual address */
+	virtual codeSection *getCodeSection(const unsigned int index) {return m_codeSectionVector[index];}
+};
+
+#endif //USE_LIBELF
+#endif //__ELF_READER_H__
+

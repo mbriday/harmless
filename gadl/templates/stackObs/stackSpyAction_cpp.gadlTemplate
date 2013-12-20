@@ -1,0 +1,132 @@
+%template headerC%
+#ifdef GADL_SP_CHECK_ALLOWED
+
+#include <string>
+#include <iostream>
+#include <sstream> //stringstream
+using namespace std;
+
+#include "stackController.h"
+#include "stackSwitchList.h"
+#include "stackList.h"
+#include "stackSpyAction.h"
+#include "arch.h"
+#include "stackObserver.h"
+
+bool stackSpyActionStatic::trigger(arch *){
+	#ifdef	GADL_TALKATIVE_STACK
+	//cerr << "Static Action" << endl;
+	#endif // GADL_TALKATIVE_STACK
+	
+	// -- Local data --
+	type_sp spVal=m_ctrl->getSP();							// SP Value (will be used more than one time)
+	int taskId=m_ctrl->getStackList()->findStack(spVal);	// Current Task ID (will be 0 if it's not intialized or real task id if it exists somewhere else)
+	bool contextChange=false;								// True if any context change is detected (will be used to write context change in switch list)
+	
+	// -- SP Inital value detection -- (to join with Task Informations)
+	if(!(m_stackInfo->getSpInitFound())){		// No initial value of Stack already store
+		if(taskId==0){							// No task uses this Stack
+			m_stackInfo->setSpInit(spVal);			// Store SP initial value
+			m_stackInfo->setSpInitFound(true);		// Update associated flag
+			taskId=m_stackInfo->getTaskId();		// Just get associated Task ID
+			contextChange=true;
+			#ifdef GADL_SP_FAILURE_CHECK_ALLOWED
+			m_ctrl->getObserver()->addStackObservation(m_stackInfo);
+			#endif
+		}else {
+			#ifdef	GADL_TALKATIVE_STACK
+			//cerr<<"SPInit want to be initialized for this task"<<endl;
+			#endif
+		}
+
+	// -- Context Switch start of Task -- (Sp initial value known)
+	}else if(m_stackInfo->isInThisStack(spVal)){			// Is in this task
+		// The associated TASK ID have been found before
+		contextChange=true;
+
+	}
+	// -- Same code call by another task -- // Is it usefull in some case ?
+	/* // NOT USEFULL... will just do nothing... will be take in acount by the next static action
+	 else {
+		#ifdef	GADL_TALKATIVE_STACK
+		cerr<<"--- SAME CODE OTHER TASK --- (SP="<<hex<<m_ctrl->getSP()<<") ?"<<endl;
+		#endif // GADL_TALKATIVE_STACK
+		cerr<<"Same code call by another task, function is incomplete here (stackSpyAction.cpp)"<<endl;
+		taskId=TASK_UNKNOWN;		// Unknow Task ... for the time being
+		// Test with OSEK 
+		// We can't have two task with the same main function
+		// we creat one main fonction in the code and 2 OSEK TASK 
+		// both task call this same function
+		// We add both TASK in Simulation with this function as main function
+		// It's a pretty accurate way to test this case
+	}*/
+	
+	if(contextChange){
+		#ifdef	GADL_TALKATIVE_STACK
+		cerr<< endl<< "--- CONTEXT SWITCH --- (task in) (from "<< m_ctrl->getCurrentTaskId() << " to " << taskId<<" )"<<endl<<endl;	// DEBUG
+		#endif // GADL_TALKATIVE_STACK
+		m_ctrl->setCurrentTaskId(taskId);																					// Update current Task ID to know in wich task we are
+		m_ctrl->getSwitchList()->addSwitch(new switchItem(m_ctrl->getArch()->getNBCycles(),spVal,taskId,TASK_ACTIVATE));	// Update switch list to store context change
+		m_ctrl->getSwitchList()->addSwitch(new switchItem(m_ctrl->getArch()->getNBCycles(),spVal,taskId,TASK_RUN));			// Update switch list to store context change
+	}
+	
+	// DEBUG : display all informations about the current stack
+	#ifdef	GADL_TALKATIVE_STACK
+	cerr<<"Task/Stack Data -- ";
+	m_stackInfo->printStackInfo();
+	#endif // GADL_TALKATIVE_STACK
+
+
+	
+	return false;
+}
+
+bool stackSpyActionDynamic::trigger(arch *){
+	#ifdef	GADL_TALKATIVE_STACK
+	//cerr<< "Dynamic Action n°"<<dec<<m_actionId<<" PC@"<<hex<<m_ctrl->getPC()<<" SP@"<< hex<<m_ctrl->getSP()<<" (trigger) "<<endl;
+	#endif // GADL_TALKATIVE_STACK
+	
+	int taskId=0;						// Current Task id
+	//int taskIdOld=0;					// Old Task Id
+	type_sp spValue=m_ctrl->getSP();	// Current SP Value (will be use more than one time)
+	bool delThisAction=false;			// Flag to allow action destruction (if recquired)
+
+	// -- Back in the right task --
+	if(m_spValueOld==spValue){
+		taskId=m_ctrl->getStackList()->findStack(spValue);																// Find current Task
+		
+		if(taskId!=m_ctrl->getCurrentTaskId()){
+			#ifdef	GADL_TALKATIVE_STACK
+			cerr<< endl<< "--- CONTEXT SWITCH --- (task out) (from "<< m_ctrl->getCurrentTaskId() << " to " << taskId<<" )"<<endl<<endl;	// Debug
+			#endif // GADL_TALKATIVE_STACK
+			m_ctrl->getSwitchList()->addSwitch(new switchItem(m_ctrl->getArch()->getNBCycles(),spValue,taskId,TASK_RUN));	// Store Context Switch in list
+			m_ctrl->setCurrentTaskId(taskId);																				// Current Task just Change (update)
+		}else {
+			#ifdef	GADL_TALKATIVE_STACK
+			//cerr<< "back from function"<<endl;
+			#endif // GADL_TALKATIVE_STACK
+		}
+		
+		delThisAction=true;				// RET Done : this action is no more usefull
+		
+	// -- Back somewhere else probably not usefull -- Probably happend sometimes (I need to find when)
+	}else {	
+		//taskId=m_ctrl->getStackList()->findStack(spValue);				// Find current Task
+		#ifdef	GADL_TALKATIVE_STACK
+		//cerr<<"--- Back in wrong task --- // Nothing to do ? //" << taskId<<endl;
+		#endif // GADL_TALKATIVE_STACK
+	}
+
+	if(delThisAction) m_ctrl->removeDynamicAction(this);
+	return delThisAction;
+}
+
+std::string stackSpyActionDynamic::toString()
+{
+	stringstream result;
+	result << "action at @" << hex << m_addr 
+	       << ", sp=" << m_spValueOld 
+		   << ", task=" << m_stackId;
+	return result.str();	
+}
+#endif // GADL_SP_CHECK_ALLOWED

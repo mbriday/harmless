@@ -1,0 +1,217 @@
+
+package HADLc {
+  
+  abstract class NamedElement {
+    attribute name : String;
+  }
+  
+  ---------------------------------------------------------
+  -- Top level
+  ---------------------------------------------------------
+
+  class Model extends NamedElement {
+    reference elements[*] ordered container : ModelElement;
+    reference includedFiles[*] container : IncludeFile;
+  }
+
+  abstract class ModelElement extends NamedElement {
+  }
+
+  class IncludeFile extends NamedElement {
+     attribute isStandard : Boolean;
+     attribute appearsInHeader : Boolean;
+  }
+
+  ---------------------------------------------------------
+  -- Typed elements
+  ---------------------------------------------------------
+
+  abstract class TypeSpecification {
+    attribute typeName : String;
+    attribute isEnum : Boolean;
+    attribute isStruct : Boolean;
+    attribute isPointer : Boolean;
+    attribute isArray : Boolean;
+  }
+
+  abstract class TypedElement extends TypeSpecification, NamedElement {
+  }
+  
+  ---------------------------------------------------------
+  -- Struct types
+  ---------------------------------------------------------
+
+  class StructType extends ModelElement {
+    reference fields[*] container : StructField;
+  }
+
+  class StructField extends TypedElement {
+    reference size[*] ordered container : Expression;
+  }
+
+  ---------------------------------------------------------
+  -- Enum types
+  ---------------------------------------------------------
+
+  class EnumType extends ModelElement {
+    reference literals[*] container : EnumLiteral;
+  }
+
+  class EnumLiteral extends NamedElement {
+  }
+
+  ---------------------------------------------------------
+  -- Functions
+  ---------------------------------------------------------
+
+  class Function extends ModelElement,TypedElement {
+    reference parameters[*] ordered container : Parameter;
+    reference body[0-1] container : Block;
+  }
+
+  class Parameter extends TypedElement {
+  }
+
+  class Variable extends ModelElement,TypedElement {
+     reference owningBlock[0-1] : Block oppositeOf variables;
+     reference size[*] ordered container : Expression;
+     reference init[0-1] container : Expression;
+  }
+
+  ---------------------------------------------------------
+  -- Statements
+  ---------------------------------------------------------
+  
+  abstract class Statement {
+      reference owningBlock[0-1] : Block oppositeOf statements;
+  }
+
+  class Block extends Statement {
+    reference variables[*] container : Variable oppositeOf owningBlock;
+    reference statements[*] ordered container : Statement oppositeOf owningBlock;
+  }
+
+  class ExpressionStatement extends Statement {
+    reference expression container : Expression;
+  }
+
+   class IfStatement extends Statement {
+      reference ifClauses[1-*] ordered container : IfClause;
+      reference elseClause[0-1] container : Statement;
+   }
+
+   class IfClause {
+      reference condition container : Expression;
+      reference thenClause container : Statement;
+   }
+
+  class SwitchStatement extends Statement {
+    reference expression container : Expression;
+    reference cases[*] container : Case oppositeOf owningSwitchStatement;
+    reference defaultStatements[*] ordered container : Statement;
+  }
+
+  class Case {
+    reference owningSwitchStatement : SwitchStatement oppositeOf cases;
+    reference value container : Expression;
+    reference statements[*] ordered container : Statement;
+  }
+  
+  class ForStatement extends Statement {
+     attribute counterName : String;
+     reference first container : Expression;
+     reference last container : Expression;
+     reference step container : Expression;
+     reference body container : Statement;
+  }
+  
+  class WhileStatement extends Statement {
+     reference expression container : Expression;
+     reference body container : Statement;
+  }
+  
+  class BreakStatement extends Statement {
+  }
+
+  class ReturnStatement extends Statement {
+     reference expression[0-1] container : Expression;
+  }
+  ---------------------------------------------------------
+  -- Expressions
+  ---------------------------------------------------------
+  
+  abstract class Expression {
+     reference owningArrayExpression[0-1] : ArrayExpression oppositeOf elements;
+  }
+
+  class FunctionCall extends Expression {
+    attribute functionName : String;
+    reference actualParameters[*] ordered container : Expression;
+  }
+
+  class VariableRefExpression extends Expression {
+    reference variable[0-1] : Variable;
+    attribute variableName[0-1] : String;
+  }
+
+  class ArrayElementExpression extends Expression {
+    reference expression container : Expression;
+    reference indices[1-*] ordered container : Expression;
+  }
+  
+  class FieldRefExpression extends Expression {
+    reference expression container : Expression;
+    attribute fieldName : String;
+    attribute fromPointer : Boolean;
+  }
+
+  class EnumLiteralRefExpression extends Expression {
+    attribute name : String;
+  }
+   
+  class IntegerLiteralExpression extends Expression {
+    attribute value : Integer;
+  }
+
+   class StringLiteralExpression extends Expression {
+      attribute value : String;
+   }
+
+  class OperatorExpression extends Expression {
+     attribute operator : String;
+      reference source container : Expression;
+      reference arguments[*] ordered container : Expression;
+  }
+
+  class ArrayExpression extends Expression {
+     reference elements[1-*] ordered container : Expression oppositeOf owningArrayExpression;
+  }
+
+  class CopyExpression extends Expression {
+     reference copiedExpression : Expression;
+  }
+
+  class WrapperExpression extends Expression {
+     reference expression container : Expression;
+  }
+
+  class ConditionalExpression extends Expression {
+     reference condition container : Expression;
+     reference then container : Expression;
+     reference else container : Expression;
+  }
+
+  class TypeExpression extends Expression, TypeSpecification {
+  }
+
+  class CastExpression extends Expression, TypeSpecification {
+     reference expression container : Expression;
+  }
+}
+
+package PrimitiveTypes {
+  datatype Boolean;
+  datatype Integer;
+  datatype String;
+}
+

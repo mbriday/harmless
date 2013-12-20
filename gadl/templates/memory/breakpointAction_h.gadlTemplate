@@ -1,0 +1,18 @@
+%template headerC%
+#ifndef __BREAKPOINT_ACTION__H_
+#define __BREAKPOINT_ACTION__H_
+
+#include "types.h"
+#include "action.h"
+
+class arch;
+
+class breakpointAction : public executeAction
+{
+	const u32 m_addr;   //address where the breakpoint is inserted.
+	public:
+	breakpointAction(const u32 addr) : m_addr(addr) {};
+    virtual bool trigger(arch *arch);
+};
+
+#endif

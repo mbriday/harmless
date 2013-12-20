@@ -1,0 +1,107 @@
+semantics gadl_semantics_default :
+import "gadl_components.gSemantics" ;
+
+#----------------------------------------------------------------------------
+#-------------------------- default values.
+#----------------------------------------------------------------------------
+class @defaultSection {
+  @luint   instructionSize  ;
+  @bool    isBigEndian  ;
+  @lstring fetchComponentName  ;
+  @lstring fetchMethodName  ;
+  @lstring fetchAddressComponentName  ;
+  @lstring fetchAddressMethodName  ;
+  @lstring progReadComponentName  ;
+  @lstring progReadMethodName  ;
+  @lstring debugComponentName  ;
+  @lstring interruptComponentName ;
+  @lstring interruptMethodName ;
+}
+
+#param, to check that a component method have the corresponding params.
+list @paramList {
+  @bool out;
+  @varType type;
+}
+
+#basic information to compare protype of methods.
+map @methodPrototypeMap {
+  @returnTypeList returnTypeList;
+  @paramList paramList;
+  insert insertKey error message "the '%K' key is already defined in %L" ; 
+  search searchKey error message "the method '%K' is not defined." ;
+}
+
+
+#routine checkThatMethodsAreConform
+#  ?? @methodPrototypeMap methodsToCheck
+#  ?? 
+#:
+#end routine;
+
+#check that the debug component provided is correct:
+routine checkDebugComponent
+  ?? @lstring unused debugComponentName
+  ?? @defaultSection unused defaultValues
+:
+  @methodPrototypeMap debugMethodMap [emptyMap];
+  @varType typeU8 := [@varType new ![@varKind unsigned] !8 !here];
+  @varType typeU32 := [@varType new ![@varKind unsigned] !32 !here];
+  @paramList paramList;
+  #getNBRegister
+  @returnTypeList returnList [emptyList];
+  returnList += ![@functionOutTypeClassic new !typeU8];
+  paramList := [@paramList emptyList];
+  [!?debugMethodMap insertKey ![@lstring new !"getNBRegister" !here] !returnList !paramList];
+  #getRegister
+  returnList := [@returnTypeList emptyList];
+  paramList := [@paramList emptyList];
+  paramList += !false !typeU8;
+  paramList += !true !typeU8;
+  returnList += ![@functionOutTypeClassic new !typeU32];
+  [!?debugMethodMap insertKey ![@lstring new !"getRegister" !here] !returnList !paramList];
+  #setRegister
+  returnList := [@returnTypeList emptyList];
+  paramList := [@paramList emptyList];
+  paramList += !false !typeU8;
+  paramList += !false !typeU32;
+  [!?debugMethodMap insertKey ![@lstring new !"setRegister" !here] !returnList !paramList];
+  #read8
+  returnList := [@returnTypeList emptyList];
+  paramList := [@paramList emptyList];
+  paramList += !false !typeU32;
+  returnList += ![@functionOutTypeClassic new !typeU8];
+  [!?debugMethodMap insertKey ![@lstring new !"read8" !here] !returnList !paramList];
+  #write8
+  returnList := [@returnTypeList emptyList];
+  paramList := [@paramList emptyList];
+  paramList += !false !typeU32;
+  paramList += !false !typeU8;
+  [!?debugMethodMap insertKey ![@lstring new !"write8" !here] !returnList !paramList];
+end routine;
+
+function isThereAUserFetch
+  ?? @defaultSection defaultValues
+  ->  @bool hasUserFetch
+:
+  hasUserFetch := ([[defaultValues fetchComponentName] string] != "");
+end function;
+
+#this function returns:
+# * if a user fetch function is defined, fetchImplementationName get the function name (the C name)
+# * Otherwise. fetchImplementationName is set to an empty string.
+routine getUserFetchFunction
+  ?? @defaultSection defaultValues
+  !  @string fetchImplementationName
+:
+  fetchImplementationName := "";
+  @bool hasUserFetch := isThereAUserFetch[!defaultValues] ;
+  if hasUserFetch then
+    getComponentMethodImplementationName ![[defaultValues fetchComponentName] string] 
+                                         ![[defaultValues fetchMethodName] string] !"" ?fetchImplementationName; 
+  end if;
+end routine;
+
+end semantics ;
+
+# vim:ft=ggs:ts=2:sw=2

@@ -1,0 +1,68 @@
+%template headerC%
+#include <iostream>
+#include "timingSignal.h"
+
+#include "timing_%!timingPart::name%.h"
+#include "arch.h"
+
+//state related code\n%
+let id := 0
+foreach step in timingPart::timingStepList do
+  let canResume := "true"
+  %bool timing%!timingPart::name%::step_%!id%(arch *_arch)\n{\n%
+  #debug
+  %\t#ifdef DEBUG_TIMING\n%
+  %\t\tstd::cout << "timing%!timingPart::name%::step_%!id%" << std::endl;\n%
+  %\t#endif\n%
+  # first: updates:
+  foreach update in step::updateList do
+    %\t%!update::str
+  end foreach
+  #synchro:
+  foreach synchro in step::synchroInList do
+    %\tconst bool result = _arch->timingSynchroWait(this,m_inOffset + SIGNAL_WAIT_%!timingPart::name%_%!synchro::str%);\n%
+    let canResume := "result"
+  end foreach
+  foreach synchro in step::synchroOutList do
+    %\tconst bool result = _arch->timingSynchroEmit(this,m_outOffset + SIGNAL_EMIT_%!timingPart::name%_%!synchro::str%, false);\n%
+    let canResume := "result"
+  end foreach
+  foreach synchro in step::synchroOutBroadcastList do
+    %\tconst bool result = _arch->timingSynchroEmit(this,m_outOffset + SIGNAL_EMIT_%!timingPart::name%_%!synchro::str%, true);\n%
+    let canResume := "result"
+  end foreach
+  #wait:
+  foreach wait in step::waitCycles
+  before 
+    let canResume := "false" #should stop the simulation here!
+    %\t_arch->timingWaitForCycles(this,%
+  do %(%!wait::exp%)%
+  between %+%
+  after %);\n%
+  end foreach
+  #next step.
+  if exists step::singleDest then #easy, no condition.
+    %\tnextStep = &timing%!timingPart::name%::step_%!step::singleDest%;\n%
+    if step::singleDest == 0 & timingPart::onActivation then
+      let canResume := "false" #should stop the simulation here!
+    end if
+    #is simulation step ended?
+    %\treturn %!canResume%;\n%
+    %}\n%
+  else #more complex
+    foreach next in step::nextList
+    before %\tif%
+    do %(%!next::guard%) {\n%
+      %\t\tnextStep = &timing%!timingPart::name%::step_%!next::nextId%;\n%
+      if next::nextId == 0 & timingPart::onActivation then
+        %\t\treturn false;\n%
+      else
+        %\t\treturn %!canResume%;\n%
+      end if
+    %\t}\n%
+    between %\telse if%
+    after %\treturn false;\n}\n% #should not happen.
+    end foreach
+  end if
+  let id := id + 1
+end foreach

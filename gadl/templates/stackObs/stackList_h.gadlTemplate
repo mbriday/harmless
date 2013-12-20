@@ -1,0 +1,104 @@
+%template headerC%
+#ifndef __STACK_LIST_H__
+#define __STACK_LIST_H__
+#ifdef GADL_SP_CHECK_ALLOWED
+
+
+#include "types.h"
+#include "stackTypes.h"
+//#include "arch.h"
+
+
+class stackSpyController;
+
+/** stackInfo
+ * Describe one task and its stack (used only as item of taskStackList)
+ */
+class stackInfo{
+	private :
+	string m_taskName;			// Task name
+	string m_symbol;			// Main function of Task symbol
+	int m_taskId;				// Arbitrary ID of task
+	type_prgaddr m_taskAddr;	// address of main function first instruction ====> !!!! NEEEEED TO BE FIX (FIX DONE)
+	type_sp m_spInit;			// initale value of stack pointer
+	bool m_spInitFound;			// is spInit ? detected and initialized
+	type_sp m_spSize;			// maximal size of stack
+	stackInfo *m_ptrNext;		// next item in stack list
+	stackSpyController *m_controller;	// Stack general controller 
+	// Stack Monitoring (stackObserver.h/cpp)
+	bool m_underflow;			// True if an underflow occured in this stack
+	bool m_overflow;			// True if an overflow occured in this stack
+	int m_stackUse;				// Maximum use of this stack
+	type_prgaddr m_errorPC;		// PC where stakc overflow/underflow occured
+	
+	
+	public :
+	/* Usual */
+	stackInfo(string taskName,string functionSymbol,type_sp size,stackSpyController* controller);
+	virtual ~stackInfo(){};
+	
+	/* Access & Set */
+	inline void setTaskName(string name){m_taskName=name;};
+	inline string getTaskName(){return m_taskName;};
+	inline void setTaskId(int tid){m_taskId=tid;};
+	inline int getTaskId(){return m_taskId;};
+	inline void setTaskAddr(type_prgaddr addr){m_taskAddr=addr;};
+	inline type_prgaddr getTaskAddr(){return m_taskAddr;};
+	inline void setSpInit(type_sp sp){m_spInit=sp;};
+	inline type_sp getSpInit(){return m_spInit;};
+	inline void setSpInitFound(bool state){m_spInitFound=state;};
+	inline bool getSpInitFound(){return m_spInitFound;};
+	inline void setSpSize(type_sp size){m_spSize=size;};
+	inline type_sp getSpSize(){return m_spSize;};
+	inline void setPtrNext(stackInfo* ptr){m_ptrNext=ptr;};
+	inline stackInfo* getPtrNext(){return m_ptrNext;};
+	inline void setController(stackSpyController* controller){m_controller=controller;};
+	inline stackSpyController* getController(){return m_controller;};
+	inline void setUnderflow(bool underflow){m_underflow=underflow;};
+	inline bool getUnderflow(){return m_underflow;};
+	inline void setOverflow(bool overflow){m_overflow=overflow;};
+	inline bool getOverflow(){return m_overflow;};
+	inline void setStackUse(int use){m_stackUse=use;};
+	inline int getStackUse(){return m_stackUse;};
+	inline void setErrorPC(type_prgaddr pcerror){m_errorPC=pcerror;};
+	inline type_prgaddr getErrorPC(){return m_errorPC;};
+	
+	/* Functions */
+	virtual void printStackInfo();
+	virtual bool isInThisStack(type_sp sp);	// Find if the stack pointer is within this task
+											// Stack is going down (deeper and deeper...)
+};
+
+/** taskStackList
+ * Chained list of tasks and its stack... contain all informations about used stacks
+ */
+class taskStackList{
+	private :
+	stackInfo *m_firstItem;				// First stackInfo of list	
+										//stackSpyController *m_controller;	// Stack general controller 
+	int m_nbItems;						// Number of items in chained list
+	bool m_empty;
+	stackSpyController *m_controller;	// Stack general controller 
+	
+	public :
+	/* Usual */
+	taskStackList(stackSpyController *ctrll):m_firstItem(NULL),m_nbItems(0),m_empty(true),m_controller(ctrll){};
+	virtual ~taskStackList(){};
+	
+	/* Access */
+	inline void setFirstItem(stackInfo* ptrFirst){m_firstItem=ptrFirst;};
+	inline stackInfo* getFirstItem(){return m_firstItem;};
+	inline int getNbItems(){return m_nbItems;};
+	inline bool getEmpty(){return m_empty;};
+	
+	/* Functions */
+	virtual void printStackList();
+	virtual void addStack(arch *_arch, stackInfo *m_st);	// Add one stack in stack chaine list
+	stackInfo* findStackPtr(type_sp sp);	// Find to wich stack/task ptr our Stack Pointeur come from...
+	int getStackId(stackInfo *myStack);		// Return a valid ID coming grom myStack and TASK_UNKNOWN if myStack==NULL
+	virtual int findStack(type_sp sp);		// Find from wich stack/task (id) is our friend Stack pointer
+											// Default is Unknown (including if it is not contain in any stack...)
+};
+
+#endif // GADL_SP_CHECK_ALLOWED
+#endif // __STACK_LIST_H__

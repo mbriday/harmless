@@ -1,0 +1,469 @@
+
+package HADLd {
+
+   abstract class NamedElement {
+      attribute name[0-1] : String;
+   }
+
+   --------------------------------------------------------
+   -- Top level
+   --
+   -- A model is composed of model elements.
+   -- All elements have a name.
+   --------------------------------------------------------
+
+   class Model extends NamedElement {
+      reference elements[*] container : ModelElement oppositeOf owningModel;
+      attribute dataSize : Integer;
+      attribute instructionSize : Integer;
+   }
+
+   abstract class ModelElement extends NamedElement {
+      reference owningModel : Model oppositeOf elements;
+   }
+
+   --------------------------------------------------------
+   -- Components
+   --
+   -- An component is a collection of operations (services)
+   -- provided by the architecture.
+   -- It provides an abstraction that allows the instruction
+   -- set to control the hardware resources without any
+   -- precise knowledge of which resources implement which
+   -- operations.
+   --------------------------------------------------------
+   
+   class Component extends ModelElement {
+      reference variables[*] container : ComponentVariable oppositeOf owningComponent;
+      reference operations[1-*] container : Operation oppositeOf owningComponent;
+   }
+
+   --------------------------------------------------------
+   -- Operations
+   --
+   -- An operation
+   --    - is provided by an component
+   --    - can be either a function or a procedure
+   --    - can have parameters
+   --    - can have local variables
+   --    - has a body (= a block of statements)
+   --------------------------------------------------------
+
+   class Operation extends NamedElement {
+      reference owningComponent : Component oppositeOf operations;
+      reference parameters[*] ordered container : Parameter oppositeOf owningOperation;
+      reference localVariables[*] ordered container : LocalVariable oppositeOf owningOperation;
+      reference body container : Block oppositeOf owningOperation;
+   }
+
+   --------------------------------------------------------
+   -- Architectures
+   --
+   -- An architecture is a collection of resources that
+   -- implement components.
+   --
+   -- An architecture can inherit the resources from its
+   -- (optional) father architectures.
+   --
+   -- Each resource has port(s) that allow concurrent
+   -- access to component operations.
+   -- A port provides all or a subset of the component's
+   -- operations.
+   --------------------------------------------------------
+
+   class Architecture extends ModelElement {
+      reference fathers[*] : Architecture;
+      reference resources[*] container : Resource oppositeOf owningArchitecture;
+   }
+
+   class Resource extends NamedElement {
+      reference owningArchitecture : Architecture oppositeOf resources;
+      reference component : Component;
+      reference ports[1-*] container : Port oppositeOf owningResource;
+   }
+   
+   class Port extends NamedElement {
+      reference owningResource : Resource oppositeOf ports;
+      reference operations[*] : Operation;
+   }
+   
+   --------------------------------------------------------
+   -- Pipelines
+   --
+   -- A pipeline is attached to a given architecture.
+   -- A pipeline is composed of
+   --    - an initialization statement block
+   --    - a fetch expression associated with an instruction format
+   --    - a sequence of stages
+   --
+   -- A stage is associated with a set of resource activations.
+   -- A resource activation has :
+   --    - a reference to a resource of the architecture
+   --    - a possibly empty set of operations usable in this stage
+   --      (empty means *all* operations are allowed)
+   --    - a priority level
+   --------------------------------------------------------
+
+   class Pipeline extends ModelElement {
+      reference architecture : Architecture;
+      reference init container : Block oppositeOf owningPipelineInit;
+      reference expression container : Expression oppositeOf owningPipeline;
+      reference localVariables[*] container : LocalVariable oppositeOf owningPipeline;
+      reference body container : Block oppositeOf owningPipelineBody;
+      reference format : Format;
+      reference stages[1-*] ordered container : Stage oppositeOf owningPipeline;
+   }
+
+   class Stage extends NamedElement {
+      reference owningPipeline : Pipeline oppositeOf stages;
+      reference activations[*] container : ResourceActivation oppositeOf owningStage;
+   }
+   
+   class ResourceActivation {
+      reference owningStage : Stage oppositeOf activations;
+      reference resource : Resource;
+      reference portActivations[*] container : PortActivation oppositeOf owningResourceActivation;
+      reference releaseStage[0-1] : Stage;
+      reference bypassStages[*] : Stage;
+      attribute priority : Integer;
+      attribute isReusable : Boolean;
+   }
+   
+   class PortActivation {
+      reference port : Port;
+      reference releaseStage[0-1] : Stage;
+      reference bypassStages[*] : Stage;
+      reference owningResourceActivation : ResourceActivation oppositeOf portActivations;
+   }
+
+   --------------------------------------------------------
+   -- Instruction behaviors
+   --
+   -- An instruction behavior
+   --    - is a model element
+   --    - can have parameters
+   --    - can have local variables
+   --    - can have "before" and "after" statement blocks
+   --
+   -- There are two kinds of behaviors :
+   --    - aggregate behaviors are composed of "chunks"
+   --    - alternative behaviors are composed of "choices"
+   --
+   -- A chunk
+   --    - has a name
+   --    - can be composed of a call to another behavior
+   --    - can have a condition (expression)
+   --
+   -- A choice can be
+   --    - a "leaf" choice, with a name and a block of statements
+   --    - a "call" choice, that calls another behavior
+   --
+   -- A behavior call
+   --    - has a reference to a called behavior
+   --    - can have actual parameters (expressions)
+   --------------------------------------------------------
+
+   abstract class Behavior extends ModelElement {
+      reference parameters[*] ordered container : Parameter oppositeOf owningBehavior;
+      reference localVariables[*] container : LocalVariable oppositeOf owningBehavior;
+      reference beforeBlock[0-1] container : Block oppositeOf owningBehaviorBefore;
+      reference afterBlock[0-1] container : Block oppositeOf owningBehaviorAfter;
+   }
+
+   class AggregateBehavior extends Behavior {
+      reference chunks[*] ordered container : BehaviorChunk oppositeOf owningBehavior;
+   }
+
+   class BehaviorChunk extends NamedElement {
+      reference owningBehavior : AggregateBehavior oppositeOf chunks;
+      reference call[0-1] container : BehaviorCall oppositeOf owningChunk;
+      reference condition[0-1] container : Expression oppositeOf owningBehaviorChunk;
+   }
+
+   class AlternativeBehavior extends Behavior {
+      reference choices[*] container : BehaviorChoice oppositeOf owningBehavior;
+   }
+
+   abstract class BehaviorChoice {
+      reference owningBehavior : AlternativeBehavior oppositeOf choices;
+   }
+   
+   class LeafBehaviorChoice extends BehaviorChoice, NamedElement {
+      reference body container : Block oppositeOf owningChoice;
+   }
+
+   class CallBehaviorChoice extends BehaviorChoice {
+      reference call container : BehaviorCall oppositeOf owningChoice;
+   }
+   
+   class BehaviorCall {
+      reference owningChoice[0-1] : CallBehaviorChoice oppositeOf call;
+      reference owningChunk[0-1] : BehaviorChunk oppositeOf call;
+      reference behavior : Behavior;
+      reference actualParameters[*] ordered container : Expression oppositeOf owningBehaviorCallActual;
+   }
+   
+   --------------------------------------------------------
+   -- Variables
+   --
+   -- A variable can be
+   --    - a global variable of the model
+   --    - a local variable in a behavior or operation
+   --    - a loop counter
+   --    - a parameter of an operation or behavior
+   --
+   -- Variables are not typed, but can be identified as arrays.
+   --
+   -- Parameters can be either inputs or outputs.
+   --------------------------------------------------------
+
+   abstract class DataContainer extends NamedElement {
+   }
+
+   abstract class Variable extends DataContainer {
+      attribute isArray : Boolean;
+      attribute size[0-1] : Integer;
+      reference dependenciesTarget[*] : DependencyStatement oppositeOf targetVariable;
+      reference dependenciesSource[*] : DependencyStatement oppositeOf sourceVariables;
+   }
+
+   class ComponentVariable extends Variable {
+      attribute isExternal : Boolean;
+      reference owningComponent : Component oppositeOf variables;
+   }
+
+   class LocalVariable extends Variable {
+      reference owningOperation[0-1] : Operation oppositeOf localVariables;
+      reference owningBehavior[0-1] : Behavior oppositeOf localVariables;
+      reference owningPipeline[0-1] : Pipeline oppositeOf localVariables;
+   }
+
+   class LoopVariable extends Variable {
+      reference owningForStatement : ForStatement oppositeOf counter;
+   }
+
+   class Parameter extends Variable {
+      attribute isOutput : Boolean;
+      reference owningOperation[0-1] : Operation oppositeOf parameters;
+      reference owningBehavior[0-1] : Behavior oppositeOf parameters;
+   }
+   
+   --------------------------------------------------------
+   -- Statements
+   --
+   -- Statements are imperative constructs.
+   -- A block is composed of a sequence of statements.
+   --
+   -- The supported kinds of statements are
+   --    - assignment statements
+   --    - procedure call statements
+   --    - if statements
+   --    - for loop statements
+   --    - return statements
+   --
+   -- An assignment statement assigns an expression
+   -- to a variable
+   --    - with a possible index if the variable is an array
+   --    - with a possible range
+   --------------------------------------------------------
+
+   class Block {
+      reference statements[*] ordered container : Statement oppositeOf owningBlock;
+      reference owningOperation[0-1] : Operation oppositeOf body;
+      reference owningPipelineInit[0-1] : Pipeline oppositeOf init;
+      reference owningPipelineBody[0-1] : Pipeline oppositeOf body;
+      reference owningBehaviorBefore[0-1] : Behavior oppositeOf beforeBlock;
+      reference owningBehaviorAfter[0-1] : Behavior oppositeOf afterBlock;
+      reference owningChoice[0-1] : LeafBehaviorChoice oppositeOf body;
+      reference owningIfStatementElse[0-1] : IfStatement oppositeOf elseClause;
+      reference owningIfClauseThen[0-1] : IfClause oppositeOf thenClause;
+      reference owningForStatement[0-1] : ForStatement oppositeOf body;
+   }
+
+   abstract class Statement {
+      reference owningBlock : Block oppositeOf statements;
+   }
+
+   class AssignmentStatement extends Statement {
+      reference target container : DataContainerRefExpression oppositeOf owningAssignmentStatementTarget;
+      reference source container : Expression oppositeOf owningAssignmentStatementSource;
+   }
+
+   class ProcedureCallStatement extends Statement {
+      reference call container : OperationCall oppositeOf owningProcedureCallStatement;
+   }
+   
+   class OperationCall {
+      attribute inline : Boolean;
+      reference component[0-1] : Component; -- only for name resolution purpose in TCS
+      reference calledOperation : Operation;
+      reference actualParameters[*] ordered container : Expression oppositeOf owningOperationCall;
+      reference owningProcedureCallStatement[0-1] : ProcedureCallStatement oppositeOf call;
+      reference owningFunctionCallExpression[0-1] : FunctionCallExpression oppositeOf call;
+   }
+
+   class IfStatement extends Statement {
+      reference ifClauses[1-*] ordered container : IfClause oppositeOf owningIfStatement;
+      reference elseClause[0-1] container : Block oppositeOf owningIfStatementElse;
+   }
+
+   class IfClause {
+      reference owningIfStatement : IfStatement oppositeOf ifClauses;
+      reference condition container : Expression oppositeOf owningIfClause;
+      reference thenClause container : Block oppositeOf owningIfClauseThen;
+   }
+
+   class ForStatement extends Statement {
+      reference counter container : LoopVariable oppositeOf owningForStatement;
+      reference range container : Range oppositeOf owningForStatement;
+      reference body container : Block oppositeOf owningForStatement;
+   }
+   
+   class ReturnStatement extends Statement {
+      reference expression[0-1] container : Expression oppositeOf owningReturnStatement;
+   }
+   
+   class DependencyStatement extends Statement {
+      reference targetVariable : Variable oppositeOf dependenciesTarget;
+      reference sourceVariables[1-*] : Variable oppositeOf dependenciesSource;
+   }
+
+   --------------------------------------------------------
+   -- Expressions
+   --
+   -- The supported kinds of expressions are
+   --    - function call expressions
+   --    - variable use expressions
+   --    - chunk use expressions
+   --    - operator expressions
+   --    - literal expressions (integer, boolean, based integer)
+   --
+   -- Variable and chunk expressions can specify a range.
+   --------------------------------------------------------
+
+   abstract class Expression {
+      reference owningSliceFirst[0-1] : Slice oppositeOf first;
+      reference owningSliceLast[0-1] : Slice oppositeOf last;
+      reference owningSliceStep[0-1] : Slice oppositeOf step;
+      reference owningOperatorExpressionSource[0-1] : OperatorExpression oppositeOf source;
+      reference owningOperatorExpressionArguments[0-1] : OperatorExpression oppositeOf arguments;
+      reference owningDataContainerRefExpression[0-1] : DataContainerRefExpression oppositeOf index;
+      reference owningReturnStatement[0-1] : ReturnStatement oppositeOf expression;
+      reference owningIfClause[0-1] : IfClause oppositeOf condition;
+      reference owningAssignmentStatementSource[0-1] : AssignmentStatement oppositeOf source;
+      reference owningBehaviorChunk[0-1] : BehaviorChunk oppositeOf condition;
+      reference owningBehaviorCallActual[0-1] : BehaviorCall oppositeOf actualParameters;
+      reference owningOperationCall[0-1] : OperationCall oppositeOf actualParameters;
+      reference owningPipeline[0-1] : Pipeline oppositeOf expression;
+   }
+
+   class FunctionCallExpression extends Expression {
+      reference call container : OperationCall oppositeOf owningFunctionCallExpression;
+   }
+
+   class DataContainerRefExpression extends Expression {
+      reference dataContainer : DataContainer;
+      reference index[0-1] container : Expression oppositeOf owningDataContainerRefExpression;
+      reference range[0-1] container : Range oppositeOf owningDataContainerRefExpression;
+      reference owningAssignmentStatementTarget[0-1] : AssignmentStatement oppositeOf target;
+      attribute extend : Boolean;
+   }
+
+   class OperatorExpression extends Expression {
+      attribute operator : String;
+      reference source container : Expression oppositeOf owningOperatorExpressionSource;
+      reference arguments[*] ordered container : Expression oppositeOf owningOperatorExpressionArguments;
+   }
+
+   class IntegerLiteralExpression extends Expression {
+      attribute value : Integer;
+   }
+
+   class BooleanLiteralExpression extends Expression {
+      attribute value : Boolean;
+   }
+
+   class BasedLiteralExpression extends Expression {
+      attribute base : BaseSpecifier;
+      attribute value : String;
+
+      -- base <> #decimal
+   }
+
+   enumeration BaseSpecifier {
+      literal decimal;
+      literal binary;
+      literal octal;
+      literal hexadecimal;
+   }
+
+   class Range {
+      reference owningForStatement[0-1] : ForStatement oppositeOf range;
+      reference owningDataContainerRefExpression[0-1] : DataContainerRefExpression oppositeOf range;
+      reference slices[1-*] ordered container : Slice oppositeOf owningRange;
+      attribute shiftAmount : Integer;
+      attribute right : Boolean;
+      attribute shift : Boolean;
+      attribute arithmetic : Boolean;
+   }
+
+   class Slice {
+      reference owningRange : Range oppositeOf slices;
+      reference first container : Expression oppositeOf owningSliceFirst;
+      reference last[0-1] container : Expression oppositeOf owningSliceLast;
+      reference step[0-1] container : Expression oppositeOf owningSliceStep;
+   }
+
+   --------------------------------------------------------
+   -- Instruction formats
+   --
+   -- An instruction format can be
+   --    - an aggregate format, composed of format "chunks"
+   --    - an alternative format, composed of format "choices"
+   --------------------------------------------------------
+
+   abstract class Format extends ModelElement {
+      reference behavior : Behavior;
+   }
+
+   class AggregateFormat extends Format {
+      reference chunks[*] container : FormatChunk oppositeOf owningFormat;
+      --
+      -- An aggregate format must be associated with an aggregate behavior
+      --    self.behavior.oclIsKindOf(AggregateBehavior)
+      --
+   }
+
+   class FormatChunk {
+      reference owningFormat : AggregateFormat oppositeOf chunks;
+      reference behaviorChunk : BehaviorChunk;
+      reference targetFormat : Format;
+   }
+
+   class AlternativeFormat extends Format {
+      reference choices[1-*] container : FormatChoice oppositeOf owningFormat;
+      --
+      -- An alternative format must be associated with an alternative behavior
+      --    self.behavior.oclIsKindOf(AlternativeBehavior)
+      --
+   }
+
+   abstract class FormatChoice {
+      reference owningFormat : AlternativeFormat oppositeOf choices;
+   }
+
+   class MatchFormatChoice extends FormatChoice {
+      reference matchedChoice : LeafBehaviorChoice;
+   }
+
+   class UseFormatChoice extends FormatChoice {
+      reference usedFormat : Format;
+   }
+}
+
+package PrimitiveTypes {
+   datatype Boolean;
+   datatype Integer;
+   datatype String;
+}
+

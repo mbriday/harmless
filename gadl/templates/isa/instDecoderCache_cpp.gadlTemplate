@@ -1,0 +1,195 @@
+%template headerC%
+#ifndef DO_NOT_USE_INTERNAL_INSTRUCTION_CACHE
+#include <iostream>
+#include "instDecoder.h"
+#include "instDecoderCache.h"
+#include "instructionBase.h" //for retain/release machanism.
+#include "utils.h" //SEGFAULTIF
+#include "arch.h"  //fetch function.
+
+using namespace std;
+
+%!MODELNAME%_instDecoderCache::%!MODELNAME%_instDecoderCache(const unsigned int indexLengthBits) :
+m_indexLengthBits(indexLengthBits)
+{
+	const unsigned int max = 1 << m_indexLengthBits;
+	m_buffer = new %!MODELNAME%_instDecoderCacheEntry[max];
+
+	VERBOSE("using decoder internal cache (direct) with " 
+	        << dec << max << "elements.");
+
+    //init buffer.
+	for(unsigned int i = 0; i < max; i++)
+	{
+		m_buffer[i].control = 0;
+		m_buffer[i].inst = NULL;
+    }
+
+	#ifdef INST_DECODER_CACHE_STATS
+	    m_hitCount = 0;
+		m_missCount = 0;
+	#endif
+}
+
+void %!MODELNAME%_instDecoderCache::printCacheStats()
+{
+	cout << dec <<"Internal decoder instruction cache Ratio" << endl;
+	#ifdef INST_DECODER_CACHE_STATS
+		const unsigned int nbAccesses = m_missCount + m_hitCount;
+		cout << "\t" << nbAccesses << " accesses." << endl;
+		cout << "\tMiss : " << m_missCount << endl;
+		cout << "\tHit : " << m_hitCount << endl;
+		cout << "\tHit Ratio : ";
+		if(nbAccesses == 0) cout << "NaN" << endl;
+		else cout << ((float)m_hitCount)/((float)nbAccesses) << endl;
+	#else
+		cout << "\tto get hit/miss ratio, please recompile application with " << endl;
+		cout << "\tINST_DECODER_CACHE_STATS flag set." << endl;
+	#endif
+	int nbUse = 0;
+	const unsigned int max = 1 << m_indexLengthBits;
+
+	for(unsigned int i = 0; i < max; i++)
+	{
+		if((m_buffer[i].control >> IDC_VALID_OFFSET) & 0x1) nbUse++;
+	}
+	cout << "\tcache contains : " << dec << nbUse << " instructions"<<endl;
+	cout << "\t(capacity is " << (max) << " instructions)" << endl;
+	cout << "\tcache use ratio : ";
+	cout << (float)nbUse / (max) << endl;
+}
+
+%!MODELNAME%_instruction *%!MODELNAME%_instDecoderCache::getInstruction(arch *_arch, %!PC_C_TYPE% &codeAddr, %!MODELNAME%_instDecoder *decoder%!defaultFetchDeclare%)
+{
+	const %!PC_C_TYPE% addr = codeAddr >> %!FETCH_ALIGNMENT_IN_BITS%;
+	const int mask = (-1) << m_indexLengthBits;	
+	SEGFAULTIF(%!PC_SIZE_IN_BITS% > 32) //in this case, update mask type to 64 bits.
+	const %!PC_C_TYPE% index = addr & (~mask);
+	const %!PC_C_TYPE% tag = addr >> m_indexLengthBits;
+
+	/* SEGFAULTIF(tag > (1<<IDC_TAG_SIZE)) // in that case, use a bigger cache. */
+	
+	%!MODELNAME%_instruction *inst = isInBuffer(index, tag, codeAddr%!defaultFetchParam%);
+    if(inst) {
+		#ifdef INST_DECODER_CACHE_STATS
+			m_hitCount++;
+		#endif
+		inst->retain();
+	}
+	else {
+        inst = storeInBuffer(_arch, codeAddr, decoder, index, tag%!defaultFetchParam%);
+		#ifdef INST_DECODER_CACHE_STATS
+			m_missCount++;
+		#endif
+    }
+    return inst;
+}
+
+%!MODELNAME%_instruction *%!MODELNAME%_instDecoderCache::isInBuffer(const %!PC_C_TYPE% index, const %!PC_C_TYPE% tag, %!PC_C_TYPE% &codeAddr%!defaultFetchDeclare%)
+{
+	%!MODELNAME%_instruction *result = NULL;
+	%!MODELNAME%_instDecoderCacheEntry *entry = &(m_buffer[index]);
+	const u32 entryCon=entry->control;
+	if((entryCon >> IDC_VALID_OFFSET) & 0x1) //valid
+    {
+        if(tag == (entryCon >> IDC_TAG_OFFSET))
+        {
+			result = entry->inst;
+			const u8 chunks = (entryCon >> IDC_CHUNKS_OFFSET) & IDC_CHUNKS_MASK;
+			%!MULTIPLE_FETCH_FUNCTION_CONDITION_IN_CACHE%
+        }
+    }
+    return result;
+}
+
+%!MODELNAME%_instruction *%!MODELNAME%_instDecoderCache::storeInBuffer(arch *_arch,
+									%!PC_C_TYPE% &codeAddr,
+									%!MODELNAME%_instDecoder *decoder,	
+									const %!PC_C_TYPE% index, 
+									const %!PC_C_TYPE% tag%!defaultFetchDeclare%)
+{
+	//cerr <<"store instruction @"<<hex <<codeAddr<<endl;
+	//fetch function called in the decodeDirect function.
+    %!MODELNAME%_instruction *inst = decoder->decodeWithExecActionCache(_arch, codeAddr%!defaultFetchParam%);
+	const u8 chunks = inst->chunks();
+	SEGFAULTIF(chunks >= IDC_CHUNKS_MAX);
+	if(inst!= NULL)
+	{
+		inst -> retain();	//instruction can't be deleted as it is cached.
+			
+		%!MODELNAME%_instDecoderCacheEntry *entry = &(m_buffer[index]);
+	    if((entry->control >> IDC_VALID_OFFSET) & 0x1)
+	    {
+			//remove previous instruction
+			%!MODELNAME%_instruction *instToRemove = entry->inst;
+			decoder->cacheRemoveInstruction(instToRemove);
+			instToRemove->release();
+			instToRemove = NULL;
+	    } 
+		//create the new entry: control : valid and tag
+		u32 control = 1 << IDC_VALID_OFFSET;
+		control |= chunks << IDC_CHUNKS_OFFSET; /* value < IDC_CHUNKS_MAX checked. */
+		control |= tag << IDC_TAG_OFFSET;
+		entry->control = control;
+		entry->inst = inst;
+	}
+	return inst;
+}
+
+%!MODELNAME%_instDecoderCache::~%!MODELNAME%_instDecoderCache()
+{
+	//empty the instruction cache by deleting each instruction.
+	const unsigned int max = 1 << m_indexLengthBits;
+	for(unsigned int i = 0; i < max; i++)
+	{
+		%!MODELNAME%_instDecoderCacheEntry *entry =  &(m_buffer[i]);
+		%!MODELNAME%_instruction * inst = entry->inst;
+		//remove instruction
+		inst->release();
+    }
+	delete [] m_buffer;
+}
+
+%!MODELNAME%_instruction *%!MODELNAME%_instDecoderCache::isInCache(const %!PC_C_TYPE% codeAddr)
+{
+	%!PC_C_TYPE% addr = codeAddr >> %!FETCH_ALIGNMENT_IN_BITS%;
+	const int mask = (-1) << m_indexLengthBits;	
+	SEGFAULTIF(%!PC_SIZE_IN_BITS% > 32) //in this case, update mask type to 64 bits.
+	const %!PC_C_TYPE% index = addr & (~mask);
+	const %!PC_C_TYPE% tag = addr >> m_indexLengthBits;
+
+	/* SEGFAULTIF(tag > (1<<IDC_TAG_SIZE)) // in that case, use a bigger cache. */
+	
+	%!PC_C_TYPE% tmp = codeAddr; //will be updated.. but not used after
+	return isInBuffer(index, tag, tmp);
+}
+
+void %!MODELNAME%_instDecoderCache::replaceInCache(const %!PC_C_TYPE% codeAddr, %!MODELNAME%_instruction *prevInst,executeInstAction *eia)
+{
+	%!PC_C_TYPE% addr = codeAddr >> %!FETCH_ALIGNMENT_IN_BITS%;
+	const int mask = (-1) << m_indexLengthBits;	
+	SEGFAULTIF(%!PC_SIZE_IN_BITS% > 32) //in this case, update mask type to 64 bits.
+	const %!PC_C_TYPE% index = addr & (~mask);
+	const %!PC_C_TYPE% tag = addr >> m_indexLengthBits;
+
+	%!MODELNAME%_instDecoderCacheEntry *entry = &(m_buffer[index]);
+	const u32 entryCon=entry->control;
+	bool ok = false;
+	if((entryCon >> IDC_VALID_OFFSET) & 0x1) //valid
+    {
+        if(tag == (entryCon >> IDC_TAG_OFFSET))
+        {
+			if((entry->inst) == prevInst)
+			{
+				entry->inst = eia;
+				eia-> retain(); //instruction is now in cache.
+				ok = true;
+			}
+        } 
+    }
+	if(!ok) {
+		cerr << "internal error: replace an instruction not present in cache" << endl;
+	}
+}
+
+#endif //DO_NOT_USE_INTERNAL_INSTRUCTION_CACHE

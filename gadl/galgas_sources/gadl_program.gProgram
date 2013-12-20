@@ -1,0 +1,18 @@
+program gadl_program :
+import "gadl_grammar.gGrammar" ;
+
+before {
+}
+
+when . "hadl"
+  message "a gadl file that can be parsed with an LL1 grammar"
+  indexing with gadl_grammar
+  ??@lstring inSourceFile {
+    grammar gadl_grammar in inSourceFile;
+  }
+
+after {
+}
+
+end program ;
+# vim:ft=ggs:ts=2:sw=2

@@ -1,0 +1,98 @@
+#!/bin/sh
+# usage : ./trace_instruction_cycle
+
+GDB=${ARM_XTOOLS}gdb
+if [ ! -x $GDB ]; then
+	echo "Can't find cross GDB or it isn't executable... aborting"
+	exit 1
+fi
+
+
+
+(
+
+echo "-->10 NOP"
+echo $"\n"
+
+cp codes/nop.elf code.elf
+time $GDB -se code.elf -x script_gdb_lpc -batch &>/dev/null
+
+echo $"\n"
+
+) &> tmp.txt; cat tmp.txt >> resultats64.txt; rm tmp.txt
+
+(
+echo "-->10+1 NOP"
+echo $"\n"
+
+cp codes/nop1.elf code.elf
+time $GDB -se code.elf -x script_gdb_lpc -batch &>/dev/null
+
+echo $"\n"
+
+) &> tmp.txt; cat tmp.txt >> resultats64.txt; rm tmp.txt
+
+
+(
+echo "-->10 NOP + 1 ADD"
+echo $"\n"
+
+cp codes/add.elf code.elf
+time $GDB -se code.elf -x script_gdb_lpc -batch &>/dev/null
+
+echo $"\n"
+
+) &> tmp.txt; cat tmp.txt >> resultats64.txt; rm tmp.txt
+
+(
+echo "-->10 NOP + 2 ADD (non dep)"
+echo $"\n"
+
+cp codes/add2nondep.elf code.elf
+time $GDB -se code.elf -x script_gdb_lpc -batch &>/dev/null
+
+echo $"\n"
+
+) &> tmp.txt; cat tmp.txt >> resultats64.txt; rm tmp.txt
+
+(
+echo "-->10 NOP + 2 ADD (dep)"
+echo $"\n"
+
+cp codes/add2dep.elf code.elf
+time $GDB -se code.elf -x script_gdb_lpc -batch &>/dev/null
+
+echo $"\n"
+
+) &> tmp.txt; cat tmp.txt >> resultats64.txt; rm tmp.txt
+
+(
+echo "-->10 NOP + 1 MUL"
+echo $"\n"
+
+cp codes/mul.elf code.elf
+time $GDB -se code.elf -x script_gdb_lpc -batch &>/dev/null
+
+echo $"\n"
+
+) &> tmp.txt; cat tmp.txt >> resultats64.txt; rm tmp.txt
+
+(
+echo "-->10 NOP + 2 MUL (non dep)"
+echo $"\n"
+
+cp codes/mul2nondep.elf code.elf
+time $GDB -se code.elf -x script_gdb_lpc -batch &>/dev/null
+
+echo $"\n"
+) &> tmp.txt; cat tmp.txt >> resultats64.txt; rm tmp.txt
+
+(
+echo "-->10 NOP + 2 MUL (dep)"
+echo $"\n"
+
+cp codes/mul2dep.elf code.elf
+time $GDB -se code.elf -x script_gdb_lpc -batch &>/dev/null
+
+echo $"\n"
+) &> tmp.txt; cat tmp.txt >> resultats64.txt; rm tmp.txt

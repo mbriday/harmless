@@ -1,0 +1,142 @@
+%template headerC%
+#ifndef __ACTION_H__
+#define __ACTION_H__
+
+#include "types.h"
+#ifdef TRACK_VARIABLE
+	#include "C166_Spy_info.h"
+#endif
+#ifndef NULL
+	#define NULL 0
+#endif
+
+class storage;
+
+class action
+{
+	action *m_next;
+  public:
+	action() : m_next(NULL) {};
+	action(const action &) {m_next = NULL;};
+	virtual ~action() {};  
+	//single linked list.
+	inline action *next() {return m_next;};
+	//single linked list.
+	inline void setNext(action *nextAct) {m_next = nextAct;};
+	//virtual method to get information about action.
+	virtual std::string toString() {return std::string();};
+};
+
+//unused at this time.
+class spyInfo
+{
+};
+
+/** This class is used to connect an action with a write access to a specified
+ * address
+ **/
+class writeAction : public action
+{
+  public:
+    writeAction() :action() {};  
+	virtual ~writeAction() {};  
+    virtual bool trigger(storage *,u8 data, spyInfo *s) = 0;
+	virtual bool isSpyAction() {return false;};
+};
+
+/** This class is used to connect an action with a read access to a specified
+ * address
+ **/
+class readAction : public action
+{
+  public:
+    readAction() : action() {};  
+    virtual ~readAction() {};  
+    virtual bool trigger(storage *, spyInfo *s) = 0;
+};
+
+class arch;
+
+class executeAction : public action
+{
+	public:
+    executeAction() : action() {};  
+    virtual ~executeAction() {};
+    virtual bool trigger(arch *a) = 0;
+};
+
+#include "instructionBase.h"
+/* new implementation of executeAction 
+ * using the decorator design pattern (between instructions).
+ * There is only one executeInstAction at one address,
+ * but one can have more than one executeAction;
+ *
+ * only the 'execute' method of instruction is decorated here,
+ * it calls all the executeActions that are associated to this
+ * decorated instruction.
+ */
+class executeInstAction : public %!MODELNAME%_instruction
+{
+	%!MODELNAME%_instruction *m_inst;
+	executeAction *m_action;
+	//single list management when instruction is not in the cache.
+	executeInstAction *m_next; 
+	private:
+	void triggerAction(arch *a);
+	public:
+	executeInstAction(const u32 address);
+	void setInstruction(%!MODELNAME%_instruction *inst) {m_inst=inst;};
+	%!MODELNAME%_instruction *instruction() {return m_inst;};
+
+	//action handling.
+	virtual bool isInstAction() {return true;};
+	void addExecuteAction(executeAction* act);
+	///@return true if action is found and correctly removed.
+	bool removeExecuteAction(executeAction* act);
+
+	//methods when instructions are not in the cache
+	//We need to list them.
+	executeInstAction *next() {return m_next;};
+	void setNext(executeInstAction *n) {m_next = n;};
+	
+	//only this following function is decorated.
+	virtual void execute(arch *a);
+	virtual unsigned char const size()	{return m_inst->size();};
+	virtual unsigned char const chunks(){return m_inst->chunks();};
+	virtual const char* const mnemo()   {return m_inst->mnemo();};	
+	virtual bool jumpTaken()			{return m_inst->jumpTaken();};
+   %if useCAS then%
+	virtual unsigned int const instClass() {return m_inst->instClass();};%end if%
+	%foreach all in ALL_ID_LIST do
+     %\tvirtual bool hasID_%!all::ID%() {return m_inst->hasID_%!all::ID%();};\n%
+   end foreach%
+};
+
+// This class is a container that record execute actions for actions that are not yet in cache 
+// (or that are ejected from cache)
+// If action was previously in cache, the m_inst refers to an existing instruction.
+// If action refers to a location not yet found, the instruction is not yet decoded and the instruction
+// pointer is NULL.
+//
+// executeInstAction are sorted according to the address.
+class executeInstActionList
+{
+	executeInstAction	*m_root; //first item.
+	int m_size;
+	public:
+	executeInstActionList() : m_root(NULL), m_size(0) {};
+	//insert (no doubles...)
+	void insert(executeInstAction *eia);
+	//void remove(executeInstAction *eia);
+	executeInstAction *getAndRemoveAt(const u32 address);
+	//@returns the executeInstAction at address, or NULL if not found.
+	executeInstAction *get(const u32 address);
+	///remove an action (but DO NOT remove executeInstAction, even if it contains no more action).
+	///@return true if found.
+	bool removeExecAction(const u32 address, executeAction *ea);
+	//test purpose.
+	void dump();
+	int const size() {return m_size;};
+};
+#endif
+

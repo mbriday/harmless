@@ -1,0 +1,123 @@
+semantics gadl_template_data_preparation :
+  import "gadl_options.gOption" ;
+  import "template_invocation.gSemantics";
+  import "gadl_semantics_format.gSemantics";
+  import "gadl_semantics_implementation.gSemantics"; #cDeclareVar
+
+#template related files.
+routine addLstringlist
+  ?!@TfieldMap ioTemplateVariableMap
+  ??@lstring inListName
+  ??@string inItemName
+  ??@lstringlist inList
+:
+  @TfieldMapList itemMapList [emptyList];
+  foreach inList (@lstring item) do
+    @TfieldMap itemMap [emptyMap];
+    addLStringValue !?itemMap !inItemName !item;
+    itemMapList += !itemMap;
+  end foreach;
+  addListValue !?ioTemplateVariableMap !inListName !itemMapList;
+end routine;
+
+routine getTemplateLogList
+  ?! @string str
+  ?? @TfieldMapList fmList
+  ?? @uint tab
+:
+  @uint nbItems := [fmList length];
+  str .= [nbItems string]." item(s)\n";
+  foreach fmList (@TfieldMap mMap) do
+    getTemplateLogStruct !?str !mMap !tab;
+  end foreach;
+end routine;
+
+routine getTemplateLogStruct
+  ?! @string str
+  ?? @TfieldMap fm
+  ?? @uint tab
+:
+  @bool start := true;
+  foreach fm (@lstring key @Ttype mType @Tvalue mValue) do
+    @string space := [@string stringWithSequenceOfCharacters !' ' !tab*2];
+    str .= space;
+    if start then str.= "-"; else str .= " "; end if; start := false;
+    str .= [key string]." (".[mType messageGoilTemplateType].") :";
+    if mType == [@Ttype boolType] then
+      if [mValue mUnsigned64Value] == 1L then str.="true\n"; else str.="false\n"; end if;
+    elsif mType == [@Ttype unsignedType] then str.= [[mValue mUnsigned64Value] string]."\n";
+    elsif mType == [@Ttype stringType]   then str.= [mValue mStringValue]."\n";
+    elsif mType == [@Ttype listType]     then getTemplateLogList   !?str ![mValue mMapListValue] !tab+1;
+    elsif mType == [@Ttype mapType]      then getTemplateLogStruct !?str ![mValue mStructValue] !tab+1;
+    elsif mType == [@Ttype structType]   then getTemplateLogStruct !?str ![mValue mStructValue]  !tab+1;
+    elsif mType == [@Ttype enumType]     then str.= [mValue mStringValue]."\n";
+    elsif mType == [@Ttype unconstructedType] then str .= "unconstructed!!\n";
+    end if;
+  end foreach;
+end routine;
+
+function getTemplateLog
+  ?? @TfieldMap cfg
+  -> @string str 
+:
+  str := "";
+  getTemplateLogStruct !?str !cfg !1;
+end function;
+
+routine addStringlist
+  ?!@TfieldMap ioTemplateVariableMap
+  ??@lstring inListName
+  ??@lstring inItemName
+  ??@stringlist inList
+:
+  @TfieldMapList itemMapList [emptyList];
+  foreach inList (@string item) do
+    @TfieldMap itemMap [emptyMap];
+    addStringValue !?itemMap !inItemName !item;
+    itemMapList += !itemMap;
+  end foreach;
+  addListValue !?ioTemplateVariableMap !inListName !itemMapList;
+end routine;
+
+routine addStringset
+  ?!@TfieldMap ioTemplateVariableMap
+  ??@lstring inListName
+  ??@lstring inItemName
+  ??@stringset inSet
+:
+  @TfieldMapList itemMapList [emptyList];
+  foreach inSet (@string item) do
+    @TfieldMap itemMap [emptyMap];
+    addStringValue !?itemMap !inItemName !item;
+    itemMapList += !itemMap;
+  end foreach;
+  addListValue !?ioTemplateVariableMap !inListName !itemMapList;
+end routine;
+
+#this function fills template structure related to var declaration code.
+function varMapDeclaration
+  ?? @varMap varMap
+  ?? @codeCtx cgc              ## generation code context (C, Uppaal, ..)
+  -> @TfieldMapList varMapTplList
+:
+  varMapTplList := [@TfieldMapList emptyList];
+  #local var declaration.
+  foreach varMap (@lstring varName @abstractVar var) do
+    @TfieldMap varMapTplBody [emptyMap];
+    addLStringValue !?varMapTplBody !"name" !varName;
+    cast var
+    when == @classicVar cVar :
+      @cDeclareVar inst := [@cDeclareVar new !here !varName !cVar];
+      @string declare := [inst generateImplementation !0 !"" !"" !cgc];
+      addStringValue !?varMapTplBody !lstringWith[!"declare"] !declare;
+    else error [varName location]: "internal error: the variable should be a classic var";
+    end cast;
+    #end
+    varMapTplList += !varMapTplBody;
+  end foreach;
+end function;
+
+end semantics ;
+
+# vim:ft=ggs:ts=2:sw=2
+

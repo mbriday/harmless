@@ -1,0 +1,80 @@
+\documentclass[11pt]{book}
+\usepackage{geometry} % see geometry.pdf on how to lay out the page. There's lots.
+\usepackage[frenchb]{babel}	%francais
+\usepackage[utf8]{inputenc}	%francais
+\geometry{a4paper} 
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{tabularx}
+\usepackage{hyperref}
+% \geometry{landscape} % rotated page geometry
+
+\newcommand{\cad}{c'est-à-dire~}
+\newcommand{\bs}{\textbackslash}
+\newcommand{\harmless}{Harmless}
+\newcommand{\h}{Harmless}
+\newcommand{\gadl}{Gadl}
+\newcommand{\blocdo}{bloc {\em do \ldots\ end do}}
+\newcommand{\blocsdo}{blocs {\em do \ldots\ end do}}
+
+%command line options from Hevea to imagen
+%for the generation of images with hevea (html output):
+%-png       :generate png files (instead of gif)
+%-pdf       : use pdflatex instead of latex (pdf files)
+%-todir img : store image in img/
+%HEVEA\@addimagenopt{-png -pdf -todir img} 
+%say to hevea the image directory.
+\providecommand{\heveaimagedir}{img}
+\renewcommand{\heveaimagedir}{img}
+%custom CSS file for HTML rendering.
+%HEVEA\loadcssfile{../common/style.css}
+
+% See the ``Article customise'' template for come common customisations
+
+\title{Harmless \\Langage de description d'architecture matérielle \\ Documentation technique}
+\author{M. Briday, R. Kassem, J.L. Béchennec}
+%\date{} % delete this line to display the current date
+
+
+%TODO: Rajouter les mots clés aussi dans le chapitre elements de base du langage situé
+% \ref{keywords}
+\lstdefinelanguage{Harmless} 
+{morekeywords={model,include,port,device,architecture,write,shared,behavior,format,select,error,warning,component,void,every,memory,width,address,type,RAM,ROM,register,stride,read,program,counter,pipeline,stage,init,run,as,machine,BTB,FIFO,bypass,release,in,maps,to,stall,default,instruction,fetch,debug,big,little,endian,except,do,out,when,field,nop,slice,case,is,others,signed,or,syntax,switch,number,octal,decimal,hexadecimal,binary,suffix,prefix,timing,decode,size,jumpTaken,add,cycle,use,return,print,if,then,elseif,else,loop,while,end,true,false,ror,rol,cat}, 
+sensitive=true, 
+morecomment=[l]{--}, 
+morestring=[b]"
+}
+
+\lstset{
+  basicstyle=\small,
+  stringstyle=\ttfamily, % typewriter type for strings
+  showstringspaces=true %space in strings
+  commentstyle=\ttfamily,
+ % commentstyle=\itshape\color{vert},
+  identifierstyle=\ttfamily\bfseries,
+  keywordstyle=\ttfamily\bfseries\underbar,
+  numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt, %line numbers
+  breaklines=true,
+  frame=lines, %bottom and top lines
+  language=Harmless,
+  defaultdialect=Harmless,
+}
+
+%%% BEGIN DOCUMENT
+\begin{document}
+\maketitle
+\tableofcontents
+
+\include{installation}
+%\part{Description du jeu d'instruction} 
+\include{introISS}
+\include{baseLangage}
+\include{format}
+\include{behavior}
+\include{syntax}
+\include{memoire}
+\include{timing}
+%\part{Description de la micro-architecture}
+
+\end{document}

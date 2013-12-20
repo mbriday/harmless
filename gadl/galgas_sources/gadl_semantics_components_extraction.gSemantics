@@ -1,0 +1,264 @@
+semantics gadl_semantics_components_extraction :
+  import "gadl_semantics.gSemantics" ;  #@methodList
+  import "gadl_semantics_behavior_data_structures.gSemantics"; #@decodedInstBehaviorMap
+  import "gadl_components.gSemantics"; #getComponentMethodImplementationName
+  import "gadl_semantics_behavior.gSemantics" ; #getInstructionList
+  import "gadl_graph.gSemantics"; #@graphNode
+  import "gadl_templates" ;#createFile
+  
+
+#############################################################################
+## getting components inside an expression
+#############################################################################
+#default: not adding nodes.
+method @cExpression getComponents 
+  ?? @graphNodeList unused nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  rootNodeList := [@graphNodeList emptyList];
+end method;
+
+#@cExpDummy               -> nothing.
+#@cExpInstructionSize     -> nothing.
+#@cExpInstructionAddress  -> nothing.
+#@cIdf                    -> nothing.
+#@cUintConst              -> nothing.
+#@cSliceFieldOp           -> nothing.
+#@cUintConst              -> nothing.
+override method @cTabIndice  getComponents
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  [expIndice getComponents !nextNodeList ?rootNodeList];
+end method;
+
+override method @cCast getComponents
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  [expression getComponents !nextNodeList ?rootNodeList];
+end method;
+
+override method @cBitFieldOp  getComponents
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  [expField getComponents !nextNodeList ?rootNodeList];
+end method;
+
+override method @cUnaryOp  getComponents
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  [exp getComponents !nextNodeList ?rootNodeList];
+end method;
+
+#internal routine used by "getComponents" of @cExpression that
+#handle 2 sub-expressions.
+routine getComponentsIn2Expressions
+  ?? @cExpression expRight
+  ?? @cExpression expLeft
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  [expRight getComponents !nextNodeList ?rootNodeList];
+  @graphNodeList currentNextNodeList := nextNodeList;
+  if [rootNodeList length] > 0 then #there is a new root.
+    currentNextNodeList := rootNodeList;
+  end if;
+  [expLeft getComponents !currentNextNodeList ?rootNodeList];
+  if [rootNodeList length] == 0 then #nothing in the left part. return the right exp result.
+    rootNodeList := currentNextNodeList;
+  end if;
+end routine;
+
+override method @cBinaryBasicOp  getComponents
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  getComponentsIn2Expressions !expRight !expLeft !nextNodeList ?rootNodeList;
+end method;
+
+override method @cRotationOp  getComponents
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  getComponentsIn2Expressions !expRight !expLeft !nextNodeList ?rootNodeList;
+end method;
+
+override method @cXorOp  getComponents
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  getComponentsIn2Expressions !expRight !expLeft !nextNodeList ?rootNodeList;
+end method;
+
+override method @cCatOp  getComponents
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  getComponentsIn2Expressions !expRight !expLeft !nextNodeList ?rootNodeList;
+end method;
+
+import "gadl_semantics_function.gSemantics";
+override method @cfunctionCall getComponents
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  rootNodeList := [@graphNodeList emptyList];
+  @graphNodeList currentNextNodeList := nextNodeList;
+  foreach > paramList (@cExpression exp ...) do #foreach with reverse order.
+    [exp getComponents !currentNextNodeList ?rootNodeList];
+    if [rootNodeList length] > 0 then #there is a new root.
+      currentNextNodeList := rootNodeList;
+    end if;
+  end foreach;
+  if [rootNodeList length] == 0 then #last chunk was not a root, get back the target.
+    rootNodeList := currentNextNodeList;
+  end if;
+end method;
+
+override method @cComponentMethod getComponents ##this is the related expression.
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  #parameters first.
+  rootNodeList := [@graphNodeList emptyList];
+  @graphNodeList currentNextNodeList := nextNodeList;
+  foreach > param (@cExpression exp ...) do #foreach with reverse order.
+    [exp getComponents !currentNextNodeList ?rootNodeList];
+    if [rootNodeList length] > 0 then #there is a new root.
+      currentNextNodeList := rootNodeList;
+    end if;
+  end foreach;
+  #then component call.
+  @lstringlist data [emptyList];
+  data += !componentName;
+  data += !methodName;
+  rootNodeList := [@graphNodeList emptyList];
+  @string uid := getGraphNodeUniqueId[![componentName string]."_".[methodName string] !currentNextNodeList];
+  rootNodeList += ![@graphNode new !data !currentNextNodeList !uid];
+end method;
+
+#############################################################################
+## getting components inside instructions
+#############################################################################
+
+#default: not adding nodes.
+method @cInstruction getComponents 
+  ?? @graphNodeList unused nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  rootNodeList := [@graphNodeList emptyList];
+end method;
+
+override method @cCompMethodCall getComponents ##this is the related instruction.
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  @lstringlist data [emptyList];
+  data += !componentName;
+  data += !methodName;
+  rootNodeList := [@graphNodeList emptyList];
+  @string uid := getGraphNodeUniqueId[![componentName string]."_".[methodName string] ! nextNodeList];
+  rootNodeList += ![@graphNode new !data !nextNodeList !uid];
+end method;
+
+override method @cIfBlock getComponents 
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  @graphNodeList IfNodeList   := [@graphNodeList emptyList];
+  @graphNodeList ElseNodeList := [@graphNodeList emptyList];
+  getComponentsInInstructionList !ifInstList   !nextNodeList ?IfNodeList;
+  getComponentsInInstructionList !elseInstList !nextNodeList ?ElseNodeList;
+  MergeGraphNodeList ?rootNodeList !IfNodeList !ElseNodeList;
+#  rootNodeList := IfNodeList . ElseNodeList;
+end method;
+
+override method @cAssign getComponents 
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  [exp getComponents !nextNodeList ?rootNodeList];
+end method;
+
+#recursive routine.
+routine getComponentsInInstructionList
+  ?? @instructionList instList   # the instruction list to process
+  ?? @graphNodeList nextNodeList # list of successors.
+  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+:
+  rootNodeList := [@graphNodeList emptyList];
+  @graphNodeList currentNextNodeList := nextNodeList;
+  foreach > instList (@cInstruction inst) do #foreach with reverse order.
+    [inst getComponents !currentNextNodeList ?rootNodeList];
+    if [rootNodeList length] > 0 then #there is a new root.
+      currentNextNodeList := rootNodeList;
+    end if;
+  end foreach;
+  if [rootNodeList length] == 0 then #last chunk was not a root, get back the target.
+    rootNodeList := currentNextNodeList;
+  end if;
+end routine;
+
+#############################################################################
+## extraction routines.
+#############################################################################
+
+routine getInstructionComponentGraph
+  ?? @instructionListMap instListMap 
+  ?? @defaultSection defaultValues #user fetch.
+  !  @graphNodeMap componentAccessMap
+:
+  componentAccessMap := [@graphNodeMap emptyMap];
+  foreach instListMap (@lstring instName @instructionList instListConst) do
+    @instructionList instList := instListConst; #local copy.
+    #we add the implicit fetch.
+    if not isThereAUserFetch[!defaultValues] then
+      @lstring comp := [@lstring new !"__fetch_component" !here];
+      @lstring meth := [@lstring new !"__implicit_fetch" !here];
+      @cCompMethodCall implicitFetch := [@cCompMethodCall new !here !comp !meth ![@parameterCallList emptyList]];
+      [!?instList insertAtIndex !implicitFetch !0];
+    else
+      @lstring comp := [defaultValues fetchComponentName];
+      @lstring meth := [defaultValues fetchMethodName];
+      @cCompMethodCall explicitFetch := [@cCompMethodCall new !here !comp !meth ![@parameterCallList emptyList]];
+      [!?instList insertAtIndex !explicitFetch !0];
+    end if;
+    #ok, done. Now, construct the graph.
+    @graphNodeList nextNodeList [emptyList];
+    @graphNodeList rootNodeList;
+    getComponentsInInstructionList !instList !nextNodeList ?rootNodeList;
+    @graphNode nodeRoot;
+    #if there is more than 1 root:
+    if [rootNodeList length] > 1 then
+      @string uid := getGraphNodeUniqueId[!"root" !rootNodeList];
+      nodeRoot := [@graphNode new ![@lstringlist emptyList] !rootNodeList !uid];
+    elsif [rootNodeList length] == 1 then
+      [rootNodeList first ?nodeRoot];
+    else
+      #empty node.
+      @string uid := getGraphNodeUniqueId[!"root" !rootNodeList];
+      nodeRoot := [@graphNode new ![@lstringlist emptyList] ![@graphNodeList emptyList] !uid];
+      #message "No root nodes found\n";
+    end if;
+    #Ok, got the graph in 'nodeRoot'. Store it.
+    [!?componentAccessMap insertKey !instName !nodeRoot];
+  end foreach;
+end routine;
+
+routine generateComponentAccessGraphViz
+  ?? @graphNodeMap componentAccessMap
+  ?? @string modelName
+:
+  foreach componentAccessMap (@lstring instName @graphNode nodeRoot) do
+    #get the GraphViz output content.
+    @string graphVizContent := graphNodeOutput[!nodeRoot ![instName string]];
+    #message "create file for ".[instName string]." (".[[graphVizContent length] string].")\n";
+    createFile !modelName."/log" ![instName string].".dot" !graphVizContent;
+  end foreach;
+end routine;
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

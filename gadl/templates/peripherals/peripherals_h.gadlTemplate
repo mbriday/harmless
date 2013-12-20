@@ -1,0 +1,35 @@
+%template headerC%
+#ifndef __%!MODELNAME%_PERIPHERALS_H__
+#define __%!MODELNAME%_PERIPHERALS_H__
+
+#ifndef GADL_NO_ACTION
+
+#include "types.h"
+#include "action.h"
+
+class arch;
+%foreach reg in periphRWRegisterList do
+  let accessTypeStr := ""
+  let proptypeStr   := ""
+  if reg::accessType then
+    let accessTypeStr := "read"
+    let proptypeStr   := "(storage *, spyInfo *)"
+  else
+    let accessTypeStr := "write"
+    let proptypeStr   := "(storage *, u8 , spyInfo *)"
+  end if
+  let className := reg::regName.accessTypeStr
+%class %!className% : public %!accessTypeStr%Action {
+	arch *m_arch;
+public :
+	%!className%(arch *a) : %!accessTypeStr%Action(), m_arch(a) {};
+	virtual ~%!className%() {};
+	virtual bool trigger%!proptypeStr%;
+};
+%
+between %\n%
+end foreach
+%
+#endif //GADL_NO_ACTION
+
+#endif

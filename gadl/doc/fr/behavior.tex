@@ -1,0 +1,193 @@
+%!TEX root = ./main.tex
+%!TEX encoding = UTF-8 Unicode
+\chapter[Description du comportement]{Description du comportement des instructions}
+\label{chap:behavior}
+\section{Introduction}
+
+Dans ce chapitre, nous présentons comment le comportement des instructions est décrit. Plusieurs exemples, tirés des descriptions du HCS12 de Freescale et de son co-processeur XGate, illustrent la présentation. Le comportement des instructions est décrit de manière hiérarchique afin de mutualiser les comportements communs à plusieurs instructions.
+
+La description du comportement des instructions s'appuie sur des objets appelés {\em component} dans le langage. Un component représente un dispositif matériel du processeur comme le banc de registres ou l'unité arithmétique et logique. Bien entendu, on peut décrire le comportement d'une instruction en se passant en partie des components (par exemple en utilisant l'opération d'addition du langage pour mettre en œuvre le comportement d'une instruction d'addition) mais cette façon de faire n'est pas recommandé. En effet, le comportement temporel d'une micro-architecture nécessite l'emploi de components car la concurrence d'accès est gérée en se basant sur les components.
+
+\section{La vue comportementale dans \h}
+
+La vue comportementale est formée par un ensemble de comportement. Un comportement peut faire appel à d'autres comportements plus élémentaires. Par exemple, un mode d'adressage peut constituer un comportement élémentaire qui sera employé par plusieurs comportement. Un comportement est rattaché à une instruction via sa signature. Contrairement à la vue format qui ne comprend qu'un seul arbre, la vue comportementale peut comprendre plusieurs arbres, chacun des arbres correspondant à des instructions ayant en commun un ou plusieurs comportements.
+
+Un comportement est en définitive semblable à une fonction qui va faire appel à d'autres fonctions (sous comportement ou bien méthodes de components) pour effectuer les opérations nécessaires à l'exécution de l'instruction. Le listing suivant donne le canevas de déclaration d'un comportement:
+\begin{lstlisting}
+behavior <name>(<argumentsList>) [etiquette]
+  <behaviorBody>
+end behavior
+\end{lstlisting}
+
+Le {\tt <behaviorBody>} est formé d'élements de type:
+\begin{itemize}
+\item déclaration de variable (\ref{sec:behVar});
+\item déclaration de {\em field} (\ref{sec:behField});
+%\item \emph{étiquette};
+\item appel à un autre nœud de type behavior (\ref{sec:behSubBeh});
+\item structure de sélection, en utilisant le mot clé \texttt{select}. Voir section \ref{sec:behSelect};
+\item \blocsdo\ permettant la mise en œuvre d'algorithmes. Voir section \ref{sec:behDo}.
+\end{itemize}
+
+\subsection{Arguments d'un comportement}
+
+Un comportement, à la condition qu'il ne s'agisse pas d'un comportement racine), peut prendre 1 ou plusieurs arguments en entrée ou en sortie. Un argument est typé. Un argument en sortie est signalé par le mot clé {\tt out}. L'utilisation est la même que le passage d'arguments à une fonction.
+\begin{lstlisting}
+behavior shiftInstructionBehavior(out u16 rdValue, u16 source)\end{lstlisting}
+Ici, 2 aurguments sont spécifiés. Le premier, {\tt rdValue}, est un argument de sortie (c'est à dire qu'il sera valué par {\tt shiftInstructionBehavior} et que la valeur sera disponible pour le comportement qui appelle {\tt shiftInstructionBehavior}). Le second, {\tt source} est un argument en entrée.
+
+\subsection{Déclaration de variables}
+\label{sec:behVar}
+
+Il est possible de déclarer des variables locales dans un comportement selon \ref{sec:TypeDonnees}. Les variables ne peuvent être déclarées à l'intérieur d'un \blocdo.
+
+\subsection{Référencement d'un champ}
+\label{sec:behField}
+
+Les champs de l'instruction contenant des constantes numériques peuvent être décla\-rés dans un comportement afin de les référencer et d'employer leur valeur dans un calcul. Le mot clé {\em field} permet de déclarer un champ:
+\begin{lstlisting}
+  field u3 regIndex;
+\end{lstlisting}
+Ici, {\tt regIndex} est un champ qui a été extrait de l'instruction dans un format (voir la section \ref{sec:operandeFormat}). \h\ vérifie la cohérence de type (taille et signe) et signale une erreur en cas d'incohérence. Un {\em field} est bien entendu une constante.
+
+\subsection{Appel à un autre comportement}
+\label{sec:behSubBeh}
+
+Un appel à une autre comportement est effectué en indiquant le nom du comportement et les arguments nécessaire. Un appel à un comportement ne peut être effectué à l'intérieur d'un \blocdo :
+\begin{lstlisting}
+behavior shiftInstructionType(out u16 source)
+  ...
+end behavior
+
+behavior shiftInstructionBehavior(out u16 rdValue, u16 source)
+  ...
+end behavior
+
+behavior shiftInstruction() #SHIFT
+  ...
+  u16 rdValue;
+  u16 source;
+  shiftInstructionType(source)
+  shiftInstructionBehavior(rdValue, source)
+  ...
+end behavior
+\end{lstlisting}
+Ici, dans le comportement {\tt shiftInstruction}, deux variables locales, {\tt rdValue} et {\tt source} sont déclarées puis deux comportements, {\tt shiftInstructionType} et {\tt shiftInstruction\-Behavior}, sont appelés. {\tt shiftInstructionType} value source qui est ensuite passé en argument à {\tt shiftInstructionBehavior} qui value {\tt rdValue}.
+
+\subsection{Structure de sélection}
+\label{sec:behSelect}
+
+L'instruction {\tt select} permet de choisir entre plusieurs comportement en fonction d'une étiquette ou d'un comportement appelé (également étiqueté):
+\begin{lstlisting}
+  select
+    case #ROL do rdValue := ALU.ROL(rdValue, source); end do
+    case #ROR do rdValue := ALU.ROR(rdValue, source); end do
+  end select
+\end{lstlisting}
+Ici, selon qu'il s'agit de l'étiquette \#ROL ou \#ROR, l'un ou l'autre des \blocsdo\ est pris en compte.
+
+\begin{lstlisting}
+  select
+    case logicImmAndArithImmUpdateNoReg(rdValue, imm8)
+    case logicImmAndArithImmUpdateReg(rdValue, imm8, rdIndex)
+  end select;
+\end{lstlisting}
+Ici, l'un ou l'autres des comportements est pris en compte. Les deux types de {\tt case} peuvent bien entendu êtres présents dans le même {\tt select}.
+
+Un {\tt select} ne peut pas apparaître dans un \blocdo.
+
+\subsection{Les \blocsdo}
+\label{sec:behDo}
+
+Les \blocsdo\ permettent de donner l'algorithme de l'instruction. Ils peuvent contenir des accès aux composants via leurs méthodes, des structures de contrôle {\em if ... then ... else} et des expressions telles que décrites dans la section \ref{sec:expressions}. Le comportement suivant, issu de la description du XGate, est un exemple de \blocdo. 
+\begin{lstlisting}
+behavior loadStoreType(u1 accessType, u16 addr, u3 regIndex)
+  select
+    case #LOAD
+      do
+         if accessType = 0 then
+           u8 val := mem.read8(addr);
+           GPR.write8(regIndex, val);
+         else
+           u16 val := mem.read16(addr);
+           GPR.write16(regIndex, val);
+         end if;
+      end do
+    case #STORE 
+      do
+         if accessType = 0 then
+           u8 val := GPR.read8(regIndex);
+           mem.write8(addr, val);
+         else
+           u16 val := GPR.read16(regIndex);
+           mem.write16(addr, val);
+         end if;
+      end do
+  end select
+end behavior
+\end{lstlisting}
+Ici, selon qu'il s'agit d'une instruction de chargement (\#LOAD) ou de rangement (\#STO\-RE), l'un ou l'autre des comportement est sélectionné. {\tt accessType} spécifie la taille de la donnée à accéder en mémoire. Les méthodes ad-hoc des composants {\tt GPR} (registres généraux) et {\tt mem} sont appelées en conséquence.
+
+\section{Les composants matériels}
+\label{sec:component}
+Un composant matériel représente une partie matérielle (ALU, bloc mémoire, \ldots), sa description est encapsulée et contient:
+\begin{itemize}
+\item des variables membres;
+\item des méthodes associées.
+\end{itemize}
+Soit par exemple un composant \texttt{Fetcher} chargé de la gestion du compteur programme:
+\begin{lstlisting}
+component Fetcher {
+  program counter u16 pc; -- generate get and set methods.
+
+  void reset() {
+    pc := 0;
+  }
+
+  void branch(s16 offset) {
+    pc := (u16)((s16)(pc) + offset);
+  }
+}
+\end{lstlisting}
+Ce composant utilise une variable membre, qui est un registre (ici un registre spécifique: le compteur programme). Il y a aussi 2 méthodes qui sont associées \texttt{reset} et \texttt{branch}, dont la syntaxe ressemble beaucoup à celle du C. Au niveau d'un \emph{behavior}, on peut appeler les différentes méthodes d'un composant, à l'intérieur d'un bloc \texttt{do .. end do} de la manière suivante: \texttt{<componentName>.<methodName>}, soit ici par exemple: \texttt{Fetcher.branch(10)}. 
+
+Cette approche ressemble beaucoup à une approche objet, cependant, il n'y a pas de notion d'instance associée à un composant.
+\subsection{définition d'une méthode}
+Une méthode, comme introduit précédemment, est défini de la manière suivante:
+\begin{verbatim}
+<typeRetour> nomMethod(<paramètres>)
+{
+  <implémentation>
+}
+\end{verbatim}
+où:
+\begin{itemize}
+\item \texttt{<typeRetour>} est le type de retour de la fonction (\texttt{u8}, \texttt{s5}, ... ou \texttt{void});
+\item \texttt{<paramètres>} correspond aux différents paramètres (comme en C). Les paramètres sont des entrées uniquement par défaut. un paramètre peut être déclaré en sortie s'il est précédé du mot clé \texttt{out}: \texttt{u8 param1, u16 param2, out u32 paramOut};
+\item \texttt{<implémentation>} est la même chose que dans la section \ref{sec:behDo}.
+\end{itemize}
+
+\subsection{Variables membres}
+Les variables membres ne sont accessible que dans les méthodes du même composant (encapsulation). Cependant, les registres (voir section \ref{sec:defReg}) ont une portée plus large et peuvent être utilisé dans n'importe quelle autre endroit de la description.
+
+\subsection{Utilisation des composants}
+Les composants sont utilisés pour faire le lien entre la partie comportementale (\emph{behavior}) et la description de la micro-architecture. Cette description, permettant de décrire le pipeline n'est actuellement pas finalisée.
+Ainsi, dans la description d'une instruction, certaines partie du comportement peuvent être décrite soit dans un \texttt{behavior}, soit dans un \texttt{component}. Par exemple, au lieu d'appeler \texttt{Fetcher.branch(..)}, il est tout à fait possible de modifier directement la valeur de \texttt{PC} dans un \texttt{behavior}. Cependant, l'information sur l'utilisation des composant va servir dans un deuxième temps, soit dans la description de la micro-architecture, soit dans la vue \texttt{timing} (voir chapitre \ref{chap:timing}).
+
+Dans la description de la micro-architecure, il est notamment possible d'associer l'utilisation d'une méthode d'un composant à un étage du pipeline. Ainsi, il est possible de \emph{mapper} le comportement de l'instruction directement sur le pipeline.
+
+A contrario, si l'accès est fait dans le \texttt{behavior}, tout \emph{mapping} est impossible. Cette approche est aussi utile pour les comportement qui n'affectent pas temporellement l'exécution. Considérons par exemple une instruction post-incrémentée, dont l'incrémentation est réalisée par un matériel dédié. Dans ce cas, il est inutile de mapper cette post-incrémentation sur le pipeline, car elle n'affecte en rien les temps d'exécution.
+
+\subsection{Initialisation}
+\label{sec:initComponent}
+L'initialisation d'un composant est réalisé implicitement si un composant possède une méthode \texttt{reset} qui ne prend aucun argument:
+\begin{lstlisting}
+  void reset() {
+    pc := 0;
+  }
+}
+\end{lstlisting}
+Ceci permet notamment d'initialiser les variables d'un composant, ainsi que les registres défini dans le composant.
+
+%\section{Exemple de mise en œuvre}
+

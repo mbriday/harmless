@@ -1,0 +1,570 @@
+
+--
+--    [TODO] All operation calls should have a dependency to Fetcher.next
+--    [DONE] Simplify helper 'isRelatedTo'
+--    [TODO] Improve transformation time
+--
+
+module HADLiSchedule;
+create OUT:HADLiOUT from IN:HADLiIN;
+
+rule TArchitecture {
+   from src : HADLiIN!Architecture
+   to
+      dest : HADLiOUT!Architecture (
+               name <- src.name,
+               fathers <- src.fathers,
+               ports <- src.ports->including(dataDep)
+         ),
+      dataDep : HADLiOUT!ExpandedPort (
+            name <- 'datadep'
+         )
+}
+
+rule TStage { 
+   from src : HADLiIN!Stage 
+   to
+      dest : HADLiOUT!Stage (
+            name <- src.name,
+            portActivations <- src.portActivations->including(dataDepActivation)
+         ),
+      dataDepActivation : HADLiOUT!ExpandedPortActivation (
+            port <- thisModule.resolveTemp(src.owningPipeline.architecture, 'dataDep')
+         )
+}
+
+rule TBehavior { 
+   from src : HADLiIN!Behavior 
+   to dest : HADLiOUT!Behavior (
+         name <- src.name,
+         statements <- src.statements->reject(s| s.oclIsKindOf(HADLiIN!DependencyStatement)),
+         chunks <- src.chunks
+      )
+}
+          
+rule TForStatement { 
+   from src : HADLiIN!ForStatement 
+   to dest : HADLiOUT!ForStatement (
+         body <- src.body->reject(s| s.oclIsKindOf(HADLiIN!DependencyStatement))
+      )
+}
+
+rule TOperationCall { 
+   from src : HADLiIN!OperationCall
+   to dest : HADLiOUT!OperationCall (
+         component <- src.component,
+         calledOperation <- src.calledOperation,
+         body <- src.body->reject(s| s.oclIsKindOf(HADLiIN!DependencyStatement)),
+         reservations <-
+            let reservation : HADLiIN!Reservation = src.selectedReservation in
+            if not reservation.oclIsUndefined() then
+               if src.dependsOnComponentVariable() then
+                  Sequence{
+                        thisModule.TReservation(reservation),
+                        thisModule.TDataDepReservation(reservation.stage)
+                     }
+               else
+                  Sequence{thisModule.TReservation(reservation)}
+               endif
+            else
+               Sequence{}
+            endif
+      )
+}
+
+lazy rule TDataDepReservation {
+   from src : HADLiIN!Stage
+   to dest : HADLiOUT!Reservation (
+         stage <- src,
+         port <- thisModule.resolveTemp(src.owningPipeline.architecture, 'dataDep')
+      )
+}
+
+lazy rule TReservation {
+   from src : HADLiIN!Reservation
+   to dest : HADLiOUT!Reservation (
+         stage <- src.stage,
+         port <- src.port,
+         releaseStage <- src.releaseStage,
+         bypassStages <-
+            let acceptableStages : Sequence(HADLiIN!Stage) =
+               src.bypassStages
+                  ->select(s|
+                        s.isAfterOrSame(src.owningOperationCall.sourceStage)
+                     )
+                  ->asSequence()
+               in
+
+            if acceptableStages->isEmpty() then
+               Sequence{}
+            else
+               Sequence{
+                     acceptableStages
+                        ->iterate(s; acc : HADLiIN!Stage = acceptableStages->first() |
+                              if s.isAfterOrSame(acc) then
+                                 acc
+                              else
+                                 s
+                              endif
+                        )
+                  }
+            endif
+      )
+
+}
+
+-------------------------------------------------------------------------------
+-- Check whether a statement depends on an component variable
+-------------------------------------------------------------------------------
+
+helper context HADLiIN!OperationCall def:
+   dependsOnComponentVariable() : Boolean =
+      self.body
+         ->reject(s| s.oclIsKindOf(HADLiIN!OperationCall))
+         ->exists(s| s.dependsOnComponentVariable());
+
+helper context HADLiIN!DependencyStatement def:
+   dependsOnComponentVariable() : Boolean =
+      self.sourceVariables->exists(v| v.isGlobal);
+
+helper context HADLiIN!ForStatement def:
+   dependsOnComponentVariable() : Boolean =
+      self.body
+         ->reject(s| s.oclIsKindOf(HADLiIN!OperationCall))
+         ->exists(s| s.dependsOnComponentVariable());
+
+
+-------------------------------------------------------------------------------
+-- Get the sequence of relevant reservations for each instruction
+-- If statements are not supported
+-------------------------------------------------------------------------------
+
+helper context HADLiIN!Instruction def:
+   getReservations() : Sequence(HADLiIN!Reservation) =
+      self.root.getReservations();
+
+helper context HADLiIN!Behavior def:
+   getReservations() : Sequence(HADLiIN!Reservation) =
+            self.statements->iterate(
+                  s; acc:Sequence(HADLiIN!Reservation) = Sequence{} |
+                  acc->union(s.getReservations())
+               )
+      ->union(
+            self.chunks->iterate(
+                  s; acc:Sequence(HADLiIN!Reservation) = Sequence{} |
+                  acc->union(s.getReservations())
+               )
+         );
+
+helper context HADLiIN!ForStatement def:
+   getReservations() : Sequence(HADLiIN!Reservation) =
+      self.body->iterate(
+            s; acc:Sequence(HADLiIN!Reservation) = Sequence{} |
+            acc->union(s.getReservations())
+         );
+
+helper context HADLiIN!OperationCall def:
+   getReservations() : Sequence(HADLiIN!Reservation) =
+      self.reservations
+      ->union(
+            self.body->iterate(
+                  s; acc:Sequence(HADLiIN!Reservation) = Sequence{} |
+                  acc->union(s.getReservations())
+               )
+         );
+
+helper context HADLiIN!DependencyStatement def:
+   getReservations() : Sequence(HADLiIN!Reservation) =
+      Sequence{};
+
+-------------------------------------------------------------------------------
+-- Storage for scheduling information
+-------------------------------------------------------------------------------
+
+helper def:
+   callStack : Set(HADLiIN!OperationCall) = Sequence{};
+
+helper def:
+   stock : Set(HADLiIN!Reservation) = HADLiIN!Reservation.allInstances();
+
+-------------------------------------------------------------------------------
+-- Instruction stock handling
+-------------------------------------------------------------------------------
+
+helper context HADLiIN!Instruction def:
+   getStock() : Sequence(HADLiIN!Reservation) =
+      thisModule.stock->select(r| r.owningOperationCall.owningInstruction = self);
+
+helper context HADLiIN!Instruction def:
+   removeFromStock(res : HADLiIN!Reservation) : OclAny =
+      thisModule.refSetValue(
+            'stock',
+            thisModule.stock
+               ->reject(r| r.owningOperationCall.owningInstruction = self and r.stage = res.stage and r.port = res.port)
+         );
+
+-------------------------------------------------------------------------------
+-- Operation scheduling
+-------------------------------------------------------------------------------
+
+helper context HADLiIN!OperationCall def:
+   sourceStage : HADLiIN!Stage =
+      self.sourceOperationCalls
+         ->collect(c| c.selectedReservation)
+         ->select(r| not r.oclIsUndefined())
+         ->collect(r| r.stage)
+         ->iterate(s; acc : HADLiIN!Stage = self.owningInstruction.owningPipeline.stages->first()|
+               if s.isAfterOrSame(acc) then
+                  s
+               else
+                  acc
+               endif
+            );
+
+helper context HADLiIN!OperationCall def:
+   sourceOperationCalls : Set(HADLiIN!OperationCall) =
+      self.body
+         ->select(s| s.oclIsKindOf(HADLiIN!DependencyStatement))
+         ->collect(s| s.getSourceOperationCalls(self))
+         ->flatten()
+         ->asSet()
+         ->excluding(self);
+
+helper context HADLiIN!OperationCall def:
+   selectedReservation : HADLiIN!Reservation =
+      self.getSelectedReservation();
+
+helper context HADLiIN!OperationCall def:
+   getSelectedReservation() : HADLiIN!Reservation =
+
+-----
+--      let msg_debug : String = -- DEBUG
+--            ( -- DEBUG
+--               'Scheduling call to ' + self.component.name + '.' + self.calledOperation.name + -- DEBUG
+--               ' in instruction ' + self.owningInstruction.name -- DEBUG
+--            ).debug('MSG') -- DEBUG
+--         in -- DEBUG
+-----
+
+      if thisModule.callStack->includes(self) then
+
+-----
+--         let circ_debug : String = 'Circular dependency detected'.debug('MSG') in -- DEBUG
+-----
+
+         OclUndefined
+      else
+         let dummyPush : OclAny =
+            thisModule.refSetValue('callStack', thisModule.callStack->including(self))
+            in
+
+-----
+--         let stack_debug : String = -- DEBUG
+--            ( -- DEBUG
+--               'Stack : ' + -- DEBUG
+--               thisModule.callStack->asSequence()->iterate(c;acc:String=''|acc+c.component.name + '.' + c.calledOperation.name + ' ') -- DEBUG
+--            ).debug('MSG') -- DEBUG
+--            in -- DEBUG
+-----
+         
+-----
+--         let done_debug : String = 'Proceeding'.debug('MSG') in -- DEBUG
+-----
+
+         -- Operation call not scheduled yet
+         --    Take a reservation from stock for the current call
+         let selectedReservation : HADLiIN!Reservation =
+            self.reservations->asSet()
+               ->intersection(self.owningInstruction.getStock())
+               ->select(r| r.stage.isAfterOrSame(self.sourceStage))
+               ->asSequence()
+               ->iterate(r; acc : HADLiIN!Reservation = OclUndefined|
+                     if acc.oclIsUndefined() then
+                        r
+                     else if r.stage.isAfterOrSame(acc.stage) then
+                        acc
+                     else
+                        r
+                     endif endif
+                  )
+            in
+
+         -- Remove fitting reservations from stock
+         let dummyStock : OclAny =
+            if not selectedReservation.oclIsUndefined() then -- FIXME
+               self.owningInstruction.removeFromStock(selectedReservation)
+            else
+               OclUndefined
+            endif
+            in
+         let dummyPop : OclAny =
+            thisModule.refSetValue('callStack', thisModule.callStack->excluding(self))
+            in
+
+-----
+--         let done_debug : String = -- DEBUG
+--            ( -- DEBUG
+--               'Done ' + self.component.name + '.' + self.calledOperation.name + -- DEBUG
+--               ' in instruction ' + self.owningInstruction.name + -- DEBUG
+--               if not selectedReservation.oclIsUndefined() then -- DEBUG
+--                  ' stage = ' + selectedReservation.stage.name + ' port = ' + selectedReservation.port.name -- DEBUG
+--               else -- DEBUG
+--                  'unmapped' -- DEBUG
+--               endif -- DEBUG
+--            ).debug('MSG') -- DEBUG
+--            in -- DEBUG
+-----
+
+         selectedReservation
+      endif;
+
+--------------------------------------------------------------------------------
+-- Analysis of dependence chains
+--------------------------------------------------------------------------------
+
+helper context HADLiIN!DependencyStatement def:
+   localSourceVariables : Set(HADLiIN!Variable) =
+      self.sourceVariables->select(v| not v.isGlobal);
+
+helper context HADLiIN!DependencyStatement def:
+   getSourceDependencies() : Set(HADLiIN!DependencyStatement) =
+      HADLiIN!DependencyStatement.allInstances()
+         ->select(d| d.owningInstruction = self.owningInstruction)
+         ->select(d| self.localSourceVariables->includes(d.targetVariable))
+         ->select(d| self.isRelatedTo(d));
+
+helper context HADLiIN!DependencyStatement def:
+   isRelatedTo(other : HADLiIN!DependencyStatement) : Boolean =
+      let sameOperationCall : Boolean =
+         not self.owningOperationCall.oclIsUndefined() and
+         other.owningOperationCall = self.owningOperationCall in
+      let sameBehavior : Boolean =
+         not self.owningBehavior.oclIsUndefined() and
+         other.owningBehavior = self.owningBehavior in
+      let opParentOp : Boolean =
+         if not self.owningOperationCall.oclIsUndefined() then
+            not self.owningOperationCall.owningOperationCall.oclIsUndefined() and
+            self.owningOperationCall.owningOperationCall = other.owningOperationCall
+         else
+            false
+         endif in
+      let opParentFg : Boolean =
+         if not self.owningOperationCall.oclIsUndefined() then
+            not self.owningOperationCall.owningBehavior.oclIsUndefined() and
+            self.owningOperationCall.owningBehavior = other.owningBehavior
+         else
+            false
+         endif in
+      let opChildOp : Boolean =
+         if not self.owningOperationCall.oclIsUndefined() then
+            self.owningOperationCall.body
+               ->select(s| s.oclIsKindOf(HADLiIN!OperationCall))
+               ->exists(s| s.body->includes(other))
+         else
+            false
+         endif in
+      let opParOpSibOp : Boolean =
+         if not self.owningOperationCall.oclIsUndefined() then
+            if not self.owningOperationCall.owningOperationCall.oclIsUndefined() then
+               self.owningOperationCall.owningOperationCall.body
+                  ->includes(other.owningOperationCall)
+            else
+               false
+            endif
+         else
+            false
+         endif in
+      let opParFgSibOp : Boolean =
+         if not self.owningOperationCall.oclIsUndefined() then
+            if not self.owningOperationCall.owningBehavior.oclIsUndefined() then
+               self.owningOperationCall.owningBehavior.statements
+                  ->includes(other.owningOperationCall)
+            else
+               false
+            endif
+         else
+            false
+         endif in
+      let opParFgSibFg : Boolean =
+         if not self.owningOperationCall.oclIsUndefined() then
+            if not self.owningOperationCall.owningBehavior.oclIsUndefined() then
+               self.owningOperationCall.owningBehavior.chunks
+                  ->includes(other.owningBehavior)
+            else
+               false
+            endif
+         else
+            false
+         endif in
+      let fgParentFg : Boolean =
+         if not self.owningBehavior.oclIsUndefined() then
+            not self.owningBehavior.owningBehavior.oclIsUndefined() and
+            self.owningBehavior.owningBehavior = other.owningBehavior
+         else
+            false
+         endif in
+      let fgChildOp : Boolean =
+         if not self.owningBehavior.oclIsUndefined() then
+            self.owningBehavior.statements
+               ->select(s| s.oclIsKindOf(HADLiIN!OperationCall))
+               ->exists(s| s.body->includes(other))
+         else
+            false
+         endif in
+      let fgChildFg : Boolean =
+         if not self.owningBehavior.oclIsUndefined() then
+            self.owningBehavior.chunks
+               ->exists(s| s.statements->includes(other))
+         else
+            false
+         endif in
+      let fgParFgSibOp : Boolean =
+         if not self.owningBehavior.oclIsUndefined() then
+            if not self.owningBehavior.owningBehavior.oclIsUndefined() then
+               self.owningBehavior.owningBehavior.statements
+                  ->includes(other.owningOperationCall)
+            else
+               false
+            endif
+         else
+            false
+         endif in
+      let fgParFgSibFg : Boolean =
+         if not self.owningBehavior.oclIsUndefined() then
+            if not self.owningBehavior.owningBehavior.oclIsUndefined() then
+               self.owningBehavior.owningBehavior.chunks
+                  ->includes(other.owningBehavior)
+            else
+               false
+            endif
+         else
+            false
+         endif in
+
+      -- TODO other cases ???
+
+      sameOperationCall or sameBehavior or
+      opParentOp or opParentFg or fgParentFg or
+      opChildOp or fgChildOp or fgChildFg or
+      opParOpSibOp or opParFgSibOp or opParFgSibFg or
+      fgParFgSibOp or fgParFgSibFg;
+
+helper context HADLiIN!DependencyStatement def:
+   getSourceOperationCalls(origin : HADLiIN!OperationCall) : Set(HADLiIN!OperationCall) =
+      if not self.owningOperationCall.oclIsUndefined() then
+         if self.owningOperationCall <> origin then
+            Sequence{self.owningOperationCall}
+         else
+            self.getSourceDependencies()
+               ->collect(d| d.getSourceOperationCalls(origin))
+               ->flatten()
+         endif
+      else
+         self.getSourceDependencies()
+            ->collect(d| d.getSourceOperationCalls(origin))
+            ->flatten()
+      endif;
+
+--------------------------------------------------------------------------------
+-- Get the instruction that owns a given statement
+--------------------------------------------------------------------------------
+
+helper context HADLiIN!Statement def:
+   owningInstruction : HADLiIN!Instruction = self.getOwningInstruction();
+
+helper context HADLiIN!Statement def:
+   getOwningInstruction() : HADLiIN!Instruction =
+      if not self.owningOperationCall.oclIsUndefined() then
+         self.owningOperationCall.getOwningInstruction()
+      else if not self.owningBehavior.oclIsUndefined() then
+         self.owningBehavior.getOwningInstruction()
+      else -- if not self.owningForStatement.oclIsUndefined()
+         self.owningForStatement.getOwningInstruction()
+      endif endif;
+
+helper context HADLiIN!Behavior def:
+   getOwningInstruction() : HADLiIN!Instruction =
+      if not self.owningInstruction.oclIsUndefined() then
+         self.owningInstruction
+      else -- if not self.owningBehavior.oclIsUndefined() then
+         self.owningBehavior.getOwningInstruction()
+      endif;
+
+--------------------------------------------------------------------------------
+-- Get information about stage ordering
+--------------------------------------------------------------------------------
+
+helper context HADLiIN!Stage def:
+   indexInPipeline : Integer =
+      self.owningPipeline.stages->indexOf(self);
+
+helper context HADLiIN!Stage def:
+   isAfterOrSame(other : HADLiIN!Stage) : Boolean =
+      self.indexInPipeline >= other.indexInPipeline;
+      
+--------------------------------------------------------------------------------
+-- Straightforward copy rules
+--------------------------------------------------------------------------------
+
+rule TModel {
+   from src : HADLiIN!Model
+   to dest : HADLiOUT!Model (
+         name <- src.name,
+         architectures <- src.architectures,
+         pipelines <- src.pipelines,
+         components <- src.components
+      )
+}
+
+rule TComponent { 
+   from src : HADLiIN!Component 
+   to dest : HADLiOUT!Component (
+         name <- src.name,
+         operations <- src.operations
+      )
+}
+
+rule TOperation { 
+   from src : HADLiIN!Operation 
+   to dest : HADLiOUT!Operation (
+         name <- src.name,
+         isExternal <- src.isExternal
+      )
+}
+
+rule TPipeline { 
+   from src : HADLiIN!Pipeline 
+   to dest : HADLiOUT!Pipeline (
+         name <- src.name,
+         architecture <- src.architecture,
+         stages <- src.stages,
+         instructions <- src.instructions
+      )
+}
+
+rule TExpandedPort { 
+   from src : HADLiIN!ExpandedPort 
+   to dest : HADLiOUT!ExpandedPort (
+         name <- src.name,
+         component <- src.component,
+         operations <- src.operations
+      )
+}
+          
+rule TExpandedPortActivation {
+   from src : HADLiIN!ExpandedPortActivation
+   to dest : HADLiOUT!ExpandedPortActivation (
+         port <- src.port,
+         releaseStage <- src.releaseStage,
+         bypassStages <- src.bypassStages
+      )
+}
+
+rule TInstruction { 
+   from src : HADLiIN!Instruction 
+   to dest : HADLiOUT!Instruction (
+         name <- src.name,
+         root <- src.root
+      )
+}
+

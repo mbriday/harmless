@@ -1,0 +1,5 @@
+%#This 'tool' template is NOT called by the root template.
+
+write to MODELNAME."/getCoordFromDot.py":
+  template getCoordFromDot_py in timing
+end write

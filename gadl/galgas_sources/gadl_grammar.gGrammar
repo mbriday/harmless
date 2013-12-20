@@ -1,0 +1,21 @@
+indexing grammar gadl_grammar "LL1":
+#--- References to syntax components used when source file extension is .gGrammar
+#    Theses constructs are silently parsed when source file extension is .ggs
+with "gadl_syntax.gSyntax" ;
+with "gadl_expression_parser.gSyntax" ;
+with "gadl_implementation_parser.gSyntax" ;
+with "gadl_instruction_syntax_parser.gSyntax" ;
+with "gadl_instruction_behavior_parser.gSyntax" ;
+with "gadl_instruction_format_parser.gSyntax" ;
+with "gadl_instruction_cycle_parser.gSyntax" ;
+with "gadl_hard_component_parser.gSyntax" ;
+with "gadl_hard_pipeline_parser.gSyntax" ;
+with "gadl_hard_arch_parser.gSyntax" ;
+with "gadl_peripherals_parser.gSyntax" ;
+with "gadl_default_parser.gSyntax" ;
+with "gadl_timing_parser.gSyntax" ;
+
+root <start_symbol> ;
+
+end grammar ;
+# vim:ft=ggs:ts=2:sw=2

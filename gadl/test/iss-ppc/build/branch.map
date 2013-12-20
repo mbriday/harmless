@@ -1,0 +1,61 @@
+
+Configuration m'emoire
+
+Nom              Origine            Longueur           Attributs
+IT_sect          0x0000000000000000 0x0000000000003000 ax
+ram              0x0000000000003000 0x0000000001000000 axw
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Script de l''editeurs de liens and table de projection m'emoire
+
+LOAD /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccfaF8L1.o
+                0x0000000000019000                STACK_SIZE = 0x19000
+                0x0000000000000000                . = ALIGN (0x4)
+
+.text           0x0000000000003000       0x40
+ *(.text)
+ .text          0x0000000000003000       0x30 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccfaF8L1.o
+                0x0000000000003000                main
+ .text          0x0000000000003030       0x10 build/crt0.o
+                0x0000000000003030                _start
+ *(.rodata)
+
+.rela.dyn       0x0000000000000000        0x0
+ .rela.text     0x0000000000000000        0x0 build/crt0.o
+                0x0000000000000000                . = ALIGN (0x4)
+
+.data           0x0000000000003040       0x34
+ *(.sdata)
+ *(.data)
+ .data          0x0000000000003040       0x34 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccfaF8L1.o
+ .data          0x0000000000003074        0x0 build/crt0.o
+                0x0000000000003074                . = ALIGN (0x4)
+
+.bss            0x0000000000003074       0x2c
+ *(.sbss*)
+ *(.bss)
+ .bss           0x0000000000003074       0x2c /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccfaF8L1.o
+ .bss           0x00000000000030a0        0x0 build/crt0.o
+                0x000000000001c0a0                . = (. + STACK_SIZE)
+                0x000000000001c09c                . = (ALIGN (0x4) - 0x4)
+                0x000000000001c09c                end = .
+                0x000000000001c09c                _init_sp = .
+
+.vector
+ *(.vectorPI)
+ *(.vectorSC)
+LOAD build/crt0.o
+OUTPUT(build/branch.elf elf32-powerpc)
+
+.debug_line     0x0000000000000000       0x4e
+ .debug_line    0x0000000000000000       0x4e /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccfaF8L1.o
+
+.debug_info     0x0000000000000000       0x7f
+ .debug_info    0x0000000000000000       0x7f /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccfaF8L1.o
+
+.debug_abbrev   0x0000000000000000       0x14
+ .debug_abbrev  0x0000000000000000       0x14 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccfaF8L1.o
+
+.debug_aranges  0x0000000000000000       0x20
+ .debug_aranges
+                0x0000000000000000       0x20 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccfaF8L1.o

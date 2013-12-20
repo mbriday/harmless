@@ -1,0 +1,63 @@
+digraph timingSimulationStep_%!timingPart::name% {
+%
+#define nodes
+let id := 0
+foreach step in timingPart::timingStepList do
+  %"%!id%" [label="step %!id%:%
+  #0 -> can resume  : green
+  #1 -> may resume  : orange
+  #2 -> should stop : red
+  let canResume := 0
+  #updates...
+  foreach update in step::updateListUppaal
+  before %update (%
+  do !update::str
+  between %, %
+  after %)%
+  end foreach
+  #wait xx cycles
+  foreach wait in step::waitCycles
+  before
+    let canResume := 2 #should stop.
+    %wait %
+  do !wait::exp
+  between %+%
+  after % cycles%
+  end foreach
+  #or synchro wait
+  foreach synchro in step::synchroInList 
+  before let canResume := 1 #may stop.
+  do %wait signal %!synchro::str
+  end foreach
+  #or synchro emit
+  foreach synchro in step::synchroOutList
+  before let canResume := 1 #may stop.
+  do %emit signal %!synchro::str
+  end foreach
+  #or synchro emit
+  foreach synchro in step::synchroOutBroadcastList
+  before let canResume := 0 #can resume
+  do %emit broadcast signal %!synchro::str
+  end foreach
+  %", color=%
+  if canResume == 0 then %green%
+  elsif canResume == 1 then %orange%
+  else %red%
+  end if
+  %]\n%
+  let id := id + 1
+end foreach
+#define transitions
+let id := 0
+foreach step in timingPart::timingStepList do
+  if exists step::singleDest then #easy, no condition.
+    %"%!id%"->"%!step::singleDest%"\n%
+  else #more than one condition
+    foreach next in step::nextList do
+      %"%!id%"->"%!next::nextId%"\n%
+    end foreach
+  end if
+  let id := id + 1
+end foreach
+
+%}

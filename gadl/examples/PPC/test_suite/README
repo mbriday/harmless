@@ -1,0 +1,36 @@
+This directory contains various tests for the PowerPC model of Harmless.
+
+*********************************************************************************
+* test_behavior.py
+This script is used to test the behavior of the generated PowerPC model agains the builtin simulator of GDB (PSIM).
+It compare only the ISS simulator (functional).
+To do this, it checks for program examples in the test_codes/ directory. For each file, it:
+	* compile or assemble it if required (.s or .c file). .elf files can also be used.
+	* simulate the program using Harmless, printing the value of registers after each instruction;
+	* simulate the program using gdb, printing same data;
+	* compare the output of both simulators. They should be equal...
+
+This script require the presence of gcc as a cross compiler (powerpc-elf-gcc) and gdb installed.
+To give access to these tools, you should export the prefix:
+
+export PPC_XTOOLS=/usr/local/powerpc/bin/powerpc-elf-
+
+(gcc will be used as $(PPC_XTOOLS)gcc, gdb as $(PPC_XTOOLS)gdb and so on.)
+
+*********************************************************************************
+* mibench/mibench.py
+This directory contains the mibench suite (http://www.eecs.umich.edu/mibench/Publications/MiBench.pdf), slightly modified to compile for Harmless (modifications are before the main loop, because one cannot set arguments to programs (argc/argv).. This is for deeply embedded systems.
+
+mibench does not require to have the gcc cross-compiler installed, as binary .elf files are provided. If they are not present, they will be rebuilt by the script.
+
+
+*********************************************************************************
+* test_stack/test_stack.py
+This directory contains basic tests to test the task detection algorithm implemented in Harmless (http://www.irccyn.ec-nantes.fr/~briday/BBA-SIES-11.pdf).
+This algorithm is not compiled in by default. Before compiling the Harmless simulator, the Makefile should be updated: uncomment the 2 lines:
+#DEFINES += -DGADL_SP_CHECK_ALLOWED
+#DEFINES += -DGADL_SP_FAILURE_CHECK_ALLOWED
+and recompile the simulator with (make python).
+ (see DEFINES keyword).
+
+

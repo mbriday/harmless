@@ -1,0 +1,89 @@
+pour i = 1000 :
+
+Qemu simulation ...
+
+real	0m0.115s
+user	0m0.049s
+sys	0m0.031s
+
+
+Harmless simulation ...
+PC : 00010010
+
+real	0m0.465s
+user	0m0.192s
+sys	0m0.239s
+
+
+pour i = 10000 :
+
+Qemu simulation ...
+
+real	0m0.113s
+user	0m0.048s
+sys	0m0.031s
+
+
+Harmless simulation ...
+PC : 00010010
+
+real	0m0.570s
+user	0m0.298s
+sys	0m0.241s
+
+
+pour i = 100000 :
+
+Qemu simulation ...
+
+real	0m0.114s
+user	0m0.053s
+sys	0m0.031s
+
+
+Harmless simulation ...
+PC : 00010010
+
+real	0m1.605s
+user	0m1.342s
+sys	0m0.242s
+
+
+pour i = 1000000 :
+
+Qemu simulation ...
+
+real	0m0.147s
+user	0m0.085s
+sys	0m0.033s
+
+
+Harmless simulation ...
+PC : 00010010
+
+real	0m12.067s
+user	0m11.777s
+sys	0m0.238s
+
+# arm_opt standalone
+#nb instructions : 148633923 (0 cycle/inst).
+#real	0m6.110s
+#user	0m6.072s
+#sys	0m0.024s
+
+
+pour i = 10000000 :
+
+Qemu simulation ...
+
+real	0m0.502s
+user	0m0.436s
+sys	0m0.035s
+
+
+Harmless simulation ...
+PC : 00010010
+
+real	2m0.146s
+user	1m59.753s
+sys	0m0.347s

@@ -1,0 +1,152 @@
+semantics gadl_semantics_expression_const:
+  import "gadl_semantics_expression.gSemantics";
+
+#this method is used to reduce an expression:
+#it tests if operands are constants
+# 2+3<<1   should return true
+# 3+4*toto should return false
+abstract method @cExpression isConst
+  ! @bool constant
+;
+
+override method @cExpDummy isConst
+  ! @bool constant
+:
+  constant := false;
+end method;
+
+override method @cExpInstructionSize isConst
+  ! @bool constant
+:
+  constant := true;
+end method;
+
+override method @cExpInstructionAddress isConst
+  ! @bool constant
+:
+  constant := true;
+end method;
+
+override method @cIdf isConst
+  ! @bool constant
+:
+  constant := [var constant];
+end method;
+
+override method @cTabIndice isConst
+  ! @bool constant
+:
+  constant := false;
+end method;
+override method @cTypeTabMember isConst
+  ! @bool constant
+:
+  constant := false;
+end method;
+
+override method @cTypeMember isConst
+  ! @bool constant
+:
+  constant := false;
+end method;
+
+override method @cTypeTag isConst
+  ! @bool constant
+:
+  constant := false;
+end method;
+
+override method @cTypeExtend isConst
+  ! @bool constant
+:
+  constant := false;
+end method;
+
+
+override method @cCast isConst
+  ! @bool constant
+:
+  [expression isConst ?constant];
+end method;
+
+override method @cBitFieldOp isConst
+  ! @bool constant
+:
+  [expField isConst ?constant];
+end method;
+
+override method @cSliceFieldOp isConst
+  ! @bool constant
+:
+  constant := true;
+end method;
+
+override method @cIntConst isConst
+  ! @bool constant
+:
+  constant := true;
+end method;
+
+override method @cUnaryOp isConst
+  ! @bool constant
+:
+  [exp isConst ?constant];
+end method;
+
+override method @cBinaryBasicOp isConst
+  ! @bool constant
+:
+  @bool constRight;
+  @bool constLeft;
+  [expLeft isConst ?constRight];
+  [expRight isConst ?constLeft];
+  constant := constRight & constLeft;
+end method;
+
+override method @cRotationOp isConst
+  ! @bool constant
+:
+  @bool constRight;
+  @bool constLeft;
+  [expLeft isConst ?constRight];
+  [expRight isConst ?constLeft];
+  constant := constRight & constLeft;
+end method;
+
+override method @cXorOp isConst
+  ! @bool constant
+:
+  @bool constRight;
+  @bool constLeft;
+  [expLeft isConst ?constRight];
+  [expRight isConst ?constLeft];
+  constant := constRight & constLeft;
+end method;
+
+override method @cCatOp isConst
+  ! @bool constant
+:
+  @bool constRight;
+  @bool constLeft;
+  [expLeft isConst ?constRight];
+  [expRight isConst ?constLeft];
+  constant := constRight & constLeft;
+
+end method;
+
+import "gadl_components.gSemantics";
+override method @cComponentMethod isConst
+  ! @bool constant
+:
+  constant := false;
+end method;
+
+import "gadl_semantics_function.gSemantics";
+override method @cfunctionCall isConst
+  ! @bool constant
+:
+  constant := false;
+end method;
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

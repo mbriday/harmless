@@ -1,0 +1,223 @@
+\newpage
+\section{Description de la micro-architecture}
+
+%ISS/CAS présenté avant. Bref rappel.
+La description du jeu d'instruction qui a été traitée dans le chapitre \ref{chap:jeuInstruction} permet de générer un simulateur fonctionnel, \cad que le simulateur généré sera capable de lire, désassembler et exécuter un programme à partir de son code objet. Cependant, aucune information temporelle n'est disponible. La description de la micro architecture du processeur  permet, avec l'aide du jeu d'instruction préalablement décrit, de générer un \emph{simulateur précis temporellement}.
+
+Ce chapitre traite de la modélisation des aspects architecturaux dans le cadre de la génération automatique d'un simulateur précis \emph{au cycle près}. 
+
+Nous présentons ici dans un premier temps le cadre général d'utilisation du simulateur, légèrement différent des objectifs des langages de description d'architecture comme EXPRESSION ou LISA. Nous nous intéressons dans un deuxième temps à la manière de présenter les informations temporelles sous forme de contraintes à travers les \emph{ressources} internes et externes. %TODO exemple avec le pipeline simple.
+
+%présentations du plan
+Le pipeline est l'élément central du coeur d'un processeur et intervient dans une large partie sur le comportement temporel de celui-ci\footnote{La hiérarchie mémoire est aussi un point important et est abordée dans la section \ref{sec:mem}.}. 
+
+
+\subsection{Principe de base du pipeline}
+
+
+%parler que ce concentrer sur la partie pipeline est importante, car chaque instruction passe par un nombre conséquent d'étages de pipeline, et sollicite dans une moindre mesure la partie mémoire. Il est donc indispensable, pour obtenir une vitesse de simulation importante, de se concentrer sur la modélisation du pipeline.
+
+
+
+%\subsection{Principe de base du pipeline}
+
+%%%%%%%%%%%%%%%%% debut copie.
+Cette section traite du principe de base d'un pipeline, en insistant sur l'incidence temporelle du comportement de celui-ci. Un processeur exécute les instructions du programme les unes à la suite des autres. Le pipeline repose sur le fait que l'exécution des instructions peut être décomposée en plusieurs étapes élémentaires. 
+%TODO:intro moins rapide..
+Nous nous appuierons dans cette section sur un exemple d'un processeur fictif basé sur une architecture RISC\footnote{Les processeurs RISC (\textsl{Reduced Instruction Set Computer} se basent, contrairement aux processeur CISC (\textsl{Complex Instruction Set Computer}), sur un nombre réduit d'instructions de longueur fixe, une utilisation poussée des registres avec seulement quelques instructions permettant l'accès à la mémoire. Leur utilisation est particulièrement adaptée au pipeline.} avec un découpage en cinq étapes: 
+\begin{description}
+\item[Fetch:] cette étape permet de récupérer le code de l'instruction dans la mémoire (ou le cache d'instruction);
+\item[Decode:] cette étape s'occupe du décodage de l'instruction;
+\item[Execution:] cette étape s'occupe de l'exécution à proprement parler de l'instruction (Unité Arithmétique et logique, calcul flottant);
+\item[Mem:] Cette étape fait un accès en mémoire (pour les instruction de chargement / enregistrement (\emph{load/store}));
+\item[Write Back:] cette étape permet de mettre à jour les registres.
+\end{description}
+Afin d'augmenter la vitesse d'exécution du processeur, on utilise un \emph{pipeline} qui permet de paralléliser l'exécution de plusieurs instructions et ainsi augmenter le débit d'instructions. On réduit ainsi le temps moyen par instruction (le CPI moyen\footnote{nombre de Cycles Par Instruction.}). D'après le schéma \ref{fig:pipelineDeBase}, on peut voir que l'on augmente le débit d'instructions en faisant chevaucher plusieurs instructions.
+\begin{figure} [h]
+        \begin{center}
+                \includegraphics[width=0.8\linewidth]{./images/pipelineDeBase.pdf}
+                \caption{Schéma de principe d'un pipeline de base à 5 étages}
+                \label{fig:pipelineDeBase}
+        \end{center}
+\end{figure}
+
+Chaque instruction nécessite alors idéalement un cycle pour chacune de ces étapes (cinq cycles dans cet exemple), mais comme une unité est affectée pour chaque étape, autant d'instructions peuvent être réalisées en même temps (soit cinq instructions en même temps dans notre exemple). Dans le meilleur des cas, on obtient alors un CPI de 1. Cependant,  certains cas peuvent perturber le pipeline, \emph{les aléas}.
+
+\subsubsection{Différentes catégories d'aléas}
+\label{sec:pipelineAlea}
+Il y a différents cas de figures qui peuvent venir perturber le bon déroulement du pipeline. Ces aléas ont été traités en trois catégories principales:
+\begin{itemize}
+\item les \emph{aléas structurels} proviennent d'un manque de ressources. Il n'est pas possible pour le processeur de gérer correctement le recouvrement des instructions. Par exemple on essaie d'accéder à de la mémoire à la fois en écriture et en lecture...
+\item les \emph{aléas de données} interviennent quand une instruction dépend du résultat de l'instruction précédente;
+\item les \emph{aléas de contrôle} interviennent lors des branchements et des autres instructions qui modifient le compteur programme PC.
+\end{itemize}
+Il y a alors besoin de gérer de la manière la plus efficace possible ces aléas afin de ne pas retarder le pipeline. En effet, en cas d'aléas, il est nécessaire d'insérer des \emph{bulles} (ou suspensions) afin que le pipeline puisse continuer correctement. Ces suspensions sont autants de cycles perdus.
+
+\subsubsection{Les aléas structurels}
+Les aléas structurels sont causés par le manque de ressources du processeur.  Un aléa survient par exemple lors du recouvrement des étapes \texttt{fetch} et \texttt{mem access}. Ici, on a accès à la mémoire en lecture pour lire l'instruction suivante, et en lecture ou écriture dans l'étage \texttt{mem access}. Dans ce cas simple, un recours à deux mémoires cache (\emph{cache instruction} et \emph{cache de données}) permet de découpler les deux accès. Pour éviter ce genre d'aléas, on utilise généralement la duplication des ressources, ce qui augmente la quantité de matériel.
+
+\subsubsection{Les aléas de données}
+On rencontre dans les aléas de données plusieurs types de dépendances entre les données. Soit deux instructions \emph{i} et \emph{j} consécutives:
+\begin{description}
+\item[LAE (lecture après écriture):] l'instruction \emph{j} essaie de lire une donnée avant que l'instruction \emph{i} ne l'ai écrite. C'est le cas le plus courant. (\textsl{RAW: Read After Write} en anglais);
+\item[EAE (écriture après écriture):] l'instruction \emph{j} essaie d'écrire une donnée avant que l'instruction \emph{i} ne l'ait écrite. Les écritures ne se font pas dans le bon ordre. Cet aléa ne se produit que s'il y a plus d'un étage qui autorise l'écriture, ou en cas d'exécution dans le désordre.(\textsl{WAW: Write After Write} en anglais);
+\item[EAL (écriture après lecture):] l'instruction \emph{j} tente une écriture avant que l'instruction \emph{j} n'ait lu sa donnée.(\textsl{WAR: Write After Read} en anglais).
+\end{description}
+
+Plusieurs recours pour réduire l'influence des aléas de données sont disponibles, comme des raccourcis matériels (ou court-circuits ou dérivation), une optimisation du compilateur, du renommage de registre, \ldots
+
+\subsubsection{Les aléas de contrôle}
+\label{annexe:branchement}
+Avec l'utilisation des pipelines, les branchements du programme occasionnent des aléas et ralentissent en conséquence le fonctionnement du processeur. En effet, lors d'un branchement, les instructions qui ont commencé à être exécutées doivent être abandonnées: il est nécessaire de suspendre le pipeline (en insérant des bulles). En général, plus le pipeline est profond et plus le délai de branchement en temps de cycles est élevé. Pour augmenter la vitesse des processeurs, les étages de pipeline sont de plus en plus courts et les pipelines de plus en plus longs. L' Intel \textsl{Pentium IV} possède un pipeline à 20 étages, soit le double que son prédécesseur le \textsl{Pentium III}.
+Plusieurs techniques ont été développées afin de diminuer au maximum les suspensions relatives aux instructions de saut, en détectant les branchement au plus tôt dans le pipeline, en utilisant des algorithmes de prédictions de branchement statique ou dynamique combinés à une exécution spéculative des instructions. 
+
+%%%%%%%%%%%%%%%%%%%%%%%% fin copie.
+
+\subsection{Description et modélisation du pipeline simple}
+Le comportement temporel des instructions à travers le pipeline est difficile à déterminer à cause des aléas qui influent dynamiquement sur les latences du pipeline. Il est impératif de prendre en compte ces contraintes lors de l'élaboration d'un simulateur précis au cycle près. 
+À partir de la description rapide du principe d'un pipeline dans les sections précédentes, on peut ajouter les diverses améliorations qui ont été proposées au cours du temps, améliorations qui ont pour objectif d'accélérer la vitesse de traitement des instructions (augmentation de la longueur des pipelines par exemple), et aussi de limiter les pertes de performances liées aux différents aléas. On peut citer par exemple:
+\begin{itemize}
+\item l'ajout de prédicteurs de branchement / exécution spéculative pour limiter les aléas de contrôle;
+\item l'ajout de matériel pour limiter les aléas structurels;
+\item l'utilisation du renommage de registre pour limiter les aléas de données;
+\item l'ajout d'unité fonctionnelles, permettant l'exécution parallèle d'instructions (superscalaires) avec exécution ordonnée ou non, ...
+\end{itemize}
+
+Ces améliorations entraînent une diminution du CPI (Cycles Par Instruction), au détriment du déterminisme temporel. Dans tous les cas, on peut se ramener, dans un premier temps, à un pipeline simple, auquel il faudra ajouter un certain nombre de propriétés en fonctions des améliorations à ajouter. %Par exemple, un pipeline superscalaire peut être présenté comme un ensemble de pipelines simples interconnectés qui sont gérés de manière indépendante. Une étude supplémentaire est cependant indispensable pour modéliser la table de réservation et le tampon de réordonnancement. 
+
+Nous nous intéressons dans un premier temps à la manière de décrire un pipeline simple, pour aborder dans un deuxième temps une modélisation de haut niveau, mais temporellement correcte du comportement du pipeline.
+
+\subsubsection{Description du pipeline simple}
+\label{sec:descPipeline}
+%Dans un premier temps, pipeline simple.
+Par la suite, nous nous intéressons à un pipeline le plus simple possible, linéaire, de longueur indifférente et sans aléa. Nous ajoutons alors des \emph{contraintes temporelles} introduites par les aléas. Nous distinguons deux types de contraintes:
+\begin{itemize}
+\item les \emph{ressources internes} sont des \emph{contraintes statiques} qui peuvent être définies statiquement lors d'une première phase d'analyse, pour un instant donné. Ce genre de contrainte est intéressant car un certain nombre de calculs peuvent être pré-calculés, et n'engendre alors que très peu de charge processeur à l'exécution (lors de la simulation);
+\item les \emph{ressource externes} sont des \emph{contraintes dynamiques} qui sont définies au cours de la simulation, soit parce qu'elles sont dépendantes des données, soient parce qu'elles inter-agissent avec d'autres composants concurrents (le contrôleur mémoire est un exemple).
+\end{itemize}
+
+\paragraph{Ressource interne}
+Les ressource internes sont principalement utilisées pour modéliser les aléas structurels. Comme le champ de ces ressources est limité aux contraintes qui sont complètement sous le contrôle du pipeline, seules les instructions qui sont dans le pipeline peuvent \emph{prendre} ou \emph{relacher} une ressource interne. 
+
+Quand l'état du pipeline est connu (\cad que les instructions présentes dans chaque étage de pipeline sont définies), alors l'état de chaque ressource interne est complètement défini (\emph{prise} ou \emph{relachée}). 
+
+Par exemple, chaque étage de pipeline est modélisé sous la forme d'une ressource interne. Dès qu'une instruction entre dans un étage, elle prend la \emph{ressource interne} associée. Elle relache cette ressource lorsqu'elle quitte l'étage. La contrainte ajoutée dans notre description du pipeline est alors que \emph{chaque étage de pipeline peut contenir au plus une seule instruction}. 
+
+\paragraph{Ressource externe}
+Les ressources externes sont utilisées pour décrire les ressources qui sont \emph{partagées} avec d'autres composants matériels qui évoluent concurremment, comme un \textsl{timer} ou un contrôleur mémoire. Les ressources externes sont alors une extension des \emph{ressources internes} pour décrire des \emph{contraintes dynamiques}. Par exemple, avec un contrôleur de mémoire, le pipeline est bloqué s'il fait une requête au contrôleur et que celui-ci est occupé (par un autre processeur par exemple, ou un DMA, ...). Si le contrôleur mémoire est disponible, l'étage de pipeline qui a fait la requête peut alors prendre la ressource.
+
+Si une ressource externe peut être prise par une instruction dans plus d'un étage de pipeline, une priorité est mise en place entre les étages. Par exemple, deux étages de pipeline peuvent être en compétition pour un accès mémoire sur un micro-contrôleur avec un pipeline simple, sans cache de donnée et d'instruction.
+
+\paragraph{Instructions}
+Au niveau de la description du pipeline, les instructions peuvent être regroupées suivant lors comportement temporel. Ceui-ci est directement lié aux ressources qui vont être prises et relâchées au cours de l'execution de ces instructions dans les différents étages de pipeline. Ainsi les instructions qui utilisent les \emph{même ressources} (internes et externes) sont regroupées pour former des \emph{classes d'instructions}. Ceci n'est pas du tout en rapport avec les instruction qui ont un \emph{comportement} proche. Par exemple les instructions \texttt{ADD Rd, Rs1, Rs2} et  \texttt{AND Rd, Rs1, Rs2} utilisent les mêmes ressources (accès mémoire, ALU) et sont par conséquent dans la même classe d'instruction, cependant, leurs comportements sont différents.
+
+
+\subsubsection{Modélisation du pipeline simple sous forme d'automates d'état finis}
+La description qui a été présentée ici est fortement liée au modèle sous jacent utilisé pour la simulation, c'est pourquoi une introduction du modèle de pipeline est présenté ici, afin de mieux aborder les notions de ressource internes et externes présentées dans la section précédente.
+
+\paragraph{Intérêt}
+La modélisation du pipeline simple qui a été choisie est celle des \emph{automates d'états finis}. L'utilisation d'automates pour la modélisation des pipelines a plusieurs avantages:
+\begin{itemize}
+\item certaines contraintes sont résolues au moment de la génération de l'automate, \cad au moment de la génération du simulateur. Cette propriété intéressante signifie que des calculs sont effectués une fois pour toute, sans ralentir ensuite la simulation;
+\item la transformation d'un automate en code exécutable est particulièrement efficace. Au niveau du code généré, passer d'un état à un autre revient à lire une valeur dans une table, ce qui est très rapide, contrairement à d'autres modèles comme les réseaux de Petri;
+\item Le temps d'accès au prochain état de l'automate est en temps constant, et ainsi la vitesse de simulation de l'automate n'est pas dépendante du nombre d'états de l'automate. Ceci reste toutefois à relativiser avec l'utilisation de la mémoire cache de la machine hôte.
+\end{itemize}
+
+\paragraph{Des états}
+Un état de l'automate représente l'état du pipeline à un cycle donné, comme l'illustre la figure \ref{fig:pipelineState}.
+\begin{figure}		%% état d'automate.
+  \begin{center}
+    \includegraphics[width=0.6 \linewidth]{./images/pipelineState.pdf}
+    \caption{Un état de l'automate représente l'état du pipeline à une date donnée. Dans cet exemple avec un pipeline à 4 étages (F-D-E-W), 3 instructions sont dans le pipeline, et l'étage E a une suspension à la date {\sl t}.}
+    \label{fig:pipelineState}
+  \end{center}
+\end{figure}
+L'automate représente alors l'ensemble des scenarios possibles d'exécutions. Un état de l'automate est représenté par la liste de toutes les paires (classe d'instruction, étage de pipeline) dans le pipeline à un instant donné. Pour un système avec $c$ classes d'instructions, il y a alors $c+1$ cas possibles pour chaque étage $e$ de pipeline (chaque classe d'instruction, ou une suspension). L'automate est alors fini, car il y a au plus $(c+1)^{e}$ états. L'état initial est celui qui représente un pipeline vide.
+
+Par exemple, sur un modèle basé sur le jeu d'instruction du co-processeur RISC XGate du STAR12X  de FreeScale \cite{xgateUserMan}, avec un pipeline de 6 étages, 5 classes d'instructions sont nécessaires seulement (il y a 3 ressources externes). il y a donc au plus $46656$ états\footnote{La vraie architecture du co-processeur n'est composée que de 2 étages, et il n'y aurait que 36 états dans l'automate.}.
+
+\paragraph{Et des transitions}
+Une transition est franchie à chaque cycle d'horloge. Une transition dépend uniquement de:
+\begin{itemize}
+\item l'état des ressources externes (prises ou non);
+\item la classe de la prochaine instruction qui va entrer dans le pipeline;
+\end{itemize}
+
+Un intérêt majeur de cette approche réside dans le fait que les ressources internes, du fait de leur caractère statique, sont résolues directement au niveau de la génération de l'automate. Elles n'apparaissent par conséquent pas dans l'évaluation de la transition. Cette condition de transition (état des ressources externes et prochaine classe d'instruction) est appelée \emph{condition de transition basique}. Comme plusieurs conditions peuvent apparaître pour aller d'un étage à un autre, la condition de transition globale est alors une disjonction des conditions de transition basiques. 
+
+Le nombre de transitions est limité au maximum à $c \times 2^{R_{ext}}$ pour chaque état (où $R_{ext}$ est le nombre de ressources externes). Il y a donc au plus $(c+2)^{e} \times 2^{R_{ext}}$ transitions pour l'automate entier. 
+
+Pour notre exemple basé sur un co-processeur XGate et une architecture à 6 étages, on obtient alors 40 transitions possibles par états ($5 \times 2^{3}$). 
+
+La génération de l'automate sort du cadre de ce document, mais à fait l'objet d'une soumission à la conférence DATE'07 (Design, Automation and Test in Europe) à Nice. Certains problèmes apparaissent avec l'utilisation des automates, comme l'explosion combinatoire du nombre d'états lors de la génération quand la complexité du modèle devient importante. Le nombre d'états croît en effet exponentiellement en fonction de la taille du pipeline, et polynomialement en fonction du nombre de classes d'instruction. Ces problèmes sont actuellement envisagés, en optimisant d'une part les calculs et en réduisant la taille des automates, et en évaluant d'autre part la possibilité de couper un pipeline en 2 pipelines de plus faible longueur pour obtenir 2 automates plus petits.
+
+% à mettre dans la partie automata.
+%\subsection{Une exemple: résolution des aléas de données}
+%Par la nature dynamique des ressources externes, une propriété intéressante est la possibilité de vérifier les aléas de données. On utilise alors un \emph{contrôleur de dépendance des données}, auquel est associé une ressource externe. Supposons par exemple ici que les 2 premiers étages du pipeline soit l'étage \texttt{fetch}, suivi par l'étage \texttt{decode} qui lit les opérandes. L'interaction entre le \emph{contrôleur de dépendances de données} et l'instruction est présenté dans l'algorithme \ref{algo:dataDep}: Une instruction qui est dans l'étage \texttt{Fetch} envoie une \emph{requête} au contrôleur pour vérifier de la disponibilité des opérandes. Si au moins une opérande n'est pas disponible, la ressource externe associée passe à l'état \texttt{non disponible}. Lors de 
+
+%\begin{algorithm}
+%	\eIf{il y a une instruction dans l'étage Fetch \textbf{and} Cette instruction aura besoin d'opérandes dans l'étage Decode}{
+%			- L'instruction envoie une requête au contrôleur\;
+%			\eIf{Si au moins une opérande n'est pas disponible}{
+%				- la requête échoue: la ressource externe associée passe à l'état  \texttt{non disponible})\;
+%			}{
+%				- la requête est validée: la ressource externe associée passe à l'état \texttt{disponible})\;\;
+%			}
+%	}{
+%		- la requête est validée: la ressource externe associée passe à l'état \texttt{disponible})\;
+%	}	
+%	\label{algo:dataDep}
+%	\caption{Interaction entre le contrôleur de dépendance de données et une instruction durant la simulation.}
+%\end{algorithm}		 
+
+\subsection{Mapping des instructions sur les ressources matérielles}
+La relation entre les instructions et les ressources matérielles utilisées est intégrée au niveau de la description; cependant, comme il a été précisé dans la section \ref{chap:jeuInstruction}, le jeu d'instruction est indépendant de la micro-architecture. Cette contrainte est résolue en associant les \emph{opérations} réalisées par les instructions avec les étages de pipeline. Il est alors du ressort du compilateur de découper le comportement de chaque instruction à travers les différents étages du pipeline. 
+
+Considérons par exemple l'opération d'addition: ADD Rd,Rs1,Rs2 qui pourrait être décrite de la manière suivante\footnote{\texttt{u16} correspond à une variable non signée sur 16 bits}:
+\begin{verbatim}
+u16 a := gprRead(Rs1); 
+u16 b := gprRead(Rs2); 
+u16 c := a+b;
+updateFlagRegisters(a,b,c);
+u16 gprWrite(Rd, c); 
+\end{verbatim}
+Le code\footnote{L'étape de récupération de l'instruction, et de décodage n'est pas présente, dans un souci de simplicité} présenté pourrait correspondre au code de l'ADL, après une première étape d'analyse, chargé d'expanser chaque instruction, où Rs1, Rs2 et Rd sont les numéros de registres qui sont fournis par la vue binaire de l'instruction (voir section \ref{sec:vueBinaire}). Le code de l'instruction ne prend aucune information en provenance de l'architecture interne. Considérons maintenant une architecture pipelinée basée sur une architecture RISC, à 5 étages (comme l'architecture DLX dans \cite{HennessyPatterson}):
+\begin{description}
+\item[Fetch] Le code de l'instruction est récupéré à partir du cache d'instruction;
+\item[Decode] Le code de l'instruction est décodé, les conditions de saut sont résolues, les opérandes sont lues;
+\item[Execute] Le opérations de l'ALU sont effectuées;
+\item[Memory] Les accès mémoires sont réalisés;
+\item[Write Back] Les opérandes de résultats sont écrits.
+\end{description}
+
+À partir du modèle présenté, on associe à chaque étage de pipeline un certain nombre d'opérations possibles. Dans notre exemple, les opérations seront:
+\begin{itemize}
+\item l'appel à gprRead ne peut être réalisé que dans l'étage \texttt{Decode};
+\item l'opération '+' ne peut être réalisée que dans l'ALU, qui est dans l'étage \texttt{Execute};
+\item la mise à jour du registre d'état est réalisée dans l'ALU, qui est dans l'étage \texttt{Execute};
+\item l'opération gprWrite ne peut être réalisée que dans l'étage \texttt{Write Back}.
+\end{itemize}
+On introduit alors dans le langage la notion de \texttt{resource} (à ne pas confondre avec les ressources internes et externes de la section \ref{sec:descPipeline}), qui permet de faire le lien entre une opération, et l'étage de pipeline associé. 
+
+
+Il s'ensuit que l'instruction sera \emph{mappée} sur l'architecture interne comme le montre la figure \ref{fig:mappingInst}.
+\begin{figure} [h]
+        \begin{center}
+                \includegraphics[width=0.8\linewidth]{./images/mappingInst.pdf}
+                \caption{Exemple de mapping de l'instruction ADD sur un pipeline à 5 étages.}
+                \label{fig:mappingInst}
+        \end{center}
+\end{figure}
+
+Avec une telle architecture, le comportement des instruction est complètement dissocié du modèle de l'architecture matérielle sous jacente. Par conséquent, il est tout à fait envisageable, à partir d'un unique jeu d'instruction, de proposer plusieurs architectures internes, il sera nécessaire de modifier le \emph{mapping} des opérations réalisées par le jeu d'instruction sur la nouvelle architecture interne. C'est le cas par exemple des processeurs ARM, dont les différente familles utilisent le même jeu d'instruction, mais basé sur des tailles de pipeline différentes. %à vérifier: être plus précis.
+
+\subsection{Hiérarchie mémoire}
+\label{sec:mem}
+%problématique des caches. Influence importante sur le comportement. Modèle de cache. Cependant, les modèles de caches sont généralement peu différents, et leur modélisation à partir d'un squelette paraît envisageable. 
+La hiérarchie mémoire est un mécanisme qui influe aussi dans une large mesure sur le comportement temporel d'un processeur. Cependant, la description de la hiérarchie mémoire paraît plus simple que l'architecture interne du processeur:
+\begin{itemize}
+\item la hiérarchie mémoire n'influe sur le reste du système que par le blocage sur un accès mémoire, ce qui est déjà pris en compte dans le modèle du pipeline (à travers les ressources externes);
+\item il existe des politiques de cache classiques (LRU, Random, ..) qui seront certainement directement intégrées dans le compilateur, sous la forme de squelette par exemple.
+\item les paramètres d'un bloc mémoire peuvent directement être intégrés dans un modèle général de bloc mémoire (taille, largeur de bus, accès en rafale (burst), latence en lecture, en écriture).
+\end{itemize}
+Il devra être toutefois possible de décrire, sous forme algorithmique le comportement d'une politique d'allocation de caches.

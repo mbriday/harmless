@@ -1,0 +1,82 @@
+semantics gadl_semantics_instruction :
+  import "gadl_options.gOption" ;
+  import "gadl_semantics.gSemantics" ;
+  import "gadl_semantics_implementation.gSemantics" ;
+  import "gadl_semantics_format.gSemantics" ;
+  import "gadl_semantics_syntax.gSemantics" ;
+  import "gadl_template_data_preparation.gSemantics" ;
+#this file have routines related to instructions that are not reserved
+#for a particular descrption (format, syntax and behavior).
+
+routine getFormatRelatedTemplate
+ ?? @binaryset binTemp 
+ ?? @lstringlist instructionSeq
+ ?? @stringset instSignature
+ ?? @uint codeLength
+ ?? @instFieldMap instructionFieldMap
+ ?? @uint defaultInstSize
+ ?! @TfieldMap instStruct
+:
+  #Sequence
+  addLstringlist !?instStruct !lstringWith[!"formatSeq"] !"node" !instructionSeq;
+  #instruction signature.
+  addStringset !?instStruct !lstringWith[!"instSignature"] !lstringWith[!"tag"] !instSignature;
+  #inst code.
+  addUnsignedValue !?instStruct !lstringWith[!"codeLength"] ![codeLength uint64];
+  #binary coding
+  @binaryset bin;
+  @stringlist binStrListTemp;
+  @stringlist binStrList [emptyList];
+  getRealInstructionCode !binTemp !defaultInstSize !codeLength ?bin;
+  binStrListTemp := [bin compressedStringValueList !defaultInstSize*codeLength];
+  foreach binStrListTemp (@string str) do
+    @string binStr := [str stringByReplacingStringByString !"X" !"-"];
+    binStrList += !binStr;
+  end foreach;
+  addStringlist !?instStruct !lstringWith[!"formatBin"] !lstringWith[!"bin"] !binStrList;
+  #fields
+  @TfieldMapList fieldMapList [emptyList];
+  foreach instructionFieldMap (@lstring ASname @varType AStype) do
+    @TfieldMap itemMap [emptyMap];
+    addLStringValue !?itemMap !"name" !ASname;
+    @string typeStr;
+    [AStype getStringType ?typeStr];
+    addStringValue !?itemMap !lstringWith[!"type"] !typeStr;
+    fieldMapList += !itemMap;
+  end foreach;
+  addListValue !?instStruct !lstringWith[!"formatField"] !fieldMapList;
+end routine;
+
+
+routine prepareLogTemplates
+  ?? @instructionImplementationMap impMap # ISA binary part
+  ?? @defaultSection defaultValues
+  ?! @TfieldMap cfg
+: 
+  #get data related to binary operations.
+  @TfieldMapList instData [emptyList];
+  #foreach impMap(@lstring instName * * * * * @uint codeLength *) do
+  foreach impMap (@lstring instName 
+                  @binaryset binTemp 
+                  * 
+                  @lstringlist instructionSeq
+                  @stringset instSignature
+                  * 
+                  @uint codeLength
+                  @instFieldMap instructionFieldMap) do
+    @TfieldMap instStruct [emptyMap];
+    #ID
+    addLStringValue !?instStruct !"instID" !instName;
+    #all stuff related to format part.
+    getFormatRelatedTemplate !binTemp !instructionSeq !instSignature
+                             !codeLength !instructionFieldMap ![[defaultValues instructionSize] uint]
+                             !?instStruct;
+
+    #end
+    instData += !instStruct;
+  end foreach;
+  addListValue !?cfg !lstringWith[!"instData"] !instData;
+end routine;
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

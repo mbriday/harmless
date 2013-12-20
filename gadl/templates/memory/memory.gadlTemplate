@@ -1,0 +1,37 @@
+%
+#memory related files (including actions).
+write to MODELNAME."/storage.h":
+  template storage_h in memory
+end write
+
+write to MODELNAME."/storage.cpp":
+  template storage_cpp in memory
+end write
+%storage.cpp \\\n%
+
+write to MODELNAME."/action.h":
+  template action_h in memory
+end write
+
+write to MODELNAME."/action.cpp":
+  template action_cpp in memory
+end write
+%action.cpp \\\n%
+
+write to MODELNAME."/breakpointAction.h":
+  template breakpointAction_h in memory
+end write
+
+write to MODELNAME."/breakpointAction.cpp":
+  template breakpointAction_cpp in memory
+end write
+%breakpointAction.cpp \\\n%
+
+write to MODELNAME."/constAction.h":
+  template constAction_h in memory
+end write
+
+write to MODELNAME."/constAction.cpp":
+  template constAction_cpp in memory
+end write
+%constAction.cpp \\\n%

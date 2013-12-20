@@ -1,0 +1,821 @@
+%template headerC%
+#include "types.h"
+
+#include <iostream>
+#include <iomanip> //setioflags (setw)
+
+//not useful for 64 bits host. use built in u128 type
+#ifndef HOST64
+
+using namespace std;
+
+/***************
+ *
+ * class u128
+ *
+ ***************/
+u128 u128::operator+(const u128 &v2) const
+{
+	u128 result = *this;
+	result.m_high += v2.m_high;
+	result.m_low  += v2.m_low;
+	if(result.m_low < v2.m_low) result.m_high++; //overflow.
+	return result;
+}
+
+u128 u128::operator+(const u64 &v2) const
+{
+	u128 result = *this;
+	result.m_low  += v2;
+	if(result.m_low < v2) result.m_high++; //overflow.
+	return result;
+}
+
+u128 & u128::operator+=(const u128 &v2)
+{
+	m_high += v2.m_high;
+	m_low  += v2.m_low;
+	if(m_low < v2.m_low) m_high++; //overflow.
+	return *this;
+}
+
+u128 & u128::operator+=(const u64& v2)
+{
+	m_low  += v2;
+	if(m_low < v2) m_high++; //overflow.
+	return *this;
+}
+
+u128 & u128::operator-=(const u128& v2)
+{
+	u128 tmp = *this;
+	*this = tmp - v2;
+	return *this;
+}
+
+u128 & u128::operator-=(const u64& v2)
+{
+	u128 tmp = *this;
+	*this = tmp - v2;
+	return *this;
+}
+
+u128 & u128::operator++()
+{
+	*this += 1;
+	return *this;
+}
+
+u128 & u128::operator--()
+{
+	*this -= 1;
+	return *this;
+}
+
+u128 u128::operator-(const u128 &v2) const
+{
+	u128 result = *this;
+	
+	result.m_low -= v2.m_low;
+	
+	if(v2.m_low > m_low) {
+		result.m_high -= v2.m_high+1;
+	} else {
+		result.m_high -= v2.m_high;
+	}
+	
+	return result;
+}
+
+u128 u128::operator-(const u64 &v2) const
+{
+	u128 result = *this;
+	
+	result.m_low -= v2;
+	
+	if(v2 > m_low) {
+		result.m_high -= 1;
+	}
+	
+	return result;
+}
+
+bool u128::operator<(const u128 &v2) const
+{
+	if(m_high < v2.m_high) return true;
+	else if (m_high > v2.m_high) return false;
+	else { //same high part.
+		if(m_low < v2.m_low) return true;
+		else return false;
+	}
+}
+
+bool u128::operator<(const u64 &v2) const
+{
+	if(m_high > 0) return false;
+	else { //same high part.
+		if(m_low < v2) return true;
+		else return false;
+	}
+}
+
+bool u128::operator>(const u128 &v2) const
+{
+	return !(*this<v2) && !(*this==v2);
+}
+
+bool u128::operator>(const u64 &v2) const
+{
+	return !(*this<v2) && !(*this==v2);
+}
+
+bool u128::operator>=(const u128 &v2) const 
+{
+	return !(*this < v2);
+}
+
+bool u128::operator>=(const u64 &v2) const 
+{
+	return !(*this < v2);
+}
+
+u128 u128::operator<<(const u64 & val) const
+{
+	u64 high;
+	u64 low;
+	
+	// shift of 0 is a special case because
+	// shift right by 64 do nothing in C (for u64)
+	if(val == 0) {
+		high = m_high;
+		low = m_low;
+	}
+	else if(val < 64)
+	{
+		high  = m_high << val;
+		high |= m_low >> (64-val);
+		low = m_low << val;
+	} else {
+		low = 0;
+		high = m_low << (val-64);
+	}
+	return u128(high,low);
+}
+
+u128 u128::operator<<(const u32 & val) const
+{
+	u64 high;
+	u64 low;
+	
+	// shift of 0 is a special case because
+	// shift right by 64 do nothing in C (for u64)
+	if(val == 0) {
+		high = m_high;
+		low = m_low;
+	}
+	else if(val < 64)
+	{
+		high  = m_high << val;
+		high |= m_low >> (64-val);
+		low = m_low << val;
+	} else {
+		low = 0;
+		high = m_low << (val-64);
+	}
+	return u128(high,low);
+}
+
+u128 u128::operator>>(const u64 & val) const
+{
+	u64 high;
+	u64 low;
+	
+	if(val == 0) {
+		high = m_high;
+		low = m_low;
+	}
+	else if(val < 64)
+	{
+		low = m_low >> val;
+		u64 temp = m_high & ((u64(1)<<val)-1);
+		low |= temp << (64-val);
+		high  = m_high >> val;
+	} else {
+		high = 0;
+		low = m_high >> (val-64);
+	}
+	return u128(high,low);
+}
+
+u128 u128::operator>>(const u32 & val) const
+{
+	u64 high;
+	u64 low;
+	
+	if(val == 0) {
+		high = m_high;
+		low = m_low;
+	}
+	else if(val < 64)
+	{
+		low = m_low >> val;
+		u64 temp = m_high & ((u64(1)<<val)-1);
+		low |= temp << (64-val);
+		high  = m_high >> val;
+	} else {
+		high = 0;
+		low = m_high >> (val-64);
+	}
+	return u128(high,low);
+}
+
+ostream& operator<<(ostream& out, const u128 &val)
+{
+	if(val.m_high)
+	{
+		out << hex << val.m_high ;
+		out << setw(16) << setfill('0') << val.m_low;
+	} else cout << hex << val.m_low;
+	return out;
+}
+
+u128 u128::operator*(const u128 &v2) const
+{
+	//http://fr.wikipedia.org/wiki/Technique_de_multiplication_dite_russe
+	u128 result(0,0);
+	u128 q = v2;
+	bool r;
+	u32 i = 0;
+	
+	while(q != 0U) {
+		
+		r = q.m_low & 1U;
+		q = q >> 1U;
+		
+		if(r) {
+			result += (*this) << i;
+		}
+		
+		i++;
+	}
+	
+	return result;
+}
+
+u128 u128::operator*(const u64 &v2) const
+{
+	//http://fr.wikipedia.org/wiki/Technique_de_multiplication_dite_russe
+	u128 result(0,0);
+	u64 q = v2;
+	bool r;
+	u32 i = 0;
+	
+	while(q != 0U) {
+		
+		r = q &  1U; //r = q\%2;  
+		q = q >> 1U;   //q = q/2;
+		
+		if(r) {
+			result += (*this) << i;
+		}
+		
+		i++;
+	}
+	
+	return result;
+}
+
+u128 u128::operator/(const u128 &v2) const
+{
+	// classic soustraction step by step
+	u128 result = *this;
+	u128 q(0,0);
+	
+	u32 i = 127; 	
+	
+	while(i >= 0U) {
+	
+		if((result >> i) >= v2) {
+		
+			// result -= 2^i * v2
+			result -= (v2 << i);
+			
+			// q += 2^i
+			q += u128(0,1)<<i;
+		}
+		
+		i--;
+	}
+	
+	return q;
+}
+
+u128 u128::operator/(const u64 &v2) const
+{	
+	return *this/u128(0,v2);
+}
+
+u128 u128::operator&(const u128 &v2) const 
+{
+	return u128(m_high & v2.m_high, m_low & v2.m_low);
+}
+
+u128 u128::operator&(const u64 &v2) const 
+{
+	return u128(0, m_low & v2);
+}
+
+u128 u128::operator&(const u32 &v2) const 
+{
+	return u128(0, m_low & v2);
+}
+
+u128 u128::operator|(const u128 &v2) const 
+{
+	return u128(m_high | v2.m_high, m_low | v2.m_low);
+}
+
+u128 u128::operator|(const u64 &v2) const 
+{
+	return u128(m_high, m_low | v2);
+}
+
+u128 u128::operator|(const u32 &v2) const 
+{
+	return u128(0, m_low & v2);
+}
+
+u128::operator u64() const
+{
+	return m_low;
+}
+
+
+
+/***************
+ *
+ * class s128
+ *
+ ***************/
+
+// ok
+s128 s128::operator+(const s128 &v2) const
+{
+	s128 result = *this;
+	result.m_high += v2.m_high;
+	result.m_low  += v2.m_low;
+	
+	if(u64(result.m_low) < u64(v2.m_low)) result.m_high++; //overflow.
+	return result;
+}
+
+// ok
+s128 s128::operator+(const s64 &v2) const
+{
+	s128 result = *this;
+	result.m_low  += v2;
+	if(u64(result.m_low) < u64(v2)) result.m_high++; //overflow.
+	return result;
+}
+
+// ok
+s128 & s128::operator+=(const s128 &v2)
+{
+	m_high += v2.m_high;
+	m_low  += v2.m_low;
+	
+	if(u64(m_low) < u64(v2.m_low)) m_high++; //overflow.
+	return *this;
+}
+
+// ok
+s128 & s128::operator+=(const s64& v2)
+{
+	m_low  += v2;
+
+	if(u64(m_low) < u64(v2)) m_high++; //overflow.
+	return *this;
+}
+
+// ok
+s128 & s128::operator-=(const s128& v2)
+{
+	s128 tmp = *this;
+	*this = tmp - v2;
+	return *this;
+}
+
+// ok
+s128 & s128::operator-=(const s64& v2)
+{
+	s128 tmp = *this;
+	*this = tmp - v2;
+	return *this;
+}
+
+// ok
+s128 & s128::operator++()
+{
+	*this += 1;
+	return *this;
+}
+
+// ok
+s128 & s128::operator--()
+{
+	*this -= 1;
+	return *this;
+}
+
+// ok
+s128 s128::operator-(const s128 &v2) const
+{
+	s128 result = *this;
+	
+	result.m_low -= v2.m_low;
+	
+	if(v2.m_low > m_low) {
+		result.m_high -= v2.m_high+1;
+	} else {
+		result.m_high -= v2.m_high;
+	}
+	
+	return result;
+}
+
+// ok
+s128 s128::operator-(const s64 &v2) const
+{
+	s128 result = *this;
+	
+	result.m_low -= v2;
+	
+	if(v2 > m_low) {
+		result.m_high -= 1;
+	}
+	
+	return result;
+}
+
+// ok
+bool s128::operator<(const s128 &v2) const
+{
+	if(m_high < v2.m_high) return true;
+	else if (m_high > v2.m_high) return false;
+	else { //same high part.
+		if(u64(m_low) < u64(v2.m_low)) return true;
+		else return false;
+	}
+}
+
+// ok
+bool s128::operator<(const s64 &v2) const
+{
+	if(m_high > 0) return false;
+	else { //same high part.
+		if(u64(m_low) < u64(v2)) return true;
+		else return false;
+	}
+}
+
+// ok
+bool s128::operator>(const s128 &v2) const
+{
+	return !(*this<v2) && !(*this==v2);
+}
+
+// ok
+bool s128::operator>(const s64 &v2) const
+{
+	return !(*this<v2) && !(*this==v2);
+}
+
+// ok
+bool s128::operator>=(const s128 &v2) const 
+{
+	return !(*this < v2);
+}
+
+// ok
+bool s128::operator>=(const s64 &v2) const 
+{
+	return !(*this < v2);
+}
+
+// ok
+s128 s128::operator<<(const u64 & val) const
+{
+	s64 high;
+	s64 low;
+	
+	// shift of 0 is a special case because
+	// shift right by 64 do nothing in C (for s64)
+	if(val == 0) {
+		high = m_high;
+		low = m_low;
+	}
+	else if(val < 64)
+	{
+		high  = m_high << val;
+		high |= m_low >> (64-val);
+		low = m_low << val;
+	} else {
+		low = 0;
+		high = m_low << (val-64);
+	}
+	return s128(high,low);
+}
+
+s128 s128::operator<<(const u32 & val) const
+{
+	s64 high;
+	s64 low;
+	
+	// shift of 0 is a special case because
+	// shift right by 64 do nothing in C (for s64)
+	if(val == 0) {
+		high = m_high;
+		low = m_low;
+	}
+	else if(val < 64)
+	{
+		high  = m_high << val;
+		high |= m_low >> (64-val);
+		low = m_low << val;
+	} else {
+		low = 0;
+		high = m_low << (val-64);
+	}
+	return s128(high,low);
+}
+
+// ok
+s128 s128::operator>>(const u64 & val) const
+{
+	s64 high;
+	s64 low;
+	
+	if(val == 0) {
+		high = m_high;
+		low = m_low;
+	}
+	else if(val < 64)
+	{
+		low = m_low >> val;
+		s64 temp = m_high & ((s64(1)<<val)-1);
+		low |= temp << (64-val);
+		high  = m_high >> val;
+	} else {
+		high = 0xFFFFFFFFFFFFFFFFLL;
+		low = m_high >> (val-64);
+	}
+	return s128(high,low);
+}
+
+s128 s128::operator>>(const u32 & val) const
+{
+	s64 high;
+	s64 low;
+	
+	if(val == 0) {
+		high = m_high;
+		low = m_low;
+	}
+	else if(val < 64)
+	{
+		low = m_low >> val;
+		s64 temp = m_high & ((s64(1)<<val)-1);
+		low |= temp << (64-val);
+		high  = m_high >> val;
+	} else {
+		high = 0xFFFFFFFFFFFFFFFFLL;
+		low = m_high >> (val-64);
+	}
+	return s128(high,low);
+}
+
+// ok
+ostream& operator<<(ostream& out, const s128 &val)
+{
+	if(val.m_high)
+	{
+		out << hex << val.m_high ;
+		out << setw(16) << setfill('0') << val.m_low;
+	} else cout << hex << val.m_low;
+	return out;
+}
+
+// ok
+s128 s128::operator*(const s128 &v2) const
+{
+	//http://fr.wikipedia.org/wiki/Technique_de_multiplication_dite_russe
+	s128 result(0,0);
+	s128 q = v2;
+	bool r;
+	u32 i = 0;
+	
+	while(q != 0) {
+		
+		r = q.m_low & 1U;
+		q = q >> 1U;
+		
+		if(r) {
+			result += (*this) << i;
+		}
+		
+		i++;
+	}
+	
+	return result;
+}
+
+// ok
+s128 s128::operator*(const s64 &v2) const
+{
+	//http://fr.wikipedia.org/wiki/Technique_de_multiplication_dite_russe
+	s128 result(0,0);
+	s64 q = v2;
+	bool r;
+	u32 i = 0;
+	
+	while(q != 0U) {
+		
+		r = q &  1U; //r = q\%2;  
+		q = q >> 1U;   //q = q/2;
+		
+		if(r) {
+			result += (*this) << i;
+		}
+		
+		i++;
+	}
+	
+	return result;
+}
+
+s128 s128::operator/(const s128 &v2) const
+{
+	// classic soustraction step by step
+	s128 result = *this;
+	s128 q(0,0);
+	
+	u32 i = 127; 	
+	
+	while(i >= 0U) {
+	
+		if((result >> i) >= v2) {
+		
+			// result -= 2^i * v2
+			result -= (v2 << i);
+			
+			// q += 2^i
+			q += s128(0,1)<<i;
+		}
+		
+		i--;
+	}
+	
+	return q;
+}
+
+s128 s128::operator/(const s64 &v2) const
+{	
+	return *this/s128(0,v2);
+}
+
+s128 s128::operator&(const s128 &v2) const 
+{
+	return s128(m_high & v2.m_high, m_low & v2.m_low);
+}
+
+s128 s128::operator&(const s64 &v2) const 
+{
+	return s128(0, m_low & v2);
+}
+
+s128 s128::operator&(const s32 &v2) const 
+{
+	return s128(0, m_low & v2);
+}
+
+s128 s128::operator|(const s128 &v2) const 
+{
+	return s128(m_high | v2.m_high, m_low | v2.m_low);
+}
+
+s128 s128::operator|(const s64 &v2) const 
+{
+	return s128(m_high, m_low | v2);
+}
+
+s128 s128::operator|(const s32 &v2) const 
+{
+	return s128(0, m_low & v2);
+}
+
+
+void test()
+{
+	u128 val(0,1);
+	/*cout << "check left shift: 128 steps :"  << endl;
+	
+	for(unsigned int i = 0; i < 128; i++)
+	{
+		cout << "\t" << (val<<i) << endl;
+	}
+	
+	cout << "check right shift: 128 steps :"  << endl;
+	val = u128(0x8000000000000000ULL,1);
+	for(unsigned int i = 0; i < 128; i++)
+	{
+		cout << "\t" << (val>>i) << endl;
+	}
+	cout << "check addition in 2 steps (with u64 and u128):" << endl;
+	val =u128(0xA5A5A5A5A5A5A5A5ULL,0xFFFFFFFFFFFFFFFFULL);
+	val = val + 1; //+u64, with carry
+	cout << "\t" << val << endl;
+	val = val + u128(0x0505050505050504ULL,0xA); //+u128
+	cout << "\t" << val << endl;
+	cout << "check += in 2 steps (with u64 and u128):" << endl;
+	val += 0xA000000000000000ULL; //+= u64 
+	cout << "\t" << val << endl;
+	val += u128(0x5,0x5); //+= u128 with carry.
+	cout << "\t" << val << endl;
+	cout << "check - in 3 steps (with u64 and u128):" << endl;
+	val = u128(0,0);
+	val = val - u128(0,1);
+	cout << "\t" << val << endl;
+	val = u128(0,0);
+	val = val - 1;
+	cout << "\t" << val << endl;
+	val = u128(1,0);
+	val = val - 1;
+	cout << "\t" << val << endl;
+	cout << "check * in 2 steps (with u64 and u128):" << endl;
+	val = u128(0xF000000000000000ULL,0xEE0000000000000FULL);
+	val = val * 13;
+	cout << "\t" << val << endl;
+	val = 0xEE0000000000000FULL;
+	val = val * 13;
+	cout << "\t" << val << endl;
+	cout << "check / in 2 steps (with u64 and u128):" << endl;
+	val = u128(0xF000000000000000ULL,0xEE0000000000000FULL);
+	val = val / 13;
+	cout << "\t" << val << endl;
+	val = 0xF000000000000000ULL;
+	val = val / 13;
+	cout << "\t" << val << endl;*/
+	
+	s128 val2(0,1);
+	/*cout << "check left shift: 128 steps :"  << endl;
+	
+	for(unsigned int i = 0; i < 128; i++)
+	{
+		cout << "\t" << (val2<<i) << endl;
+	}
+	
+	cout << "check right shift: 128 steps :"  << endl;
+	val2 = s128(0x8000000000000000LL,1);
+	for(unsigned int i = 0; i < 128; i++)
+	{
+		cout << "\t" << (val2>>i) << endl;
+	}
+	cout << "check addition in 2 steps (with s64 and s128):" << endl;
+	val2 =s128(0xA5A5A5A5A5A5A5A5ULL,0xFFFFFFFFFFFFFFFFLL);
+	val2 = val2 + 1; //+s64, with carry
+	cout << "\t" << val2 << endl;
+	val2 = val2 + s128(0x0505050505050504LL,0xA); //+s128
+	cout << "\t" << val2 << endl;
+	cout << "check += in 2 steps (with s64 and s128):" << endl;
+	val2 += 0xA000000000000000LL; //+= s64 
+	cout << "\t" << val2 << endl;
+	val2 += s128(0x5,0x5); //+= s128 with carry.
+	cout << "\t" << val2 << endl;
+	cout << "check - in 3 steps (with s64 and s128):" << endl;
+	val2 = s128(0xA,0);
+	val2 = val2 - s128(0,0x1000000000000000LL);
+	cout << "\t" << val2 << endl;
+	val2 = s128(0xAA,0xF);
+	val2 = val2 - 0x1000000000000000LL;
+	cout << "\t" << val2 << endl;
+	val2 = s128(1,0);
+	val2 = val2 - 1;
+	cout << "\t" << val2 << endl;*/
+	cout << "check * in 2 steps (with s64 and s128):" << endl;
+	val2 = s128(0xF000000000000000LL,0xEE0000000000000FLL);
+	val2 = val2 * 13;
+	cout << "\t" << val2 << endl;
+	val2 = 0xEE0000000000000FLL;
+	val2 = val2 * 13;
+	cout << "\t" << val2 << endl;
+	/*cout << "check / in 2 steps (with s64 and s128):" << endl;
+	val2 = s128(0xF000000000000000ULL,0xEE0000000000000FULL);
+	val2 = val2 / 13;
+	cout << "\t" << val2 << endl;
+	val2 = 0xF000000000000000ULL;
+	val2 = val2 / 13;
+	cout << "\t" << val2 << endl;*/
+	
+
+}
+#endif //HOST64

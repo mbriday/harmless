@@ -1,0 +1,1009 @@
+
+------------------------------------------------------------------------------
+--Instruction set : behavior view
+------------------------------------------------------------------------------
+behavior mov #MOV  -- 2 regs, but only one read.
+  field u5 rdIndex
+  field u5 rrIndex
+  u8 rrValue
+  do
+    rrValue := sram.ram.GPR.read8(rrIndex)
+    sram.ram.GPR.write8(rdIndex, rrValue)
+  end do
+end behavior
+
+behavior regOpsWith1RegAndImm
+  field u4 regIndex
+  u5 reg
+  u8 rdValue
+  do
+    reg := (u5)(regIndex + 16)
+    rdValue := sram.ram.GPR.read8(reg)
+  end do
+  select
+    case #CPI do field u8 k ALU.cp(rdValue, k)  end do -- no update
+    case regOpsWith1RegAndImmUpdate(rdValue, reg)
+  end select
+end behavior
+
+behavior regOpsWith1RegAndImmUpdate(u8 rdValue, u8 reg)
+  field u8 k
+  u8 value
+  do value := rdValue  end do
+  select
+    case #ANDI do value := ALU.and(value, k)  end do
+    case #LDI  do value := k         end do
+    case #ORI  do value := ALU.ior(value, k)  end do
+    case #SBCI do value := ALU.sbc(value, k)  end do
+    case #SUBI do value := ALU.sub(value, k)  end do
+  end select
+  do sram.ram.GPR.write8(reg, value)  end do
+end behavior
+
+behavior load() #load
+  u16 addr
+  u8 val
+  u5 regIndex
+  field u5 rdIndex
+  indirectReg(regIndex)
+  do addr := sram.ram.GPR.read16(regIndex)  end do
+  select
+    case #preDec do addr := addr - 1  sram.ram.GPR.write16(regIndex, addr)  end do -- predec indirect reg
+    case #LoadStoreOffset do field u6 offset  addr := (u16)(addr + offset)  end do-- does not modify indirect reg
+  end select
+  do
+    val  := sram.ram.read8(addr)
+    sram.ram.GPR.write8(rdIndex, val)
+  end do
+end behavior
+
+behavior loadPI() #load #postInc
+  u16 addr
+  u8 val
+  u5 regIndex
+  field u5 rdIndex
+  indirectReg(regIndex)
+  do
+    addr := sram.ram.GPR.read16(regIndex)
+    val  := sram.ram.read8(addr)
+    sram.ram.GPR.write8(rdIndex, val)
+    addr := (u16)(addr + 1)  sram.ram.GPR.write16(regIndex, addr)  -- post inc
+  end do
+end behavior
+
+behavior store() #store
+  u16 addr
+  u8 val
+  field u5 rdIndex
+  u5 regIndex
+  indirectReg(regIndex)
+  do addr := sram.ram.GPR.read16(regIndex)  end do
+  select
+    case #preDec
+         do
+           addr := addr - 1  -- predec indirect reg
+           sram.ram.GPR.write16(regIndex, addr)
+         end do
+    case #LoadStoreOffset
+         do
+           field u6 offset
+           addr := (u16)(addr + offset)      -- does not modify indirect reg
+         end do
+  end select
+  do
+    val := sram.ram.GPR.read8(rdIndex)
+    sram.ram.write8(addr, val)
+  end do
+end behavior
+
+behavior storePI() #store #postInc
+  u16 addr
+  u8 val
+  field u5 rdIndex
+  u5 regIndex
+  indirectReg(regIndex)
+  do
+    addr := sram.ram.GPR.read16(regIndex)
+    val := sram.ram.GPR.read8(rdIndex)
+    sram.ram.write8(addr, val)
+    addr := (u16)(addr + 1)  sram.ram.GPR.write16(regIndex, addr)   -- post inc
+  end do
+end behavior
+
+behavior indirectReg(out u5 regIndex)
+  select
+    case #Z do regIndex := 30  end do
+    case #Y do regIndex := 28  end do
+    case #X do regIndex := 26  end do
+  end select
+end behavior
+
+behavior direct1RegisterAddressing
+  field u5 rdIndex
+  u8 rdValue
+  do rdValue := sram.ram.GPR.read8(rdIndex)  end do
+  select
+    case #ASR  do rdValue := ALU.asr(rdValue)  end do
+    case #COM  do rdValue := ALU.com(rdValue)  end do
+    case #DEC  do rdValue := ALU.dec(rdValue)  end do
+    case #INC  do rdValue := ALU.inc(rdValue)  end do
+    case #LSR  do rdValue := ALU.lsr(rdValue)  end do
+    case #NEG  do rdValue := ALU.neg(rdValue)  end do
+    case #ROR  do rdValue := ALU.rorc(rdValue) end do
+    case #SWAP do rdValue := ALU.swap(rdValue) end do
+  end select
+  do sram.ram.GPR.write8(rdIndex, rdValue)  end do
+end behavior
+
+behavior direct1RegisterAddressingNoUpdate
+  field u5 rdIndex
+  u8 rdValue
+  do rdValue := sram.ram.GPR.read8(rdIndex)  end do
+  select
+    case #STS  do field u16 K  sram.ram.write8(K, rdValue)  end do
+    case #PUSH do sram.push(rdValue)  end do
+  end select
+end behavior
+
+behavior direct1RegisterAddressingNoRead
+  u8 rdValue
+  field u5 rdIndex
+  select
+    case #LDS do field u16 K  rdValue := sram.ram.read8(K) end do
+    case #POP do rdValue := sram.pop() end do
+  end select
+  do sram.ram.GPR.write8(rdIndex, rdValue) end do
+end behavior
+
+behavior regOpsWith2Regs
+  field u5 rdIndex
+  field u5 rrIndex
+  u8 rdValue
+  u8 rrValue
+  do
+    rdValue := sram.ram.GPR.read8(rdIndex)
+    rrValue := sram.ram.GPR.read8(rrIndex)
+  end do
+  select
+    case regOpsWith2RegsUpdate(rdValue, rrValue)
+    case regOpsWith2RegsNoUpdate(rdValue, rrValue)
+  end select
+end behavior
+
+behavior regOpsWithWordAccess
+  u16 rdValue
+  field u3 r16Index
+  field u6 k
+  u5 rdIndex := (u5)(r16Index + 24)
+  do rdValue := sram.ram.GPR.read16(rdIndex)  end do
+  select
+    case #ADIW do rdValue := ALU.adiw(rdValue, k)  end do
+    case #SBIW do rdValue := ALU.sbiw(rdValue, k)  end do
+  end select
+  do sram.ram.GPR.write16(rdIndex, rdValue)  end do
+end behavior
+
+behavior regOpsWith2RegsUpdate(out u8 rdValue, u8 rrValue)
+  field u5 rdIndex
+  select
+    case #ADC  do rdValue := ALU.adc(rdValue, rrValue) end do
+    case #ADD  do rdValue := ALU.addition(rdValue, rrValue) end do
+    case #AND  do rdValue := ALU.and(rdValue, rrValue) end do
+    case #EOR  do rdValue := ALU.eor(rdValue, rrValue) end do
+    case #CPSE do if rdValue = rrValue then Fetcher.delayInstruction(1) end if end do
+    case #OR   do rdValue := ALU.ior(rdValue, rrValue) end do
+    case #SBC  do rdValue := ALU.sbc(rdValue, rrValue) end do
+    case #SUB  do rdValue := ALU.sub(rdValue, rrValue) end do
+  end select
+  do sram.ram.GPR.write8(rdIndex, rdValue)  end do
+end behavior
+
+behavior regOpsWith2RegsNoUpdate(out u8 rdValue, u8 rrValue)
+  select
+    case #CP   do ALU.cp(rdValue, rrValue) end do
+    case #CPC  do ALU.cpc(rdValue, rrValue) end do
+    case #MUL   -- this is a non standard register update (no rd, but R0 and R1)
+         do
+           u16 result := ALU.mul(rdValue, rrValue)
+           sram.ram.GPR.write16(0, result)  -- write on R0:R1
+         end do
+  end select
+end behavior
+
+behavior call #SP_Check
+  u16 newPC
+  select
+    case #ICALL do newPC := Z end do
+    case #CALL #LONGCALL  do field u22 addr  newPC := addr{15..0} end do
+    case #RCALL do field s12 k  newPC := (u16)((s16)(PC>>1)+k) end do
+  end select
+  do
+    -- push current PC: no information about the way PC is stored
+    sram.push(PC{8..1})  --as PC is on 17 bits
+    sram.push(PC{16..9})
+    -- then branch.
+    Fetcher.absBranch((s16)(newPC))
+  end do
+end behavior
+
+behavior brb(out u16 newPC)
+  field u3 bitIndex
+  field s7 k
+  select
+    case #BRBC do
+           if CCR{bitIndex} = 0 then
+             newPC := (u16)((s16)(PC>>1)+k)
+           else newPC := (u16)(PC>>1)  end if
+         end do
+    case #BRBS do
+           if CCR{bitIndex} = 1 then
+             newPC := (u16)((s16)(PC>>1)+k)
+           else newPC := (u16)(PC>>1)  end if
+         end do
+  end select
+end behavior
+
+behavior jmp
+  u16 newPC
+  select
+    case #IJMP do newPC := Z end do
+    case #JMP #LONGCALL #SP_Check do field u22 addr  newPC := addr{15..0} end do
+    case #RJMP do field s12 k  newPC := (u16)((s16)(PC>>1)+k) end do
+    case brb(newPC)
+  end select
+  do
+    -- then branch.
+    Fetcher.absBranch((s16)(newPC))
+  end do
+end behavior
+
+behavior ret
+  u16 newPC
+  select
+    case #RET
+    case #RETI do  CCR.I := 1 end do
+  end select
+  do
+    -- pop current PC: no information about the way PC is stored
+    newPC{15..8} := sram.pop()
+    newPC{7..0}  := sram.pop()
+    -- then branch.
+    Fetcher.absBranch((s16)(newPC))
+  end do
+end behavior
+
+
+behavior elpm
+  u17 reg
+  u8  value
+  select
+    case #ELPM do reg   := RAMPZ{1} cat Z end do --only 17 bits on the AT90CAN128
+    case #LPM  do reg   := Z              end do
+  end select
+  do value := rom.flash.read8(reg) end do  --indirect read.
+  select
+    case #NoReg do sram.ram.GPR.write8(0,value) end do
+    case #Reg 
+      do
+        field u5 rdIndex
+        sram.ram.GPR.write8(rdIndex, value)
+      end do
+      select 
+        case #NoInc
+        case #ELPM #Inc do RAMPZ:Z := (u17)(reg+1) end do
+        case #LPM  #Inc do       Z := (u16)(reg+1) end do
+      end select
+  end select
+end behavior
+
+
+behavior noFieldInstruction
+  select
+    case #BREAK   -- related to JTAG: stop the processor. Treated as NOP
+    case #EICALL  --not available on AT90CAN128
+    case #EIJMP   --not available on AT90CAN128
+    case #NOP    --really easy :-)
+    case #SLEEP  -- ignored
+  --case   #SPM  --not available on AT90CAN128
+    case #WDR
+  end select
+end behavior
+
+behavior flagIndex
+  field u3 bitIndex
+  select
+    case #BCLR do CCR{bitIndex} := 0 end do
+    case #BSET do CCR{bitIndex} := 1 end do
+  end select
+end behavior
+
+behavior flagIndexReg
+  field u3 bitIndex
+  field u5 regIndex
+  u8 regValue
+  do regValue := sram.ram.GPR.read8(regIndex)  end do
+  select
+    case #BLD do regValue{bitIndex} := CCR.T  sram.ram.GPR.write8(regIndex, regValue) end do
+    case #BST do CCR.T := regValue{bitIndex} end do
+    case #SBRC do if regValue{bitIndex} = 0 then Fetcher.delayInstruction(1) end if end do
+    case #SBRS do if regValue{bitIndex} = 1 then Fetcher.delayInstruction(1) end if end do
+  end select
+end behavior
+
+behavior ioAccess
+  field u5 rdIndex
+  field u6 A
+  select
+    case #IN  do u8 regValue := sram.ram.sfr.read8(A)  sram.ram.GPR.write8(rdIndex, regValue) end do
+    case #OUT do u8 regValue := sram.ram.GPR.read8(rdIndex)  sram.ram.sfr.write8(A, regValue) end do
+  end select
+end behavior
+
+behavior regs2WordAccess #MOVW
+  field u5 RdIndex
+  field u5 RrIndex
+  u16 regValue
+  do
+    regValue := sram.ram.GPR.read16(RrIndex)
+    sram.ram.GPR.write16(RdIndex, regValue)
+  end do
+end behavior
+
+behavior op2regOn3bits
+  field u3 rdIndex --should add 16
+  field u3 rrIndex --should add 16
+  u8 rdValue
+  u8 rrValue
+  u16 result
+  do rdValue := sram.ram.GPR.read8(rdIndex+16)  rrValue := sram.ram.GPR.read8(rrIndex+16) end do
+  #MUL 
+  select
+    case #FMUL   do result := ALU.fmul(rdValue, rrValue) end do
+    case #FMULS  do result := ALU.fmuls(rdValue, rrValue) end do
+    case #FMULSU do result := ALU.fmulsu(rdValue, rrValue) end do
+    case #MULSU  do result := ALU.mulsu(rdValue, rrValue) end do
+  end select
+  do sram.ram.GPR.write16(0,result)  end do -- result on R0:R1
+end behavior
+
+behavior muls #MUL #MULS
+  field u4 RdIndex -- should add 16
+  field u4 RrIndex -- should add 16
+  u8 rdValue
+  u8 rrValue
+  u16 result
+  do
+    rdValue := sram.ram.GPR.read8(RdIndex +16)
+    rrValue := sram.ram.GPR.read8(RrIndex +16)
+    result := ALU.muls(rdValue, rrValue)
+    sram.ram.GPR.write16(0,result)  -- result on R0:R1
+  end do
+end behavior
+
+behavior cbi
+  field u5 A
+  field u3 B
+  u8 regValue
+  do regValue := sram.ram.sfr.read8(A) end do
+  select
+    case #CBI  do regValue{B} := 0  sram.ram.sfr.write8(A, regValue) end do
+    case #SBI  do regValue{B} := 1  sram.ram.sfr.write8(A, regValue) end do
+    case #SBIC do if regValue{B} = 0 then Fetcher.delayInstruction(1) end if end do
+    case #SBIS do if regValue{B} = 1 then Fetcher.delayInstruction(1) end if end do
+  end select
+end behavior
+
+------------------------------------------------------------------------------
+--Instruction set : format view
+------------------------------------------------------------------------------
+format noFieldInstruction
+  select slice {15..0}
+    case \b1001_0101_1001_1000 is #BREAK
+    case \b1001_0101_0001_1001 is #EICALL  --not available on AT90CAN128
+    case \b1001_0100_0001_1001 is #EIJMP   --not available on AT90CAN128
+    case \b1001_0101_1101_1000 is #ELPM #NoReg
+    case \b1001_0101_0000_1001 is #ICALL #SP_Check
+    case \b1001_0100_0000_1001 is #IJMP
+    case 0                     is #NOP
+    case \b1001_0101_0000_1000 is #RET
+    case \b1001_0101_0001_1000 is #RETI
+    case \b1001_0101_1000_1000 is #SLEEP
+    case \b1001_0101_1110_1000 is #SPM
+    case \b1001_0101_1010_1000 is #WDR
+    case \b1001_0101_1100_1000 is #LPM #NoReg
+  end select
+end format
+
+-- ---- ---D DDDD ----
+format direct1RegisterAddressing
+  rdIndex := slice{8..4}
+  select slice {15..9,3..0}
+    case \b1001_010_0101 is #ASR
+    case \b1001_010_0000 is #COM
+    case \b1001_010_1010 is #DEC
+    case \b1001_010_0011 is #INC
+    case \b1001_000_0110 is #ELPM #Reg #NoInc
+    case \b1001_000_0111 is #ELPM #Reg #Inc
+    case \m10-1_---_---- is loadOrStore indirectReg loadType
+    case \m10-0_---_---- is loadOrStore loadOrStoreDisplacement
+    -- With the X register, no offset is supported: set the offset to 0 to simpify behavior description.
+    case \m1001_00-_1100 is loadOrStore #X #LoadStoreOffset offset := slice{14..13,11..10,1..0}
+    case \b1001_000_0000 is lds
+    case \b1001_001_0000 is sts
+    case \b1001_010_0110 is #LSR
+    case \b1001_010_0001 is #NEG
+    case \b1001_000_1111 is #POP
+    case \b1001_001_1111 is #PUSH
+    case \b1001_010_0111 is #ROR
+    case \b1001_010_0010 is #SWAP
+    case \m1001_000_0100 is #LPM #Reg #NoInc
+    case \m1001_000_0101 is #LPM #Reg #Inc
+  end select
+end format
+
+format lds slice +{15..0} #LDS
+  K := slice{15..0}
+end format
+
+format sts slice +{15..0} #STS
+  K := slice{15..0}
+end format
+
+-- load instructions. LD and LDD.
+format loadOrStore
+  select slice {9}
+    case 0 is #load
+    case 1 is #store
+  end select
+end format
+
+format indirectReg
+  select slice {3..2}
+    case \b00 is #Z
+    case \b10 is #Y
+    case \b11 is #X
+  end select
+end format
+
+format loadType
+  select slice {13..10,1..0}
+    case \b0100_01 is #postInc
+    case \b0100_10 is #preDec
+  end select
+end format
+
+format loadOrStoreDisplacement #LoadStoreOffset
+  offset := slice{13,11,10,2..0}
+  select slice {3}
+    case \b0 is #Z
+    case \b1 is #Y
+  end select
+end format
+
+
+-- ---- --RD DDDD RRRR
+format direct2RegisterAddressing
+  rdIndex := slice{8..4}
+  rrIndex := slice{9,3..0}
+  select slice {15..10}
+    case \b0001_11 is #ADC  -- ROL if Rd=Rr
+    case \b0000_11 is #ADD  -- LSL if Rd=Rr
+    case \b0010_00 is #AND  -- TST if Rd=Rr
+    case \b0010_01 is #EOR  -- CLR if Rd=Rr
+    case \b0001_01 is #CP
+    case \b0000_01 is #CPC
+    case \b0001_00 is #CPSE
+    case \b0010_11 is #MOV
+    case \b1001_11 is #MUL
+    case \b0010_10 is #OR
+    case \b0000_10 is #SBC
+    case \b0001_10 is #SUB
+  end select
+end format
+
+-- ---- ---- -SSS ----
+format flagIndex
+  bitIndex := slice{6..4} --0 to 7
+  select slice {15..7,3..0}  -- TODO: does not generate an error if #bitIndex
+    case \b1001_0100_1_1000 is #BCLR -- including CLC, CLH, CLI, CLN, CLS, CLT, CLV, CLZ
+    case \b1001_0100_0_1000 is #BSET -- including SEC, SEH, SEI, SEN, SES, SET, SEV, SEZ
+  end select
+end format
+
+-- ---- ---D DDDD -BBB
+format flagIndexReg
+  bitIndex := slice{2..0}
+  regIndex := slice{8..4}
+  select slice {15..9,3}
+    case \b1111_100_0 is #BLD
+    case \b1111_101_0 is #BST
+    case \b1111_110_0 is #SBRC
+    case \b1111_111_0 is #SBRS
+  end select
+end format
+
+-- ---- --KK KKKK KIII
+format branch
+  bitIndex := slice{2..0}
+  k := signed slice{9..3}
+  select slice {15..10}
+    case \b1111_01 is #BRBC
+    case \b1111_00 is #BRBS
+  end select
+end format
+
+-- ---- -AAD DDDD AAAA
+format ioAccess
+  rdIndex := slice{8..4}
+  A       := slice{10..9,3..0}
+  select slice {15..11}
+    case \b1011_0 is #IN
+    case \b1011_1 is #OUT
+  end select
+end format
+
+-- ---- ---- -DDD -RRR
+format op2regOn3bits
+  rdIndex := slice{6..4} --should add 16
+  rrIndex := slice{2..0} --should add 16
+  select slice {15..7,3}
+    case \b0000_0011_0_1 is #MUL #FMUL
+    case \b0000_0011_1_0 is #MUL #FMULS
+    case \b0000_0011_1_1 is #MUL #FMULSU
+    case \b0000_0011_0_0 is #MUL #MULSU
+  end select
+end format
+
+-- ---- ---- KKDD KKKK
+format logicalImm6Reg16
+  r16Index := slice{5..4} << 1 -- should add 24 to the result :-/
+  k        := slice{7..6,3..0}
+  select slice {15..8}
+    case \b1001_0110 is #ADIW
+    case \b1001_0111 is #SBIW
+  end select
+end format
+
+-- ---- KKKK DDDD KKKK
+format logicalImm8
+  regIndex := slice{7..4} -- should add 16 to the result
+  k        := slice{11..8,3..0}
+  select slice {15..12}
+    case \b0111 is #ANDI -- or CBR with ~k
+    case \b0011 is #CPI
+    case \b1110 is #LDI  -- or SER if k=FF
+    case \b0110 is #ORI  -- eq SBR
+    case \b0100 is #SBCI
+    case \b0101 is #SUBI
+  end select
+end format
+
+-- ---- ---K KKKK ---K KKKK KKKK KKKK KKKK
+format longCall slice {15..0}+{15..0}
+  #LONGCALL #SP_Check
+  addr := slice{8..4,0}{15..0}
+  select slice {15..9,3..1}{-}
+    case \b1001_010_111 is #CALL
+    case \b1001_010_110 is #JMP
+  end select
+end format
+
+-- ---- ---- AAAA ABBB
+format cbi
+  A := slice{7..3}
+  B := slice{2..0}
+  select slice {15..8}
+    case \b1001_1000 is #CBI
+    case \b1001_1010 is #SBI
+    case \b1001_1001 is #SBIC
+    case \b1001_1011 is #SBIS
+  end select
+end format
+
+-- ---- ---- DDDD RRRR : Word access
+format regs2WordAccess
+  RdIndex := slice{7..4} << 1
+  RrIndex := slice{3..0} << 1
+  select slice {15..8}
+    case \b000_0001 is #MOVW
+  end select
+end format
+
+-- ---- ---- DDDD RRRR : 16->31
+format muls
+  RdIndex := slice{7..4} -- should add 16
+  RrIndex := slice{3..0} -- should add 16
+  select slice {15..8}
+    case \b000_0010 is #MUL #MULS
+  end select
+end format
+
+-- ---- KKKK KKKK KKKK
+format rcall
+  k := signed slice{11..0}
+  select slice {15..12}
+    case \b1101 is #RCALL #SP_Check
+    case \b1100 is #RJMP
+  end select
+end format
+
+------------------------------------------------------------------------------
+--Instruction set : syntax view
+------------------------------------------------------------------------------
+
+number syntax binary prefix "0b"
+number syntax octal prefix "0"
+number syntax hexadecimal prefix "0x"
+
+syntax noFieldInstruction
+  select
+    case #BREAK  "BREAK"
+    case #EICALL "EICALL" --not available on AT90CAN128
+    case #EIJMP  "EIJMP"  --not available on AT90CAN128
+    case #ICALL  "ICALL" #SP_Check
+    case #IJMP   "IJMP"
+    case #NOP    "NOP"
+    case #RET    "RET"
+    case #RETI   "RETI"
+    case #SLEEP  "SLEEP"
+    case #SPM    "SPM"
+    case #WDR    "WDR"
+  end select
+end syntax
+
+syntax classic1RegAccess
+  field u5 rdIndex
+  select
+    case #ASR   "ASR"
+    case #COM   "COM"
+    case #DEC   "DEC"
+    case #INC   "INC"
+    case #LSR   "LSR"
+    case #NEG   "NEG"
+    case #POP   "POP"
+    case #PUSH  "PUSH"
+    case #ROR   "ROR"
+    case #SWAP  "SWAP"
+  end select
+  " R\d",rdIndex
+end syntax
+
+syntax longCall
+  field u22 addr
+  #LONGCALL #SP_Check
+  select
+    case #CALL "CALL"
+    case #JMP  "JMP"
+  end select
+  " \x", addr<<1
+end syntax
+
+syntax cbi
+  field u5 A
+  field u3 B
+  select
+    case #CBI  "CBI"
+    case #SBI  "SBI"
+    case #SBIC "SBIC"
+    case #SBIS "SBIS"
+  end select
+  " \d, \b", A, B
+end syntax
+
+
+syntax BRBC #BRBC -- expanded in BRCC, BRGE, BRHC,
+  field u3 bitIndex
+--  field s7 k
+  if     bitIndex = 0 then "BRCC" --eq BRSH
+  elseif bitIndex = 1 then "BRNE"
+  elseif bitIndex = 2 then "BRPL"
+  elseif bitIndex = 3 then "BRVC"
+  elseif bitIndex = 4 then "BRGE"
+  elseif bitIndex = 5 then "BRHC"
+  elseif bitIndex = 6 then "BRTC"
+  elseif bitIndex = 7 then "BRID"
+  end if
+  relativeBranchOffset7Bits
+--  " .\d", k<<1
+end syntax
+
+syntax relativeBranchOffset7Bits
+  field s7 k
+  if k > 0s then
+    " .+\d", k<<1
+  else
+    " .\d", k<<1
+  end if
+end syntax
+
+syntax BRBS #BRBS  -- expanded in BRCS, BREQ
+  field u3 bitIndex
+  if     bitIndex = 0 then "BRCS" --eq BRLO
+  elseif bitIndex = 1 then "BREQ"
+  elseif bitIndex = 2 then "BRMI"
+  elseif bitIndex = 3 then "BRVS"
+  elseif bitIndex = 4 then "BRLT"
+  elseif bitIndex = 5 then "BRHS"
+  elseif bitIndex = 6 then "BRTS"
+  elseif bitIndex = 7 then "BRIE"
+  end if
+  relativeBranchOffset7Bits
+end syntax
+
+syntax flagIndexReg
+  field u3 bitIndex
+  field u5 regIndex
+  select
+    case #BLD  "BLD"
+    case #BST  "BST"
+    case #SBRC "SBRC"
+    case #SBRS "SBRS"
+  end select
+  " R\d, \b", regIndex, bitIndex
+end syntax
+
+
+syntax BCLR #BCLR -- expanded in  CLC, CLH, CLI, CLN, CLS, CLT, CLV, CLZ
+  field u3 bitIndex
+  if     bitIndex = 0 then "CLC"
+  elseif bitIndex = 1 then "CLZ"
+  elseif bitIndex = 2 then "CLN"
+  elseif bitIndex = 3 then "CLV"
+  elseif bitIndex = 4 then "CLS"
+  elseif bitIndex = 5 then "CLH"
+  elseif bitIndex = 6 then "CLT"
+  elseif bitIndex = 7 then "CLI"
+  end if
+end syntax
+
+syntax BSET #BSET -- expanded in  SEC, SEH, SEI, SEN, SES, SET, SEV, SEZ
+  field u3 bitIndex
+  if     bitIndex = 0 then "SEC"
+  elseif bitIndex = 1 then "SEZ"
+  elseif bitIndex = 2 then "SEN"
+  elseif bitIndex = 3 then "SEV"
+  elseif bitIndex = 4 then "SES"
+  elseif bitIndex = 5 then "SEH"
+  elseif bitIndex = 6 then "SET"
+  elseif bitIndex = 7 then "SEI"
+  end if
+end syntax
+
+
+syntax ltsAndsts
+  field u5  rdIndex
+  field u16 K
+  select
+    case #LDS "LDS"
+    case #STS "STS"
+  end select
+  " R\d,\x (\d)", rdIndex, K, K
+end syntax
+
+syntax ELPM
+  select
+    case #ELPM "ELPM"
+    case #LPM  "LPM"
+  end select
+  select
+    case #Reg 
+      field u5 rdIndex 
+      " R\d, Z", rdIndex
+      select
+        case #Inc "+"
+        case #NoInc
+      end select
+    case #NoReg
+  end select
+end syntax
+
+syntax classic2Reg
+  field u5 rdIndex
+  field u5 rrIndex
+  select
+    case #CP   "CP"
+    case #CPC  "CPC"
+    case #CPSE "CPSE"
+    case #MOV  "MOV"
+    case #MUL  "MUL"
+    case #OR   "OR"
+    case #SBC  "SBC"
+    case #SUB  "SUB"
+  end select
+  " R\d, R\d", rdIndex, rrIndex
+end syntax
+
+syntax logicalImm6Reg16
+  field u3 r16Index -- should add 24 to the result :-/
+  field u6 k
+  select
+    case #ADIW "ADIW"
+    case #SBIW "SBIW"
+  end select
+  " R\d, \x", r16Index+24, k
+end syntax
+
+syntax classicImm8
+  field u4 regIndex -- should add 16 to the result
+  field u8 k
+  select
+    case #ANDI "ANDI" -- or CBR with ~k
+    case #CPI  "CPI"
+    case #ORI  "ORI"
+    case #SBCI "SBCI"
+    case #SUBI "SUBI"
+  end select
+  " R\d, \x", regIndex+16, k
+end syntax
+
+syntax op2regOn3bits
+  field u3 rdIndex --should add 16
+  field u3 rrIndex --should add 16
+  #MUL 
+  select
+    case #FMUL   "FMUL"
+    case #FMULS  "FMULS"
+    case #FMULSU "FMULSU"
+    case #MULSU  "MULSU"
+  end select
+  " R\d, R\d", rdIndex, rrIndex
+end syntax
+
+syntax ioAccess
+  field u5 rdIndex
+  field u6 A
+  select
+    case #IN  "IN R\d, \x", rdIndex, A
+    case #OUT "OUT \x, R\d", A, rdIndex
+  end select
+
+end syntax
+
+syntax ldi #LDI
+  field u4 regIndex -- should add 16 to the result
+  field u8 k
+--  if k=\xff then
+--    "SER R\d", regIndex+16
+--  else
+    "LDI R\d, \x", regIndex+16, k
+--  end if
+end syntax
+
+syntax adc #ADC
+  field u5 rdIndex
+  field u5 rrIndex
+  if rdIndex = rrIndex then
+    "ROL R\d", rdIndex
+  else
+    "ADC R\d, R\d", rdIndex, rrIndex
+  end if
+end syntax
+
+syntax addition #ADD
+  field u5 rdIndex
+  field u5 rrIndex
+  if rdIndex = rrIndex then
+    "LSL R\d", rdIndex
+  else
+    "ADD R\d, R\d", rdIndex, rrIndex
+  end if
+end syntax
+
+syntax and #AND
+  field u5 rdIndex
+  field u5 rrIndex
+  if rdIndex = rrIndex then
+    "TST R\d", rdIndex
+  else
+    "AND R\d, R\d", rdIndex, rrIndex
+  end if
+end syntax
+
+syntax eor #EOR
+  field u5 rdIndex
+  field u5 rrIndex
+  if rdIndex = rrIndex then
+    "CLR R\d", rdIndex
+  else
+    "EOR R\d, R\d", rdIndex, rrIndex
+  end if
+end syntax
+
+syntax loadWithDisplacement
+  #load
+  field u5 rdIndex
+  "LDD R\d, ", rdIndex
+  select
+    case #Z "Z"
+    case #Y "Y"
+  end select
+  LoadOffset
+end syntax
+
+syntax storeWithDisplacement
+  #store
+  field u5 rdIndex
+  "STD "
+  select
+    case #Z "Z"
+    case #Y "Y"
+  end select
+  LoadOffset
+  ", R\d", rdIndex
+end syntax
+
+syntax LoadOffset #LoadStoreOffset
+  field u6 offset
+  if offset != 0 then
+    "+\d",offset
+  else
+    "0"
+  end if
+end syntax
+
+syntax loadStore
+  loadOrStore
+  indirectReg
+  loadType
+end syntax
+
+syntax loadOrStore
+  field u5 rdIndex
+  select
+    case #load  "LD"
+    case #store "ST"
+  end select
+  " R\d, ", rdIndex
+end syntax
+
+syntax indirectReg
+  select
+    case #Z "Z"
+    case #Y "Y"
+    case #X "X"
+  end select
+end syntax
+
+syntax loadType
+  select
+    case #postInc "+"
+    case indirectReg
+  end select
+end syntax
+
+
+syntax loadStorePredec #preDec
+  loadOrStore
+  "-"
+  indirectReg
+end syntax
+
+syntax regs2WordAccess #MOVW
+  field u5 RdIndex
+  field u5 RrIndex
+  "MOVW R\d:R\d, R\d:R\d", RdIndex+1, RdIndex, RrIndex+1, RrIndex
+end syntax
+
+syntax rcall
+  field s12 k
+  select
+    case #RCALL "RCALL"  #SP_Check
+    case #RJMP  "RJMP"
+  end select
+  -- instruction address refers to the address of the instruction:
+  -- instruction address + 2 refers to the address of the instruction
+  -- just after.
+  if k > 0s then
+    " .+\d (@\x)", k<<1, instruction address + 2 + (u16)(k<<1)
+  else
+    " .\d (@\x)", k<<1, (s32)(instruction address + 2) + k<<1
+  end if
+end syntax
+
+syntax muls
+  field u4 RdIndex -- should add 16
+  field u4 RrIndex -- should add 16
+  #MUL #MULS "MULS"
+  " R\d, R\d", RdIndex+16, RrIndex+16
+end syntax
+-- vim:ft=hadl:ts=2:sw=2

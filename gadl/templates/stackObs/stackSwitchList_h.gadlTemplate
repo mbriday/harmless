@@ -1,0 +1,98 @@
+%template headerC%
+#ifndef __STACK_SWITCH_LIST_H__
+#define __STACK_SWITCH_LIST_H__
+#ifdef GADL_SP_CHECK_ALLOWED
+
+/* @def ID of the different traces */
+#define TASK_RUN 0 
+#define TASK_PREEMPT 1 
+#define TASK_TERMINATE 2 
+#define TASK_ACTIVATE 3 
+#define TASK_WAIT 4 
+#define TASK_RELEASED 5 
+/*
+#define TASK_CHANGE_PRIORITY 6 
+#define RES_GET 7 
+#define RES_RELEASED 8 
+#define ISR_RUN 9 
+#define ISR_PREEMPT 10 
+#define ISR_TERMINATE 11 
+#define ISR_ACTIVATE 12
+#define ISR_CHANGE_PRIORITY 13
+#define ALARM_SCHEDULED 14 
+#define ALARM_EXPIRE 15 
+#define ALARM_CANCEL 16 
+#define USER_EVENT 17 
+#define TPL_INIT 18
+#define TPL_TERMINATE 19
+*/
+ 
+#include <string>
+#include "types.h"
+#include "stackTypes.h"
+class stackSpyController;
+
+/** switchItem
+ * Describe one switch of stack (date of detection and associate sp value)
+ */
+class switchItem{
+	public :
+	switchItem *m_nextItem;	// next item in stack list
+	u64 m_date;				// Date (in cycle number) of sp storage
+	type_sp m_spValue;		// Value of sp at call/back
+	int m_taskId;			// Task identifier (arbitrary see stackList)
+	int m_switchType;		// Type of switch
+	
+	public :
+	
+	/* Usual */
+	switchItem(u32 date,type_sp spValue,int taskId,int switchType):m_nextItem(NULL),m_date(date),m_spValue(spValue),m_taskId(taskId),m_switchType(switchType){};
+	virtual ~switchItem(){};
+	
+	/* Access */
+	inline void setNextSwitchItem(switchItem *nextItem){m_nextItem=nextItem;};
+	inline switchItem* getNextSwitchItem(){return m_nextItem;};
+	inline void setDate(u64 date){m_date=date;};
+	inline u64 getDate(){return m_date;};
+	inline void setSpValue(type_sp spValue){m_spValue=spValue;};
+	inline type_sp getSpValue(){return m_spValue;};
+	inline void setTaskId(int taskId){m_taskId=taskId;};
+	inline int getTaskId(){return m_taskId;};
+	inline int getSwitchType(){return m_switchType;};
+		
+	/* Other */
+	virtual void printSwitch();
+};
+
+/** stackSwitchList
+ * Chained list of switch
+ * It's the historic of execution
+ */
+class stackSwitchList{
+	private :
+	switchItem *m_firstItem;	// First switchItem of list	(as usual in Chaine List)
+	switchItem *m_lastItem;	// Last switchItem of list (usefull we want a chronologic list)
+	int m_nbItems;			// Number of items in chained list
+	stackSpyController *m_controller;
+	
+	public :
+	
+	/* Usual */
+	stackSwitchList(stackSpyController *controller):m_firstItem(NULL),m_lastItem(NULL),m_nbItems(0),m_controller(controller){};
+	~stackSwitchList(){};
+	
+	/* Access */
+	
+	
+	/* Other */
+	void addSwitch(switchItem *swIt);	// Add one switch in switch chaine list
+	void printSwitchList();				// Screen print : list of switch
+	void writeTraceToFile(std::string path);	// Write a T3 txt trace to path
+	int const size() {return m_nbItems;};
+
+	//virtual deleteSwitch(){};		// Delete one switch from list
+};
+
+
+#endif // GADL_SP_CHECK_ALLOWED
+#endif // __STACK_SWITCH_LIST_H__

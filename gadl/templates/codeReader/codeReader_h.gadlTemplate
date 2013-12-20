@@ -1,0 +1,73 @@
+%template headerC%
+#ifndef __CODE_READER_H__
+#define __CODE_READER_H__
+
+#include <iostream>
+#include <string>
+#include "types.h"
+class arch;
+
+/* This class is used to get back data chunks which have been loaded into the simulator */
+class codeSection
+{
+	u32 m_v_addr;
+	u32 m_size;
+	public:
+	codeSection(const u32 v_addr,const u32 size) : m_v_addr(v_addr),m_size(size) {};
+	u32 const size() {return m_size;};
+	u32 const v_addr() {return m_v_addr;};
+};
+
+/** pure abstract class that should be inherited by code reader formats: Intel Hex, Motorola SRecord, Elf, ...
+ */
+class codeReader
+{
+	public:
+	codeReader() {};
+	virtual ~codeReader() {};
+	/** read the file and update simulator program memory
+	 *  This function SHOULD be implemented.
+	 *  @return true if there is no problem.
+	 */
+	virtual bool readFile(const char * filename, arch *_arch, const bool verbose) = 0;	
+	
+	/* @return the physical address. 
+	 * If no physical address is matching, the virtual address is returned
+	 * and found is set to false.
+	 */
+	virtual u32 getPhysicalAddress(const u32 v_addr, bool &found)
+	{
+		found = false;
+		return v_addr;
+	};
+	/* this function search for the virtual address and size of the symbol name (first parameter).
+	 * @return true if a symbol have been found, and updates v_addr and size
+	 * @return false if no symbol is matching. v_addr and size are not updated.
+	 */
+	virtual bool getSymbolObjectAddress(const char *symbolName, u32 &v_addr, u32 &size) {return false;};
+	/* Find the current fontion name, corresponding to v_addr. v_addr should be the current value of 
+	 * the program counter to be informed of the current function that is executed.
+	 * @return true if a symbol have been found, and updates symbol name
+	 * @return false if no symbol is matching. no update.
+	 */
+	virtual bool getFunctionName(const char *symbolName, u32 &v_addr) {return false;};
+
+	/** print all object symbols */
+	virtual void dumpObjects() {};
+	/** print all function symbols */
+	virtual void dumpFunctions() {};
+	/** return the corresponding function at given address (typically the current value of program counter) 
+	 *  It returns an empty string if not found. Obviously, symbols are required in object file.
+	 */
+	virtual std::string whichFunctionAtAddress(const u32 v_addr) {return std::string("");};
+	/** return program counter: entry point  */
+	virtual unsigned int getProgramCounter() {return 0;};
+
+	/** return the number of code chunks */
+	virtual unsigned int const getNbCodeSection() {return 0;};
+	/** return a code section : i.e. get info about a code chunk, its size and virtual address */
+	virtual codeSection *getCodeSection(const unsigned int index) {return NULL;}
+	
+};
+
+#endif

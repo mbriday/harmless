@@ -1,0 +1,155 @@
+########################################################
+#                                                      #
+# Nombre de tours de boucle : 0xFF00000 soit 16.711.680 #
+#                                                      #
+########################################################
+
+--> 10 NOP
+
+real	0m13.032s
+user	0m0.009s
+sys	0m0.010s
+
+--> 10+1 NOP
+
+real	0m13.950s
+user	0m0.009s
+sys	0m0.010s
+
+
+--> 10 NOP + 1 ADD
+
+real	0m13.924s
+user	0m0.009s
+sys	0m0.011s
+
+
+--> 10 NOP + 2 ADD (non dep)
+
+real	0m14.765s
+user	0m0.009s
+sys	0m0.011s
+
+real	0m14.888s
+user	0m0.009s
+sys	0m0.010s
+
+real	0m14.774s
+user	0m0.009s
+sys	0m0.010s
+
+real	0m14.802s
+user	0m0.009s
+sys	0m0.011s
+
+real	0m14.844s
+user	0m0.009s
+sys	0m0.011s
+
+
+
+--> 10 NOP + 2 ADD (dep)
+
+real	0m15.222s
+user	0m0.009s
+sys	0m0.011s
+
+real	0m14.940s
+user	0m0.009s
+sys	0m0.010s
+
+real	0m14.729s
+user	0m0.009s
+sys	0m0.012s
+
+real	0m14.844s
+user	0m0.009s
+sys	0m0.010s
+
+real	0m14.886s
+user	0m0.009s
+sys	0m0.010s
+
+real	0m14.758s
+user	0m0.009s
+sys	0m0.010s
+
+
+real	0m14.933s
+user	0m0.009s
+sys	0m0.011s
+
+
+
+--> 10 NOP + 1 MUL
+
+real	0m15.155s
+user	0m0.009s
+sys	0m0.010s
+
+real	0m15.080s
+user	0m0.009s
+sys	0m0.010s
+
+real	0m15.131s
+user	0m0.009s
+sys	0m0.010s
+
+
+
+--> 10 NOP + 2 MUL (non dep)
+
+real	0m17.291s
+user	0m0.009s
+sys	0m0.010s
+
+real	0m17.353s
+user	0m0.009s
+sys	0m0.011s
+
+real	0m17.359s
+user	0m0.009s
+sys	0m0.010s
+
+
+
+--> 10 NOP + 2 MUL (dep)
+
+real	0m17.270s
+user	0m0.009s
+sys	0m0.011s
+
+real	0m17.436s
+user	0m0.009s
+sys	0m0.011s
+
+real	0m17.321s
+user	0m0.009s
+sys	0m0.010s
+
+real	0m17.369s
+user	0m0.009s
+sys	0m0.010s
+
+real	0m17.443s
+user	0m0.009s
+sys	0m0.011s
+
+real	0m17.359s
+user	0m0.009s
+sys	0m0.011s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,44 @@
+Branch
+
+
+PC : 65800
+500000000 instructions executed
+
+real	0m8.924s
+user	0m8.826s
+sys	0m0.018s
+
+
+Add
+
+
+PC : 65792
+1000000000 instructions executed
+
+real	0m24.529s
+user	0m24.490s
+sys	0m0.017s
+
+
+Mla
+
+
+PC : 65808
+1000000000 instructions executed
+
+real	0m38.723s
+user	0m38.679s
+sys	0m0.021s
+
+
+Mov
+
+
+PC : 65792
+1000000000 instructions executed
+
+real	0m30.994s
+user	0m30.501s
+sys	0m0.019s
+
+

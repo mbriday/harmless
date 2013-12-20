@@ -1,0 +1,134 @@
+%template headerC%
+#ifdef GADL_SP_CHECK_ALLOWED
+
+#include <iostream>
+#include <string>
+using namespace std;
+
+#include "stackSwitchList.h"
+#include "stackController.h"
+#include "stackSpyAction.h"
+#include "stackList.h"
+#ifdef GADL_SP_FAILURE_CHECK_ALLOWED
+#include "stackObserver.h"
+#endif // GADL_SP_FAILURE_CHECK_ALLOWED
+
+#include "arch.h"
+
+stackSpyController::stackSpyController(arch *a){
+	m_stackList=new taskStackList(this);	// Create task list (with stack informations)
+	m_switchList=new stackSwitchList(this);	// Create switch list (for historic purposes)
+	m_switchList->addSwitch(new switchItem(1,0,TASK_UNKNOWN,TASK_RUN));		// Start List of Switch by Unknown TASK for T3 purpose
+	m_arch=a;								// Juste like to know our boss
+	m_currentTaskId=TASK_UNKNOWN;			// Always blind until work start
+	m_actionCounter=0;						// A counter is often start 0...
+	m_pcOld=0;								// Adapt to new way of detecting call by comparing PC value before and after execution
+	m_spadList = NULL; 						//no dynamic action at startup.
+	#ifdef GADL_SP_FAILURE_CHECK_ALLOWED
+	m_observer=new stackObserver(this);		// Create a stack oberver (against stack failure and to monitor stack use)
+	#endif // GADL_SP_FAILURE_CHECK_ALLOWED
+}
+
+
+void stackSpyController::processSP_CHECK(){
+	/* Add the associate dynamic action */
+	m_actionCounter++;				// Dynamic actions serial number (usefull for debug)
+	
+	// New way of detecting call inst.															
+	stackSpyActionDynamic *spad = new stackSpyActionDynamic(this, m_pcOld, m_currentTaskId,m_spOld,m_actionCounter);
+	//update actions: remove useless actions.		
+	updateDynamicActionList(spad);
+	// Add dynamic action at right programm adress
+	m_arch->addExecuteActionAtAddress(m_pcOld, spad);
+		
+	#ifdef	GADL_TALKATIVE_STACK
+	//cerr<<"Dynamic Action n°"<<dec<<m_actionCounter<<" PC@"<<hex<<m_pcOld<<" SP@"<<hex<<m_spOld<< " (add action) "<< endl;	// DEBUG
+	#endif // GADL_TALKATIVE_STACK	
+}
+
+void stackSpyController::updateDynamicActionList(stackSpyActionDynamic *spad)
+{
+	const type_prgaddr addr = spad->address();
+	stackSpyActionDynamic *current = m_spadList;
+	stackSpyActionDynamic *previous = NULL;
+	while(current)
+	{
+		//if the spad in parameter has a higher stack value, the 'current' should be removed.
+		if(spad->checkActionAgainst(current)){
+			//current should be deleted.
+			//first, remove the action
+			m_arch->removeExecuteActionAtAddress((u32)addr, current);
+			//then remove from list.
+			if(previous == NULL) m_spadList = current->nextDynamicAction();
+			else previous->setNextDynamicAction(current->nextDynamicAction());
+		} else {
+			previous = current;
+		}
+		current = current->nextDynamicAction();
+	}
+	//then add the new stackSpyActionDynamic (at the beginning)
+	spad->setNextDynamicAction(m_spadList);
+	m_spadList = spad;
+}
+
+void stackSpyController::removeDynamicAction(stackSpyActionDynamic *spad)
+{
+	stackSpyActionDynamic *current = m_spadList;
+	stackSpyActionDynamic *previous = NULL;
+	bool found = false;
+	while(current && !found)
+	{
+		//if the spad in parameter has a higher stack value, the 'current' should be removed.
+		if(current == spad){
+			if(previous == NULL) m_spadList = current->nextDynamicAction();
+			else previous->setNextDynamicAction(current->nextDynamicAction());
+			found = true;
+		} else {
+			previous = current;
+		}
+		current = current->nextDynamicAction();
+	}
+}
+
+// Public way to easly add a task to monitor
+void stackSpyController::addTaskToMonitor(string taskName,string functionSymbol,u32 size){
+	m_stackList->addStack(m_arch, new stackInfo(taskName,functionSymbol,size,this));
+}
+
+// Puclic way to easly print Switch List
+void stackSpyController::printControllerSwitchList(){
+	m_switchList->printSwitchList();
+}
+
+// Public way to easly write T3 trace
+void stackSpyController::writeTraceT3(string path){
+	m_switchList->writeTraceToFile(path);
+}
+
+// Public way to easly print Task List
+void stackSpyController::printTaskList(){
+	m_stackList->printStackList();
+}
+
+// Public way to easly change protection area for Stack observation
+#ifdef GADL_SP_FAILURE_CHECK_ALLOWED
+void stackSpyController::setSizeOfStackProtectionArea(type_sp size){
+	m_observer->setSizeOfProtectionArea(size);
+}
+// Public way to easly add an exclusion on Stack observation
+void stackSpyController::setExclusionOnSystFunction(string symbol){
+	m_observer->setExclusionOnSystemFunction(new stackObserverSysFuncItem(symbol));
+}	
+#endif //GADL_SP_FAILURE_CHECK_ALLOWED
+
+// Read Stack Pointer value in arch
+type_sp stackSpyController::getSP(){
+	return (m_arch->SP());
+};						
+
+// Read Programm Coutner value in arch
+type_prgaddr stackSpyController::getPC(){
+	return (m_arch->programCounter());
+};
+
+#endif // GADL_SP_CHECK_ALLOWED

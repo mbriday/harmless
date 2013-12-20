@@ -1,0 +1,22 @@
+
+domain HADL:EBNF filter "hadl" abstract
+
+transformation HADLEBNF2HADLEcore (in IN:HADL:EBNF, out OUT:HADL:Ecore) using EBNFInjector:BASH:EBNF {
+   SOURCE_MODEL=IN:HADL:EBNF,
+   TARGET_MODEL=OUT:HADL:Ecore,
+   INJECTOR=HADLInjector:JAR:Binary
+}
+
+transformation HADLEcore2HADLEBNF (in IN:HADL:Ecore, out OUT:HADL:EBNF) using EBNFExtractor:BASH:EBNF {
+   SOURCE_MODEL=IN:HADL:Ecore,
+   TARGET_MODEL=OUT:HADL:EBNF,
+   SYNTAX_MODEL=HADL:TCS:Ecore
+}
+
+transformation HADLEcore2DotEcore (in IN:HADL:Ecore, out OUT:Dot:Ecore) using ATLEngine:BASH:EBNF {
+   SOURCE_MODELS=IN:HADL:Ecore,
+   TARGET_MODELS=OUT:Dot:Ecore,
+   TRANSFORMATION_MODEL=HADL2Dot:ASM:XML,
+   LIBRARY_MODELS=strings:ASM:XML
+}
+

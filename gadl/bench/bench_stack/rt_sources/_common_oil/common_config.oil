@@ -1,0 +1,26 @@
+/* Running the following example:
+ *just call goil a first time using the command line:
+ *goil --target=arm -g --templates=../../goil/templates/ arm.oil
+ * Stack Bench :
+ * goil --generate-makefile --target=arm/olimex_lpc_e2294 --templates=../../../../../../../trampoline/goil/templates/ -i  arm.oil
+ *(COMPILER, LINKER and ASSEMBLER in OS section may be adapted to your 
+ * specific install of avr cross-compiler)
+ *
+ *Then a Makefile is generated. Just type:
+ *make
+ *To clean the project, call:
+ *make clean
+ * It will remove all generated files, except the Makefile.
+ */
+OIL_VERSION = "2.5" : "test" ;
+
+/*IMPLEMENTATION trampoline {
+    TASK {
+        UINT32 STACKSIZE = 500 ;
+        UINT32 PRIORITY = 1 ;
+    } ;
+    ISR {
+        UINT32 STACKSIZE = 500 ;
+    } ;
+};
+*/

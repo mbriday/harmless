@@ -1,0 +1,7 @@
+
+This part is dedicated to calculate exec time of each instruction
+on the target Olimex.
+
+Take the example of nop1.S to correct others scripts.
+
+It shows how to use the GPIO of the LPC-E2294

@@ -1,0 +1,280 @@
+syntax gadl_timing_parser ("gadl_lexique.gLexique") :
+  import "gadl_options.gOption" ;
+  import "gadl_semantics.gSemantics" ; #variables: varMap
+  import "gadl_semantics_expression.gSemantics" ;
+  import "gadl_semantics_implementation.gSemantics" ; #@cAddCycleInst
+  import "gadl_components.gSemantics"; #componentMap
+  import "gadl_semantics_timingSection.gSemantics";
+
+#expression related rules
+nonterminal  <expression> 
+  ?? @varMap varMap
+  !  @cExpression outExp 
+  ?? @componentMap componentMap
+  ?? @uint tmpId
+  ?? @expressionContext expContext
+;
+
+#implementation part.
+nonterminal <assignmentOrFunctionCall> 
+  ?! @varMap varMap 
+  ?! @instructionList instList
+  ?? @componentMap componentMap
+  ?? @lstring currentComponent
+  ?! @uint tmpId
+  ?? @expressionContext expContext
+;
+nonterminal  <declaration>  
+  ?! @varMap varMap 
+  ?! @instructionList instList 
+  ?? @componentMap componentMap
+  ?? @lstring currentComponent
+  ?? @string prefix
+  ?! @uint tmpId
+  ?? @expressionContext expContext
+;
+nonterminal <assignRightSide> 
+  ?? @varTypeList leftTypeList  
+  ?? @varMap varMap 
+  !  @cExpression exp
+  ?? @componentMap componentMap
+  ?? @uint tmpId
+  ?? @expressionContext expContext
+;
+
+#main timing instruction rule.
+rule  <timing>
+  ?? @varMap globalVarMap 
+  ?! @uint internalTimingId
+  ?? @componentMap componentMap
+  ?! @timingMap timingMap
+:
+  $timing$;
+  @lstring timingName;
+  $idf$ ?timingName;
+  if not [componentMap hasKey ![timingName string]] then
+    error here: "a timing section should be associated to a component with the same name.".
+                " There is no component with name ".[timingName string];
+  end if;
+  @bool externalActivation;
+  select
+    externalActivation := false;
+  or
+    $on$;
+    $activation$;
+    externalActivation := true;
+  end select;
+  @boolMap signalIn [emptyMap];
+  @boolMap signalOut [emptyMap];
+  @timingInstructionList instList [emptyList];
+  @varMap varMap := [@varMap mapWithMapToOverride !globalVarMap];
+  <signal> !?signalIn !?signalOut;
+  ${$; 
+  @bool loopForever;
+  <tInstructions> ?instList !componentMap !signalOut !signalIn !?varMap !?internalTimingId !true ?loopForever;
+  if loopForever & not externalActivation then
+    error here: "This timing will generate code that loops forever.".
+    "It should wait either for a number of cycles or for a synchronisation (wait for signal/emit signal)";
+  end if;
+  $}$;
+  [!?timingMap insertKey !timingName !varMap !signalIn !signalOut !instList !externalActivation];
+end rule;
+
+#Signal Rule for in and out signal
+rule <signal> 
+  ?! @boolMap signalIn
+  ?! @boolMap signalOut
+:
+  repeat
+    @bool isIn;
+    $signal$; 
+    select 
+      $in$ ; isIn:=true; 
+    or 
+      $out$; isIn:=false;
+    end select;
+    $:$; 
+    repeat
+      @lstring signalName;
+      $idf$ ?signalName;
+      if isIn then
+        [!?signalIn insertKey !signalName];
+      else
+        [!?signalOut insertKey !signalName];
+      end if;
+    while
+      $,$;
+    end repeat;
+  while
+  end repeat;
+end rule;
+
+rule  <tInstructions>  
+  !  @timingInstructionList instList
+  ?  @componentMap componentMap
+  ?  @boolMap signalOut
+  ?  @boolMap SignalIn
+  ?! @varMap varMap
+  ?! @uint internalTimingId
+  ?? @bool mainChunk
+  !  @bool loopForever
+:
+  #This bool is used to check that simulation will not go into an infinite loop:
+  #automata should have at least a block instruction (wait for cycles or signals).
+  loopForever := true;
+  instList := [@timingInstructionList emptyList];
+  repeat
+    @timingInstruction tinst; 
+    select
+      @instructionList instList [emptyList];
+      @lstring emptyLString := [@lstring new !"" !here];
+      #call the 'declaration' rule, with no current component, and no prefix (local var).
+      #the rule updates the varMap, give the instructions to generate the code 
+      #(and update the tmp id if required).
+      <declaration> !?varMap !?instList !componentMap !emptyLString 
+                    !"" !?internalTimingId ![@expressionContext timing];
+      tinst := [@tDeclaration new  !here !instList] ;
+      if not mainChunk then
+        error here: "Declaration of local variables is not supported in 'timing' sections. Please use only globals.";
+      end if;
+    or
+      #<tassignment> ?tinst !varMap !componentMap !?internalTimingId;
+      @instructionList instList [emptyList];
+      @lstring currentComponent := lstringWith[!""];
+      <assignmentOrFunctionCall> !?varMap !?instList !componentMap  
+                                 !currentComponent !?internalTimingId ![@expressionContext timing];
+      tinst := [@tAssignOrCall new !here !instList] ;
+    or 
+      <temit> ?tinst !signalOut ;
+      loopForever := false;
+    or
+      <wait> !componentMap ?tinst !SignalIn !varMap !?internalTimingId;
+      loopForever := false;
+    or
+      @bool loopForeverIf;
+      <ifStatement> ?tinst !componentMap !signalOut !SignalIn !?varMap !?internalTimingId ?loopForeverIf;
+      loopForever := loopForever & loopForeverIf; #if loopForever is still false, it stays false;
+    or 
+      <loop> ?tinst !componentMap !signalOut !SignalIn !?varMap !?internalTimingId;
+    end select;
+    instList += !tinst;
+  while
+  end repeat;
+end rule;
+
+rule  <wait>
+  ?  @componentMap componentMap
+  ! @timingInstruction tinst
+  ? @boolMap SignalIn
+  ?? @varMap varMap
+  ?! @uint internalTimingId
+:
+  $wait$ ; 
+  select 
+    @cExpression exp;
+    @varType outTypeCond;  
+    <expression>  !varMap ?exp !componentMap !internalTimingId ![@expressionContext timing];
+    $cycle$;
+    checkOneExpressionOutType !exp ?outTypeCond;
+    tinst := [@tWaitCycle new  !here !exp];
+  or 
+    @lstring name;
+    $for$; $signal$; $idf$ ?name;
+    if not [SignalIn hasKey ![name string]] then
+      error here:"try to wait for signal ".[name string].", but it is not declared.";
+    end if;
+    tinst := [@tWaitSignal new  !here  !name] ;
+  end select;
+end rule; 
+
+rule  <temit>  
+  ! @timingInstruction tinst
+  ? @boolMap signalOut
+:
+  @lstring name;
+  $emit$ ; 
+  @bool broadcast;
+  select
+    $broadcast$; broadcast := true;
+  or
+    broadcast := false;
+  end select;
+  select #signal keyword not mandatory.
+    $signal$;
+  or
+  end select;
+  $idf$ ?name;
+  if not [signalOut hasKey ![name string]] then
+    error here:"try to emit signal ".[name string].", but this signal is not declared.";
+  end if;
+  tinst := [@tEmit new !here !name !broadcast] ;
+end rule;
+
+rule <loop> 
+  !  @timingInstruction tinst
+  ?  @componentMap componentMap
+  ?  @boolMap signalOut
+  ?  @boolMap SignalIn
+  ?! @varMap varMap
+  ?! @uint internalTimingId
+:
+  @timingInstructionList instList [emptyList];
+  @luint64 loopValue;
+  $loop$ ;$unumber$  ?loopValue;
+  $while$;
+  @cExpression cond;
+  @varType outTypeCond;  
+  <expression>  !varMap ?cond !componentMap !internalTimingId ![@expressionContext timing];
+  checkOneExpressionOutType !cond ?outTypeCond;
+  checkBool !outTypeCond !here;  
+  $do$;
+  <tInstructions> ?instList !componentMap !signalOut !SignalIn !?varMap !?internalTimingId !false ?*;
+  $end$;$loop$;
+  #insert internal invariant name into the varMap 
+  #(to help variable declaration generation, and check that the name is not used twice)
+  @lstring invariantLoopVarName := [@lstring new !"invLoop_".internalTimingId !here];
+  internalTimingId := internalTimingId + 1; #used by the loop invariant variable name -> should be unique
+  @uint nbBits := nbBitsToCodeUnsigned[![loopValue uint64]];
+  @varType type := [@varType new ![@varKind unsigned] !nbBits !here];
+  @classicVar variable := [@classicVar new !type !false !"" !""]; 
+  [!?varMap insertKey !invariantLoopVarName !variable];
+  #create loop instruction.
+  tinst := [@tLoop new !here !instList !cond !loopValue !invariantLoopVarName];
+end rule;
+
+rule <ifStatement> 
+  !  @timingInstruction tinst
+  ?  @componentMap componentMap
+  ?  @boolMap signalOut
+  ?  @boolMap SignalIn
+  ?! @varMap varMap
+  ?! @uint internalTimingId
+  !  @bool loopForever
+:
+  @timingInstructionList instListThen [emptyList];
+  @timingInstructionList instListElse [emptyList];
+  $if$;  
+  @cExpression expIf;
+  @varType outTypeIf;  
+  <expression>  !varMap ?expIf !componentMap !internalTimingId ![@expressionContext timing];
+  checkOneExpressionOutType !expIf ?outTypeIf;
+  checkBool !outTypeIf !here;  
+  
+  @bool loopForeverIf;
+  @bool loopForeverElse;
+  $then$;
+  <tInstructions> ?instListThen !componentMap !signalOut !SignalIn !?varMap !?internalTimingId !false ?loopForeverIf;
+  select 
+    $else$;
+    <tInstructions> ?instListElse !componentMap !signalOut !SignalIn !?varMap !?internalTimingId !false ?loopForeverElse;
+  or
+    #no else
+    loopForeverElse := true;
+  end select;
+  loopForever := loopForeverIf | loopForeverElse; #should be false together
+  $end$; $if$;
+  tinst := [@tIf new !here !instListThen !instListElse !expIf] ; 
+end rule;
+
+end syntax ;
+# vim:ft=ggs:ts=2:sw=2

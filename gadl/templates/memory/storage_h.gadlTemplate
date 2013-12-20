@@ -1,0 +1,276 @@
+%template headerC%
+#ifndef __STORAGE_H__	
+#define __STORAGE_H__
+
+//WARNING: The TRACK_VARIABLE part is not yet implemented and will NOT work (and compile).
+
+//if DEBUG_STORAGE is uncommented, a message is written on stdout for each write access.
+//#define DEBUG_STORAGE
+//if DEBUG_STORAGE_ADDRESS_RANGE, a message is written on sterr 
+//if a memory access is out of the mem range.
+//#define DEBUG_STORAGE_ADDRESS_RANGE
+
+//default implementation of actions:
+//it uses 3 tabs (r/w/x) that are directly mapped to actions
+//For 1 Mb of storage
+// * 1+4*2 = 9Mb are required when using fast actions and 32bits pointers
+// * 1+8*2 = 17Mb for 64bits pointers.
+//If ACTION_FAST is not set, it uses a tab of bits and a map (using STL),
+//then, for 1 Mb of storage, 1Mbits are also required... and a map that grows
+//depending on the number of actions. This last approach save RAM but increases
+//computation time ~20 \% in ISS mode.
+
+#define ACTION_FAST
+
+#include "types.h"		//defines types: u8, u16, ...
+
+#include <fstream>
+#include <iostream>
+#include <stdio.h>
+#include <map>
+#include <string> //memory name.
+
+#ifndef GADL_NO_ACTION
+	#include "action.h"	//defines actions triggered by memory accesses
+	#ifdef TRACK_VARIABLE
+		#include "pef_spy_action.h"
+	#endif
+#endif
+
+class spyInfo;
+/**
+ * most generic storage class: May be used by any component 
+ * that can have an address: 
+ * RAM, ROM, devices mapped in memory.
+*/
+class storage
+{		
+	protected:
+	//action single linked list management
+	#ifndef GADL_NO_ACTION
+		void insertActionAtEnd(action *actStart, action *actToInsert);
+		void removeAllActionsFrom(action *actStart);
+	#endif
+	public:
+	storage() {};
+	virtual ~storage() {};
+	
+	/**
+	 * read in memory: may trigger an action. 
+	 * \param address is the address of the memory access.
+	 * \param spyInfo is used for data tracking.
+	 */
+	virtual u8  read8AtAddress(const u32 address, spyInfo *s=NULL) = 0;
+	virtual u16 read16AtAddress(const u32 address, spyInfo *s=NULL) = 0;
+	virtual u32 read32AtAddress(const u32 address, spyInfo *s=NULL) = 0;
+
+
+	/**
+	 * write in memory: may trigger an action.
+	 * \param address is the address of the memory access.
+	 * \param spyInfo is used for data tracking.
+	 */
+	virtual void write8AtAddress(const u32 address, const u8 byte, spyInfo *s=NULL) = 0;
+	virtual void write16AtAddress(const u32 address, const u16 word, spyInfo *s=NULL) = 0;
+	virtual void write32AtAddress(const u32 address, const u32 dbl_word, spyInfo *s=NULL) = 0;
+    
+	
+	#ifndef GADL_NO_ACTION
+		/// attach an action to a memory location (read/write/execute)
+		virtual void addReadActionAtAddress(const u32 address, readAction* act) = 0;
+		virtual void addWriteActionAtAddress(const u32 address, writeAction* act) = 0;
+    
+		/// remove an action to a memory location (read/write/execute)    
+		virtual void removeReadActionAtAddress(const u32 address, readAction* act) = 0;
+		virtual void removeWriteActionAtAddress(const u32 address, writeAction* act) = 0;
+	
+		/// perform the action, but does not return value.
+		virtual void read8Action(const u32 address, spyInfo *s=NULL) = 0;
+		virtual void read16Action(const u32 address, spyInfo *s=NULL) = 0;
+		virtual void read32Action(const u32 address, spyInfo *s=NULL) = 0;
+	#endif
+  
+	/// put a data but does not trigger any action 
+	///(useful to load a program for instance)
+	virtual void    put8AtAddr(const u32 addr, const u8 data) {};
+	virtual void    put16AtAddr(const u32 addr, const u16 data) {};
+	virtual void    put32AtAddr(const u32 addr, const u32 data) {};
+    
+	///get a data but does not trigger any action.
+	virtual u8 get8AtAddr(const u32 addr) {return 0;};
+	virtual u16 get16AtAddr(const u32 addr) {return 0;};
+	virtual u32 get32AtAddr(const u32 addr) {return 0;};
+    
+	//debug
+	virtual void dump(const unsigned int min, const unsigned int nbVal) {};
+	void debugMemoryAccessRead(const u32 address, const unsigned int value, const unsigned char sizeInBytes);
+	void debugMemoryAccessWrite(const u32 address, const unsigned int value, const unsigned char sizeInBytes);
+    
+	#ifdef TRACK_VARIABLE
+		virtual spy_action * getSpyAction(const u32 address) = 0;
+		bool createAutoSpyAction(const u32 address, spyInfo *s, const u8 byte);
+	#endif
+};
+    
+class dumStorage : public storage
+{
+	public:
+	/// declare a memory chunk in the interval [offset -> offset+size-1]. 
+	/// The "alignment" is used to check for a correct alignement 
+	/// during memory accesses.
+	dumStorage(std::string name, u32 size, u32 offset, int alignment = 1);   
+	virtual ~dumStorage();
+	dumStorage(const dumStorage &mem);
+	void createActionTabs();
+    
+	/// return true if the address is in the range of the mem chunk.
+	bool matchAddress(const u32 address);
+
+	///check if the address is in the range of the mem chunk. If not,
+	///an error is written on stderr and program exits (segfault for backtrace).
+	void checkForValidAddress(const u32 address);
+    
+	virtual u8  read8AtAddress(const u32 address, spyInfo *s=NULL);
+	virtual u16 read16AtAddress(const u32 address, spyInfo *s=NULL);
+	virtual u32 read32AtAddress(const u32 address, spyInfo *s=NULL);
+	
+	virtual void write8AtAddress(const u32 address, const u8 byte, spyInfo *s=NULL);
+	virtual void write16AtAddress(const u32 address, const u16 word, spyInfo *s=NULL);
+	virtual void write32AtAddress(const u32 address, const u32 dbl_word, spyInfo *s=NULL);
+	
+	#ifndef GADL_NO_ACTION
+		virtual void addReadActionAtAddress(const u32 address, readAction* act);
+		virtual void addWriteActionAtAddress(const u32 address, writeAction* act);
+		
+		virtual void removeReadActionAtAddress(const u32 address, readAction* act);
+		virtual void removeWriteActionAtAddress(const u32 address, writeAction* act);
+
+		/** action but not read */
+		virtual void read8Action(const u32 address, spyInfo *s=NULL);
+		virtual void read16Action(const u32 address, spyInfo *s=NULL);
+		virtual void read32Action(const u32 address, spyInfo *s=NULL);
+	#endif
+    
+	#ifdef TRACK_VARIABLE
+		virtual spy_action * getSpyAction(const u32 address);
+	#endif
+
+  protected:
+	/// name of the memroy chunk. Used for debug.
+	std::string m_name;
+
+  	/// size of the memory chunk.
+  	/// addressable memory is in the 
+  	/// interval [m_offset m_offset+m_size-1]
+  	u32 m_size;
+    
+	/// m_offset is used to offset an address 
+	/// before converting it to an index
+	u32 m_offset;
+	    
+	/// m_alignment, is used to check 
+	/// the alignment of storage accesses
+	    /// TODO: not used at this time :-/
+	int m_alignment;
+    
+	private: 
+	#ifndef GADL_NO_ACTION
+  		//remove all the read actions (Warning, the action objets are not deleted!!!)
+		void removeReadActions();
+  		void removeWriteActions();
+  		
+		void resetActionFlags();
+		void triggerActionWhenRead8(const u32 address, spyInfo *s=NULL);
+		void triggerActionWhenWrite8(const u32 address, const u8 byte, spyInfo *s=NULL);
+    
+		#ifdef ACTION_FAST
+		// tab of execute actions. Tab size is m_size
+		// if will require either m_size*sizeof(void *) (4 or 8)
+		readAction **m_readActionsTab;
+		// tab of execute actions. Tab size is m_size
+		// if will require either m_size*sizeof(void *) (4 or 8)
+		writeAction **m_writeActionsTab;
+		#else
+		// m_action_flag is used to decide whether an act should
+		// be triggered for a read access
+		u32 *m_readActionFlag;
+    
+		// m_action_flag is used to decide whether an act should
+		// be triggered for a write access
+		u32 *m_writeActionFlag;
+    
+		// m_executeActions is a map that 
+		// stores a list of action to trigger
+		// when the instruction code at this addres (key of the map) is executed.
+		std::map<u32,executeAction *> m_executeActions;
+
+		// m_readActions is a map that 
+		// stores a list of action to trigger
+		// for a read access to an address (the key of the map)
+		std::map<u32,readAction *> m_readActions;
+    
+		// m_readActions is a map that stores 
+		// a list of action to trigger
+		// for a write access to an address 
+		// (the key of the map)
+		std::map<u32,writeAction *> m_writeActions;
+		#endif
+	#endif
+};      
+    
+class roStorage : public dumStorage
+{
+	public:
+	#ifndef SWIG //not supported by SWIG wrapper (for Python).
+		roStorage &operator=(const roStorage&);
+	#endif
+	/// build an empty storage.
+	roStorage(std::string name, u32 size, u32 offset, int alignment = 1);
+	roStorage(const roStorage &mem);
+	virtual ~roStorage();
+	        
+	void put8AtAddr(const u32 addr, const u8 byte);
+	void put16AtAddr(const u32 addr, const u16 data);
+	void put32AtAddr(const u32 addr, const u32 data);
+	
+	u8  get8AtAddr(const u32 addr);
+	u16 get16AtAddr(const u32 addr);   
+	u32 get32AtAddr(const u32 addr);   
+	     
+	virtual u8  read8AtAddress(const u32 address, spyInfo *s=NULL);
+	virtual u16 read16AtAddress(const u32 address, spyInfo *s=NULL);
+	virtual u32 read32AtAddress(const u32 address, spyInfo *s=NULL);
+    
+	///if nbVal = 0; dump until end of memory chunk.
+	virtual void dump(const unsigned int min=0, const unsigned int nbVal=0);
+	
+	///Warning this function MUST been called directly
+	///only in case of automatically generated code. It
+	///returns a pointer to a private data!!!. Useful
+	///only for performances reasons!
+	u8  *getPointerToData8AtAddress(const u32 address);
+	
+	protected:
+	/* m_storage is used to store the data in the storage.
+	It is a 32 bit integer to deal with memory alignement.
+	The read methods convert the address to an index
+	according to the size of the element to read.
+	*/
+	u32 *m_storage;
+};
+
+
+class rwStorage : public roStorage
+{
+	public:
+	rwStorage(std::string name, u32 size, u32 offset, int alignment = 1);
+	rwStorage(const rwStorage &mem);
+
+	virtual void write8AtAddress(const u32 address, const u8 byte, spyInfo *s=NULL);
+	virtual void write16AtAddress(const u32 address, const u16 word, spyInfo *s=NULL);
+	virtual void write32AtAddress(const u32 address, const u32 dbl_word, spyInfo *s=NULL);
+};
+
+
+#endif //__STORAGE_H__
+

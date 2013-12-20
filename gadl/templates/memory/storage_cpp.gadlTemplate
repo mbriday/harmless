@@ -1,0 +1,1066 @@
+%template headerC%
+#include "storage.h"
+#ifdef TRACK_VARIABLE
+	#include "C166_addr_mode.h" //to connect the spy_info... (need_action).
+#endif
+#include <stdlib.h>  //size_t
+#include <iomanip> //setioflags (setw)
+#include "utils.h" //SEGFAULTIF
+
+using namespace std;
+
+//Memory accesses may be in little or big endian.
+//if CHANGE_ENDIAN is set, change the endianess from the host and the target 
+//are different.
+#%!IS_BIG_ENDIAN% TARGET_IS_BIG_ENDIAN
+#ifdef TARGET_IS_BIG_ENDIAN
+  #ifdef HOST_IS_LITTLE_ENDIAN
+    #define __CHANGE_ENDIAN__  
+  #endif
+#else
+  #ifdef HOST_IS_BIG_ENDIAN
+    #define __CHANGE_ENDIAN__  
+  #endif  
+#endif
+
+#ifdef TRACK_VARIABLE
+	bool pef_storage::create_auto_spy_action(const u32 address, spy_info *s, const u8 byte)
+	{
+		bool result = false;
+		if(s)
+		{
+			//there is no spy_action, and s !=NULL	
+			if(s -> inst -> need_action()) 
+			{
+				//a spy_action is required.
+				//it stores itself in mem as read/write action. (auto spy)
+				new spy_action(address, s -> cpu,false, s -> length, spy_action::TRACK_FULL);
+				result = true;
+			}
+		}
+		return result;
+	}
+#endif
+
+#ifdef PRAGMA_MARK_ALLOWED
+	#pragma mark storage
+#endif
+
+#ifndef GADL_NO_ACTION
+	void storage::removeAllActionsFrom(action *actStart)
+	{
+		while(actStart)
+		{
+			action *next = actStart->next();
+			delete actStart;
+			actStart = next;
+		}
+	}
+	
+	void storage::insertActionAtEnd(action *actStart, action *actToInsert)
+	{
+		action *previous = actStart;
+		while(actStart)
+		{
+			previous = actStart;
+			actStart = actStart -> next();
+		}
+		if(previous)
+			previous->setNext(actToInsert);
+	}
+#endif
+
+#ifdef PRAGMA_MARK_ALLOWED
+	#pragma mark dumStorage
+#endif
+
+dumStorage::~dumStorage()
+{
+	#ifndef GADL_NO_ACTION
+		#ifdef ACTION_FAST	
+		if(m_readActionsTab) 
+		{
+			removeReadActions();
+			removeWriteActions();
+			delete [] m_readActionsTab;
+			delete [] m_writeActionsTab;
+		}
+		#else
+		if(m_readActionFlag)
+		{
+			removeReadActions();
+			removeWriteActions();
+			delete m_readActionFlag;
+			delete m_writeActionFlag;
+		}
+		#endif
+		//the actions are removed from the list, but nor deleted!!!!!!
+	#endif
+}
+
+#ifndef GADL_NO_ACTION
+	void dumStorage::removeReadActions()
+	{
+		#ifdef ACTION_FAST	
+		for(unsigned int i=0;i<m_size;i++)
+		{
+			readAction *act = m_readActionsTab[i];
+			removeAllActionsFrom(act);
+			m_readActionsTab[i] = NULL;			
+		}
+		#else
+		std::map<u32,readAction *>::iterator actionIterator = m_readActions.begin();
+		std::map<u32,readAction *>::const_iterator actionIteratorEnd = m_readActions.end();
+		while(actionIterator != actionIteratorEnd)
+		{
+			readAction *readAction = (*actionIterator).second;
+			removeAllActionsFrom(readAction);
+			m_readActions.erase(actionIterator);
+			actionIterator++;
+		}
+		#endif
+	}
+	
+	void dumStorage::removeWriteActions()
+	{
+		#ifdef ACTION_FAST	
+		for(unsigned int i=0;i<m_size;i++)
+		{
+			writeAction *act= m_writeActionsTab[i];
+			removeAllActionsFrom(act);
+			m_writeActionsTab[i] = NULL;			
+		}
+		#else
+		std::map<u32,writeAction *>::iterator actionIterator = m_writeActions.begin();
+		std::map<u32,writeAction *>::const_iterator actionIteratorEnd = m_writeActions.end();
+		while(actionIterator != actionIteratorEnd)
+		{
+			writeAction *writeAction = (*actionIterator).second;
+			removeAllActionsFrom(writeAction);
+			m_writeActions.erase(actionIterator);
+			actionIterator++; 
+		}
+		#endif
+	}
+#endif
+
+dumStorage::dumStorage(string name,u32 size, u32 offset, int alignment) :
+    m_name(name),
+	m_size(size),
+    m_offset(offset),
+    m_alignment(alignment)
+{
+	#ifndef GADL_NO_ACTION
+		#ifdef ACTION_FAST	
+		m_readActionsTab    = NULL; 
+		m_writeActionsTab   = NULL; 
+		#else
+		m_readActionFlag =    NULL;
+		m_writeActionFlag =   NULL;
+		#endif
+	#endif	
+}
+
+void dumStorage::createActionTabs()
+{
+	#ifndef GADL_NO_ACTION
+		#ifdef ACTION_FAST	
+		m_readActionsTab    = new readAction *[m_size];
+		m_writeActionsTab   = new writeAction *[m_size];
+		#else
+		const unsigned int max = (m_size >> 5) + 1;
+		m_readActionFlag = new u32[max];
+		m_writeActionFlag = new u32[max];
+		#endif
+		resetActionFlags();	
+	#endif
+}
+
+dumStorage::dumStorage(const dumStorage &mem) : storage(mem)
+{
+	#ifndef GADL_NO_ACTION
+		#ifdef ACTION_FAST	
+		if(mem.m_readActionsTab)
+		{
+			m_readActionsTab    = new readAction *[m_size];
+			m_writeActionsTab   = new writeAction *[m_size];
+			//do not copy actions!!
+			for(unsigned int i = 0; i < m_size; i++) m_readActionsTab[i]    =  mem.m_readActionsTab[i];
+			for(unsigned int i = 0; i < m_size; i++) m_writeActionsTab[i]   =  mem.m_writeActionsTab[i];
+		} else {
+			m_readActionsTab    = NULL;
+			m_writeActionsTab   = NULL;
+		}			
+		#else
+		if(mem.m_readActionFlag)
+		{
+			const unsigned int max = (m_size >> 5) + 1;
+			m_readActionFlag = new u32[max];
+			m_writeActionFlag = new u32[max];
+			for(unsigned int i = 0; i < max; i++) m_readActionFlag[i] =  mem.m_readActionFlag[i];
+			for(unsigned int i = 0; i < max; i++) m_writeActionFlag[i] = mem.m_writeActionFlag[i];
+
+			m_readActions =  mem.m_readActions;
+			m_writeActions = mem.m_writeActions;
+		} else {
+			m_readActionFlag    = NULL;
+			m_writeActionFlag   = NULL;
+		}
+		#endif
+	#endif
+	m_name = mem.m_name;  
+	m_size = mem.m_size;  
+	m_offset = mem.m_offset;  
+	m_alignment = mem.m_alignment;  
+}
+
+void dumStorage::checkForValidAddress(u32 address)
+{
+	if(!matchAddress(address)){
+		cerr << "Invalid Memory access for " << m_name << endl;
+		cerr << "\taddress is 0x" << hex << address << endl;
+		cerr << "\trange is 0x" << hex << m_offset;
+		cerr << " -> 0x" << hex << m_offset+m_size-1 << endl;
+		SEGFAULTIF(true);
+	}
+}
+
+void storage::debugMemoryAccessWrite(const u32 address, const unsigned int value, const unsigned char sizeInBytes)
+{
+	cout << "Write access at 0x" << hex << address << ", write value: 0x" 
+		 << setw(sizeInBytes<<1) << value << " (" << dec << value << ")" << endl;
+}
+
+void storage::debugMemoryAccessRead(const u32 address, const unsigned int value, const unsigned char sizeInBytes)
+{
+	cout << "Read access at 0x" << hex << address << ", read value: 0x" 
+		 << setw(sizeInBytes<<1) << value << " (" << dec << value << ")" << endl;
+}
+
+bool dumStorage::matchAddress(const u32 address)
+{
+  return ((address >= m_offset) && (address <= (m_size -1 + m_offset)));
+}
+
+#ifndef GADL_NO_ACTION
+	void dumStorage::resetActionFlags()
+	{
+	  // set all the action flags to false (i.e. no action to trigger).
+		#ifdef ACTION_FAST	
+		for(u32 i=0; i< m_size; i++)
+		{
+			m_readActionsTab[i] = NULL;
+			m_writeActionsTab[i] = NULL;
+		}
+		#else
+	  	const unsigned int max = (m_size >> 5) + 1;
+	  	for (u32 i = 0; i < max; i++) 
+	  	{	
+	    	m_readActionFlag[i] = 0;
+	    	m_writeActionFlag[i] = 0;
+	  	}
+		#endif
+	}
+
+	void dumStorage::triggerActionWhenRead8(const u32 address, spyInfo *s)
+	{
+		#ifdef ACTION_FAST	
+		readAction *currentAction = m_readActionsTab[address];
+		if(currentAction)
+		{
+		#else
+		u32 base = address >> 5;
+		u32 offset = address & 0x0000001F;
+		if (m_readActionFlag[base] & (1 << offset)) //there is at least 1 action
+		{	
+			map<u32,readAction *>::const_iterator actionIterator = m_readActions.find(address);
+			if (actionIterator != m_readActions.end()) //check for all actions in list
+			{
+				readAction *currentAction = (*actionIterator).second;
+		#endif
+                readAction *previous = NULL;
+                readAction *next = NULL;
+                while(currentAction)
+                {
+                    next = (readAction *)(currentAction->next());
+                    if(currentAction->trigger(this,s)) //call the trigger method
+                    {
+                        //remove read action.
+                        if(previous) //not first action, there is a previous
+                        {
+                            //update list (remove currentAction from list)
+                            previous->setNext(next);
+						} else { //first action.
+                            if(next)
+                            {
+                                //there is a next
+								#ifdef ACTION_FAST	
+                                m_readActionsTab[address] = next;
+								#else
+                                m_readActions[address] = next;
+								#endif
+                            } else //first, and no next => alone!
+                            {
+								#ifdef ACTION_FAST	
+								m_readActionsTab[address] = NULL;
+								#else
+                                //list becomes empty.
+                                m_readActionFlag[base] &= ~(1 << offset);
+                                //remove from map
+                                m_readActions.erase(address);
+								#endif
+                            }
+                        } 
+                        delete currentAction;
+                        currentAction = previous; //rewind (previous may be NULL)
+                    } 
+                    //prepare next step
+                    previous = currentAction;
+                    currentAction = next;
+                }
+			#ifndef ACTION_FAST	
+			} else SEGFAULTIF(true); //map and bit field are not synchronised!
+			#endif
+		}
+	}
+	
+	void dumStorage::triggerActionWhenWrite8(const u32 address, const u8 data8, spyInfo *s)
+	{
+		#ifdef TRACK_VARIABLE
+			bool spyActionPresent = false;
+		#endif
+		#ifdef ACTION_FAST	
+		writeAction *currentAction = m_writeActionsTab[address];
+		if(currentAction)
+		{			
+		#else
+		u32 base = address >> 5;
+		u32 offset = address & 0x0000001F;
+		if (m_writeActionFlag[base] & (1 << offset))  //there is at least 1 action
+		{
+			map<u32,writeAction *>::const_iterator actionIterator = m_writeActions.find(address);
+			if (actionIterator != m_writeActions.end())  //check for all actions in list
+			{
+				writeAction *currentAction = (*actionIterator).second;
+		#endif
+                writeAction *previous = NULL;
+                writeAction *next = NULL;
+                while(currentAction)
+                {
+                    next = (writeAction *)(currentAction->next());
+                    if(currentAction->trigger(this,data8,s)) //call the trigger method
+                    {
+                        //remove the execute action.
+                        if(previous) //not first action, there is a previous
+                        {
+                            //update list (remove currentAction from list)
+                            previous->setNext(next);
+						} else { //first action.
+                            if(next)
+                            {
+                                //there is a next
+								#ifdef ACTION_FAST	
+                                m_writeActionsTab[address] = next;
+								#else
+                                m_writeActions[address] = next;
+								#endif
+                            } else //first, and no next => alone!
+                            {
+								#ifdef ACTION_FAST	
+								m_writeActionsTab[address] = NULL;
+								#else
+                                //list becomes empty.
+                                m_writeActionFlag[base] &= ~(1 << offset);
+                                //remove from map
+                                m_writeActions.erase(address);
+								#endif
+                            }
+                        } 
+                        delete currentAction;
+                        currentAction = previous; //rewind (previous may be NULL)
+                    } 
+                    //prepare next step
+                    previous = currentAction;
+                    currentAction = next;
+                }
+			#ifndef ACTION_FAST	
+			}
+			#endif
+		}
+		#ifdef TRACK_VARIABLE
+			//if we have just read a byte that is followed, we have to add a spy
+			//action on the respective write action.
+			if(!spyActionPresent) 
+			{
+				if(createAutoSpyAction(address + m_offset, s, byte))
+				{
+					//a new spy action is created. We have to trigger this action. It
+					//must have been recorded at the last place of list<writeAction *>
+					//first get the list of action.
+					//TODO: not very efficient...
+					//TODO: will not compile with the new single linked list management. 
+					map<u32,list<writeAction *> *>::const_iterator actionIterator = m_writeActions.find(address);
+					list<writeAction *> *writeActionList = (*actionIterator).second;
+					writeAction *last_wa = writeActionList -> back();
+					//spy action not present at end of list in dumStorage::triggerActionWhenWrite8"
+					SEGFAULTIF(!(last_wa -> isSpyAction()))
+					last_wa -> trigger(byte, s);
+				}
+				
+			}
+		#endif
+	}
+
+	#ifdef TRACK_VARIABLE
+	//TODO: will not compile with the new single linked list management. 
+	spy_action *dumStorage::getSpyAction(u32 address)
+	{
+		spy_action *result = NULL;
+		address -= m_offset;
+		u32 base = address >> 5;
+		u32 offset = address & 0x0000001F;
+		if (m_writeActionFlag[base] & (1 << offset)) {
+			map<u32,list<writeAction *> *>::const_iterator actionIterator = m_writeActions.find(address);
+			if (actionIterator != m_writeActions.end()) 
+			{
+				list<writeAction *> *writeActionList = (*actionIterator).second;
+				list<writeAction *>::iterator writeActionIterator = writeActionList -> begin();
+				list<writeAction *>::const_iterator writeActionIteratorEnd = writeActionList -> end();
+				while((writeActionIterator != writeActionIteratorEnd) && result == NULL)
+				{
+					writeAction *wa = (*i);
+					if(wa -> isSpyAction()) result = (((spy_action_trigger *)wa) -> get_sa());
+					writeActionIterator++;
+				}
+			}
+		}
+		return result;
+	}
+	#endif //TRACK_VARIABLE
+#endif //GADL_NO_ACTION
+
+u8 dumStorage::read8AtAddress(const u32 address, spyInfo *s)
+{
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+	#endif
+	#ifndef GADL_NO_ACTION
+		read8Action(address, s);
+	#endif
+	return 0;
+}
+
+u16 dumStorage::read16AtAddress(const u32 address, spyInfo *s)
+{
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+		checkForValidAddress(address+1);
+	#endif
+	#ifndef GADL_NO_ACTION
+		read16Action(address, s);
+	#endif
+	return 0;
+}
+
+u32 dumStorage::read32AtAddress(const u32 address, spyInfo *s)
+{
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+		checkForValidAddress(address+1);
+		checkForValidAddress(address+2);
+		checkForValidAddress(address+3);
+	#endif
+	#ifndef GADL_NO_ACTION
+		read32Action(address, s);
+	#endif
+	return 0;
+}
+
+#ifndef GADL_NO_ACTION
+	void dumStorage::read8Action(const u32 address, spyInfo *s)
+	{
+		u32 addressOff = address - m_offset;
+		#ifdef TRACK_VARIABLE
+			if(s) s -> length = BYTE;
+		#endif
+
+
+		#ifdef ACTION_FAST	
+		if(m_readActionsTab) {
+		#else
+		if(m_readActionFlag) {
+		#endif
+			triggerActionWhenRead8(addressOff, s);
+		}
+	}
+
+	void dumStorage::read16Action(const u32 address, spyInfo *s)
+	{
+		u32 addressOff = address - m_offset;
+		#ifdef TRACK_VARIABLE
+			if(s) s -> length = WORD;
+		#endif
+		#ifdef ACTION_FAST	
+		if(m_readActionsTab) {
+		#else
+		if(m_readActionFlag) {
+		#endif
+			triggerActionWhenRead8(addressOff, s);
+			triggerActionWhenRead8(addressOff + 1, NULL);
+		}
+	}
+	
+	void dumStorage::read32Action(const u32 address, spyInfo *s)
+	{
+		u32 addressOff = address - m_offset;
+		#ifdef TRACK_VARIABLE
+			if(s) s -> length = DBLWORD;
+		#endif
+		#ifdef ACTION_FAST	
+		if(m_readActionsTab) {
+		#else
+		if(m_readActionFlag) {
+		#endif
+			triggerActionWhenRead8(addressOff, s);
+			triggerActionWhenRead8(addressOff + 1, NULL);
+			triggerActionWhenRead8(addressOff + 2, NULL);
+			triggerActionWhenRead8(addressOff + 3, NULL);
+		}
+	}
+#endif
+
+void dumStorage::write8AtAddress(const u32 address, const u8 data8, spyInfo *s)
+{
+	#ifdef DEBUG_STORAGE_ACCESS
+		debugMemoryAccessWrite(address, data8, 1);
+	#endif
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+	#endif
+	#ifndef GADL_NO_ACTION
+		u32 addressOff = address - m_offset;
+		#ifdef TRACK_VARIABLE
+			if(s) 
+			{
+				s -> length = BYTE;
+				s -> value = data8;
+			}
+		#endif
+		#ifdef ACTION_FAST	
+		if(m_writeActionsTab) {
+		#else
+		if(m_writeActionFlag) {
+		#endif
+			triggerActionWhenWrite8(addressOff,data8, s);
+		}
+	#endif
+}
+
+void dumStorage::write16AtAddress(const u32 address, const u16 data16, spyInfo *s)
+{
+	#ifdef DEBUG_STORAGE_ACCESS
+		debugMemoryAccessWrite(address, data16, 2);
+	#endif
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+		checkForValidAddress(address+1);
+	#endif
+	#ifndef GADL_NO_ACTION
+  		u32 addressOff = address - m_offset;
+	  	#ifdef TRACK_VARIABLE
+			if(s) 
+			{
+				s -> length = WORD;
+				s -> value = data16;
+			}
+		#endif
+		#ifdef ACTION_FAST	
+		if(m_writeActionsTab) {
+		#else
+		if(m_writeActionFlag) {
+		#endif			
+			triggerActionWhenWrite8(addressOff, (u8)(data16 & 0x00FF), s);
+			triggerActionWhenWrite8(addressOff + 1,(u8)((data16 & 0xFF00) >> 8), NULL);
+		}
+	#endif
+}
+
+void dumStorage::write32AtAddress(const u32 address, const u32 data32, spyInfo *s)
+{
+	#ifdef DEBUG_STORAGE_ACCESS
+		debugMemoryAccessWrite(address, data32, 4);
+	#endif
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+		checkForValidAddress(address+1);
+		checkForValidAddress(address+2);
+		checkForValidAddress(address+3);
+	#endif
+	#ifndef GADL_NO_ACTION
+  		u32 addressOff = address - m_offset;
+  		#ifdef TRACK_VARIABLE
+			if(s) 
+			{
+				s -> length = DBLWORD;
+				s -> value = data32;
+			}
+		#endif
+		#ifdef ACTION_FAST	
+		if(m_writeActionsTab) {
+		#else
+		if(m_writeActionFlag) {
+		#endif			
+			triggerActionWhenWrite8(addressOff,(u8)(data32 & 0x000000FF), s);
+			triggerActionWhenWrite8(addressOff + 1,(u8)((data32 & 0x0000FF00) >> 8), NULL);
+			triggerActionWhenWrite8(addressOff + 2,(u8)((data32 & 0x00FF0000) >> 16), NULL);
+			triggerActionWhenWrite8(addressOff + 3,(u8)((data32 & 0xFF000000) >> 24), NULL);
+		}
+	#endif
+}
+
+#ifndef GADL_NO_ACTION
+	void dumStorage::addReadActionAtAddress(const u32 address, readAction* act)
+	{
+		const u32 addressOff = address - m_offset;
+		#ifdef ACTION_FAST	
+		if(!m_readActionsTab) createActionTabs();		
+		readAction *currentAction =  m_readActionsTab[addressOff];
+		if(currentAction)
+		{
+		#else
+		if(!m_readActionFlag) createActionTabs();					
+		u32 base = addressOff >> 5;
+		u32 offset = addressOff & 0x0000001F;
+		if (m_readActionFlag[base] & (1 << offset)) 
+		{
+			//add an action to an existing list.
+			readAction *currentAction =  m_readActions[addressOff];
+		#endif
+			readAction *previousAction = currentAction;
+			bool found = false;
+			// check for redundancy
+			while(currentAction && !found)
+			{
+				found = (currentAction == act) ;
+				previousAction = currentAction;
+				currentAction = (readAction *)(currentAction->next());
+			}
+			if(found)
+			{
+				cerr << "WARNING : Try to add again an existing read action at address 0x";
+				cerr << hex << address << endl;
+			} else
+			{
+				//add at the end of the list (last item is previousAction, as currentAction is NULL)
+				previousAction->setNext(act);
+				act->setNext(NULL);
+			}
+		} else {
+			//first time access. Create the list.
+			#ifdef ACTION_FAST	
+			m_readActionsTab[addressOff] = act;
+			#else
+			m_readActionFlag[base] |= (1 << offset);
+			m_readActions[addressOff] = act;
+			#endif
+			act->setNext(NULL);
+		}  
+	}
+	
+	void dumStorage::addWriteActionAtAddress(const u32 address, writeAction* act)
+	{
+		const u32 addressOff = address - m_offset;
+		#ifdef ACTION_FAST
+		if(!m_writeActionsTab) createActionTabs();				
+		writeAction *currentAction =  m_writeActionsTab[addressOff];
+		if(currentAction)
+		{
+		#else
+		if(!m_writeActionFlag) createActionTabs();							
+		u32 base = addressOff >> 5;
+		u32 offset = addressOff & 0x0000001F;
+		if (m_writeActionFlag[base] & (1 << offset)) 
+		{
+			//add an action to an existing list.
+			writeAction *currentAction =  m_writeActions[addressOff];
+		#endif
+			writeAction *previousAction = currentAction;
+			bool found = false;
+			// check for redundancy
+			while(currentAction && !found)
+			{
+				found = (currentAction == act) ;
+				previousAction = currentAction;
+				currentAction = (writeAction *)(currentAction->next());
+			}
+			if(found)
+			{
+				cerr << "WARNING : Try to add again an existing write action at address 0x";
+				cerr << hex << address << endl;
+			} else
+			{
+				//add at the end of the list (last item is previousAction, as currentAction is NULL)
+				previousAction->setNext(act);
+				act->setNext(NULL);
+			}
+		} else {
+			//first time access. Create the list.
+			#ifdef ACTION_FAST	
+			m_writeActionsTab[addressOff] = act;
+			#else
+			m_writeActionFlag[base] |= (1 << offset);
+			m_writeActions[addressOff] = act;
+			#endif
+			act->setNext(NULL);
+		}  
+	}
+	
+
+	void dumStorage::removeReadActionAtAddress(const u32 address, readAction* act)
+	{
+		const u32 addressOff = address - m_offset;
+		bool found = false;
+		#ifdef ACTION_FAST	
+		readAction *currentAction = m_readActionsTab[addressOff];
+		if(currentAction)
+		{
+		#else
+		u32 base = addressOff >> 5;
+		u32 offset = addressOff & 0x0000001F;
+		if (m_readActionFlag[base] & (1 << offset)) 
+		{
+			readAction *currentAction = m_readActions[addressOff];
+		#endif
+			readAction *previousAction = NULL;
+			bool start = currentAction == act;
+			found = start;
+			while(currentAction && !found)
+			{
+				previousAction = currentAction;
+				currentAction = (readAction *)(currentAction->next());
+				found = (currentAction == act) ;
+			}
+			if(found)
+			{
+				readAction *nextAction = (readAction *)(currentAction->next());
+				if(start)
+				{
+					//remove the first action.
+					#ifdef ACTION_FAST	
+					m_readActionsTab[addressOff] = nextAction; //the next action.
+					#else
+					m_readActions[addressOff] = nextAction; //the next action.
+					#endif
+					if(nextAction == NULL) //that was the only one.
+					{
+						#ifdef ACTION_FAST	
+						delete m_readActionsTab[addressOff];
+						m_readActionsTab[addressOff] = NULL;						
+						#else
+						m_readActionFlag[base] &= ~(1 << offset);
+						m_readActions.erase(addressOff);
+						#endif
+					}
+				} else {
+					previousAction->setNext(nextAction);
+				}
+			}
+		}
+		if(!found)
+		{
+			cerr << "WARNING : Try to remove a read action that is not present at address 0x";
+			cerr << hex << address << endl;
+		}
+	}
+	
+	void dumStorage::removeWriteActionAtAddress(const u32 address, writeAction* act)
+	{
+		const u32 addressOff = address - m_offset;
+		bool found = false;
+		#ifdef ACTION_FAST	
+		writeAction *currentAction = m_writeActionsTab[addressOff];
+		if(currentAction)
+		{
+		#else
+		u32 base = addressOff >> 5;
+		u32 offset = addressOff & 0x0000001F;
+		if (m_writeActionFlag[base] & (1 << offset)) 
+		{
+			writeAction *currentAction = m_writeActions[addressOff];
+		#endif
+			writeAction *previousAction = NULL;
+			bool start = currentAction == act;
+			found = start;
+			while(currentAction && !found)
+			{
+				previousAction = currentAction;
+				currentAction = (writeAction *)(currentAction->next());
+				found = (currentAction == act) ;
+			}
+			if(found)
+			{
+				writeAction *nextAction = (writeAction *)(currentAction->next());
+				if(start)
+				{
+					//remove the first action.
+					#ifdef ACTION_FAST	
+					m_writeActionsTab[addressOff] = nextAction; //the next action.
+					#else
+					m_writeActions[addressOff] = nextAction; //the next action.
+					#endif
+					if(nextAction == NULL) //that was the only one.
+					{
+						#ifdef ACTION_FAST	
+						delete m_writeActionsTab[addressOff];
+						m_writeActionsTab[addressOff] = NULL;
+						#else
+						m_writeActionFlag[base] &= ~(1 << offset);
+						m_writeActions.erase(addressOff);
+						#endif
+					}
+				} else {
+					previousAction->setNext(nextAction);
+				}
+			}
+		}
+		if(!found)
+		{
+			cerr << "WARNING : Try to remove a write action that is not present at address 0x";
+			cerr << hex << address << endl;
+		}
+	}
+#endif
+
+#ifdef PRAGMA_MARK_ALLOWED
+	#pragma mark roStorage
+#endif
+
+roStorage &roStorage::operator=(const roStorage &ro)
+{
+	if(m_size == ro.m_size) {
+		const unsigned int max = (m_size >> 2) + 1;
+		for(unsigned int i = 0; i < max;i++) m_storage[i] = ro.m_storage[i];
+	} else SEGFAULTIF(true);
+	return *this;
+}
+
+roStorage::roStorage(string name, u32 size, u32 offset, int alignment)
+ : dumStorage(name, size, offset,alignment)
+{
+	const unsigned int max = (m_size >> 2) + 1;
+	m_storage = new u32[max];
+}
+
+roStorage::roStorage(const roStorage &mem) : dumStorage(mem)
+{
+	const unsigned int max = (m_size >> 2) + 1;
+	for(unsigned int i = 0; i < max; i++) m_storage[i] = mem.m_storage[i];
+}
+
+roStorage::~roStorage()
+{
+	delete m_storage;
+}
+
+void roStorage::put8AtAddr(const u32 address, const u8 byte)
+{
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+	#endif
+	*((u8*)m_storage + address - dumStorage::m_offset) = byte;
+}
+
+
+void roStorage::put16AtAddr(const u32 address, const u16 word)
+{
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+		checkForValidAddress(address+1);
+	#endif
+	#ifdef __CHANGE_ENDIAN__
+		u16 temp=((word & 0x00FF) << 8) | ((word & 0xFF00) >> 8);
+	#else
+		u16 temp=word;
+	#endif
+	*((u16*)((size_t)m_storage + address - dumStorage::m_offset)) = temp;
+}
+
+void roStorage::put32AtAddr(const u32 address, const u32 dbl_word)
+{
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+		checkForValidAddress(address+1);
+		checkForValidAddress(address+2);
+		checkForValidAddress(address+3);
+	#endif
+	#ifdef __CHANGE_ENDIAN__
+		u32 temp=((dbl_word & 0x000000FF) << 24) | ((dbl_word & 0x0000FF00) << 8 ) |
+                 ((dbl_word & 0x00FF0000) >> 8 ) | ((dbl_word & 0xFF000000) >> 24);
+	#else
+		u32 temp=dbl_word;
+	#endif
+	*((u32*)((size_t)m_storage + address - dumStorage::m_offset)) = temp;
+}
+
+u8 roStorage::get8AtAddr(const u32 address)
+{
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+	#endif
+	return *((u8*)m_storage + address - dumStorage::m_offset);
+}
+
+u16 roStorage::get16AtAddr(const u32 address)
+{
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+		checkForValidAddress(address+1);
+	#endif
+	#ifdef __CHANGE_ENDIAN__
+		u16 temp=*((u16*)((size_t)m_storage + address - dumStorage::m_offset));
+		return (((temp & 0x00FF) << 8) | ((temp & 0xFF00) >> 8));
+	#else
+		return *((u16*)((size_t)m_storage + address - m_offset));
+	#endif
+}
+
+u32 roStorage::get32AtAddr(const u32 address)
+{
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+		checkForValidAddress(address+1);
+		checkForValidAddress(address+2);
+		checkForValidAddress(address+3);
+	#endif
+	#ifdef __CHANGE_ENDIAN__
+		u32 temp=*((u32*)((size_t)m_storage + address - dumStorage::m_offset));
+		return  (((temp & 0x000000FF) << 24) | ((temp & 0x0000FF00) << 8 ) |
+                 ((temp & 0x00FF0000) >> 8 ) | ((temp & 0xFF000000) >> 24));
+	#else
+		return *((u32*)((size_t)m_storage + address - m_offset));
+	#endif
+}
+
+u8 roStorage::read8AtAddress(const u32 address, spyInfo *s)
+{
+	dumStorage::read8AtAddress(address,s);
+	const unsigned char val = *((u8*)((size_t)m_storage + address - dumStorage::m_offset));
+	#ifdef DEBUG_STORAGE_ACCESS
+		debugMemoryAccessRead(address, val, 1);
+	#endif
+	return val;
+}
+
+u16 roStorage::read16AtAddress(const u32 address, spyInfo *s)
+{
+	dumStorage::read16AtAddress(address,s);
+	#ifdef __CHANGE_ENDIAN__
+		const u16 temp=*((u16*)((size_t)m_storage + address - dumStorage::m_offset));
+		const u16 val = (((temp & 0x00FF) << 8) | ((temp & 0xFF00) >> 8));
+	#else
+		const u16 val = *((u16*)((size_t)m_storage + address - m_offset));
+	#endif
+	#ifdef DEBUG_STORAGE_ACCESS
+		debugMemoryAccessRead(address, val, 2);
+	#endif
+	return val;
+}
+
+u32 roStorage::read32AtAddress(const u32 address, spyInfo *s)
+{
+	dumStorage::read32AtAddress(address, s);
+	#ifdef __CHANGE_ENDIAN__
+		const u32 temp=*((u32*)((size_t)m_storage + address - dumStorage::m_offset));
+		const u32 val = (((temp & 0x000000FF) << 24) | 
+		                 ((temp & 0x0000FF00) <<  8) |
+ 		                 ((temp & 0x00FF0000) >>  8) |
+		                 ((temp & 0xFF000000) >> 24) );
+	#else
+		const u32 val = *((u32*)((size_t)m_storage + address - m_offset));
+	#endif
+	#ifdef DEBUG_STORAGE_ACCESS
+		debugMemoryAccessRead(address, val, 4);
+	#endif
+	return val;
+}
+
+void roStorage::dump(const unsigned int addr, const unsigned int nbVal)
+{
+	if(matchAddress(addr))
+	{
+		const u32 addressOff = addr - m_offset;
+		u8* byte_storage = (u8*)m_storage;
+		const unsigned int valPerLines = 8;
+		//valPerLines bytes per lines.
+		unsigned int max = (nbVal == 0) ? m_size : addressOff+nbVal;
+		if(max > m_size) max = m_size;
+		for(u32 i = addressOff; i < max; i += valPerLines) 
+		{
+			cout << setw(8) << hex << (unsigned int)(m_offset + i) << ": ";
+    		for (u32 j = 0; j < valPerLines && ((i+j)<m_size); j++) 
+    		{
+    			cout << setw(2) << (int)(byte_storage[j+i]) << " ";
+    		}
+    		cout << setw(8) <<endl;
+		}
+	}
+}
+
+u8  *roStorage::getPointerToData8AtAddress(const u32 address)
+{
+	return (u8*)m_storage + address - dumStorage::m_offset;
+}
+
+#ifdef PRAGMA_MARK_ALLOWED
+	#pragma mark rwStorage
+#endif
+
+rwStorage::rwStorage(const rwStorage &mem) : roStorage(mem)
+{
+}
+
+
+rwStorage::rwStorage(string name, u32 size, u32 offset, int alignment) : 
+roStorage(name, size,offset,alignment)
+{
+}
+
+void rwStorage::write8AtAddress(const u32 address, const u8 byte, spyInfo *s)
+{
+	#ifdef DEBUG_STORAGE
+		cout << "write8 0x" << hex << byte << " at @: 0x" << address << endl;
+	#endif
+	*((u8*)((size_t)roStorage::m_storage + address - dumStorage::m_offset)) = byte;
+	dumStorage::write8AtAddress(address,byte,s);
+}
+
+void rwStorage::write16AtAddress(const u32 address, const u16 word, spyInfo *s)
+{
+	#ifdef DEBUG_STORAGE
+		cout << "write16 0x" << hex << word << " at @: 0x" << address << endl;
+	#endif
+	#ifdef __CHANGE_ENDIAN__
+		u16 temp =((word & 0x00FF) << 8) | ((word & 0xFF00) >> 8);
+	#else
+		u16 temp=word;
+	#endif
+	*((u16*)((size_t)roStorage::m_storage + address - dumStorage::m_offset)) = temp;
+	dumStorage::write16AtAddress(address,word,s);
+}
+
+void rwStorage::write32AtAddress(const u32 address, const u32 dbl_word, spyInfo *s)
+{
+	#ifdef DEBUG_STORAGE
+		cout << "write32 0x" << hex << dbl_word << " at @: 0x" << address << endl;
+	#endif
+	#ifdef __CHANGE_ENDIAN__
+	u32 temp=  (	((dbl_word & 0x000000FF) << 24) | 
+		((dbl_word & 0x0000FF00) <<  8) |
+		((dbl_word & 0x00FF0000) >>  8) |
+		((dbl_word & 0xFF000000) >> 24) );
+	#else
+		u32 temp=dbl_word;    
+	#endif
+	*((u32*)((size_t)roStorage::m_storage + address - dumStorage::m_offset)) = temp;
+	dumStorage::write32AtAddress(address,dbl_word,s);
+}

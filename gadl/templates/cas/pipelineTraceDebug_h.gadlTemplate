@@ -1,0 +1,33 @@
+%template headerC%
+#ifndef __powerpc_PIPELINE_TRACE_DEBUG_H__
+#define __powerpc_PIPELINE_TRACE_DEBUG_H_
+
+#include <vector>
+#include <string>
+#include <set>
+#include "arch.h"
+
+/** This class is used to generate a .ptr file that
+ *  can be used to get a graphical trace of the pipeline
+ *  execution (using external app: GPipe). 
+ *  GPipe is only available on MacOS X but can be ported
+ *  to other platforms (simple tool).
+ */
+class pipelineTraceDebug {
+	const unsigned int m_pipelineSize;
+	unsigned int m_pipelineTraceContents;
+	unsigned int m_pipelineMask;
+	std::vector<std::string> m_pipeTraceVector;
+	///the set records all the adresses that are seen in the pipeline (to get back mnemonics)
+	std::set<u32> m_addressSet;
+
+public:
+	///constructor
+	pipelineTraceDebug(const unsigned int pipelineSize);
+	///internal function: Should only be called by arch...
+	void pipelineTrace(const unsigned int pipeMove, const u64 nbCycles, %!MODELNAME%_instruction **instTab, const unsigned int nbInstIn);
+	///output trace to a file.
+	void outputPipelineTrace(std::string filename, arch*_arch);
+};
+
+#endif

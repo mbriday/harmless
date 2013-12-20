@@ -1,0 +1,161 @@
+\newpage
+\section{Description du jeu d'instruction}
+\label{chap:jeuInstruction}
+\subsection{Objectif}
+
+L'objectif poursuivi pour la description du jeu d'instruction est de disposer d'un langage qui permette une description 
+\begin{itemize}
+\item incrémentale ;
+\item indépendante de la micro-architecture ;
+\item concise ;
+\item permettant la vérification.
+\end{itemize}
+
+\subsubsection{Une description incrémentale}\label{ref:incremental}
+
+On distingue 3 vues de la description d'un jeu d'instruction :
+\begin{itemize}
+\item La vue binaire, c'est à dire le codage des instructions. Cette description permet de construire un décodeur qui, à partir d'un code exécutable, va construire une représentation interne des instructions de ce programme dans le simulateur ;
+\item La vue comportementale : les opérations que les instructions effectuent lorsqu'elles s'exécutent ;
+\item La vue syntaxique, c'est à dire la syntaxe textuelle associée à une instruction.
+\end{itemize}
+
+Le langage doit permettre une description incomplète du jeu d'instruction. Par exemple, il n'est pas forcément nécessaire de disposer de la vue syntaxique des instructions pour générer un décodeur et un simulateur.
+
+\subsubsection{Une description indépendante vis-à-vis de la micro-architecture du processeur}
+Cette contrainte est un point important pour trois raisons.
+
+Tout d'abord, dans la phase de mise au point du modèle de processeur, il est souhaitable de ne pas avoir à décrire les aspects temporels du modèle. De cette manière, la mise au point du modèle fonctionnel (le jeu d'instructions) est indépendant de la mise au point du modèle temporel (la micro-architecture).
+
+Ensuite, cette indépendance permet de générer deux simulateurs : un simulateur de jeu d'instruction qui ne prend pas en compte le comportement temporel et un simulateur précis au cycle près. Ces deux simulateurs peuvent être générés séparément ou conjointement. Dans le second cas, les deux simulateurs partagent le même contexte d'exécution et il est possible de commuter de l'un à l'autre au cours de la simulation. De cette manière, il est possible de simuler rapidement les sections de programme où la précision des temps d'exécution n'est pas nécessaire (comme par exemple les initialisations) et de basculer sur la simulation précise au cycle près dans les autres cas.
+
+Enfin, elle permet de mutualiser la description du jeu d'instruction entre plusieurs micro-architectures d'une famille de processeurs.
+
+\subsubsection{Une description concise}
+
+La description du jeu d'instruction se doit d'être la plus concise possible afin de réduire le temps nécessaire à la description d'un processeur et les risques d'erreur.
+
+Trois choix de conception permettent cette concision :
+\begin{itemize}
+\item Le langage fournit des opérateurs permettant de manipuler les champs de bits : extraction, concaténation, masquage, etc ;
+\item Les tailles de données sont spécifiées au bit ;
+\item Le langage permet de mutualiser les parties communes des instructions selon les différentes vues (voir section \ref{ref:mapping}).
+\end{itemize}
+
+
+\subsubsection{Une description permettant la vérification}
+
+Afin d'assurer que le code généré est, autant que faire se peut, exempt d'erreur, le langage offre les caractéristiques suivantes :
+
+\begin{description}
+\item[Typage fort des variables.]~\\
+Cette contrainte permet de vérifier que les tailles des opérandes et des résultats de calculs sont compatibles entre eux et avec les variables employées dans les expressions ;
+\item[Pas de possibilité d'inclure des sections en langage C.]~\\
+Certains langa\-ges per\-met\-tent, pour les parties algorithmiques, d'inclure des sections directement en langage C. Cette solution, plus simple pour l'analyse syntaxique et la génération de code, a été écartée afin de pouvoir vérifier entièrement la cohérence de la description.
+\end{description}
+
+\subsection{Concept du mapping}\label{ref:mapping}
+
+Comme on l'a vu dans \ref{ref:incremental}, le jeu d'instruction sera décrit selon 3 vues : vue comportementale, vue binaire et vue syntaxique. Le mapping permet d'établir une correspondance entre les vues. La vue centrale est la vue comportementale, les deux autres vues sont mises en correspondance avec la vue centrale.
+
+\subsubsection{La vue comportementale}
+
+La vue comportementale décrit le comportement des instructions. Cette description repose sur deux types de structure : l'agrégat et l'alternatif. L'agrégat permet de spécifier le comportement au sens algorithmique d'un « morceau » d'instruction (par exemple la lecture d'un registre ou l'écriture en mémoire à une adresse), l'alternatif permet de spécifier plusieurs comportements possibles pour un « morceau » d'instruction (par exemple différents modes d'adressage pour l'accès mémoire). La composition des deux structures constitue un arbre, les n{\oe}uds étant formés de comportements agrégats et alternatifs et les feuilles étant formées des comportements agrégats. La figure \ref{fig:exemple_behavior} présente un exemple extrait de la description de la XGate (coprocesseur du Star12X).
+
+\begin{figure}[htbp]
+\begin{center}
+\begin{verbatim}
+aggregate behavior RegisterRegisterInstruction {
+  u16 valOfRs1;
+  u16 valOfRs2;
+  u16 valOfRd;
+  
+  GprRead(valOfRs1) @rs1 ; // General purpose register read
+  GprRead(valOfRs2) @rs2 ;
+  RegisterRegisterOperation(valOfRd, valOfRs1, valOfRs2) @op ;
+  GprWrite(valOfRd) @rd ;  // General purpose register write
+}
+
+alternative behavior RegisterRegisterOperation(
+    out u16 valOfRd,
+        u16 valOfRs1,
+        u16 valOfRs2)
+{
+  #OR  { valOfRd := ALU.orOpUpdateCcr(valOfRs1, valOfRs2); }
+  #SUB { valOfRd := ALU.subOpUpdateCcr(valOfRs1, valOfRs2); }
+  #SBC { valOfRd := ALU.subOpWithCarryUpdateCcr(valOfRs1, valOfRs2); }
+  #ADD { valOfRd := ALU.addOpUpdateCcr(valOfRs1, valOfRs2); }
+  #ADC { valOfRd := ALU.addOpWithCarryUpdateCcr(valOfRs1, valueOfRs2); }
+}
+\end{verbatim}
+
+
+\caption{Exemple de comportement du jeu d'instruction extrait de la description de la XGate. Cet exemple montre le comportement d'une instruction Registre-Registre qui effectue successivement, dans un comportement agrégat, la lecture des deux registres opérande, l'opération puis l'écriture du registre destination. L'opération est un comportement alternatif qui va dépendre de l'instruction. les {\tt \#xxx}, en tête des lignes du comportement alternatif, sont des étiquettes qui permettent la sélection d'un comportement en fonction de la vue binaire (voir \ref{sec:vue_binaire}). Les {\tt @x} qui apparaissent dans l'agrégat sont aussi des étiquettes qui permettent d'obtenir des valeurs issues de la vue binaire.}
+\label{fig:exemple_behavior}
+\end{center}
+\end{figure}
+
+\subsubsection{La vue binaire}
+\label{sec:vue_binaire}
+La vue binaire (ou vue format pour {\em format d'instruction}) permet de spécifier comment les instructions sont codées. Comme pour la vue comportementale, il s'agit d'une description arborescente constituée de formats agrégats et de formats alternatifs. La figure \ref{fig:exemple_format} continue l'exemple de la figure \ref{fig:exemple_behavior} en ajoutant la description du format binaire.
+
+\begin{figure}[htbp]
+\begin{center}
+\begin{verbatim}
+aggregate format RegisterRegisterInstructionFormat
+    maps to RegisterRegisterInstruction
+{
+  @rs1 Rs1Format()
+  @rs2 Rs2Format()
+  @op  RegisterRegisterOperationFormat()
+  @rd  RdFormat()
+}
+
+alternative format RegisterRegisterOperationFormat field{11, 1..0}
+    maps to RegisterRegisterOperation
+{
+  #OR  when \b010
+  #SUB when \b100
+  #SBC when \b101
+  #ADD when \b110
+  #ADC when \b111
+}
+\end{verbatim}
+
+\caption{Cet exemple de description binaire est à mettre en correspondance avec l'exemple de la figure \ref{fig:exemple_format}. l'agrégat {\tt RegisterRegisterInstructionFormat} est déclaré correspondre à l'agrégat comportemental {\tt RegisterRegisterInstruction} ({\em maps to}). Les informations extraites des sous-formats agrégat ({\tt Rs1Format}, {\tt Rs2Format} et {\ RdFormat}) sont symbolisées par les étiquettes {\tt @rs1}, {\tt @rs2} et {\tt @rd}. Le format alternatif {\tt RegisterRegisterOperationFormat} correspond au comportement {\tt RegisterRegisterOperation} et permet de sélectionner l'une des étiquettes {\tt \#xxx} (et donc le comportement correspondant) selon le contenu des bits 11, 1 et 0 de l'instruction dont la taille est spécifiée par ailleurs.}
+\label{fig:exemple_format}
+\end{center}
+\end{figure}
+
+\subsubsection{La vue syntaxique}
+
+La vue syntaxique suit le même principe que les deux autres. Elle permet d'attribuer une syntaxe textuelle à une instruction (pour permettre, par exemple, le désassemblage). L'exemple de la figure \ref{fig:exemple_syntaxe} complète l'exemple de la figure \ref{fig:exemple_format} par la description syntaxique.
+
+\begin{figure}[htbp]
+\begin{center}
+\begin{verbatim}
+aggregate syntax RegisterRegisterInstructionSyntax
+    maps to RegisterRegisterInstruction
+{
+  @rs1 GprReadSyntax()
+  @rs2 GprReadSyntax()
+  @op  RegisterRegisterOperationSyntax()
+  @rd  GprWriteSyntax()
+
+  echo << @op ' ' @rd ',' @rs1 ',' @rs2 >>
+}
+
+alternative syntax RegisterRegisterOperationSyntax
+    maps to RegisterRegisterOperation
+{
+  #OR  when 'OR'
+  #SUB when 'SUB'
+  #SBC when 'SBC'
+  #ADD when 'ADD'
+  #ADC when 'ADC'
+}
+\end{verbatim}
+\caption{Dans cet exemple, l'agrégat {\tt RegisterRegisterInstructionSyntax} donne, en fonction des étiquettes {\tt @rs1}, {\tt @rs2}, {\tt @op} et {\tt @rd} la façon dont l'instruction est affichée (directive {\tt echo}). L'alternatif donne le contenu de {\em @op} selon l'étiquette {\tt \#xxx}.}
+\label{fig:exemple_syntaxe}
+\end{center}
+\end{figure}

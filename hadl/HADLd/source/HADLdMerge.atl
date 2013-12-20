@@ -1,0 +1,407 @@
+
+--
+-- HADLdIN dependency merging
+--
+-- Preconditions
+--
+--    - Single variable assignment in operations and behaviors blocks.
+--      Statement ordering should not be relevant : only data dependencies
+--    - No return statement in procedures
+--    - No functions
+--    - All arguments in operation calls are simple variable references
+--    - No for statement inside an if statement
+--    - No if statement and no assignment statement
+--
+-- TODO list :
+--
+--    [DONE] Merge dependencies within a block
+--    [DONE] Replace GlobalVariable with ComponentVariable
+--
+
+module HADLdMerge;
+create OUT:HADLdOUT from IN:HADLdIN;
+
+-- Blocks : merge dependencies
+rule TBlock { 
+   from src : HADLdIN!Block
+   using {
+         -- Get all dependencies in the source block
+         deps : Sequence(HADLdIN!DependencyStatement) =
+            src.statements
+               ->select(s| s.oclIsKindOf(HADLdIN!DependencyStatement))
+               ->select(s|
+                     if s.owningBlock.owningForStatement.oclIsUndefined() then
+                        true
+                     else
+                       not s.targetVariable.dependenciesTarget->exists(d| d.owningBlock.owningForStatement.oclIsUndefined())
+                     endif
+                  );
+
+         -- Get all target variables in the source block
+         targets : Set(HADLdIN!Variable) =
+            deps
+               ->collect(s| s.targetVariable)
+               ->asSet();
+      }
+   to
+      dest : HADLdOUT!Block (
+            statements <-
+               src.statements
+                  ->reject(s| s.oclIsKindOf(HADLdIN!DependencyStatement))
+         )
+   do {
+      for(v in targets) {
+         thisModule.TDependency(
+               v,
+               deps
+                  ->select(d| d.targetVariable=v)
+                  ->collect(d| d.sourceVariables)
+                  ->flatten()
+                  ->asSet(),
+               src
+            );
+      }
+   }
+}
+
+-- Create a dependency from the given source and target variables in the given block
+rule TDependency (target : HADLdIN!Variable, source : Set(HADLdIN!Variable), blk : HADLdIN!Block) { 
+   to dest : HADLdOUT!DependencyStatement (
+         targetVariable <- target,
+         sourceVariables <- source,
+         owningBlock <- blk
+      )
+}
+
+--------------------------------------------------------------------------------
+-- Straightforward copy rule
+--------------------------------------------------------------------------------
+
+rule TModel { 
+   from src : HADLdIN!Model 
+   to dest : HADLdOUT!Model (
+         name <- src.name,
+         elements <- src.elements,
+         dataSize <- src.dataSize,
+         instructionSize <- src.instructionSize
+      )
+}
+
+rule TComponent { 
+   from src : HADLdIN!Component 
+   to dest : HADLdOUT!Component (
+         name <- src.name,
+         variables <- src.variables,
+         operations <- src.operations
+      )
+}
+
+rule TOperation { 
+   from src : HADLdIN!Operation
+   to dest : HADLdOUT!Operation (
+         name <- src.name,
+         parameters <- src.parameters,
+         localVariables <- src.localVariables,
+         body <- src.body
+      )
+}
+
+rule TArchitecture { 
+   from src : HADLdIN!Architecture 
+   to dest : HADLdOUT!Architecture (
+         name <- src.name,
+         fathers <- src.fathers,
+         resources <- src.resources
+      )
+}
+
+rule TResource { 
+   from src : HADLdIN!Resource 
+   to dest : HADLdOUT!Resource (
+         name <- src.name,
+         component <- src.component,
+         ports <- src.ports
+      )
+}
+   
+rule TPort { 
+   from src : HADLdIN!Port 
+   to dest : HADLdOUT!Port (
+         name <- src.name,
+         operations <- src.operations
+      )
+}
+   
+rule TPipeline { 
+   from src : HADLdIN!Pipeline 
+   to dest : HADLdOUT!Pipeline (
+         name <- src.name,
+         architecture <- src.architecture,
+         init <- src.init,
+         expression <- src.expression,
+         body <- src.body,
+         localVariables <- src.localVariables,
+         format <- src.format,
+         stages <- src.stages
+      )
+}
+
+rule TStage { 
+   from src : HADLdIN!Stage 
+   to dest : HADLdOUT!Stage (
+         name <- src.name,
+         activations <- src.activations
+      )
+}
+   
+rule TResourceActivation { 
+   from src : HADLdIN!ResourceActivation 
+   to dest : HADLdOUT!ResourceActivation (
+         resource <- src.resource,
+         portActivations <- src.portActivations,
+         releaseStage <- src.releaseStage,
+         bypassStages <- src.bypassStages,
+         priority <- src.priority,
+         isReusable <- src.isReusable
+      )
+}
+   
+rule TPortActivation {
+   from src : HADLdIN!PortActivation
+   to dest : HADLdOUT!PortActivation (
+         port <- src.port,
+         releaseStage <- src.releaseStage,
+         bypassStages <- src.bypassStages
+      )
+}
+
+rule TAggregateBehavior { 
+   from src : HADLdIN!AggregateBehavior 
+   to dest : HADLdOUT!AggregateBehavior (
+         name <- src.name,
+         parameters <- src.parameters,
+         localVariables <- src.localVariables,
+         beforeBlock <- src.beforeBlock,
+         afterBlock <- src.afterBlock,
+         chunks <- src.chunks
+      )
+}
+
+rule TBehaviorChunk { 
+   from src : HADLdIN!BehaviorChunk 
+   to dest : HADLdOUT!BehaviorChunk (
+         name <- src.name,
+         call <- src.call,
+         condition <- src.condition
+      )
+}
+
+rule TAlternativeBehavior { 
+   from src : HADLdIN!AlternativeBehavior 
+   to dest : HADLdOUT!AlternativeBehavior (
+         name <- src.name,
+         parameters <- src.parameters,
+         localVariables <- src.localVariables,
+         beforeBlock <- src.beforeBlock,
+         afterBlock <- src.afterBlock,
+         choices <- src.choices
+      )
+}
+
+rule TLeafBehaviorChoice { 
+   from src : HADLdIN!LeafBehaviorChoice 
+   to dest : HADLdOUT!LeafBehaviorChoice (
+         name <- src.name,
+         body <- src.body
+      )
+}
+
+rule TCallBehaviorChoice { 
+   from src : HADLdIN!CallBehaviorChoice 
+   to dest : HADLdOUT!CallBehaviorChoice (
+         call <- src.call
+      )
+}
+   
+rule TBehaviorCall { 
+   from src : HADLdIN!BehaviorCall 
+   to dest : HADLdOUT!BehaviorCall (
+         behavior <- src.behavior,
+         actualParameters <- src.actualParameters
+      )
+}
+   
+rule TComponentVariable { 
+   from src : HADLdIN!ComponentVariable
+   to dest : HADLdOUT!ComponentVariable (
+         name <- src.name,
+         isArray <- src.isArray,
+         size <- src.size,
+         isExternal <- src.isExternal
+      )
+}
+
+rule TLocalVariable { 
+   from src : HADLdIN!LocalVariable 
+   to dest : HADLdOUT!LocalVariable (
+         name <- src.name,
+         isArray <- src.isArray,
+         size <- src.size
+      )
+}
+
+rule TLoopVariable { 
+   from src : HADLdIN!LoopVariable
+   to dest : HADLdOUT!LoopVariable (
+         name <- src.name,
+         isArray <- src.isArray,
+         size <- src.size
+      )
+}
+
+rule TParameter { 
+   from src : HADLdIN!Parameter
+   to dest : HADLdOUT!Parameter (
+         name <- src.name,
+         isArray <- src.isArray,
+         size <- src.size,
+         isOutput <- src.isOutput
+      )
+}
+   
+rule TProcedureCallStatement { 
+   from src : HADLdIN!ProcedureCallStatement 
+   to dest : HADLdOUT!ProcedureCallStatement (
+         call <- src.call
+      )
+}
+   
+rule TOperationCall { 
+   from src : HADLdIN!OperationCall
+   to dest : HADLdOUT!OperationCall (
+         inline <- src.inline,
+         component <- src.component,
+         calledOperation <- src.calledOperation,
+         actualParameters <-  src.actualParameters
+      )
+}
+
+rule TForStatement { 
+   from src : HADLdIN!ForStatement 
+   to dest : HADLdOUT!ForStatement (
+         counter <- src.counter,
+         range <- src.range,
+         body <- src.body
+      )
+}
+   
+rule TReturnStatement { 
+   from src : HADLdIN!ReturnStatement
+   to dest : HADLdOUT!ReturnStatement (
+         expression <- src.expression
+      )
+}
+   
+rule TDataContainerRefExpression { 
+   from src : HADLdIN!DataContainerRefExpression
+   to dest : HADLdOUT!DataContainerRefExpression (
+         dataContainer <- src.dataContainer,
+         index <- src.index,
+         range <- src.range,
+         extend <- src.extend
+      )
+}
+
+rule TOperatorExpression { 
+   from src : HADLdIN!OperatorExpression
+   to dest : HADLdOUT!OperatorExpression (
+         operator <- src.operator,
+         source <- src.source,
+         arguments <- src.arguments
+      )
+}
+
+rule TIntegerLiteralExpression { 
+   from src : HADLdIN!IntegerLiteralExpression
+   to dest : HADLdOUT!IntegerLiteralExpression (
+         value <- src.value
+      )
+}
+
+rule TBooleanLiteralExpression { 
+   from src : HADLdIN!BooleanLiteralExpression 
+   to dest : HADLdOUT!BooleanLiteralExpression (
+         value <- src.value
+      )
+}
+
+rule TBasedLiteralExpression { 
+   from src : HADLdIN!BasedLiteralExpression
+   to dest : HADLdOUT!BasedLiteralExpression (
+         base <- src.base,
+         value <- src.value
+      )
+}
+
+rule TRange { 
+   from src : HADLdIN!Range
+   to dest : HADLdOUT!Range (
+         slices <- src.slices,
+         shiftAmount <- src.shiftAmount,
+         right <- src.right,
+         shift <- src.shift,
+         arithmetic <- src.arithmetic
+      )
+}
+
+rule TSlice { 
+   from src : HADLdIN!Slice
+   to dest : HADLdOUT!Slice (
+         first <- src.first,
+         last <- src.last,
+         step <- src.step
+      )
+}
+
+rule TAggregateFormat { 
+   from src : HADLdIN!AggregateFormat 
+   to dest : HADLdOUT!AggregateFormat (
+         name <- src.name,
+         behavior <- src.behavior,
+         chunks <- src.chunks
+      )
+}
+
+rule TFormatChunk { 
+   from src : HADLdIN!FormatChunk 
+   to dest : HADLdOUT!FormatChunk (
+         behaviorChunk <- src.behaviorChunk,
+         targetFormat <- src.targetFormat
+      )
+}
+   
+rule TAlternativeFormat { 
+   from src : HADLdIN!AlternativeFormat 
+   to dest : HADLdOUT!AlternativeFormat (
+         name <- src.name,
+         behavior <- src.behavior,
+         choices <- src.choices
+      )
+}
+
+rule TMatchFormatChoice { 
+   from src : HADLdIN!MatchFormatChoice 
+   to dest : HADLdOUT!MatchFormatChoice (
+         matchedChoice <- src.matchedChoice
+      )
+}
+
+rule TUseFormatChoice { 
+   from src : HADLdIN!UseFormatChoice
+   to dest : HADLdOUT!UseFormatChoice (
+         usedFormat <- src.usedFormat
+      )
+}
+
+
+

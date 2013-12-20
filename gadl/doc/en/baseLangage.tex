@@ -1,0 +1,403 @@
+%!TEX root = ./main.tex
+%!TEX encoding = UTF-8 Unicode
+\chapter{Fundamentals of language}
+\section{Lexical Elements}
+This section lists all lexical elements which are used by \harmless. Spaces and indentations are ignored by the lexical analyzer (as in C): indentation has no influence on the language, although it facilitates the reading!
+As many instructions look very much like the $C$ language, the $;$ character is understood as a space.
+
+\subsection{Comments}
+\label{sec:commentaire}
+Comments use the same syntax as in VHDL. They begin with \texttt{--} and ends at the end of the line.
+
+\begin{lstlisting}
+--  This is a comment
+\end{lstlisting}
+
+\subsection{Character String}
+\label{sec:chaines}
+A string is represented using double quotes \texttt{"} (like in $C$):
+\begin{lstlisting}
+"This is a character string"
+\end{lstlisting}
+Carriage returns are ignored.
+
+\subsection{Integers}
+\label{sec:nombres}
+Integers can be written with different bases: binary, decimal, octal and hexadecimal, preceding the number by respectively \texttt{\bs b}, \texttt{\bs d}, \texttt{\bs o} and \texttt{\bs x}. Decimal format is used by default:
+\begin{lstlisting}
+38    -- 38 (decimal)
+\d12  -- 12 (decimal -> default)
+\b100 -- 4 (binary)
+\o70  -- 56 (octal)
+\x2F  -- 47 (hexadecimal)
+\end{lstlisting}
+
+The \texttt{s} character is used as a suffix for \emph{signed integers}.
+\begin{lstlisting}
+38  -- unsigned integer -> 6 bits
+38s -- signed integer   -> 7 bits
+\end{lstlisting}
+
+To help readability, the \texttt{\_} character can be added everywhere in the integer definition, it will be deleted by \harmless\ during lexical analysis:
+\begin{lstlisting}
+\b1001_1111 -- 9F hexa
+\end{lstlisting}
+
+Finally, it is possible to add the suffix \texttt{kb} ($2^{10}$=1024 bytes) and \texttt{mb} ($2^{20}$= 1048576 bytes). It is useful for address space definition:
+\begin{lstlisting}
+128kb -- equivalent to 131 072
+4mb   -- equivalent to 4194304
+\end{lstlisting}
+
+\subsection{Mask}
+\label{masque}
+A mask allows to express a set value depending on the value of different bits. The masks are only values coded as binary:
+\begin{lstlisting}
+\m11-0 -- correspond to 1110 or 1100
+\end{lstlisting}
+A mask is prefixed by \texttt{\bs m}. The binary number is expressed by \texttt{0}, \texttt{1} and \texttt{-}, the latter indicating that the value of the corresponding bit is not useful. 
+
+Masking operations are mainly used for decoding instructions (see Chapter \ref{chap:format}).
+
+\subsection{Floats} 
+There is currently no support for floating point numbers in Harmless.
+
+\subsection{Keywords}
+\label{keywords}
+Reserved keywords for the language are:
+\begin{lstlisting}
+model, port, device, architecture, write, shared, behavior, format, select, error, warning, component, void, every, memory, width, address, type, RAM, ROM, register, stride, read, program, counter, pipeline, stage, init, run, as, machine, BPU, bypass, release, in, maps, to, default, instruction, fetch, debug, big, little, endian, except, do, out, when, on, field, nop, slice, case, is, others, signed, or, syntax, switch, number, octal, decimal, hexadecimal, binary, suffix, prefix, return, print, if, then, elseif, else, loop, while, end, true, false, ror, rol, cat, timing, decode, size, jumpTaken, add, cycle, use, interrupt
+\end{lstlisting}
+
+\subsection{Delimiters}
+Delimiters are mostly used for expressions and assignments:
+\begin{lstlisting}
+: .. . , {   } [ ] :=  ( ) !  ~  * /  %  + - <<  >>  < >  <=   >=  
+=  !=  &  ^  |  &&  ^^  ||;
+\end{lstlisting}
+
+\subsection{Tags}
+\label{sec:etiquettes}
+Tags are used to enable a correspondence between different views of an instruction (behavior, binary and syntax). An instruction is then modeled as a set of tags, which form its \emph{signature} (see chapter \ref{sec:signature}).
+
+\emph{Tags} begins with character \texttt{\#}, followed by alphanumerical characters (\texttt{a..z}, \texttt{A..Z}, \texttt{0..9}, \texttt{\_}).
+
+In few cases, we use an \emph{extended tag}, which is a tag that will be added for each node called. An \emph{extended tag} begins with character \texttt{\@}, followed by alphanumerical characters (\texttt{a..z}, \texttt{A..Z}, \texttt{0..9}, \texttt{\_}).
+
+\subsection{Identifier}
+\label{sec:identifiant}
+An identifier is an alphanumerical characters string (\texttt{a..z}, \texttt{A..Z}, \texttt{0..9}, \texttt{\_}) where the first letter is not a number. It cannot be a keyword, nor a data type (\texttt{u} or \texttt{s} followed by a number), see section \ref{sec:TypeDonnees}.
+
+\section{Data types}
+\label{sec:TypeDonnees}
+At this date, \harmless\ can only handle integer data types. Data may be signed or unsigned, and size is defined at the bit level. Data types are defined using  \texttt{s} (signed) or \texttt{u} (unsigned) characters, followed by a number which define the size of the data in bits:
+\begin{lstlisting}
+u17 val1 --  val1 is an unsigned 17 bits value
+s9 val2  --  val2 is a signed 9 bits value
+u1 bool  -- u1 is understood as a boolean value.
+\end{lstlisting}
+Internal implementation limits sizes to 64 bits at this date, because these types are directly mapped on $C$ types.
+
+An immediat value has the minimal size required to be coded:
+\begin{lstlisting}
+38  -- unsigned integer -> 6 bits -> u6
+38s -- signed integer -> 7 bits -> s7
+-1s -- signed integer -> 2 bits -> s2
+\end{lstlisting}
+
+\section{Cast}
+
+The \emph{cast} allows to change the type of a value. A sign extension is performed when casting \emph{to a signed type} (and \emph{only} to a sign type. Examples:
+\begin{lstlisting}
+(s8)(-1s)  -- cast a s2 (signed with 2 bits) to a s8: result is 0xFF
+(u32)(-1s) -- cast a s2 to a u32 (no sign extension!): result is 0x03
+(u32)((s32)(-1s)) -- cast a s2 to a s32 (sign extension) and to u32
+\end{lstlisting}
+
+
+%\begin{verbatim}
+\section{Expressions}
+\label{sec:expressions}
+Expressions are largely inspired by the $C$ language, with some extensions for bit manipulations. We found the following $C$ operators: $($, $)$, $!$, $\sim$, $*$, $/$, $\%$,$+$, $-$, $<<$, $>>$, $<$, $>$, $<=$, $>=$, $=$, $!=$, $\&$, $\wedge$, $|$, $\&\&$, $||$.
+
+Note, however, even if these expressions are slightly the same as in $C$, there are differences on the size of values returned. See \ref{sec: typeExp}
+
+Expression enhancements are about type casts, rotations, concatenation and access to bit fields, these operation are not available in $C$.
+
+\subsection{Expressions Priorities}
+All expressions sorted by priority are defined in Table \ref{tab:exp}.
+
+\begin{table}[!h]
+\begin{center}
+\begin{tabularx}{\columnwidth}{|c|c|X|}
+\hline
+\bf expression & \bf priority & \bf use  \\  \hline
+idf & 1 & variable, register, memory access. Call to a component's method ... \\ \hline
+idf[index] & 1 & access to a tabular value \\ \hline
+nombre & 1 & numerical value (signed or not). \\ \hline
+(exp) & 1 & parentheses\\ \hline
+(type)(exp) & 1 & cast expression 'exp'. Unlike the $C$, parentheses are required, in order to eliminate This expression ambiguity \\ \hline
+\{field\} & 2 & Access to a bit field. See \ref{sec:field} \\ \hline
+ ! & 3 &  Logical not: returns \emph{true} or \emph{false} \\ \hline
+$\sim$  & 3 & bitwise not \\ \hline
+-  & 3 & unary minus \\ \hline
+* / \%  & 4 & multiplication, division, modulo \\ \hline
++ -  & 5 & Addition, subtraction \\ \hline
+$<<$ $>>$ & 6 & left and right shift (as in $C$)\\ \hline
+ror rol & 6 & right and left rotation: \texttt{exp rol 3} rotate bits of \emph{exp} 3 bits to the left \\ \hline
+$<$ $>$ $<=$ $>=$ & 7 & logical comparison \\ \hline
+$=$ $!=$  & 7 & equal logic \\ \hline
+$\&$  & 8 & bitwise and \\ \hline
+$\wedge$  & 9 & bitwise xor \\ \hline
+$|$   & 10 & bitwise or \\ \hline
+$\&\&$  & 11 & logical and \\ \hline
+$||$   & 12 & logical or \\ \hline
+cat   & 13 & concatenation of expressions \\ \hline
+\end{tabularx}
+\caption{Expressions evaluation priorities in \harmless (1 being the highest priority)}
+\label{tab:exp}
+\end{center}
+\end{table}
+
+%TODO: exemple pour ror/rol, cast et cat.
+
+\subsection{Result type expressions}
+\label{sec:typeExp}
+The type of an expression is strong. It is not based solely on the size of the input data, but also on operations that are performed on it. For example:
+\begin{itemize}
+\item adding 2 numbers of $n$ and $m$ bits returns a result of $max(n,m)+1$ bits;
+\item multiplication of 2 numbers of $n$ et $m$ bits returns a result of $n+m$ bits;
+\item shifting $d$ bits left a value of $n$ bits returns a result of $n+d$ bits;
+\item shifting $d$ bits left a value of $n$ bits returns a result of $n-d$ bits;;
+\end{itemize}
+%TODO: pas fini.
+
+\subsection{Bitfield access}
+\label{sec:field}
+The access to a field is using braces. The definition of a field by setting the most significant bit first, followed by '\texttt{..}' and the lowest bit. The second value must be lower than the first.
+
+\emph{In \harmless, the LSB has always the index 0}. The MSB has index 'size of data' - 1. 
+This is notably not the case with some manufacturers documentation indicating the bit 0 as the most significant bit (PowerPC, for example).If a single bit is used, the second part is not required. Several fields can be defined, separated by commas:
+\begin{lstlisting}
+u8 val1 --  val1 is unsigned 8 bits
+ -- val2 gets the 4 lowest significant bits of val1
+u4 val2 := val1{3..0}
+--  val3 gets bit 4, concatenated with the 2 lowest significant bits of val1.
+u3 val3 := val1{4, 1..0}
+u8 val4 := 3;
+-- we can use expressions to define a field.
+u2 val5 := val1{val4+1..val4}
+\end{lstlisting}
+
+You can also use an expression to define an element of a field, but this expression must return an \emph{unsigned} value. Expressions can not be allowed in certain cases (format definition), because \harmless is not always able to extract the size of the field.
+
+\section{Instructions}
+language instructions are used in a limited area for implementation: in a \emph{do}..\emph{end do} when defining behavior or in the definition of a component, ...
+
+There are no instruction for loops at this date, even if a statement will be added in the short term (the instruction type \emph{store multiple word} of the PowerPC, for example).
+
+Following statement are provided:
+\subsection{Assignment}
+assignment use the operator \texttt{:=}, to avoid ambiguity with a comparison: \texttt{<variable> :=  <expression>}:
+\begin{lstlisting}
+val2 := val1{3..0} -- val2 gets the 4 lowest significant bits of val1
+\end{lstlisting}
+
+It is allowed to use bitfields in the left part of an assignment (see \ref{sec:field}):
+\begin{lstlisting}
+u8 val2;
+-- assign the 4 most significant bits of val2
+-- the 4 loewt significant bits are not modified.
+val2{7..4} := val1{3..0}
+\end{lstlisting}
+
+\subsection{Conditional statement}
+The conditional statement has the form: \texttt{if <expresssion> then <implementation> [elseif <implementation>] [else <implementation>] end if}
+\begin{lstlisting}
+u16 newPC;
+if CCR{bitIndex} = 0 then 
+  newPC := (u16)((s16)(PC)+k) 
+else 
+  newPC := (u16)(PC)
+end if 
+\end{lstlisting}
+
+\subsection{Loops}
+Loops have the form: \texttt{loop <guard> while <condition> do <implementation> end loop}. \texttt{Guard} is the maximal number of iterations allowed, due to prevent infinite loops. The algorithm used by the simulator is:
+\begin{lstlisting}
+u64 loop = 0;
+while(loop < guard && condition)
+  loop = loop + 1;
+  <implementation>
+if(loop == guard)
+  -- send runtime error.
+\end{lstlisting}
+
+\emph{Loops are allowed in an \harmless\ description only to generate an instruction set simulator. There are many restrictions with CAS.}
+
+Loops may be used to model instructions when the algorithm is based on a loop, but the hardware implementation does not need such mechanism. This is the case for instance of the ARM instruction CLZ (\emph{Count Leading Zeroes} that counts the number of zeros, from the MSB. For this instruction, we may use the following code:
+\begin{lstlisting}
+u6 clz(u32 value)
+{
+  u1 found := false
+  u6 currentBit := 32
+  loop 32 
+  while (!found && currentBit != 0) do
+    if value{currentBit-1} then 
+      found := true
+    else
+      currentBit := currentBit - 1
+    end if
+  end loop
+  return 32 - currentBit
+}
+\end{lstlisting}
+The guard limits the loop to 32 iterations.
+
+\emph{In the case of instructions where the implementation is based on a loop (\emph{Load/Store Multiple Word} for PowerPC and ARM instruction sets), the generated CAS does not take into account multiple access to methods (access only one time).}
+
+\subsection{Return statement}
+This statement can return a comma separated list of values within a method component(section \ref{sec:component}), the same approach as C. This statement is not always available (for example in the implementation of a \emph{behavior}).
+
+The form is: \texttt{return <expression1>,<expression2>, \ldots}:
+\begin{lstlisting}
+return val1,val2
+\end{lstlisting}
+
+\subsection{Nop statement}
+This instruction can inhibit xx next instructions. It is a feature found on some processors such as Atmel AVR. This instruction is available on the implementation part of a  \texttt{behavior}.
+
+The form is: \texttt{nop <expression> instruction}
+\begin{lstlisting}
+-- the next instruction won't be executed.
+nop 1 instruction
+\end{lstlisting}
+
+\subsection{Error statement}
+\label{sec:instError}
+These instructions allow to generate run-time error or a warning on an abnormal state of the simulator.
+
+Some devices can be partially described: a \emph{timer/counter} with only the model of the \emph{timer} part, prohibited combinations from documentation, \ldots. These cases can be detected by the simulator. 
+
+The form is: \texttt{error <character string>} or \texttt{warning <character string>}. 
+At this date, only the error string is printed on \texttt{stderr} at run-time.
+
+\begin{lstlisting}
+warning "error message"
+\end{lstlisting}
+
+At run-time, the following message will be printed on \texttt{stderr}: 
+\texttt{RUNTIME WARNING at file '/Users/mik/../avr.hadl', line 54:30. Message is "error message"}
+
+\subsection{Display statement}
+This instruction allows you to write a string on the error output (stderr). This is particularly useful to model peripherals: \\
+\texttt{print (<expression>|<characterStr>)[,(<expression>|<characterStr>)][, ...} 
+
+For a serial port: 
+\begin{lstlisting}
+print UDR0
+\end{lstlisting}
+Will print the value of the register \texttt{UDR0} on stderr. The value will be interpretated has in $C$ (ASCII for a value of 8 bits or less), numerical value in other cases (hex).
+
+For a GPIO:
+\begin{lstlisting}
+print "port A: ",PORTA,"\n"
+\end{lstlisting}
+
+\subsection{Interrupt}
+\label{keyword:interrupt}
+Interrupt hardware management is described in chapter \ref{chap:interrupt}. The \texttt{interrupt} keyword allows to set an interrupt. 
+The form is: \texttt{interrupt <unsigned number>}, where the unsigned number is the \texttt{id} of the interrupt.
+\begin{lstlisting}
+interrupt 5
+\end{lstlisting}
+This value will be available for the hardware interrupt handler.
+
+\section{Organization of a description}
+A description follows the general schema:
+\begin{verbatim}
+<modelDeclaration> 
+repeat 
+  while <inModel>; 
+  while <default>; 
+  while <component>; 
+  while <pipeline>; 
+  while <machine>; 
+  while <architecture>; 
+  while <format>; 
+  while <behavior>; 
+  while <syntax>; 
+  while <timing>; 
+  while <printNumberType>; 
+end repeat;
+\end{verbatim}
+The structure \texttt{repeat..while..end repeat} indicates that it is possible to put each of these rules in any order as many times as needed (even 0).
+The parts are:
+\begin{itemize}
+\item \texttt{modelDeclaration} identifies the model. It is possible to declare many models in the same description, see section \ref{sec:plusieursModeles};
+\item \texttt{inModel} is used when describing many models, see section \ref{sec:plusieursModeles};
+\item \texttt{default} allows to define default parameters. It is mandatory and defined in section \ref{sec:default};
+\item \texttt{component}  describe an hardware \emph{component}, see section \ref{sec:composant};
+\item \texttt{format} \texttt{behavior} and \texttt{syntax} are related to the instruction set description (3 views), see \ref{chap:format},  \ref{chap:behavior} and  \ref{chap:syntax};
+\item \texttt{printNumberType} is used in syntax description, see \ref{chap:syntax};
+\item \texttt{timing} is used in a temporal description, without taking into account the underlying micro-architecture;
+\item \texttt{pipeline} \texttt{machine} and \texttt{architecture} are used for the description of the micro-architecture.
+\end{itemize}
+No order of the different part is required.
+
+\subsection{Dealing with multiple description files}
+\label{sec:plusieursFichiers}
+The description of a processor can use multiple files, which are then used to generate a simulator. 
+For example, the instruction set of the PowerPC can be described in a first file \texttt{powerpc\_instSet.hadl} which is then used in the description of different models (\texttt{5516}, \texttt{565}, \texttt{750}, \texttt{970}, ...):
+\begin{lstlisting}
+include "powerpc_instSet.hadl"
+\end{lstlisting}
+Currently, no verification is performed to detect cyclic inclusions.
+
+%section "défaut."
+\subsection{\emph{Default} section}
+\label{sec:default}
+The \texttt{default} section is mandatory and set some global settings.
+\subsubsection{default size of instructions}
+This parameter gives the basic size of instructions for decoding. For example, all of the PowerPC instructions are 32 bits wide, so the value should be set to 32, but with the HCS12, where instruction sizes are from 1 to 8 bytes, the value is 8:
+\begin{lstlisting}
+default {
+  instruction := 8
+}
+\end{lstlisting}
+This parameter is used in the decode phase.
+
+\subsubsection{Endianness}
+The endianness should be given (used when accessing memory):
+\begin{lstlisting}
+default {
+  big endian
+}
+\end{lstlisting}
+or \texttt{little endian} when using the lowest significant byte first.
+\emph{At this date, it's not possible to change endianness dynamically.}
+This parameter is mandatory.
+
+\section{Description of several models in the same file}
+\label{sec:plusieursModeles}
+This approach is used to describe different variants of an architecture.
+The declaration of the different models is:
+\begin{lstlisting}
+model mod1, mod2, mod3 
+{
+\end{lstlisting}
+In this example, the file contains 3 models \texttt{mod1} to \texttt{mod3}. In the generation process, directories \texttt{mod1/} to \texttt{mod3/} will be created, each one having the sources of one simulator.
+
+The description is common to all the models by default. To get a specific part, the following command should be used:
+\begin{lstlisting}
+-- the description between {} is valid
+-- only for mod1 and mod2:
+in mod1, mod2 {  bla bla bla }
+\end{lstlisting}
+the \texttt{*} is similar to 'every models', and the keyword \texttt{except} is used to remove particular models
+\begin{lstlisting}
+-- identical to the previous description.
+in * except mod3 { 
+\end{lstlisting}
+
+The granularity of the \texttt{in} keyword is restricted to high level elemets: a whole component, a \texttt{behavior}, a \texttt{format}, \ldots

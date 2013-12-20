@@ -1,0 +1,108 @@
+semantics gadl_memory :
+  import "gadl_options.gOption" ;
+  import "gadl_semantics.gSemantics" ;
+  import "gadl_semantics_expression.gSemantics" ;
+  import "gadl_semantics_implementation.gSemantics" ;
+  import "gadl_semantics_function.gSemantics" ;  
+
+#----------------------------------------------------------------------------
+# memory
+#----------------------------------------------------------------------------
+
+class @memoryParam {
+  @uint stride;
+  @uint width;
+  @uint addrFrom;
+  @uint addrTo;
+  @uint type;  #0=ROM, 1=RAM, 2=register
+  @bool isProg; #true -> can have the program code.
+}
+
+#  C := slice{0}
+list @registerBitFieldList { #TODO:change to a map
+  @lstring   name;
+  @fieldList fieldList;
+}
+
+#map that stores a register definition, for ex:
+#  register u4 CCR {
+#    C := slice{0} -- carry flag
+#    V := slice{1} -- overflow flag
+#    Z := slice{2} -- zero flag
+#    N := slice{3} -- neg flag
+#  };
+# Key is the register name (CCR in the example).
+#map registerDefMap {
+#  @registerBitFieldList registerBitFieldList;
+#}
+
+#store information about an alias:
+#register CP maps to \xFE10
+#register STATUS maps to 3 -- flags
+#{
+#  C := slice{0}
+#  Z := slice{2}
+#}
+#
+#register 8 AH maps to \x2 #8 is the size.
+#addresses does not include offsets!!
+map @memoryAliasMap {
+  @uint size;
+  @uint address;
+  @registerBitFieldList registerBitFieldList;
+  @luint64 resetVal;
+  insert insertKey error message "the '%K' memory alias is already defined in %L" ; 
+  search searchKey error message "the '%K' memory alias is not defined" ;
+}
+
+#store information about a constant
+#R0 is read 0 (address of R0 is used here, i.e. index of the register)
+#addresses does not include offsets!!
+list @memoryConstList {
+  @uint address;
+  @uint64 value;
+}
+
+#memory chunk alias, ex:
+#  dummy {
+#    type := register;
+#    address := 0..15;
+#    stride := 2;
+#    register R150 maps to 15 is read 0;
+#  } maps to CP+2;
+
+map @memoryChunkAliasMap {
+  @memoryParam param;               #mem params
+  @memoryAliasMap memoryAliasMap;   #relative aliases (exp from 'maps to' not taken into account)
+  @memoryConstList memoryConstList; #relative consts
+  @cExpression mapsToExpression;
+  insert insertKey error message "the '%K' memory chunk alias is already defined in %L" ; 
+  search searchKey error message "the '%K' memory chunk alias is not defined" ;
+}
+
+map @memoryChunkMap {
+  @memoryParam param;               #mem params
+  @memoryAliasMap memoryAliasMap;   #registers defined in memory.
+  @memoryConstList memoryConstList; #consts
+  @memoryChunkAliasMap memoryChunkAliasMap;
+  insert insertKey error message "the '%K' memory chunk is already defined in %L" ; 
+  search searchKey error message "the '%K' memory chunk is not defined" ;
+}
+
+# this map is for convenience only.
+# it gets informations about registers that are mapped in memory in a more easy way. 
+# This maps is populated in the semantic part.
+# WARNIING: this map only contains a copy of data of other strutures.
+map @registersMapsInMemoryMap {
+  @lstring componentName;
+  @lstring memoryName;
+  @uint size;
+  @uint address;
+  @registerBitFieldList registerBitFieldList;
+  insert insertKey error message "the '%K' memory chunk is already defined in %L" ; 
+  search searchKey error message "the '%K' memory chunk is not defined" ;
+}
+
+end semantics ;
+
+# vim:ft=ggs:ts=2:sw=2

@@ -1,0 +1,274 @@
+
+module HADLcExpand;
+create OUT:HADLcOUT from IN:HADLcIN;
+
+rule TModel {
+   from src : HADLcIN!Model 
+   to
+      dest : HADLcOUT!Model (
+            name <- src.name + 'Module',
+            includedFiles <- src.includedFiles->reject(f| f.appearsInHeader)->append(includeHeader),
+            elements <-
+               -- All other elements
+               src.elements->reject(e|
+                     e.oclIsKindOf(HADLcIN!EnumType) or
+                     e.oclIsKindOf(HADLcIN!StructType)
+                  )
+         ),
+      includeHeader : HADLcOUT!IncludeFile (
+            name <- src.name + 'Header.hadl.cpp',
+            isStandard <- false,
+            appearsInHeader <- false
+         )
+}
+
+rule TIncludeFile  {
+   from src : HADLcIN!IncludeFile  (not src.appearsInHeader)
+   to dest : HADLcOUT!IncludeFile (
+         name <- src.name,
+         isStandard <- src.isStandard,
+         appearsInHeader <- src.appearsInHeader
+      )
+}
+
+rule TFunction { 
+   from src : HADLcIN!Function 
+   to
+      dest : HADLcOUT!Function (
+            typeName <- src.typeName,
+            isEnum <- src.isEnum,
+            isStruct <- src.isStruct,
+            isPointer <- src.isPointer,
+            isArray <- src.isArray,
+            name <- src.name,
+            parameters <- src.parameters,
+            body <- src.body
+         )
+}
+
+rule TParameter  { 
+   from src : HADLcIN!Parameter  
+   to
+      dest : HADLcOUT!Parameter (
+            typeName <- src.typeName,
+            isEnum <- src.isEnum,
+            isStruct <- src.isStruct,
+            isPointer <- src.isPointer,
+            isArray <- src.isArray,
+            name <- src.name
+         )
+}
+
+rule TVariable {
+   from src : HADLcIN!Variable 
+   to
+      dest : HADLcOUT!Variable (
+            typeName <- src.typeName,
+            isEnum <- src.isEnum,
+            isStruct <- src.isStruct,
+            isPointer <- src.isPointer,
+            isArray <- src.isArray,
+            name <- src.name,
+            "size" <- src."size",
+            init <- src.init
+      )
+}
+
+rule TBlock  { 
+   from src : HADLcIN!Block  
+   to dest : HADLcOUT!Block (
+         variables <- src.variables,
+         statements <- src.statements
+      )
+}
+
+rule TExpressionStatement  {
+   from src : HADLcIN!ExpressionStatement  
+   to dest : HADLcOUT!ExpressionStatement (
+         expression <- src.expression
+      )
+}
+
+rule TIfStatement  { 
+   from src : HADLcIN!IfStatement 
+   to dest : HADLcOUT!IfStatement (
+         ifClauses <- src.ifClauses,
+         elseClause <- src.elseClause
+      )
+}
+
+rule TIfClause {
+   from src : HADLcIN!IfClause 
+   to dest : HADLcOUT!IfClause (
+         condition <- src.condition,
+         thenClause <- src.thenClause
+      )
+}
+
+rule TSwitchStatement  {
+   from src : HADLcIN!SwitchStatement  
+   to dest : HADLcOUT!SwitchStatement (
+         expression <- src.expression,
+         cases <- src.cases,
+         defaultStatements <- src.defaultStatements
+      )
+}
+
+rule TCase {
+   from src : HADLcIN!Case 
+   to dest : HADLcOUT!Case (
+         value <- src.value,
+         statements <- src.statements
+      )
+}
+  
+rule TForStatement  {
+   from src : HADLcIN!ForStatement  
+   to dest : HADLcOUT!ForStatement (
+         counterName <- src.counterName,
+         first <- src.first,
+         last <- src.last,
+         step <- src.step,
+         body <- src.body
+      )
+}
+  
+rule TWhileStatement {
+   from src : HADLcIN!WhileStatement
+   to dest : HADLcOUT!WhileStatement (
+         expression <- src.expression,
+         body <- src.body
+      )
+}
+
+rule TBreakStatement {
+   from src : HADLcIN!BreakStatement
+   to dest : HADLcOUT!BreakStatement (
+      )
+}
+
+rule TReturnStatement  {
+   from src : HADLcIN!ReturnStatement  
+   to dest : HADLcOUT!ReturnStatement (
+         expression <- src.expression
+      )
+}
+  
+rule TFunctionCall  { 
+   from src : HADLcIN!FunctionCall 
+   to dest : HADLcOUT!FunctionCall (
+         functionName <- src.functionName,
+         actualParameters <- src.actualParameters
+      )
+}
+
+rule TVariableRefExpression  {
+   from src : HADLcIN!VariableRefExpression  
+   to dest : HADLcOUT!VariableRefExpression (
+         variable <- src.variable,
+         variableName <- src.variableName
+      )
+}
+
+rule TArrayElementExpression {
+   from src : HADLcIN!ArrayElementExpression
+   to dest : HADLcOUT!ArrayElementExpression (
+         expression <- src.expression,
+         indices <- src.indices
+      )
+}
+
+rule TFieldRefExpression  {
+   from src : HADLcIN!FieldRefExpression  
+   to dest : HADLcOUT!FieldRefExpression (
+         expression <- src.expression,
+         fieldName <- src.fieldName,
+         fromPointer <- src.fromPointer
+      )
+}
+
+rule TEnumLiteralRefExpression  { 
+   from src : HADLcIN!EnumLiteralRefExpression  
+   to dest : HADLcOUT!EnumLiteralRefExpression (
+         name <- src.name
+      )
+}
+   
+rule TIntegerLiteralExpression  {
+   from src : HADLcIN!IntegerLiteralExpression  
+   to dest : HADLcOUT!IntegerLiteralExpression (
+         value <- src.value
+      )
+}
+
+rule TStringLiteralExpression  {
+   from src : HADLcIN!StringLiteralExpression  
+   to dest : HADLcOUT!StringLiteralExpression (
+         value <- src.value
+      )
+}
+
+rule TOperatorExpression  { 
+   from src : HADLcIN!OperatorExpression  
+   to dest : HADLcOUT!OperatorExpression (
+         operator <- src.operator,
+         source <- src.source,
+         arguments <- src.arguments
+      )
+}
+
+rule TArrayExpression  { 
+   from src : HADLcIN!ArrayExpression  
+   to dest : HADLcOUT!ArrayExpression (
+         elements <- src.elements
+      )
+}
+
+rule TCopyExpression  { 
+   from src : HADLcIN!CopyExpression  
+   to dest : HADLcOUT!CopyExpression (
+         copiedExpression <- src.copiedExpression
+      )
+}
+
+rule TWrapperExpression  { 
+   from src : HADLcIN!WrapperExpression  
+   to dest : HADLcOUT!WrapperExpression (
+         expression <- src.expression
+      )
+}
+
+rule TConditionalExpression  { 
+   from src : HADLcIN!ConditionalExpression 
+   to dest : HADLcOUT!ConditionalExpression (
+         condition <- src.condition,
+         "then" <- src."then",
+         "else" <- src."else"
+      )
+}
+
+rule TTypeExpression { 
+   from src : HADLcIN!TypeExpression
+   to
+      dest : HADLcOUT!TypeExpression (
+            typeName <- src.typeName,
+            isEnum <- src.isEnum,
+            isStruct <- src.isStruct,
+            isPointer <- src.isPointer,
+            isArray <- src.isArray
+         )
+}
+
+rule TCastExpression {
+   from src : HADLcIN!CastExpression
+   to
+      dest : HADLcOUT!CastExpression (
+            typeName <- src.typeName,
+            isEnum <- src.isEnum,
+            isStruct <- src.isStruct,
+            isPointer <- src.isPointer,
+            isArray <- src.isArray,
+            expression <- src.expression
+         )
+}
+

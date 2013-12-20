@@ -1,0 +1,203 @@
+%!TEX root = ./main.tex
+%!TEX encoding = UTF-8 Unicode
+
+\chapter{Description of instructions behavior}
+\label{chap:behavior}
+\section{Introduction}
+
+In this chapter, we explain how instruction behavior are described. Many examples are extracted from descriptions of the Freescale HCS12 and its coprocessor XGate. The behavior of instructions is described in a hierarchical manner so as to share common behaviors of instructions.
+
+The description of the behavior of instructions is based on objects called \texttt{component} in the language. A component models an hardware part of the processor like the register bank or the UAL. Obviously, we can describe the behavior of instructions without using any component (using the '+' operator of the language to model the behavior of the \texttt{add} instruction), but this approach is not recommended. Indeed, the temporal behavior of a micro-architecture requires the use of components as the concurrency is based on the components.
+
+\section{Behavior view in \h}
+
+The behavior view contains a set of behavior nodes, which are organized in a hierarchical approach (as in the format and syntax views): a behavior can call other elementary behaviors and the behavior view may contain many trees. For instance, an addressing mode may be modeled using a behavior, and will be used by many other behaviors. 
+
+A behavior node is similar to a function that will call other functions (other behaviors, or component's method) to perform operations required to execute the instruction. The following listing shows how to describe a behavior node:
+\begin{lstlisting}
+behavior <name>(<parameterList>)
+  <behaviorBody>
+end behavior
+\end{lstlisting}
+
+{\tt <behaviorBody>} is a combination of elements:
+\begin{itemize}
+\item variable declaration(see section\ref{sec:behVar});
+\item {\em field} declaration (see section\ref{sec:behField});
+\item \emph{tags};
+\item call to another behavior node (\ref{sec:behSubBeh});
+\item select structure to distinguish different instructions, using keyword \texttt{select}. See section \ref{sec:behSelect};
+\item \blocsdo\ that allow to use algorithms. Voir section \ref{sec:behDo}.
+\end{itemize}
+
+\subsection{Behavior's parameters}
+
+A behavior (except root behaviors) may have 1 or more input/output parameters. A parameter have type, and an output argument uses the \texttt{out} keyword. Parameters handling is the same as the one for function call: 
+\begin{lstlisting}
+behavior shiftInstructionBehavior(out u16 rdValue, u16 source)
+\end{lstlisting}
+Here, 2 parameters are givent. The first one \texttt{rdValue} is an output parameter (its value will be set by \texttt{shiftInstructionBehavior} and will be available by the behavior that calls \texttt{shiftInstructionBehavior}). The second one \texttt{source} is an input parameter.
+
+\subsection{Variable declaration}
+\label{sec:behVar}
+
+It is possible to declare local variables for a component as in section \ref{sec:TypeDonnees}.
+
+\subsection{Instruction Field reference}
+\label{sec:behField}
+
+Instructions format fields that contains numerical data may be declared in a component in order to use their value. The keyword \texttt{field} is used:
+\begin{lstlisting}
+  field u3 regIndex;
+\end{lstlisting}
+Here, \texttt{regIndex} is a field that have been extracted from the format view (see section \ref{sec:operandeFormat}). \h\ checks the type consistency (size and sign) and displays an error if types differs. A \texttt{field} is obviously always a constant.
+
+\subsection{Calling another behavior}
+\label{sec:behSubBeh}
+
+Calling another component is done using the name of the behavior with theirs required parameters. A call to another behavior may be done inside a \blocdo~:
+\begin{lstlisting}
+behavior shiftInstructionType(out u16 source)
+  ...
+end behavior
+
+behavior shiftInstructionBehavior(out u16 rdValue, u16 source)
+  ...
+end behavior
+
+behavior shiftInstruction() #SHIFT
+  ...
+  u16 rdValue;
+  u16 source;
+  shiftInstructionType(source)
+  shiftInstructionBehavior(rdValue, source)
+  ...
+end behavior
+\end{lstlisting}
+Here, in behavior {\tt shiftInstruction}, 2 variables  {\tt rdValue} and {\tt source} are defined and 2 behavior nodes  {\tt shiftInstructionType} and {\tt shiftInstruction\-Behavior} are called.  {\tt shiftInstructionType} gives a value to \texttt{source} that is then given to the other behavior  {\tt shiftInstructionBehavior} that gives a value to  {\tt rdValue}.
+
+\subsection{Select structure}
+\label{sec:behSelect}
+
+The \texttt{select} structure allows to choose between different behaviors, based on the instruction tags:
+\begin{lstlisting}
+  select
+    case #ROL do rdValue := ALU.ROL(rdValue, source); end do
+    case #ROR do rdValue := ALU.ROR(rdValue, source); end do
+  end select
+\end{lstlisting}
+Here, tags \texttt{ \#ROL} or \texttt{\#ROR} are used to distinguish the behavior of two instructions, and the \blocsdo\ differs in each part.
+
+\begin{lstlisting}
+  select
+    case logicImmAndArithImmUpdateNoReg(rdValue, imm8)
+    case logicImmAndArithImmUpdateReg(rdValue, imm8, rdIndex)
+  end select;
+\end{lstlisting}
+Here, one or the other behavior is taken into account (each behavior will have references to \texttt{tags} that differs). Both types of \texttt{case} may be used in the same \texttt{select} structure.
+
+A \texttt{select} structure should not appear in a \blocdo.
+
+\subsection{\Blocdo}
+\label{sec:behDo}
+\blocsdo\ allow to write the instruction's algorithm. They may:
+\begin{itemize}
+\item access to components through their methods;
+\item declare local variables;
+\item perform assignments;
+\item use control structures  {\em if ... then ... else}
+\item use expressions as defined in section \ref{sec:expressions};
+\end{itemize}
+The following behavior is extracted from the XGate description:
+\begin{lstlisting}
+behavior loadStoreType(u1 accessType, u16 addr, u3 regIndex)
+  select
+    case #LOAD
+      do
+         if accessType = 0 then
+           u8 val := mem.read8(addr);
+           GPR.write8(regIndex, val);
+         else
+           u16 val := mem.read16(addr);
+           GPR.write16(regIndex, val);
+         end if;
+      end do
+    case #STORE 
+      do
+         if accessType = 0 then
+           u8 val := GPR.read8(regIndex);
+           mem.write8(addr, val);
+         else
+           u16 val := GPR.read16(regIndex);
+           mem.write16(addr, val);
+         end if;
+      end do
+  end select
+end behavior
+\end{lstlisting}
+Here, one behavior is selected, based on the tag of the instruction (either \#LOAD or \#STO\-RE).  {\tt accessType} give the size of the memory access (8 or 16 bits) and methods related to component \texttt{GPR} are therefore called.
+
+\section{Hardware components}
+\label{sec:component}
+An hardware component models an hardware part of the processor (ALU, memory, \ldots). its description is encapsulated and contains:
+\begin{itemize}
+\item member variables;
+\item methods.
+\end{itemize}
+Here is an example with a component  \texttt{Fetcher} that manage the program counter:
+\begin{lstlisting}
+component Fetcher {
+  program counter u16 pc; -- generate get and set methods.
+
+  void reset() {
+    pc := 0;
+  }
+
+  void branch(s16 offset) {
+    pc := (u16)((s16)(pc) + offset);
+  }
+}
+\end{lstlisting}
+This component uses one member variable, which is a register (here a specific register; the program counter). There are 2 methods associated to this component \texttt{reset} and \texttt{branch}. syntax is very similar to C language. Components methods can be called inside the behavior description, inside a  \blocdo\ : \texttt{<componentName>.<methodName>}, for example: \texttt{Fetcher.branch(10)}.
+
+
+\emph{This approach is very similar to an object approach, however, there is no concept instance associated with a component.} If there are 2 ALUs in a processor (superscalar architecture..), only one component is defined. This choice is done because instructions do not care about which ALU is used, it only have to perform an ALU related operation. The choice to use one ALU or the other depends on the micro-architecture implementation, and related constraints are defined in the micro-architecture part (not yet implemented!).
+
+\subsection{Writing a method}
+
+A method is defined as:
+\begin{verbatim}
+<returnValues> methodName(<inputParameters>)
+{
+  <implementation>
+}
+\end{verbatim}
+where:
+\begin{itemize}
+\item \texttt{<returnValues>} is a comma separated lists of return types (\texttt{u8}, \texttt{s5},\ldots). If the method does not return anything, the \texttt{void} keyword is used;
+\item \texttt{<inputParameters>} is a comma separated list of input parameters, with both their types and names
+\item \texttt{<implementation>} is the same as in section \ref{sec:behDo}. However the \texttt{return} statement should return as many values as in the method prototype.
+\end{itemize}
+
+Basic example:
+\begin{lstlisting}
+  -- returns both the result and the carry flag
+  u32,u1 addWithCarry(u32 ra, u32 rb) {
+    u33 result := ra + rb
+    return result{31..0},result{32}
+  }
+\end{lstlisting}
+
+\subsection{Member variables}
+Member variables are accessible only in methods of the same component (encapsulation). However, registers (see Section \ref{sec:defReg}) have a wider scope and can be used in any other place in the description.
+
+
+\subsection{Using components}
+Components fill the gap between the \emph{behavior description} and the \emph{micro-architecture description}. This last description that is under construction allows to describe the pipeline and other parts that can affect timings of the simulation.
+
+When modeling an instruction, some of the behavior can be described either in a \texttt{behavior} or in a \texttt{component}. For instance, the implementation of a branch instruction can use either \texttt{Fetcher.branch(..)}, or modify directly the program counter inside the \texttt{behavior}. However, using a component allows to use the branch instruction inside the micro-architecture (the component method will be associated to a specific pipeline stage). Components methods are also used in the \texttt{timing} view for simple architectures (without any pipeline), see chapter \ref{chap:timing}.
+
+This approach is also useful for behaviors that have not temporal impact on the simulation: a post-incremented instruction with a dedicated hardware for instance. In that last case, the addition can be declared inside the behavior, as it will never affect timings.
+
+%\section{Exemple de mise en œuvre}
+

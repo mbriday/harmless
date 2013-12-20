@@ -1,0 +1,517 @@
+
+syntax HADLd {
+
+   --------------------------------------------------------
+   -- Top level
+   --------------------------------------------------------
+
+   template Model main context
+      :  "model" name "{" [
+            "default" "{" [
+               "instructions" "{" instructionSize "}"
+               "data" "{" dataSize "}"
+            ] "}"
+            
+            elements
+         ] "}"
+      ;
+   
+   template ModelElement abstract addToContext;
+
+   --------------------------------------------------------
+   -- Variables
+   --------------------------------------------------------
+
+   template DataContainer abstract;
+
+   template ComponentVariable addToContext
+      :  (isExternal? "external") "var" name (isArray? "[" "]") (isDefined(size)? "{" size "}")
+      ;
+
+   template Parameter addToContext
+      :  ( isOutput ? "out" ) name (isArray? "[" "]") (isDefined(size)? "{" size "}")
+      ;
+
+   template LocalVariable addToContext
+      :  "var" name (isArray? "[" "]") (isDefined(size)? "{" size "}")
+      ;
+
+   template LoopVariable addToContext
+      :  name (isArray? "error")
+      ;
+
+   --------------------------------------------------------
+   -- Components and operations
+   --------------------------------------------------------
+
+   template Component context
+      :  "component" name "{" [
+            variables
+            operations
+         ] "}"
+      ;
+      
+   template Operation context addToContext
+      :  "procedure" name "(" parameters{separator=","} ")"
+         "{" [
+            localVariables
+            body
+         ] "}"
+      ;
+
+   --------------------------------------------------------
+   -- Architectures
+   --------------------------------------------------------
+
+   template Architecture context
+      :  "architecture" name
+         (isDefined(fathers)?
+            "extends" fathers{refersTo=name, separator=",", importContext}
+         )
+         "{" [
+            resources
+         ] "}"
+      ;
+      
+   template Resource context addToContext
+      :  "resource" name ":" component{refersTo=name} "{" [
+            ports
+         ] "}"
+      ;
+
+   template Port addToContext
+      :  "port" name
+         (isDefined(operations)? ":" operations{refersTo=name, separator=",", lookIn=owningResource.component})
+         ";"
+      ;
+
+   --------------------------------------------------------
+   -- Pipelines
+   --------------------------------------------------------
+
+   template Pipeline context
+      :  "pipeline" name "maps" "to" architecture{refersTo=name, importContext} "{" [
+            "init" "{" [ init ] "}"
+            "do" "{" [ localVariables body ] "}"
+            "run" expression "as" format{refersTo=name}
+            stages
+         ] "}"
+      ;
+
+   template Stage addToContext
+      :  "stage" name "{" [
+            activations
+         ] "}"
+      ;
+   
+   template ResourceActivation
+      :  resource{refersTo=name}
+         ('priority' = 0 ? : "priority" 'priority')
+         (isReusable? "reusable")
+         (isDefined(releaseStage)? "release" "in" "<" releaseStage{refersTo=name} ">")
+         (isDefined(bypassStages)? "bypass" "in" "<" bypassStages{refersTo=name, separator=","} ">")
+         (isDefined(portActivations)? ":" portActivations{separator=","})
+         ";"
+      ;
+      
+   template PortActivation
+      :  port{refersTo=name, lookIn=owningResourceActivation.resource}
+         (isDefined(releaseStage)? "release" "in" "<" releaseStage{refersTo=name} ">")
+         (isDefined(bypassStages)? "bypass" "in" "<" bypassStages{refersTo=name, separator=","} ">")
+      ;
+
+   --------------------------------------------------------
+   -- Instruction behaviors
+   --------------------------------------------------------
+
+   template Behavior abstract;
+
+   function behaviorSignature(Behavior)
+      :  "behavior" name
+         ( isDefined(parameters)?
+            "(" parameters{separator=","} ")"
+         )
+      ;
+
+   function beforeBlock(Behavior)
+      :  "before" "{" [
+            beforeBlock
+         ] "}"
+      ;
+      
+   function afterBlock(Behavior)
+      :  "after" "{" [
+            afterBlock
+         ] "}"
+      ;
+      
+   template AggregateBehavior context
+      :  "aggregate" $behaviorSignature "{" [
+            localVariables
+            ( isDefined(beforeBlock)? $beforeBlock )
+            chunks
+            ( isDefined(afterBlock)? $afterBlock )
+         ] "}"
+      ;
+
+   template AlternativeBehavior context
+      :  "alternative" $behaviorSignature "{" [
+            localVariables
+            ( isDefined(beforeBlock)? $beforeBlock )
+            choices
+            ( isDefined(afterBlock)? $afterBlock )
+         ] "}"
+      ;
+
+   --------------------------------------------------------
+   -- Instruction behaviors : chunks and choices
+   --------------------------------------------------------
+
+   template BehaviorChunk addToContext
+      :  "@" name
+         ( isDefined(call)? call )
+         ( isDefined(condition)?
+            "when" condition
+         )
+      ;
+
+   template BehaviorChoice abstract;
+
+   template LeafBehaviorChoice addToContext
+      :  "#" name "{" [
+            body
+         ] "}"
+      ;
+
+   template CallBehaviorChoice
+      :  call
+      ;
+
+   --------------------------------------------------------
+   -- Instruction behaviors : calls
+   --------------------------------------------------------
+
+   template BehaviorCall
+      :  behavior{refersTo=name} "(" actualParameters{separator=","} ")"
+      ;
+
+   --------------------------------------------------------
+   -- Imperative constructs
+   --------------------------------------------------------
+
+   template Block
+      :  [ statements ]{nbNL=1, indentIncr=0}
+      ;
+
+   template Statement abstract;
+
+   template AssignmentStatement
+      :  target ":=" 'source' ";"
+      ;
+
+   template ProcedureCallStatement
+      :  call ";"
+      ;
+
+   template OperationCall
+      :  (inline? "inline")
+         (isDefined(component)?
+               component{refersTo=name} "." calledOperation{refersTo=name, lookIn=component} "(" actualParameters{separator=","} ")"
+            :  calledOperation{refersTo=name} "(" actualParameters{separator=","} ")"
+         )
+      ;
+      
+   template IfStatement
+      :  "if" ifClauses{separator="elseif"}
+         (isDefined(elseClause)?
+            "else" [
+               elseClause
+            ]
+         )
+         "end" "if" ";"
+      ;
+
+   template IfClause
+      :  condition "then" [
+            thenClause
+         ]
+      ;
+
+   template ForStatement context
+      :  "for" counter
+         "in" range
+         "loop" [
+            body
+         ] "end" "loop" ";"
+      ;
+
+   template ReturnStatement
+      :  "return" (isDefined(expression)? expression) ";"
+      ;
+
+   template DependencyStatement
+      :  targetVariable{refersTo=name} ":=" "dep" "(" sourceVariables{refersTo=name, separator=","} ")" ";"
+      ;
+
+   --------------------------------------------------------
+   -- Expressions
+   --------------------------------------------------------
+
+   template Expression abstract operatored;
+
+   template FunctionCallExpression
+      :  call
+      ;
+
+   template DataContainerRefExpression
+      :  ( isDefined(dataContainer)?
+            dataContainer{refersTo=name}
+            : "<" "att" ">"
+         )
+         ( isDefined(index)?
+            "[" index (extend? "!extend") "]" :
+            ( extend? "dummyextend" )
+         )
+         ( isDefined(range)? range )
+      ;
+
+   operatorTemplate OperatorExpression
+      (
+         operators = unaryPlusOp unaryMinusOp
+                     addOp subOp mulOp divOp
+                     ltOp leqOp gtOp geqOp eqOp neqOp
+                     booleanNotOp booleanAndOp booleanOrOp booleanXorOp
+                     binaryNotOp binaryAndOp binaryOrOp binaryXorOp
+                     asrOp lslOp lsrOp rolOp rorOp
+                     modOp remOp absOp powOp,
+         source = 'source',
+         storeOpTo = operator,
+         storeRightTo = arguments
+      );
+
+   template IntegerLiteralExpression
+      :  'value'
+      ;
+      
+   template BooleanLiteralExpression
+      :  'value'
+      ;
+      
+   template BasedLiteralExpression
+      :  base 'value'{as=stringSymbol}
+      ;
+
+   enumerationTemplate BaseSpecifier
+      :  #binary = "\\\\b",
+         #octal = "\\\\o",
+         #decimal = "\\\\d",
+         #hexadecimal = "\\\\x"
+      ;
+      
+   template Range
+      :  "{"
+         slices{separator=","}
+         ( shiftAmount = 0 ?
+               ( right and shift and arithmetic ? "!extend" )
+            :  ( shift ?
+                     ( right ?
+                           ( arithmetic ? "!asr" : "!lsr" )
+                        :  ( arithmetic ? "!asl" : "!lsl")
+                     )
+                  :  ( right ?
+                           ( arithmetic ? "dummyaror" : "!ror" )
+                        :  ( arithmetic ? "dummyarol" : "!rol" )
+                     )
+               )
+               shiftAmount
+         )
+         "}"
+      ;
+
+   template Slice
+      :  first
+         ( isDefined(last)? ".." last )
+         ( isDefined(step)? ":" step )
+      ;
+
+   --------------------------------------------------------
+   -- Instruction formats
+   --------------------------------------------------------
+
+   template Format abstract;
+
+   function formatPrefix(Format)
+      :  "format" name
+      ;
+
+   function formatSuffix(Format)
+      :  "maps" "to" behavior{refersTo=name, importContext}
+      ;
+
+   template AggregateFormat context
+      :  "aggregate" $formatPrefix $formatSuffix "{" [
+            chunks
+         ] "}"
+      ;
+
+   template FormatChunk
+      :  "@" behaviorChunk{refersTo = name}
+         targetFormat{refersTo=name} "(" ")"
+      ;
+
+   template AlternativeFormat context
+      :  "alternative" $formatPrefix $formatSuffix "{" [
+            choices
+         ] "}"
+      ;
+
+   template FormatChoice abstract;
+
+   template MatchFormatChoice
+      :  "#" matchedChoice{refersTo=name}
+      ;
+
+   template UseFormatChoice
+      :  usedFormat{refersTo=name} "(" ")"
+      ;
+
+   ------------------------------------------------------------------------------------
+
+   keywords {
+      abs = "abs";
+      mod = "mod";
+      rem = "rem";
+
+      asr = "asr";
+      lsl = "lsl";
+      lsr = "lsr";
+      ror = "ror";
+      rol = "rol";
+   }
+
+   symbols {
+      lcurly = "{";
+      rcurly = "}";
+      lsquare = "[";
+      rsquare = "]";
+      lparen = "(";
+      rparen = ")";
+      colon = ":";
+      comma = ",";
+      semi = ";";
+      at = "@";
+      sharp = "#";
+      percent = "%";
+      qmark = "?";
+      excl = "!";
+      assign = ":=";
+
+      star = "*";
+      star2 = "**";
+      slash = "/";
+      minus = "-";
+      plus = "+";
+      leq = "<=";
+      lt = "<";
+      geq = ">=";
+      gt = ">";
+      eq = "=";
+      ne = "!=";
+
+      lt2 = "<<";
+      gt2 = ">>";
+
+      dot = ".";
+      dot2 = "..";
+      dot3 = "...";
+      pipe = "|";
+      dec = "\\\\d";
+      bin = "\\\\b";
+      oct = "\\\\o";
+      hex = "\\\\x";
+
+      tilde = "~";
+      amp = "&";
+      amp2 = "&&";
+      circ = "^";
+      circ2 = "^^";
+      pipe2 = "||";
+
+      excllsl = "!lsl";
+      excllsr = "!lsr";
+      exclasl = "!asl";
+      exclasr = "!asr";
+      exclrol = "!rol";
+      exclror = "!ror";
+      exclext = "!extend";
+   }
+
+   operators {
+      priority 0 {
+         booleanNotOp = excl, 1;
+         binaryNotOp = tilde, 1;
+         unaryPlusOp = plus, 1;
+         unaryMinusOp = minus, 1;
+
+         absOp = abs, 1;
+         powOp = star2, 2;
+      }
+
+      priority 1 {
+         mulOp = star, 2;
+         divOp = slash, 2;
+         modOp = mod, 2;
+         remOp = rem, 2;
+      }
+
+      priority 2 {
+         addOp = plus, 2;
+         subOp = minus, 2;
+      }
+
+      priority 3 {
+         asrOp = asr, 2;
+         lslOp = lsl, 2;
+         lsrOp = lsr, 2;
+         rolOp = rol, 2;
+         rorOp = ror, 2;
+      }
+
+      priority 4 {
+         leqOp = leq, 2;
+         ltOp = lt, 2;
+         geqOp = geq, 2;
+         gtOp = gt, 2;
+      }
+      
+      priority 5 {
+         eqOp = eq, 2;
+         neqOp = ne, 2;
+      }
+
+      priority 6 {
+         binaryAndOp = amp, 2;
+      }
+
+      priority 7 {
+         binaryXorOp = circ, 2;
+      }
+
+      priority 8 {
+         binaryOrOp = pipe, 2;
+      }
+
+      priority 9 {
+         booleanAndOp = amp2, 2;
+      }
+
+      priority 10 {
+         booleanXorOp = circ2, 2;
+      }
+
+      priority 11 {
+         booleanOrOp = pipe2, 2;
+      }
+   }
+}
+

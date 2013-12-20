@@ -1,0 +1,54 @@
+%template headerC%
+#ifndef __TIMING_%!timingPart::name%_H__
+#define __TIMING_%!timingPart::name%_H__
+
+#include <iostream>
+#include "timingBase.h"
+#include "types.h"
+#include "fifo.h"
+
+class arch;
+
+class timing%!timingPart::name% : public timingBase {\n
+	const unsigned int m_inOffset;
+	const unsigned int m_outOffset;
+%foreach var in timingPart::localVar do
+%	%!var::declare% \n%
+end foreach
+let id := 0
+%	//declare simulation steps\n%
+foreach step in timingPart::timingStepList do
+%	bool step_%!id%(arch *);
+%let id := id + 1
+end foreach
+%	typedef bool (timing%!timingPart::name%::* stepPtr)(arch *);
+	stepPtr nextStep; //points to the next step
+	fifo<u32> *m_accessFifo;
+	public:
+	timing%!timingPart::name%(const unsigned int inOffset, const unsigned int outOffset) : 
+	m_inOffset(inOffset), m_outOffset(outOffset) {init();};
+	virtual void run(arch *arch) {
+		while((this->*nextStep)(arch));
+%		let addrFound := 0
+		foreach var in timingPart::localVar do
+			if var::name == "addr" then let addrFound := 1 end if
+		end foreach
+        if addrFound==1 then
+%		if(isInit() && m_accessFifo->read(addr)) //init state, and read was a success (i.e. not empty)
+		{
+			run(arch); //recursive call. (not a big depth!).
+		}
+%end if
+%	}
+	virtual void init() {
+		nextStep = &timing%!timingPart::name%::step_0;
+		m_accessFifo = new fifo<u32>("timing %!timingPart::name% fifo",16); //arbitrary max val
+	};
+	bool isInit() {return nextStep == &timing%!timingPart::name%::step_0;};
+	virtual std::string toString() {return std::string("timing%!timingPart::name%");};
+	void insertInDataCacheFifo(const u32 addr)
+	{
+		m_accessFifo->write(addr);
+	}	
+};
+#endif // __TIMING_%!timingPart::name%_H__

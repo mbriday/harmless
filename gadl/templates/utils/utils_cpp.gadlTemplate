@@ -1,0 +1,74 @@
+%template headerC%
+#include "utils.h"
+#include <stdio.h>
+#include <math.h>
+#include <sstream> //stringstream
+#include <iomanip> //setioflags (setw)
+
+//#include <limits.h>   // CHAR_BIT
+//#include <string> 
+//#include <iostream>
+
+using namespace std;
+
+unsigned int dtobin(unsigned char h)
+{
+   double n;
+   unsigned int b=0;
+   for(n=0;n<=7;n++)
+   {
+       b+=(pow(10,n)*(h\%2));
+       h/=2;
+   }
+   return b;
+}
+
+std::string debug64(u64 val)
+{
+	stringstream result;
+	for(int i=63;i>=0;i--) 
+	{
+		result << ((val>>i) & 1);
+		if((i & 7) == 0) result << " ";
+	}
+	result << " (0x" << hex << setw(16) << setfill('0') << val << ")";	
+	return result.str();	
+}
+//string dtobin(unsigned int n)
+//{
+	//unsigned int mask;
+	//string result = "";
+	//mask = 1 << (sizeof(unsigned int)*CHAR_BIT - 1);
+	//while(mask >>= 1)
+	//{
+		//result+= ((n & mask) ? "1" : "0");
+	//}
+	//return result;
+//}
+
+std::string int2str(int val, BASE _base, int nbBits)
+{
+	if(nbBits != 32) 
+	{
+		//check sign and extend to 32 bits.
+		int mask = 1 << (nbBits-1);
+		if(val & mask) //value is negative. Extend 1
+			val |= ~((1 << nbBits)-1);
+	}
+	
+	char c_str[64];
+	switch(_base)
+	{
+		case DEC:
+			sprintf(c_str, "\%d", val);
+			break;
+		case HEX:
+			sprintf(c_str, "\%x", val);
+			break;
+	}			
+	return string(c_str);
+}
+
+#ifdef USE_VERBOSE
+	bool verbose = false;
+#endif

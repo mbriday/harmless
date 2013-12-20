@@ -1,0 +1,185 @@
+syntax gadl_hard_pipeline_parser ("gadl_lexique.gLexique") :
+
+import "gadl_options.gOption" ;
+import "gadl_semantics.gSemantics" ;
+import "gadl_semantics_hard_pipeline.gSemantics" ;
+
+nonterminal <readOrWriteOrFetchOrIdf>
+  ! @lstring idf
+;
+
+#implementation related functions
+nonterminal  <implementation> 
+  ?! @varMap varMap 
+  ?! @instructionList instList 
+  ?? @componentMap componentMap
+  ?? @lstring currentComponent
+  ?? @expressionContext expContext
+  ?? @returnTypeList returnList
+;
+
+rule <pipeline> 
+  ?? @architectureMap architectureMap
+  ?! @pipelineMap pipelineMap
+:
+  $pipeline$;
+  @lstring pipelineName;
+  $idf$ ?pipelineName;
+  $maps$; $to$;
+  @lstring architectureName;
+  $idf$ ?architectureName;
+  @deviceMap deviceMap;
+  [architectureMap searchKey !architectureName ?deviceMap ?*];
+  ${$;
+  @stageList stageList [emptyList];
+  repeat
+  while
+    <pipelineStage> !deviceMap !?stageList;
+  end repeat;
+  $}$; 
+   [!?pipelineMap insertKey !pipelineName !architectureName !stageList];
+end rule;
+
+rule <pipelineStage>
+  ?? @deviceMap deviceMap
+  ?! @stageList stageList
+:
+  $stage$;
+  @lstring stageName;
+  $idf$ ?stageName;
+  ${$;
+  @stageBodyList bodyList [emptyList];
+  @lstringlist tar [emptyList];
+  @lstring stageReleaseOrBypassName := [@lstring new !"" !here];
+  repeat
+  while
+    @lstring deviceName;
+    $idf$ ?deviceName;
+    @portMap portMap;
+    [deviceMap searchKey !deviceName ?* ?portMap ?* ?*]; #check.
+    @uint type := 0; #TODO: -> enum?
+    select
+    or
+      select
+        $bypass$;
+        type := 1;
+      or
+        $release$;
+        type := 2;
+      end select;
+      $in$; $<$;
+      $idf$ ?stageReleaseOrBypassName;
+        #TODO check.
+      $>$;
+    end select;
+    $:$;
+    @lstringlist portList := [@lstringlist emptyList];
+    repeat
+      @lstring portName;
+      <readOrWriteOrFetchOrIdf> ?portName;
+      portList += !portName;
+      [portMap searchKey !portName ?* ?*]; #check.
+    while
+      $,$;
+    end repeat;
+    if type == 0 then
+      bodyList += ![@resourceAndPortAllowed new !deviceName !portList];
+    elsif type == 1 then
+      bodyList += ![@isBypass new !deviceName !portList !stageReleaseOrBypassName];
+    else
+      bodyList += ![@isRelease new !deviceName !portList !stageReleaseOrBypassName];
+    end if;
+  end repeat;
+  stageList += !stageName !bodyList;
+  $}$;
+end rule;
+
+#----------------------------------------------------
+
+rule <machine>
+  ?? @componentMap unused componentMap
+  ?! @machineMap machineMap
+  ?? @pipelineMap pipelineMap
+:
+  $machine$;
+  @lstring machineName;
+  $idf$ ?machineName;
+  ${$;
+#  <pipelineInit> !componentMap;
+  @pipelineExpression outPipelineExpression;
+  <pipelineExpression> ?outPipelineExpression !pipelineMap;
+  [!?machineMap insertKey !machineName !outPipelineExpression];
+  $}$;
+end rule;      
+
+#rule <pipelineInit> 
+#  ??@componentMap componentMap 
+#:
+#  $init$; ${$;
+#  @varMap varMap := [@varMap emptyMap]; 
+#  @instructionList instList := [@instructionList emptyList];
+#  @lstring noComp := [@lstring new !"" !here];
+#  @returnTypeList returnList [emptyList]; #no return allowed
+#  <implementation> !? varMap !?instList !componentMap !noComp  ![@expressionContext architecture] !returnList;
+#  warning here: "The 'init' section of machine does not generate any code.";
+#  $}$;
+#end rule;
+
+#----------------------------------------------------
+#-- ex: p1 fetch1 | p1 fetch2,(p2|p3),p4 finish3 | p4 finish4
+rule <pipelineExpression>
+  ! @pipelineExpression outPipelineExpression
+  ?? @pipelineMap pipelineMap
+:
+  <pipelineSequence> ? outPipelineExpression !pipelineMap;
+  repeat
+  while
+    $,$ ;
+    @pipelineExpression rightExpression ;
+    <pipelineSequence> ? rightExpression !pipelineMap;
+    outPipelineExpression := [@pipelineSequence new ! outPipelineExpression ! rightExpression] ;
+  end repeat;
+end rule;
+
+#----------------------------------------------------
+
+rule <pipelineSequence>
+  ! @pipelineExpression outPipelineExpression
+  ?? @pipelineMap pipelineMap
+:
+  <pipelineFactor> ? outPipelineExpression !pipelineMap;
+  repeat
+  while
+    $|$ ;
+    @pipelineExpression rightExpression ;
+    <pipelineFactor> ? rightExpression !pipelineMap;
+    outPipelineExpression := [@pipelineParallel new ! outPipelineExpression ! rightExpression] ;
+  end repeat;
+end rule;
+
+#----------------------------------------------------
+
+rule <pipelineFactor>
+  ! @pipelineExpression outPipelineExpression
+  ?? @pipelineMap pipelineMap
+:
+  select
+    $($ ;
+    <pipelineExpression> ? outPipelineExpression !pipelineMap;
+    $)$ ;
+  or
+    @lstring pipelineName ;
+    $idf$ ? pipelineName ;
+    if not [pipelineMap hasKey ![pipelineName string]] then
+        error here: "There is no pipeline defined with name :". pipelineName ."\n";
+    end if;
+    @lstring pipelineAlias := [@lstring new !"" !here] ;
+    select
+    or
+      $idf$ ? pipelineAlias ;
+    end select;
+    outPipelineExpression := [@simplePipeline new !pipelineName !pipelineAlias] ;
+  end select ;
+end rule;
+end syntax;
+# vim:ft=ggs:ts=2:sw=2

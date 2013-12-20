@@ -1,0 +1,89 @@
+%template headerC%
+#ifndef __STACK_CONTROLLER_H__
+#define __STACK_CONTROLLER_H__
+#ifdef GADL_SP_CHECK_ALLOWED
+
+//#define GADL_TALKATIVE_STACK	# Print essential debug data for stack/task monitoring
+
+#include "types.h"
+#include <string>
+
+#include "stackTypes.h"
+#include "stackSwitchList.h"
+
+class arch;
+class taskStackList;
+class stackObserver;
+class stackObserverSysFuncList;
+class stackObserverSysFuncItem;
+class stackSpyActionDynamic;
+class storage;
+
+using namespace std;
+
+
+/** stackSpyController
+ * Contain all data and functions recquired to spy stack and context switch
+ */
+class stackSpyController{
+	private :
+	arch *m_arch;					// Arch access to access simulator data
+	taskStackList *m_stackList;		// List of stack to monitore
+	stackSwitchList *m_switchList;	// List of stack switch for Gantt diagram
+	int m_currentTaskId;			// We try to have the current TaskId update
+	type_prgaddr m_pcOld;			// Used to detect call in any arch... (when PC old don't match with PC after Inst exec it's a CALL instruct.)
+	type_sp m_spOld;				// Is SP value before Inst execution
+	#ifdef GADL_SP_FAILURE_CHECK_ALLOWED
+	stackObserver *m_observer;		// Stack failure observer
+	#endif // GADL_SP_FAILURE_CHECK_ALLOWED
+
+	u64 m_actionCounter;
+	//single linked list of all dynamic actions used by the stack controller.
+	stackSpyActionDynamic *m_spadList;
+	//remove actions that are not used, and update the linked list of dynamic actions
+	void updateDynamicActionList(stackSpyActionDynamic *spad);
+	
+	
+	public :
+	
+	/* Usual */
+	stackSpyController(arch *a);		// Constructeur
+	virtual ~stackSpyController(){};	// Destructeur
+	
+	/* Access & Set*/
+	inline void setArch(arch *a){m_arch=a;};
+	inline arch* getArch(){return m_arch;};							// Arch access for sub class
+	inline taskStackList* getStackList(){return m_stackList;};		// stackList access for Add by user 
+	inline stackSwitchList* getSwitchList(){return m_switchList;};	// switchList access for Gantt  
+	inline void setCurrentTaskId(int tid){m_currentTaskId=tid;};
+	inline int getCurrentTaskId(){return m_currentTaskId;};
+	#ifdef GADL_SP_FAILURE_CHECK_ALLOWED
+	inline stackObserver* getObserver(){return m_observer;};
+	#endif // GADL_SP_FAILURE_CHECK_ALLOWED
+
+	/* Between Access & Function */
+	type_sp getSP();		// Read Stack Pointer value in arch
+	type_prgaddr getPC();	// Read Programm Coutner value in arch
+	
+	/* Functions */
+	virtual void processSP_CHECK();								// Process recquired when a CALL type instruction is detected
+	inline void setPcOld(type_prgaddr pcVal){m_pcOld=pcVal;};	// Have to be used to get PC value stored before Inst Exec
+	inline void setSpOld(type_sp spVal){m_spOld=spVal;};		// Have to be used to get SP value stored before Inst Exec
+
+	/* Usefull Instrumentation to be used by user */
+	void addTaskToMonitor(std::string taskName,std::string functionSymbol,u32 size);	// Obviously used to design task to monitor
+	void printControllerSwitchList();										// Print result of analysis (context switch)
+	int const nbTaskSwitches() {return m_switchList->size();};
+	
+	void writeTraceT3(std::string path);									// Write a T3 compatible file
+	void printTaskList();													// Print Stack&Task info (if used at the end of simulation Stack real use)
+	#ifdef GADL_SP_FAILURE_CHECK_ALLOWED
+	void setSizeOfStackProtectionArea(type_sp size);						// Set size of protection area used to detect stack over/underflow
+	void setExclusionOnSystFunction(std::string symbol);					// Set exclusion in stack failure detection (for function system who obviously create false detection)
+	#endif // GADL_SP_FAILURE_CHECK_ALLOWED
+	void removeDynamicAction(stackSpyActionDynamic *spad);
+	
+};
+
+#endif  //GADL_SP_CHECK_ALLOWED
+#endif  //__STACK_CONTROLLER_H__

@@ -1,0 +1,14 @@
+%template headerC%
+#include "instruction.h" //first for precompiled headers
+#include <stdio.h>
+#include "macro.h"
+#include "utils.h"
+
+//instructions with a mnemo.
+%foreach inst in instMnemoListTmp do
+  %const char* const %!inst::name%::mnemo(){\n%
+  !inst::mnemo
+  %}\n%
+  between %\n%
+end foreach
+

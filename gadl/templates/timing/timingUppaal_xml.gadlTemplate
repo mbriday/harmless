@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.1//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_1.dtd'>
+<nta>
+<declaration>
+// Place global declarations here.
+%foreach signal in signalDefinedInTiming do
+%chan %!signal::name%;\n%
+end foreach
+%</declaration>
+%foreach timing in timingList
+do%
+<template>
+	<name x="5" y="5">%!timing::name%</name>
+	<declaration>
+% #TODO: declarations 
+%
+// Place local declarations here.
+clock cycle;
+% foreach var in timing::localVarUppaal do
+    !var::declare % \n%
+  end foreach
+%	</declaration>
+%
+#states
+foreach state in timing::stateListUppaal do
+  if state::x != 0 then #x=y=0 if 'dot' program did not run properly :-/
+    %	<location id="id%!state::id%" x="%!state::x%" y="%!state::y%">\n%
+  else
+    %	<location id="id%!state::id%">\n%
+  end if
+  if exists state::info then
+    if state::x != 0 then #x=y=0 if 'dot' program did not run properly :-/
+      %		<name x="%!state::x - 5%" y="%!state::y + 16%">%!state::info%</name>\n%
+      %		<label kind="invariant" x="%!state::x - 5%" y="%!state::y + 32%">\n%
+    else
+      %		<name>%!state::info%</name>\n%
+      %		<label kind="invariant">\n%
+    end if
+  end if
+  foreach invariant in state::invariant do 
+    !invariant::exp
+   between %, %
+  end foreach
+  if exists state::info then
+    %</label>\n%
+  end if
+  if state::urgent then 
+    %		<urgent/>%
+  end if
+  %\n	</location>\n%
+end foreach
+%	<init ref="id0"/>\n%
+
+#transitions
+foreach transition in timing::transitionListUppaal do
+%	<transition>
+		<source ref="id%!transition::src%"/>
+		<target ref="id%!transition::dst%"/>
+		<label kind="guard">%
+foreach guard in transition::guardList do 
+  !guard::exp
+end foreach%</label>
+		<label kind="synchronisation">%
+let nbSig := 0
+foreach signal in transition::waitSignalList do
+  !signal::name%?%
+  let nbSig := nbSig + 1
+end foreach
+foreach signal in transition::emitSignalList do
+  !signal::name%!%
+  let nbSig := nbSig + 1
+end foreach
+if nbSig > 1 then
+  error here: "Uppaal can handle only one synchronisation channel in a transition"
+end if%</label>
+	<label kind="assignment">%
+      foreach update in transition::updateList do
+      !update::str
+      between %, %
+      end foreach
+%	</label>
+	</transition>
+%end foreach%
+</template>
+%end foreach%
+<system>
+// Place template instantiations here.
+%foreach timing in timingList
+do %timing_%!timing::name% = %!timing::name%();
+%end foreach%
+// List one or more processes to be composed into a system.
+system %
+foreach timing in timingList
+do 
+  %timing_%!timing::name 
+between%, %
+end foreach%;
+</system>
+</nta>
+

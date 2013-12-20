@@ -1,0 +1,198 @@
+Last login: Mon Dec 13 19:47:41 on ttys000
+iMacCore-i7:~ pierremolinaro$ /Volumes/dev-svn/p2a/p2aV2/run-grosInst.command ; exit;
+++ dirname /Volumes/dev-svn/p2a/p2aV2/run-grosInst.command
++ DIR=/Volumes/dev-svn/p2a/p2aV2
++ cd /Volumes/dev-svn/p2a/p2aV2
++ uname -a
+Darwin iMacCore-i7.local 10.5.0 Darwin Kernel Version 10.5.0: Fri Nov  5 23:20:39 PDT 2010; root:xnu-1504.9.17~1/RELEASE_I386 i386
++ ./p2aV2 example/grosInst.config -v -i
+load configuration from file: example/grosInst.config
+BDD package info: hash map reallocated to 1 048 583 (4 MB)
+BDD package info: node map reallocated to 4 194 304 (33 MB)
+BDD package info: AND cache allocated to 0 262 145 (3 MB)
+system stats
+	nb bits to code an inst class   : 3
+	nb bits to code an external res : 3
+automata stats
+	nb bits to code a state         : 21
+	nb bits to code an action       : 7
+
+Computing automata transitions... BDD package info: AND cache reallocated to 0 371 837 (4 MB)
+BDD package info: AND cache reallocated to 0 524 309 (6 MB)
+BDD package info: hash map reallocated to 1 487 351 (5 MB)
+BDD package info: AND cache reallocated to 0 743 671 (8 MB)
+BDD package info: hash map reallocated to 2 097 169 (8 MB)
+BDD package info: AND cache reallocated to 1 048 583 (12 MB)
+BDD package info: hash map reallocated to 2 974 691 (11 MB)
+BDD package info: AND cache reallocated to 1 487 351 (17 MB)
+BDD package info: hash map reallocated to 4 194 319 (16 MB)
+BDD package info: AND cache reallocated to 2 097 169 (25 MB)
+BDD package info: hash map reallocated to 5 949 373 (23 MB)
+BDD package info: AND cache reallocated to 2 974 691 (35 MB)
+BDD package info: hash map reallocated to 8 388 617 (33 MB)
+BDD package info: AND cache reallocated to 4 194 319 (50 MB)
+BDD package info: node map reallocated to 8 388 608 (67 MB)
+BDD package info: hash map reallocated to 11 898 739 (47 MB)
+BDD package info: AND cache reallocated to 5 949 373 (71 MB)
+36975400 transitions (2 min 36 s 40)
+Translating transition array into BDD...BDD package info: hash map reallocated to 16 777 259 (67 MB)
+BDD package info: node map reallocated to 12 582 912 (100 MB)
+BDD package info: hash map reallocated to 23 797 471 (95 MB)
+BDD package info: AND cache reallocated to 8 388 617 (100 MB)
+BDD package info: hash map reallocated to 33 554 467 (134 MB)
+BDD package info: node map reallocated to 16 777 216 (134 MB)
+ done (19 s 79)
+automata generation stats
+	number of transitions  : 36975400
+BDD package info: single operand operation cache allocated to 0 131 101 (1 MB)
+BDD package info: single operand operation cache reallocated to 0 131 102 (1 MB)
+	number of states: 660275
+	BDD encoding : 4348318 nodes (52179816 bytes)
+Minimizing automata...
+  'Reach' computed in 0 s 26
+  'Reach2' computed in 0 s 00
+  'Reach3' computed in 0 s 00
+BDD package info: AND cache reallocated to 11 898 739 (142 MB)
+BDD package info: node map reallocated to 20 971 520 (167 MB)
+BDD package info: hash map reallocated to 47 594 941 (190 MB)
+BDD package info: node map reallocated to 25 165 824 (201 MB)
+  'T1' computed in 6 s 36
+BDD package info: hash map reallocated to 67 108 879 (268 MB)
+BDD package info: node map reallocated to 29 360 128 (234 MB)
+  'T2' computed in 2 s 68
+  'BR' computed in 0 s 00
+  Preparation done in 9 s 31.
+BDD package info: mark and sweep done in 0 s 59 (nodes 27549790 -> 12826935)
+BDD package info: node map reallocated to 33 554 432 (268 MB)
+BDD package info: AND cache reallocated to 16 777 259 (201 MB)
+BDD package info: node map reallocated to 37 748 736 (301 MB)
+BDD package info: hash map reallocated to 95 189 879 (380 MB)
+BDD package info: node map reallocated to 41 943 040 (335 MB)
+  Iteration 1, step a done in 20 s 97
+BDD package info: AND cache reallocated to 23 797 471 (285 MB)
+  Iteration 1, step b done in 5 s 75
+BDD package info: node map reallocated to 46 137 344 (369 MB)
+BDD package info: node map reallocated to 50 331 648 (402 MB)
+BDD package info: hash map reallocated to 134 217 757 (536 MB)
+BDD package info: node map reallocated to 54 525 952 (436 MB)
+BDD package info: node map reallocated to 58 720 256 (469 MB)
+BDD package info: AND cache reallocated to 33 554 467 (402 MB)
+BDD package info: node map reallocated to 62 914 560 (503 MB)
+BDD package info: node map reallocated to 67 108 864 (536 MB)
+BDD package info: node map reallocated to 71 303 168 (570 MB)
+BDD package info: hash map reallocated to 201 326 611 (805 MB)
+BDD package info: node map reallocated to 75 497 472 (603 MB)
+  Iteration 1, step c done in 12 s 86
+BDD package info: mark and sweep done in 0 s 68 (nodes 71319636 -> 12827094)
+  Iteration 1, step d done in 3 s 19
+BDD package info: AND cache reallocated to 47 594 941 (571 MB)
+  Iteration 1, step e done in 9 s 50
+  Iteration 1, step f done in 0 s 00
+  Iteration 1, step g done in 0 s 00
+  Iteration 1, step h done in 0 s 00
+  Iteration 1 done in 53 s 56.
+BDD package info: mark and sweep done in 0 s 62 (nodes 47938153 -> 12827155)
+  Iteration 2, step a done in 5 s 95
+  Iteration 2, step b done in 6 s 19
+BDD package info: AND cache reallocated to 67 108 879 (805 MB)
+BDD package info: node map reallocated to 79 691 776 (637 MB)
+BDD package info: node map reallocated to 83 886 080 (671 MB)
+BDD package info: node map reallocated to 88 080 384 (704 MB)
+  Iteration 2, step c done in 13 s 82
+BDD package info: mark and sweep done in 0 s 68 (nodes 87598778 -> 12827581)
+  Iteration 2, step d done in 3 s 30
+  Iteration 2, step e done in 7 s 49
+  Iteration 2, step f done in 0 s 00
+  Iteration 2, step g done in 0 s 00
+  Iteration 2, step h done in 0 s 00
+  Iteration 2 done in 38 s 07.
+BDD package info: mark and sweep done in 0 s 64 (nodes 48778388 -> 12827514)
+  Iteration 3, step a done in 5 s 59
+  Iteration 3, step b done in 5 s 61
+BDD package info: node map reallocated to 92 274 688 (738 MB)
+BDD package info: node map reallocated to 96 468 992 (771 MB)
+  Iteration 3, step c done in 9 s 68
+BDD package info: mark and sweep done in 0 s 69 (nodes 92517119 -> 12827982)
+  Iteration 3, step d done in 3 s 42
+  Iteration 3, step e done in 8 s 34
+  Iteration 3, step f done in 0 s 00
+  Iteration 3, step g done in 0 s 00
+  Iteration 3, step h done in 0 s 00
+  Iteration 3 done in 34 s 00.
+BDD package info: mark and sweep done in 0 s 64 (nodes 52611701 -> 12827745)
+  Iteration 4, step a done in 5 s 92
+  Iteration 4, step b done in 5 s 97
+BDD package info: node map reallocated to 100 663 296 (805 MB)
+  Iteration 4, step c done in 10 s 27
+BDD package info: mark and sweep done in 0 s 69 (nodes 96752460 -> 12828427)
+  Iteration 4, step d done in 3 s 72
+  Iteration 4, step e done in 8 s 83
+  Iteration 4, step f done in 0 s 00
+  Iteration 4, step g done in 0 s 00
+  Iteration 4, step h done in 0 s 00
+  Iteration 4 done in 36 s 07.
+BDD package info: mark and sweep done in 0 s 65 (nodes 55556526 -> 12827909)
+  Iteration 5, step a done in 5 s 57
+  Iteration 5, step b done in 5 s 58
+  Iteration 5, step c done in 9 s 56
+BDD package info: mark and sweep done in 0 s 69 (nodes 92159334 -> 12828817)
+  Iteration 5, step d done in 3 s 57
+  Iteration 5, step e done in 8 s 42
+  Iteration 5, step f done in 0 s 00
+  Iteration 5, step g done in 0 s 00
+  Iteration 5, step h done in 0 s 00
+  Iteration 5 done in 34 s 05.
+BDD package info: mark and sweep done in 0 s 64 (nodes 53501685 -> 12827934)
+  Iteration 6, step a done in 5 s 56
+  Iteration 6, step b done in 5 s 64
+  Iteration 6, step c done in 9 s 54
+BDD package info: mark and sweep done in 0 s 69 (nodes 92136309 -> 12828988)
+  Iteration 6, step d done in 3 s 56
+  Iteration 6, step e done in 8 s 42
+  Iteration 6, step f done in 0 s 00
+  Iteration 6, step g done in 0 s 00
+  Iteration 6, step h done in 0 s 00
+  Iteration 6 done in 34 s 08.
+BDD package info: mark and sweep done in 0 s 41 (nodes 53501594 -> 4349165)
+  'Step A' computed in 1 s 37
+  'Step B' computed in 0 s 93
+  'Step C' computed in 1 s 74
+  'Step D' computed in 0 s 00
+  'Step E' computed in 0 s 83
+  'Step Fa' computed in 0 s 82
+  'Step Fb' computed in 0 s 00
+  'Step G' computed in 0 s 00
+  'Step H' computed in 0 s 00
+BDD package info: mark and sweep done in 0 s 22 (nodes 33335964 -> 1664)
+  Computation of reduced automata done in 6 s 37.
+Minimisation done in 4 min 5 s 56.
+Read automata stats:
+	number of transitions  : 1232
+	number of states: 22
+	BDD encoding : 813 nodes
+automata generation stats
+	number of transitions  : 1232
+	number of states: 22
+	BDD encoding : 813 nodes (9756 bytes)
+
+Statistics about BDD package (64-bit mode, 12 bytes for a BDD node)
+  Current BDD count: 1
+  Created nodes count: 100663296
+  RAM usage: 2818 MB
+Unique table:
+  size: 201326611 (805 MB)
+  201300254 entries of size 0 (99%)
+  25732 entries of size 1 (0%)
+  616 entries of size 2 (0%)
+  9 entries of size 3 (0%)
+BDD package info: mark and sweep done in 0 s 11 (nodes 26991 -> 4)
+
+real	7m4.027s
+user	6m39.870s
+sys	0m13.238s
++ echo '---------------- SUCCES --------------------------'
+---------------- SUCCES --------------------------
+logout
+
+[Opération terminée]
+

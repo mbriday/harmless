@@ -1,0 +1,842 @@
+semantics gadl_semantics_expression:
+  import "gadl_options.gOption" ;
+  import "gadl_variable.gSemantics" ;
+  import "gadl_semantics.gSemantics";
+
+abstract class @cExpression {
+  @varTypeList typeList ; #out type of the expression. (An expression may return more than one value)
+}
+
+#----------------------------------------------------------------------------
+#-------------------------- define bit fields 
+#----------------------------------------------------------------------------
+
+list @fieldList {
+  @cExpression expFrom;
+  @cExpression expTo;
+  @uint maxSize;
+  @bool sizeInKnown; #for code generation.
+  @location loc;
+}
+
+list @sliceList {
+  @fieldList field;
+  @sint      fetchPart; #used for instruction codes of different sizes: relative value, 0 is the current slice, -1 is previous slice, 1 is next slice, ...
+}
+
+#return the field Size, in bits.
+routine getFieldListSize
+  ?? @fieldList field
+  !  @uint maxSize
+:
+  maxSize := 0;
+  foreach field (* * @uint max * *) do
+    maxSize := maxSize + max;
+  end foreach;
+end routine;
+
+#When a variable is used with a fieldList, its size may be updated:
+function getVarSize
+  ?? @varType type
+  ?? @fieldList field
+  -> @varType outType
+:
+  if [type kind] == [@varKind float] then
+    outType := type;
+    error here: "cannot use fields on float variables.";
+  else
+    if [field length] == 0 then #no field list used
+      outType := type;
+    else
+      @uint size;
+      getFieldListSize !field ?size;
+      outType := [@varType new ![type kind] !size ![type location]];
+    end if;
+  end if;  
+end function;
+
+
+#----------------------------------------------------------------------------
+#-------------------------- expressions 
+#----------------------------------------------------------------------------
+list @cExpressionList {
+  @cExpression exp;
+}
+
+abstract reader @cExpression generateCode
+  ?? @string unused componentPrefix #prefix used for object call.
+  ?? @string unused idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx unused cgc
+  -> @string code
+;
+
+#expressionContext associate a context to an expression. 
+#This is used to allow expressions in only specific context. For instance, the
+#'instruction size' expression can be used in the syntax view, but not in a component
+enum @expressionContext {
+  component,
+  memory,
+  behavior,
+  syntaxView, #syntax is a keyword :-/
+  timing,
+  instCycle, #related to the fourth view of instruction: inst cycle without pipeline.
+  architecture,
+  defaultSection #default is a keyword :-/
+}
+
+reader @expressionContext msg -> @string outResult :
+  switch selfcopy
+    when component      : outResult := "an expression in a component description" ;
+    when memory         : outResult := "an expression in a memory description" ;
+    when behavior       : outResult := "an expression in a behavior view" ;  
+    when syntaxView     : outResult := "an expression in a syntax view" ;  
+    when timing         : outResult := "an expression in a timing view" ;
+    when instCycle      : outResult := "an expression in an instruction cycle (fourth) view" ;
+    when architecture   : outResult := "an expression in the architecture description" ;
+    when defaultSection : outResult := "an expression in the default section" ;
+  end switch ;
+end reader ;
+
+#generation context in used in the generateCode reader, in order to tunes the generation
+#for a specific target.
+enum @codeCtx{
+  C,
+  Uppaal
+}
+reader @codeCtx msg -> @string out :
+  switch selfcopy
+    when C      : out := "generate a C code";
+    when Uppaal : out := "generate code for Uppaal";
+  end switch;
+end reader;
+
+#This routine checks that the expression 'exp' returns only 1 value
+# and gives the type of the value returned.
+# if it returns more than 1 value, an error is generated and the u0 
+# type is returned
+routine checkOneExpressionOutType
+  ?? @cExpression exp
+  !  @varType outType
+:
+  @bool ok := [[exp typeList] length] == 1;
+  if ok then
+    [[exp typeList] first ?outType];
+  else
+    outType := [@varType new ![@varKind unsigned] !0 !here]; #u0
+    error here: "The expression cannot handle more than 1 return value.";
+  end if;
+end routine;
+
+function getTypeListFrom
+  ?? @varType type
+  -> @varTypeList typeList
+:
+  typeList := [@varTypeList emptyList];
+  typeList += !type;
+end function;
+
+function getMaskFor
+  ?? @uint nbBits
+  ?? @location loc #for errors.
+  ?? @codeCtx cgc
+  ->   @string maskStr
+:
+  if nbBits < 32 then
+    @uint mask := (1 << nbBits) - 1;
+    if cgc == [@codeCtx C] then 
+      maskStr := [mask hexString];
+    elsif cgc == [@codeCtx Uppaal] then 
+      maskStr := [mask string];
+    else error here : "Unknow generation language": maskStr;
+    end if;
+  elsif nbBits == 32 then
+    @uint mask := 0xFFFFFFFF;
+    maskStr := [mask hexString];
+  elsif nbBits < 64 then
+    @uint64 mask := (1L << nbBits) - 1L;
+    maskStr := [mask hexString] ."ULL";
+  elsif nbBits == 64 then
+    maskStr := "0xFFFFFFFFFFFFFFFFULL";
+  elsif nbBits < 128 then
+    maskStr := "(((__uint128_t)(1) << ".[nbBits string].")-1)";
+  else 
+    maskStr := "0";
+    error loc :"cannot handle a variable >= 128 bits :-/. Mask requires ".[nbBits string]." bits.";
+  end if;
+  if (cgc == [@codeCtx Uppaal]) & (nbBits > 32) then
+    error here: "Try to handle a var of size > 32 bits. This not usable for Uppaal code generation.";
+  end if;
+end function;
+
+
+#TODO: update for floats.
+routine castCode
+  ?? @cExpression expression
+  ?? @varType toType
+  ?? @string componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?! @string code
+  ?? @bool truncate #if true, castCode may truncate the type, else, it stays in the revious size (only update type).
+  ?? @codeCtx cgc
+:
+  @varType fromType;
+  @string expCode := [expression generateCode !componentPrefix !idfSuffix !cgc];
+  checkOneExpressionOutType !expression ?fromType;
+  #cast. 
+  @string toTypeC := [toType getCType];
+  #mask for assign type.
+  @string maskStr := getMaskFor [![toType size] ![toType location] !cgc];
+  if cgc != [@codeCtx Uppaal] then #no cast in Uppaal mode.
+    if [toType kind] == [@varKind signed] then
+      #cast to signed. May need a sign extension
+      if [fromType size] > [toType size] & truncate then
+        #value is cut. No sign extension.
+        # if type of a is u7, then (u5)(a) should genererate (u8)((a) & 0x1F)
+        code .= "(".toTypeC.")((".expCode.") & ".maskStr.")";
+      elsif [fromType size] > [toType size] & not truncate then
+        #nothing done
+        code .= expCode;
+      elsif [fromType size] == [toType size] & [fromType kind] == [@varKind unsigned] then
+        #same size, but different sign.
+        code .= "(".toTypeC.")(".expCode.")";
+      elsif [fromType size] == [toType size] & [fromType kind] == [@varKind signed] then
+        #nothing to do.
+        code .= expCode;
+      else
+        #value is extended. May need a sign extension.
+        code .= "(".toTypeC.")(";
+        if truncate then code .= "("; end if;
+        if [fromType kind] == [@varKind signed] then 
+          #signed to signed value. Sign extension required.
+          # if type of a is s7, then (s10)(a) should genererate (s16)(SIGN_EXTEND(a,7,10) & 0x3FF)
+          code .= "SIGN_EXTEND(".expCode;
+          code .= ",".[[fromType size] string]."U,".[[toType size] string]."U)";
+        elsif [fromType kind] == [@varKind unsigned] then
+          #unsigned to signed value. Sign extension not required.
+          # if type of a is u7, then (s10)(a) should genererate (s16)(a & 0x3FF)
+          code .= expCode;
+        else
+          #from float
+          error [toType location]: "internal error: cast from float no yet implemented!";
+        end if;
+        code .= ")";
+        if truncate then code .= " & ".maskStr.")"; end if;
+      end if;
+    elsif [toType kind] == [@varKind unsigned] then
+      if [fromType size] == [toType size] & [fromType kind] == [@varKind unsigned] then
+        #nothing to do
+        code .= expCode;
+      elsif [fromType size] == [toType size] & [fromType kind] == [@varKind signed] then
+        #only change the sign.
+        code .= "(".toTypeC.")(".expCode.")";
+      elsif [fromType size] > [toType size] & not truncate then
+        code .= expCode;
+      else
+        #an unsigned:ex (u5)(a) should genererate (u8)((a) & 0x1F)
+        code .= "(".toTypeC.")(";
+        if truncate then code .= "("; end if;
+        code .= expCode.")";
+        if truncate then code .= " & ".maskStr.")"; end if;
+      end if;
+    else
+      #float
+      error [toType location]: "internal error: cast to float no yet implemented!";
+    end if;
+  else #Uppaal -> nothing done
+    code .= expCode;
+  end if;
+end routine;
+
+### Dummy expression. used to generate special code in the simulator.
+class @cExpDummy extends @cExpression {
+  @string expCode;
+}
+
+override reader @cExpDummy generateCode
+  ?? @string unused componentPrefix #prefix used for object call.
+  ?? @string unused idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx unused cgc
+  -> @string code
+:
+  code := expCode;
+end reader;
+
+#this should only be called in a Harmless instruction.
+#Used only in the 'timing' view.
+class @cExpInstructionSize extends @cExpression {
+}
+override reader @cExpInstructionSize generateCode
+  ?? @string unused componentPrefix #prefix used for object call.
+  ?? @string unused idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx unused cgc
+  -> @string code
+:
+  code := "size()";
+end reader;
+
+#this should only be called in a Harmless instruction syntax (mnemo).
+#Used only in the 'syntax' view.
+class @cExpInstructionAddress extends @cExpression {
+}
+override reader @cExpInstructionAddress generateCode
+  ?? @string unused componentPrefix #prefix used for object call.
+  ?? @string unused idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx unused cgc
+  -> @string code
+:
+  code := "getInstructionPointer()";
+end reader;
+
+class @cIdf extends @cExpression {
+  @lstring idf;
+  @abstractVar var;
+}
+
+#return a classic @cIdf expression
+function getExpIdf
+  ?? @varKind kind      # [@varKind unsigned]
+  ?? @uint    size      # size of related var.
+  ?? @bool    constant  # may the var be modified?
+  ?? @string  prefix    # for code generation
+  ?? @string  suffix    # for code generation
+  ?? @lstring name      # name of the var
+  -> @cIdf idf
+:
+  @varType type := [@varType new !kind !size ![name location]];
+  @classicVar var := [@classicVar new !type !constant !prefix !suffix];
+  idf := [@cIdf new !getTypeListFrom[!type] !name !var];
+end function;
+
+function getExpUint #unsigned value.
+  ?? @uint    size      # size of related var
+  ?? @uint64  val
+  -> @cIntConst expUint
+:
+  @varType type := [@varType new ![@varKind unsigned] !size !here];
+  expUint := [@cIntConst new !getTypeListFrom[!type] !val !false];
+end function;
+
+function getBoolVarType
+  -> @varType type
+:
+  type := [@varType new ![@varKind unsigned] !1 !here];
+end function;
+
+override reader @cIdf generateCode
+  ?? @string componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx unused cgc
+  -> @string code
+:
+  cast var
+  when == @classicVar classicVar :
+    code := [classicVar prefix] . [idf string] . [classicVar suffix]. idfSuffix;
+  when >= @registerVar :
+    code := "(".componentPrefix.[idf string] . "())";
+  else error here : "internal error: casting abstract var"; 
+    code := "";
+  end cast;
+end reader;
+
+class @cCast extends @cExpression {
+  @cExpression expression ;
+}
+override reader @cCast generateCode
+  ?? @string componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx cgc
+  -> @string code
+:
+  code := "";
+  @varType type;
+  checkOneExpressionOutType !selfcopy ?type;
+  castCode !expression !type !componentPrefix !idfSuffix !?code !true !cgc;
+end reader;
+
+class @cBitFieldOp extends @cExpression {
+  @cExpression expField ;
+  @fieldList fList;
+}
+override reader @cBitFieldOp generateCode
+  ?? @string componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx cgc
+  -> @string code
+:
+  code := "";
+  #bit fields.
+  @uint offset := 0;
+  @bool start := true;
+  @fieldList tempList := fList; #copy that can be modified.
+  @string expFieldCode := [expField generateCode !componentPrefix !idfSuffix !cgc];
+  @uint nbChunks := [fList length];
+  if nbChunks != 1 then code .= "("; end if;
+  #we can't accept a new field if the size of the previous one is unkown.
+  @bool canAcceptAnotherField := true;
+  @location loc := here; #location for error if the field size is not known.
+  loop nbChunks:
+  while [tempList length] > 0 do
+    if not canAcceptAnotherField then 
+      error loc : "can not determine field size exactly here. Can not generate code.";
+    end if;
+    #take the last field.
+    @cExpression fromExp; @cExpression toExp;
+    @uint maxSize;
+    [!?tempList popLast ?fromExp ?toExp ?maxSize ?canAcceptAnotherField ?loc] ;
+    @string fromExpCode := [fromExp generateCode !componentPrefix !idfSuffix !cgc];
+    @string toExpCode := [toExp generateCode !componentPrefix !idfSuffix !cgc];
+    #put the 'or' between fields
+    if not start then code .= "|"; end if;
+    #call the Macro.
+    if offset != 0 then code .= "("; end if;
+    code .= "FIELD(".expFieldCode.",(".fromExpCode."),(".toExpCode."))";
+    #set the offset.
+    if offset != 0 then code .= "<<" . [offset string] . ")"; end if;
+    #calculate next offset.
+    #offset := offset + [from uint] - [to uint] + 1;
+    offset := offset + maxSize;
+    start := false;
+  end loop ;
+  if nbChunks != 1 then code .= ")"; end if;
+end reader;
+
+
+#used for instruction constructor: format part.
+# ex with: expPrefix = 'chunk'
+# -> (FIELD(chunk3,(7),(0))|(FIELD(chunk2,(7),(0))<<8))
+class @cSliceFieldOp extends @cExpression {
+  @string expPrefix;
+  @sliceList sliceList; 
+  @uint globalOffset;
+}
+override reader @cSliceFieldOp generateCode
+  ?? @string componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx cgc
+  -> @string code
+:
+  code := "";
+  #slice fields (used in instruction format, for constructors.)
+  @uint chunkOffset := 0;
+  @bool start := true;
+  @sliceList tempSliceList := sliceList; #can be modified 
+  @uint nbSlices := [sliceList length];
+  if nbSlices != 1 then code .= "("; end if;
+  loop nbSlices:
+  while [tempSliceList length] > 0 do
+    @fieldList fieldList; 
+    @uint fieldSize;
+    #take the last slice.
+    @sint fetchPart;
+    [!?tempSliceList popLast ?fieldList ?fetchPart];
+    #field size.
+    getFieldListSize !fieldList ?fieldSize;
+    if fieldSize > 0 then
+      #put the 'or' between fields
+      if not start then code .= "|"; end if;
+      #get the offset.
+      @sint signedOffset := [globalOffset sint] + fetchPart;
+      @uint offset := [signedOffset uint] + 1; #must be > 0. chunk idx start at 1.
+      #name of idf is prefix concatened with the offset (starting at 1)
+      @varType varType := [@varType new ![@varKind unsigned] !fieldSize !here];
+      @classicVar var := [@classicVar new !varType !false !expPrefix !""];
+      @cIdf idf := [@cIdf new !getTypeListFrom[!varType] ![@lstring new ![offset string] !here] !var];
+      @cBitFieldOp bitFieldOp := [@cBitFieldOp new !getTypeListFrom[!varType] !idf !fieldList];
+      #generate slice code.
+      if chunkOffset != 0 then code .= "("; end if;
+      code .= [bitFieldOp generateCode !componentPrefix !idfSuffix !cgc];
+      #shift field if needed.
+      if chunkOffset != 0 then code .= "<<" . [chunkOffset string].")"; end if;
+      #compute next shift value.
+      chunkOffset := chunkOffset + fieldSize;
+      start := false;
+    end if;
+  end loop;
+  if nbSlices != 1 then code .= ")"; end if;
+end reader;
+
+
+class @cIntConst extends @cExpression {
+  @uint64 value;
+  @bool negative; #if true, the real value is (-value). Kind should be signed.
+}
+override reader @cIntConst generateCode
+  ?? @string unused componentPrefix #prefix used for object call.
+  ?? @string unused idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx cgc
+  -> @string code
+:
+  @string suffix := "";
+  if negative then #negative. Should check for correct range.
+    @sint64 val := 0LS;
+    if value > (1L << 63) then
+      error here: "cannot generate a negative value less than -(1<<63)";
+    else
+      val := -[value sint64];
+    end if;
+    code := [val string];
+  else #positive value.
+    code := [value string];
+    suffix := "U";
+  end if;
+  if value > 0xFFFFFFFFL then suffix .= "LL"; end if;
+
+  if cgc == [@codeCtx C] then #suffix only for C generation.
+    code .= suffix;
+  end if;
+end reader;
+
+
+class @cUnaryOp extends @cExpression {
+  @cExpression exp ;
+  @uint id;
+}
+override reader @cUnaryOp generateCode
+  ?? @string componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx cgc
+  -> @string code
+:
+  # logic not, boolean not, and unary '-'
+  code := "((";
+  if    id == 0 then code .= "!";
+  elsif id == 1 then code .= "~";
+  elsif id == 2 then code .= "-";
+  else error here: "internal error in expression @cUnaryOp";
+  end if;
+  code .= [exp generateCode !componentPrefix !idfSuffix !cgc];
+  @varType toType;
+  checkOneExpressionOutType !exp ?toType;
+  @string maskStr := getMaskFor [![toType size] ![toType location] !cgc];
+  code .= ") & ".maskStr.")";
+end reader;
+
+# in the order: * / % + - >> << < > <= >= = !=  & ^ | && || (from 0)
+class @cBinaryBasicOp extends @cExpression {
+  @cExpression expLeft ;
+  @cExpression expRight ;
+  @uint id;
+}
+
+override reader @cBinaryBasicOp generateCode
+  ?? @string componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx cgc
+  -> @string code
+:
+  #binary operations as in C
+  code := "((";
+  @varType type;
+  checkOneExpressionOutType !selfcopy ?type;
+  castCode !expLeft !type !componentPrefix !idfSuffix !?code !false !cgc;
+  if    id == 0 then code .= ")*(";
+  elsif id == 1 then code .= ")/(";
+  elsif id == 2 then code .= ")%(";
+  elsif id == 3 then code .= ")+(";
+  elsif id == 4 then code .= ")-(";
+  elsif id == 5 then code .= ")>>(";
+  elsif id == 6 then code .= ")<<(";
+  elsif id == 7 then code .= ")<(";
+  elsif id == 8 then code .= ")>(";
+  elsif id == 9 then code .= ")<=(";
+  elsif id == 10 then code .= ")>=(";
+  elsif id == 11 then code .= ")==(";
+  elsif id == 12 then code .= ")!=(";
+  elsif id == 13 then code .= ")&(";
+  elsif id == 14 then code .= ")^(";
+  elsif id == 15 then code .= ")|(";
+  elsif id == 16 then code .= ")&&(";
+  elsif id == 17 then code .= ")||(";
+  else error here: "internal error in expression @cBinaryOp";
+  end if;
+  castCode !expRight !type !componentPrefix !idfSuffix !?code !false !cgc;
+  code .= "))";
+end reader;
+
+
+# order: ror rol
+class @cRotationOp extends @cExpression {
+  @cExpression expLeft ;
+  @cExpression expRight ;
+  @uint sizeL;
+  @uint id;
+}
+override reader @cRotationOp generateCode
+  ?? @string componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx cgc
+  -> @string code
+:
+  code := "";
+  if    id == 0 then code .= "ROTATION_ROR";
+  elsif id == 1 then code .= "ROTATION_ROL";
+  else error here: "internal error in expression @cRotationOp";
+  end if;
+  code .= "(".[expLeft generateCode !componentPrefix !idfSuffix !cgc];
+  code .= ",". [sizeL string] . ",";
+  code .= [expRight generateCode !componentPrefix !idfSuffix !cgc].")";
+end reader;
+
+
+#boolean xor ^^
+class @cXorOp extends @cExpression {
+  @cExpression expLeft ;
+  @cExpression expRight ;
+}
+override reader @cXorOp generateCode
+  ?? @string componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx cgc
+  -> @string code
+:
+  # bool xor (does not exist in C)
+  code := "BOOLEAN_XOR(";
+  code .= [expLeft generateCode !componentPrefix !idfSuffix !cgc];
+  code .= ",";
+  code .= [expRight generateCode !componentPrefix !idfSuffix !cgc];
+  code .= ")";
+end reader;
+
+
+class @cCatOp extends @cExpression {
+  @cExpression expLeft ;
+  @cExpression expRight ;
+  @uint sizeR;
+}
+override reader @cCatOp generateCode
+  ?? @string componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx cgc
+  -> @string code
+:
+  #concatenation
+  code := "CAT(";
+  code .= [expLeft generateCode !componentPrefix !idfSuffix !cgc];
+  code .= ",";
+  code .= [expRight generateCode !componentPrefix !idfSuffix !cgc];
+  code .= "," . [sizeR string] . ")";
+end reader;
+
+
+#Sometimes, an expression is required... but not used.
+#build a dummy expression: const 0, one return type :u0
+function getDummyExpression
+  -> @cExpression expDummy
+:
+  expDummy := [@cIntConst new !getTypeListFrom[![@varType new ![@varKind unsigned] !0 !here]] !0L !false];
+end function;
+
+
+routine getConstFromExp 
+  ?? @cExpression exp
+  !  @uint64 val
+  !  @bool negative
+  !  @bool ok
+:
+  cast exp
+  when == @cIntConst intConst :
+    val := [intConst value];
+    negative := [intConst negative];
+    ok := true;
+  else 
+    val := 0L;
+    negative := false;
+    ok := false;
+  end cast;
+end routine;
+
+#-------------------------- Type Expression 
+routine getLastNameOfTypeTag
+  ?? @cTypeExtend exp
+  ! @string name
+  ! @lstring ComponentName
+:
+  name :="UNKNOW";
+  ComponentName := [@lstring new  !"COMPONENT" !here];
+  @cExpressionList Liste := [exp Liste];
+  foreach Liste (@cExpression crtExp) do   
+    cast crtExp
+    when == @cTypeTag typeNode :
+      @varTypeList ListeT := [typeNode typeList];   
+      foreach ListeT (@varType type )
+      do 
+        cast type 
+        when == @VarTypeDef TypeDef :
+          name := [TypeDef idTabType];
+          ComponentName := [TypeDef CompName] ;
+        end cast;
+      end foreach;
+    when == @cTypeTabMember typeNode :
+      #detect if type tab is type :( 
+      foreach [typeNode typeList] (@varType node ) do
+        @varKind kind := [node kind];
+        if kind == [@varKind type] then 
+          cast node
+          when == @varTabType TypeDef :
+            name := [TypeDef nm];
+            ComponentName := [TypeDef composant] ;         
+          end cast;
+        end if;
+      end foreach;
+    when == @cTypeTagTab typeNode :
+      @varTypeList ListeT := [typeNode typeList];
+      foreach ListeT (@varType type )
+      do 
+        cast type
+        when == @varTabType TypeDef :
+          name := [TypeDef nm];
+          ComponentName := [TypeDef composant] ;
+        end cast;       
+      end foreach;
+    end cast;
+  end foreach;
+end routine;
+
+class @cTypeTabMember extends @cExpression {
+  @string name;
+  @cExpression expIndice;  
+}
+
+class @cTypeMember extends @cExpression {
+  @string name;  
+}
+
+class @cTypeTag extends @cExpression {
+  @string name;  
+}
+
+class @cTypeTagTab extends @cTypeTag { 
+  @cExpression expI;
+}
+
+override reader @cTypeTagTab generateCode
+  ?? @string componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx cgc
+  -> @string code
+: 
+  @string add := [expI generateCode !componentPrefix !idfSuffix !cgc];
+  code := name."[".add."]";
+end reader;
+
+override reader @cTypeTabMember generateCode
+  ?? @string componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx cgc
+  -> @string code
+: 
+  @string add := "";
+  @cExpression expI := expIndice;
+  add .= [expI generateCode !componentPrefix !idfSuffix !cgc];
+  code := name."[".add."]";
+end reader;
+
+override reader @cTypeMember generateCode
+  ?? @string unused componentPrefix #prefix used for object call.
+  ?? @string unused idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx unused cgc
+  -> @string code
+: 
+  code := name;
+end reader;
+
+override reader @cTypeTag generateCode
+  ?? @string unused componentPrefix #prefix used for object call.
+  ?? @string unused idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx unused cgc
+  -> @string code
+: 
+  code := name;
+end reader;
+
+
+class @cTypeExtend extends @cExpression {
+  @abstractVar var;
+  @string name;  
+  @cExpressionList Liste;   
+}
+
+modifier @cTypeExtend  addListe 
+ ? @cExpression exp
+:
+  @cExpressionList temp := Liste ;
+  temp += !exp;
+  Liste := temp ;
+end modifier;
+
+modifier @cTypeExtend setTypeReturn 
+  ? @varType member
+:
+  typeList := [@varTypeList emptyList];
+  typeList += !member; 
+end modifier ;
+
+override reader @cTypeExtend generateCode
+  ?? @string  componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx cgc
+  -> @string code
+: 
+  code := "";
+  @uint a := 0 ;
+  #code .= "gadl_".name;  
+  foreach Liste (@cExpression exp) do
+    if a > 0   then 
+      code := code.".";
+      @string add := "";
+      add .= [exp generateCode !componentPrefix !idfSuffix !cgc];   
+      code .= add;
+    elsif a == 0 then 
+      cast var
+      when ==  @classicVar classicVar :
+        @string add := "";
+        add .= [exp generateCode !componentPrefix !idfSuffix !cgc];
+        code .= [classicVar prefix] .add. [classicVar suffix];  
+      end cast;     
+    end if ; 
+    a := a +1;
+  end foreach;
+end reader;
+
+#-------------------------- Tabular expression 
+#----------------------------------------------------------------------------
+class @cTabIndice extends @cExpression {
+    @abstractVar var;
+    @string indice;
+    @cExpression expIndice;
+    @string name;   
+}
+
+override reader @cTabIndice generateCode
+  ?? @string unused componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx unused cgc
+  -> @string code
+: 
+  code := "";
+  cast var
+   when == @classicVar classicVar :
+    code .= [classicVar prefix] .name. [classicVar suffix]. idfSuffix."[".indice."]";  
+  end cast;
+end reader;
+
+#functions and routine to handle expression types.
+# TODO: need a serious refactoring :-/
+function typeAdd
+  ?? @varType leftType
+  ?? @varType rightType
+  ->  @varType outType
+:
+    if [leftType kind] != [rightType kind] then
+      error here : "add expressions of different kind (signed/unsigned/float)";
+    end if;
+    if [leftType size] > [rightType size] then
+      outType := [@varType new ![leftType kind] ![leftType size]+1 !here];
+    else
+      outType := [@varType new ![leftType kind] ![rightType size]+1 !here];
+    end if;
+end function;
+
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

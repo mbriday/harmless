@@ -1,0 +1,92 @@
+semantics gadl_semantics :
+  import "gadl_options.gOption" ;
+  import "gadl_variable.gSemantics" ;
+
+#basic string map, for internal symbol tables.
+map @stringMap
+{
+  @string str;
+  insert insertKey error message "the '%K' key is already defined in %L" ; 
+  search searchKey error message "the '%K' key is not defined" ;
+}
+
+#basic boolean map, for internal symbol tables (true if present through hasKey method)
+map @boolMap
+{
+  insert insertKey error message "the '%K' key is already defined in %L" ; 
+  search searchKey error message "the '%K' key is not defined" ;
+}
+
+map @intMap {
+  @uint val;
+  insert insertKey error message "the '%K' value is already defined in %L" ; 
+  search searchKey error message "the '%K' value is not defined" ;
+  remove removeKey error message "the '%K' value is not defined and cannot be removed." ;
+}
+
+# List to store the set of methods and components used by each instruction
+list @methodList {
+  @lstring componentName;
+  @lstring methodName;
+}
+
+#----------------------------------------------------------------------------
+##################### implementation 
+#----------------------------------------------------------------------------
+
+#check that the type is a boolean. Tested.
+routine checkBool 
+  ?? @varType typeToCheck 
+  ?? @location loc
+:
+  if (([typeToCheck size] != 1) | ([typeToCheck kind] != [@varKind unsigned])) then
+    @string typeStr;
+    [typeToCheck getStringType ?typeStr];
+    error loc: "the type must be a boolean (u1) and is ".typeStr;
+  end if;
+end routine;
+
+
+#number of bits required to encode an unsigned number. tested.
+function nbBitsToCodeUnsigned
+  ?@uint64 val
+  -> @uint nbBits
+:
+  @uint var := 65; # max 64 loops.
+  nbBits := 0;
+  loop var:
+  while (val != 0L) do
+    val := val >> 1;
+    nbBits := nbBits + 1;
+  end loop;
+end function;
+
+#number of bits required to encode an signed number. tested.
+function nbBitsToCodeSigned
+  ?  @uint64 val
+  -> @uint nbBits
+:
+  nbBits := nbBitsToCodeUnsigned[!val];
+  if nbBits > 0 then #0 needs 0 bits to be encoded, even in signed.
+    if val >= (1L << (nbBits-1)) then #more than half of the value.
+      nbBits := nbBits + 1;
+    end if;
+  end if;
+end function;
+
+function tabs 
+  ?? @uint nbTabulation
+  -> @string code
+:
+  code := "";
+  @uint val := nbTabulation;
+  loop nbTabulation + 1:
+  while val > 0 do
+    code .= "\t";
+    val--;
+  end loop;
+end function;
+
+end semantics ;
+
+# vim:ft=ggs:ts=2:sw=2

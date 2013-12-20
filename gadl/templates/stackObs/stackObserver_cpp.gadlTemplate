@@ -1,0 +1,206 @@
+%template headerC%
+#ifdef GADL_SP_CHECK_ALLOWED
+#ifdef GADL_SP_FAILURE_CHECK_ALLOWED
+
+#include <string>
+#include <iostream>
+#include <fstream>
+using namespace std;
+
+#include "stackSwitchList.h"
+#include "stackController.h"
+#include "stackList.h"
+#include "arch.h"
+#include "stackObserver.h"
+
+/**************************************
+ * stackUseObserverAction : functions *
+ **************************************/
+bool stackUseObserverAction::trigger(storage *, u8 , spyInfo *){
+	stackSpyController *controller=m_observer->getController();
+	
+	if (controller->getCurrentTaskId()==m_stack->getTaskId()) {					// Allow to differenciate normal use of byte from overflow / underflow by another stack
+		type_sp useOfStack=m_stack->getSpInit()-m_observerAddr;					// Calculate size of stack used
+		if(useOfStack>m_stack->getStackUse())m_stack->setStackUse(useOfStack);	// If it's bigger than before store it in stack info
+	}	
+}
+
+/**************************************
+ * stackOutObserverAction : functions *
+ **************************************/
+bool stackOutObserverAction::trigger(storage *, u8 , spyInfo *){
+	stackSpyController *controller=m_observer->getController();
+	stackObserverSysFuncList *observerSysFuncList=m_observer->getObserverSysFuncList();
+	arch *a=controller->getArch();
+	
+	if (controller->getCurrentTaskId()==m_stack->getTaskId()) {		// Allow to differenciate normal use of byte from overflow / underflow by another stack
+		type_prgaddr errorPC=controller->getPC();		// Find value of PC
+		
+		if(!m_stack->getOverflow() && !m_stack->getUnderflow()){	// If no under/overflow already occured
+			m_stack->setErrorPC(errorPC);						// Store location of stack over/underflow
+		}
+		
+		if(!(observerSysFuncList->isAnExclusionFunction(errorPC))){
+			
+			// Display Stack Failure
+			cout<<"ERROR in task n°"<< dec << m_stack->getTaskId() << " (" << m_stack->getTaskName()<<") @"<<hex<<errorPC<<" ";
+			
+			if(m_typeOfStackFailure==OVERFLOW_DETECTION){
+				m_stack->setOverflow(true);
+				cout<<"STACK OVERFLOW"<<endl;
+			}else if(m_typeOfStackFailure==UNDERFLOW_DETECTION){
+				m_stack->setUnderflow(true);
+				cout<<"STACK UNDERFLOW"<<endl;
+			}else {	// We still are out of stack so we put both flag to true ! -> shall never happend (we never know)
+				m_stack->setOverflow(true);
+				m_stack->setUnderflow(true);
+				cout<<"STACK FAILURE"<<endl;
+			}
+		}
+
+	}
+
+}
+
+
+/****************************************
+ * stackObserverSysFuncItem : functions *
+ ****************************************/
+bool stackObserverSysFuncItem::isSameFunction(string symbol){
+	bool result=false;
+	if(m_functionSymbol==symbol)result=true;
+	return result;
+}
+
+/****************************************
+ * stackObserverSysFuncList : functions *
+ ****************************************/
+void stackObserverSysFuncList::addSystemFunction(stackObserverSysFuncItem *newFuncItem){
+	//cerr<<"begin"<<endl;
+	m_nbItems++;							// One more stack inside
+	//cerr<<"set ptr next"<<endl;
+	newFuncItem->setPtrNext(m_firstItem);	// The next item is the actual first item
+	//cerr<<"set first item"<<endl;
+	m_firstItem=newFuncItem;				// The new item is the new firtItem 
+}
+
+bool stackObserverSysFuncList::isAnExclusionFunction(type_prgaddr pcValue){
+	// -- Local data --
+	u32 watchdog=65535;				// Prevent while too go in an infinite loop
+	bool isFind=false;				// Did I find what search (is it searching a pin in the whole universe)
+	stackObserverSysFuncItem* currentFunction=m_firstItem;
+	arch* a=m_observer->getController()->getArch();
+	string symbol=a->whichFunctionAtAddress(pcValue);
+	
+	// -- Searching loop -- (try to find if it's system function...)
+	while (currentFunction!=NULL && (watchdog>0 && !isFind)) {
+		watchdog--;										// Prevent from inifinite loop (so borrrring...)
+		
+		// -- Ask the exclusionItem if it's his the same function --
+		if(currentFunction->isSameFunction(symbol)){	
+			isFind=true;								// Used to end loop...
+			
+		// -- No it's not the same function --
+		}else{									
+			currentFunction=currentFunction->getPtrNext();	// Jump to next item
+		}
+		
+	}
+	
+	return isFind;
+}
+
+
+/*****************************
+ * stackObserver : functions *
+ *****************************/
+void stackObserver::addStackObservation(stackInfo *stk){
+	arch *a=m_controller->getArch();	// Arch is usefull
+	int addr;							// current adrresse used to add action
+	
+	#ifdef GADL_TALKATIVE_STACK
+	int cptTest=0;	// Used to verify if the entire stack have action (relative to stack size)
+	#endif // GADL_TALKATIVE_STACK
+
+	
+	
+	/* -- Add upper protection area -- */
+	//if((stk->getSpInit()+m_sizeOfProtectionArea)<MEMORY_MAX){
+	for(addr=stk->getSpInit()+1;addr<=(stk->getSpInit()+m_sizeOfProtectionArea);addr++){
+		storage *myStorage=a->sram_getChunk(addr);										// Try to find associated storage
+		
+		// -- Is storage exists to add an action on prg addr --
+		if(myStorage!=NULL){	
+			myStorage->addWriteActionAtAddress(addr, new stackOutObserverAction(this,stk,addr,UNDERFLOW_DETECTION));	// Add an action on stack byte
+			
+			// -- Impossible to add any action storage can't be find --
+		}else {
+			#ifdef	GADL_TALKATIVE_STACK
+			std::cerr<< "Aia, It hurts, Addrr (" << std::hex << addr << ") not find in sram memory Action can't be added. "<< std::endl;
+			#endif // GADL_TALKATIVE_STACK
+		}
+		#ifdef GADL_TALKATIVE_STACK
+		//cerr<<"@"<<hex<<addr<<" Stack (Underflow)"<<endl;
+		#endif // GADL_TALKATIVE_STACK
+		
+	}// for
+	 //}else{cerr<<"Impossible to monitor stack underflow out of memory"<<endl;}
+	
+	
+	/* -- Monitor task real use / Add action on each byte of stack -- */
+	for(addr=stk->getSpInit();addr>(stk->getSpInit()-stk->getSpSize());addr--){
+		#ifdef GADL_TALKATIVE_STACK
+		cptTest++;	// Verify correct action add
+		#endif // GADL_TALKATIVE_STACK
+
+		storage *myStorage=a->sram_getChunk(addr);										// Try to find associated storage
+		
+		// -- Is storage exists to add an action on prg addr --
+		if(myStorage!=NULL){	
+			myStorage->addWriteActionAtAddress(addr, new stackUseObserverAction(this,stk,addr));	// Add an action on stack byte
+			
+		// -- Impossible to add any action storage can't be find --
+		}else {
+			#ifdef	GADL_TALKATIVE_STACK
+			std::cerr<< "Aia, It hurts, Addrr (" << std::hex << addr << ") not find in sram memory Action can't be added. "<< std::endl;
+			#endif // GADL_TALKATIVE_STACK
+		}
+		#ifdef GADL_TALKATIVE_STACK
+		//cerr<<"@"<<hex<<addr<<" Stack (Monitor) n°"<<dec<<cptTest<<endl;
+		#endif // GADL_TALKATIVE_STACK
+	}
+		
+	
+	/* -- Add lower protection area -- */
+	//if((stk->getSpInit()-stk->getSpSize()-m_sizeOfProtectionArea)>=0){	// Is it possible
+		for(addr=stk->getSpInit()-stk->getSpSize();addr>(stk->getSpInit()-stk->getSpSize()-m_sizeOfProtectionArea);addr--){
+			storage *myStorage=a->sram_getChunk(addr);										// Try to find associated storage
+			
+			// -- Is storage exists to add an action on prg addr --
+			if(myStorage!=NULL){	
+				myStorage->addWriteActionAtAddress(addr, new stackOutObserverAction(this,stk,addr,OVERFLOW_DETECTION));	// Add an action on stack byte
+				
+			// -- Impossible to add any action storage can't be find --
+			}else {
+				#ifdef	GADL_TALKATIVE_STACK
+				std::cerr<< "Aia, It hurts, Addrr (" << std::hex << addr << ") not find in sram memory Action can't be added. "<< std::endl;
+				#endif // GADL_TALKATIVE_STACK
+			}//if(storage)
+			
+			#ifdef GADL_TALKATIVE_STACK
+			//cerr<<"@"<<hex<<addr<<" Stack (Overflow)"<<endl;
+			#endif // GADL_TALKATIVE_STACK
+		}//for
+		
+	//}else{cerr<<"Impossible to monitor stack overflow out of memory"<<endl;}
+}
+
+void stackObserver::setExclusionOnSystemFunction(stackObserverSysFuncItem *newFuncItem){
+	#ifdef GADL_TALKATIVE_STACK
+	//cerr<<"Call add ptr"<<hex<<newFuncItem<<endl;
+	#endif // GADL_TALKATIVE_STACK
+	m_observerExclusionList->addSystemFunction(newFuncItem);
+}		
+
+#endif // GADL_SP_FAILURE_CHECK_ALLOWED
+#endif // GADL_SP_CHECK_ALLOWED

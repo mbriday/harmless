@@ -1,0 +1,6 @@
+%
+#export python script for p2aC
+write to MODELNAME."/p2acFileReader.py":
+  template p2acFileReader_py in casC
+end write
+

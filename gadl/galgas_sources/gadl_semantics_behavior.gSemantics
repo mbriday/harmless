@@ -1,0 +1,568 @@
+semantics gadl_semantics_behavior :
+  import "gadl_options.gOption" ;
+  import "gadl_semantics.gSemantics" ;
+  import "gadl_semantics_implementation.gSemantics" ;
+  import "gadl_semantics_format.gSemantics" ;
+  import "gadl_semantics_behavior_data_structures.gSemantics";
+  import "gadl_semantics_implementation_code_generation.gSemantics"; #generateImplementation
+  import "gadl_templates.gSemantics";
+
+#----------------------------------------------------------------------------
+#--- behaviors
+#----------------------------------------------------------------------------
+
+
+#----------------------------------------------------------------------------
+# behavior related routines 
+#----------------------------------------------------------------------------
+
+routine giveSequence
+  ?? @behaviorChunkListWithSuffix chunkList 
+  ! @string seqStr
+:
+  seqStr := "";
+  @stringlist strList := [@stringlist emptyList];
+  foreach chunkList (@behaviorChunk chunk * * *) do
+    cast chunk
+    when == @idfOrRefBehaviorIsIdf chunkIsIdf :
+      strList += ![[chunkIsIdf name] string];
+    when >= @idfOrRefBehavior chunkIsBehavior : #ref or declarationRef
+      @string temp := "#".[[chunkIsBehavior  name] string];
+      strList += !temp;
+    else
+    end cast;
+  end foreach;
+  @bool first := true;
+  foreach strList (@string str) do
+    if not first then seqStr .= " -> "; end if;
+    first := false;
+    seqStr .= str;
+  end foreach;
+  seqStr .= "\n";
+end routine;
+
+#this routine checks that the behavior have a coresponding 
+#format:
+# * if there is no format, the instruction is inserted in the
+#   instructionWithoutFormatSet, and no code will be generated
+#   for that behavior
+# * if there is a matching format, it then checks that each field
+#   is corectly used (size and sign), and same number.
+routine checkInstructionFormatCompatibility
+  ?? @behaviorMap behaviorMap
+  ?? @behaviorChunkListWithSuffixList instructionList
+  ?? @instructionImplementationMap impMap
+  ?? @stringlist instNameList
+  !  @stringset instructionWithoutFormatSet
+  !  @bool noError
+:
+  instructionWithoutFormatSet := [@stringset emptySet];
+  #log instructionList;
+  noError := true;
+  #for each instruction
+  foreach instructionList (@behaviorChunkListWithSuffix chunkList),
+          instNameList (@string instName) do
+    #first that the instruction extracted from behavior was declared in the format part.
+    if not [impMap hasKey !instName] then
+      instructionWithoutFormatSet += !instName;
+      if [option gadl_options.messageIfNoCorrespondingFormat value] then
+        message "The instruction with the following sequence has no corresponding format:\n\t";
+        @string seqStr;
+        giveSequence !chunkList ? seqStr;
+        message seqStr."\tThe instruction behavior code will not be generated for that instruction.\n";
+      end if;
+    else
+      #ok matching
+      #then checks that each field is correctly set (name and type).
+        @instFieldMap instructionFieldMap;
+        @lstring instNameLoc := [@lstring new !instName !here];
+        [impMap searchKey !instNameLoc ?* ?* ?* ?* ?* ?* ?instructionFieldMap];
+        #field that collect all the field names used in behaviors. If a field is used 
+        #in 2 different behaviors, it is naturally removed from the set.
+        #The nb of elements in the set should match the number of fields declared in the format part.
+        @stringset fieldSet [emptySet]; 
+
+        foreach chunkList (@behaviorChunk chunk @stringlist suffixList * *) do
+          @string suffixName;
+          getSuffixString !suffixList ?* ?suffixName;
+          #get the fieldMap
+          @fieldBehaviorMap fieldMap;
+          cast chunk
+          when == @idfOrRefBehaviorIsRef chunkIsRef :
+            fieldMap := [chunkIsRef fieldMap];
+          when == @idfOrRefBehaviorIsIdf chunkIsIdf :
+            @behavior behavior;
+            [behaviorMap searchKey ![chunkIsIdf name] ?behavior];
+            fieldMap := [behavior fieldMap];
+          else fieldMap := [@fieldBehaviorMap emptyMap];
+          end cast;
+          #check that each entry in the field Map is declared in the format.
+          foreach fieldMap (@lstring name @varType type) do
+            @lstring nameWithSuffix := [@lstring new ![name string].suffixName ![name location]];
+            #field declared?
+            fieldSet += ![nameWithSuffix string];
+            @varType formatType;
+            [instructionFieldMap searchKey !nameWithSuffix ?formatType];
+            @string seqStr;
+            giveSequence !chunkList ? seqStr;
+            #size?
+            if [type size] < [formatType size] then
+              error [name location]: "the type size for the data field in instruction (".
+                                     [[type size] string]." bits) is ".
+                                     "not compatible with the one declared in the format ".
+                                     "description (".[[formatType size] string]." bits)\n"
+                                     "The behavior sequence found is:\n".seqStr;
+            end if;
+            #kind?
+            if [type kind] != [formatType kind] then
+              error [name location]: "the type kind (unsigned, signed or float) for the data field in instruction is ".
+                                     "not compatible with the one declared in the format ".
+                                     "description\nThe behavior sequence found is:\n".seqStr;
+            end if;
+          end foreach;
+        end foreach;
+        #check that the number of fields is the same in the behavior and format descriptions.
+        if [instructionFieldMap count] != [fieldSet count] then
+          @string seqStr;
+          giveSequence !chunkList ? seqStr;
+          warning here: "There is not the same number of fields in the behavior description ".
+                        "and in the format description. The format has ".
+                        [[instructionFieldMap count] string]." fields and the behavior ".
+                        "sequence has ".[[fieldSet count] string] ." fields.\nThe behavior sequence ".
+                        "found is:\n". seqStr;
+        end if;
+    end if;
+  end foreach;
+end routine;
+
+routine getBehaviorCallInstructions 
+  ?? @parameterDefList  paramDef 
+  ?? @parameterCallList paramCall 
+  ?? @string            suffixInCalledFunction #suffix used in the called behavior.
+  ?! @instructionList   instList
+:
+
+  foreach paramDef  (@bool out @lstring name @classicVar variable),
+          paramCall (@cExpression exp @location loc) do
+    @lstring nameInFunction := [@lstring new ![name string].suffixInCalledFunction ![name location]];
+    @cAssignFunc instIn :=[@cAssignFunc new !loc !nameInFunction !variable !exp !out];
+    instList += !instIn;
+  end foreach;
+end routine;
+
+#return the reference sequence for an instruction. 
+#The reference sequence is mandatory to retrieve the instruction name.
+routine getReferenceSeq
+  ?? @behaviorChunkListWithSuffix chunkList
+  !  @stringset referenceSeq
+:
+  referenceSeq := [@stringset emptySet]; 
+  foreach chunkList (@behaviorChunk chunk @stringlist suffixList * *) do
+    @string suffixName;
+    getSuffixString !suffixList ?* ?suffixName;
+    cast chunk
+    when == @idfOrRefBehaviorIsRef chunkIsRef :
+      @string nameWithSuffix := [[chunkIsRef name] string]. suffixName;
+      referenceSeq += !nameWithSuffix;                      #ref sequence (name)
+    when == @idfOrRefBehaviorIsDeclarationRef chunkIsDecRef :
+      @string nameWithSuffix := [[chunkIsDecRef name] string]. suffixName;
+      referenceSeq += !nameWithSuffix;                      #ref sequence (name)
+    else #do nothing.
+    end cast;
+  end foreach;
+end routine;
+
+#generate instruction implementation body (ISS)
+#for each instruction chunk, it gets its implementation and concatenate them.
+routine getInstructionImplementationBody
+  ?? @behaviorChunkListWithSuffix chunkList
+  ?? @behaviorPrototypeMap prototypeMap
+  ?? @string archName
+  !  @string instBody
+  ?? @lstring unused instName
+:
+  @string archAccess := archName . "->";
+  instBody := "";
+  @uint nbTab := 1;
+  foreach chunkList (@behaviorChunk chunk @stringlist suffixList @idfOrRefBehaviorIsIdf parent @stringlist parentSuffixList) do
+    @string suffixName;
+    getSuffixString !suffixList ?* ?suffixName;
+    cast chunk
+    when == @behaviorImplementation chunkIsImplementation :
+      if [[chunkIsImplementation instList] length] != 0 then 
+        instBody .= generateImplementation[![chunkIsImplementation instList] !nbTab !archAccess !suffixName ![@codeCtx C]]; #body
+        instBody .= "\n";
+      end if;
+    when == @idfOrRefBehaviorIsRef chunkIsRef :
+      if [[chunkIsRef instList] length] != 0 then
+        instBody .= generateImplementation[![chunkIsRef instList] !nbTab !archAccess !suffixName ![@codeCtx C]]; #body
+        instBody .= "\n";
+      end if;
+    when == @idfOrRefBehaviorIsIdf chunkIsIdf :
+      @parameterDefList paramDef;
+      [prototypeMap searchKey ![chunkIsIdf name] ?paramDef]; #no suffix for this map access.
+      @instructionList instCallList [emptyList];
+      getBehaviorCallInstructions !paramDef ![chunkIsIdf paramCall] !suffixName !?instCallList;
+
+      #get the suffix of the caller.
+      @string parentSuffixName;
+      getSuffixString !parentSuffixList ?* ?parentSuffixName;
+
+
+      if [instCallList length] != 0 then
+        instBody .= generateImplementation[!instCallList !nbTab !archAccess !parentSuffixName ![@codeCtx C]]; #body
+        instBody .= "\n";
+      end if;
+    else #do nothing.
+    end cast;
+  end foreach;
+end routine;
+
+function getInstructionListMap
+  ?? @decodedInstBehaviorMap decodedInstBehaviorMap
+  ?? @behaviorPrototypeMap prototypeMap
+  -> @instructionListMap instListMap
+:
+  instListMap := [@instructionListMap emptyMap];
+  foreach decodedInstBehaviorMap (@lstring instName @behaviorChunkListWithSuffix chunkList ...) do
+    @instructionList instList := getInstructionList[!chunkList !prototypeMap];
+    [!?instListMap insertKey !instName !instList];
+  end foreach;
+end function;
+
+function getInstructionList 
+  ?? @behaviorChunkListWithSuffix chunkList
+  ?? @behaviorPrototypeMap prototypeMap
+  -> @instructionList instList
+:
+  instList := [@instructionList emptyList];
+  foreach chunkList (@behaviorChunk chunk @stringlist suffixList @idfOrRefBehaviorIsIdf parent @stringlist parentSuffixList) do
+    @string suffixName;
+    getSuffixString !suffixList ?* ?suffixName;
+    cast chunk
+    when == @behaviorImplementation chunkIsImplementation :
+      instList .= [chunkIsImplementation instList];
+    when == @idfOrRefBehaviorIsRef chunkIsRef :
+      instList .= [chunkIsRef instList];
+    when == @idfOrRefBehaviorIsIdf chunkIsIdf :
+        @parameterDefList paramDef;
+        [prototypeMap searchKey ![chunkIsIdf name] ?paramDef]; #no suffix for this map access.
+        @instructionList instCallList [emptyList];
+        getBehaviorCallInstructions !paramDef ![chunkIsIdf paramCall] !suffixName !?instCallList;
+        instList .= instCallList;
+    else #do nothing.
+    end cast;
+  end foreach;
+end function;
+
+#main routine to generate the behavior main map.
+#it:
+# * get the instruction name
+# * check that fields match with format part
+# * do not generate an error if there is a problem with an instruction that have no format.
+# * generate the implementation file
+# -> the getInstructionListMap do nearly the same job (except suffix). It should be merged... 
+routine generateInstructionBehaviorImplementation
+  ?? @behaviorPrototypeMap prototypeMap
+  ?! @TfieldMap templateStruct
+  ?? @instructionImplementationMap unused impMap
+  ?? @decodedInstBehaviorMap decodedInstBehaviorMap
+:
+  @stringlist instNameList [emptyList];
+  @string archName := "_arch";
+  @TfieldMapList instCodeTpl [emptyList];
+  #for each instruction
+  foreach decodedInstBehaviorMap (@lstring instName 
+                                  @behaviorChunkListWithSuffix chunkList 
+                                  @stringset referenceSeq) do
+    @TfieldMap instCodeTplBody [emptyMap];
+    addLStringValue !?instCodeTplBody !"name" !instName;
+    #We get the instruction implementation body
+    @string instBody := "";
+    getInstructionImplementationBody !chunkList !prototypeMap !archName ?instBody !instName;
+    addStringValue !?instCodeTplBody !lstringWith[!"code"] !instBody;
+    instCodeTpl += !instCodeTplBody;
+  end foreach;
+  addListValue   !?templateStruct !lstringWith[!"instCodeList"] !instCodeTpl;
+end routine;
+
+routine getDecodedInstBehaviorMap
+  ?? @behaviorMap behaviorMap
+  ?? @behaviorChunkListWithSuffixList instructionList
+  ?? @instructionImplementationMap impMap
+  ?? @string modelName
+  !  @decodedInstBehaviorMap decodedInstBehaviorMap
+:
+  decodedInstBehaviorMap := [@decodedInstBehaviorMap emptyMap];
+  @stringlist instNameList [emptyList];
+  @boolMap instDeclaredMap [emptyMap];
+  @boolMap instDeclaredTwiceMap [emptyMap];
+  #for each instruction
+  foreach instructionList (@behaviorChunkListWithSuffix chunkList) do
+
+    #first, we get the reference sequence (set).
+    @stringset referenceSeq; 
+    getReferenceSeq !chunkList ? referenceSeq;
+
+    #the reference set is useful to get the instruction name.
+    @string instName;
+    getInstructionName !referenceSeq !modelName ?instName;
+    instNameList  += !instName;
+
+    #then, we check if we found the instruction 2 times..
+    if [decodedInstBehaviorMap hasKey !instName] then
+      #if the instruction is declared more than one time
+      #the instruction is set in instDeclaredTwiceMap map.
+      #it will generate an error ONLY IF the instruction behavior 
+      #have a format associated.
+      #In the other case, it is a dummy instruction, and no error will be generated.
+      if not [instDeclaredTwiceMap hasKey !instName] then
+        [!? instDeclaredTwiceMap insertKey ![@lstring new !instName !here]];
+      end if;
+    else
+      [!? decodedInstBehaviorMap insertKey ![@lstring new !instName !here] !chunkList !referenceSeq];
+    end if;
+
+    
+  end foreach;
+
+  #then check format compatiblitity 
+  #(each field declared in the behavior must match the format part).
+  @bool noError;
+  @stringset instructionWithoutFormatSet;
+  checkInstructionFormatCompatibility !behaviorMap !instructionList !impMap !instNameList ?instructionWithoutFormatSet ?noError;
+
+ #check that instructions declared more that one time have no format associated
+  foreach instDeclaredTwiceMap (@lstring name) do
+    if not [instructionWithoutFormatSet hasKey ![name string]] then
+      error here : "instruction ".[name string]." have more than one behavior implementation\n";
+    end if;
+  end foreach;
+
+  #remove instructions that have no format associated.
+  foreach decodedInstBehaviorMap (@lstring instName ...) do
+    if [instructionWithoutFormatSet hasKey ![instName string]] then
+      [!?decodedInstBehaviorMap removeKey !instName ?* ?*];
+    end if;
+  end foreach;
+
+end routine;
+
+###################################################################################################
+### Tree generation related routines.
+###################################################################################################
+
+# there may have multiple roots in the behavior trees. The main root is implicitely declared as being an alternative of
+# the roots of the sub-trees.
+routine detectRootBehaviors
+  ?? @behaviorMap behaviorMap
+  !  @behaviorMap rootBehaviorMap
+:
+  #a root behavior is a behavior that is never called by another one.
+  rootBehaviorMap := behaviorMap;
+
+  foreach behaviorMap (@lstring behaviorName @behavior behavior) do
+    @behaviorChunkList chunkList := [behavior chunkList];
+    foreach chunkList (@behaviorChunk chunk) do
+      cast chunk
+      when == @idfOrRefBehaviorIsIdf chunkIsIdf :
+        #ok. This behavior call another behavior (behaviorCallName). Consequently, behaviorCallName 
+        #is not a root. Remove it from rootBehaviorMap (if it has not been removed before.)
+        if [rootBehaviorMap hasKey ![ [chunkIsIdf name] string]] then
+          [!?rootBehaviorMap removeKey ![chunkIsIdf name] ?*];
+        end if;
+      else
+      end cast;
+    end foreach;
+  end foreach;
+end routine;
+
+routine isThereACorrespondingFormatForBehavior
+  ?? @behaviorChunkListWithSuffix instructionBehaviorList #current syntax list
+  ?? @lstring modelName
+  ?? @instructionImplementationMap impMap
+  !  @bool ok
+:
+  #get the reference sequence.
+  @stringset referenceSeq;
+  getReferenceSeq !instructionBehaviorList ?referenceSeq;
+  #get the name of the instruction
+  @string instName;
+  getInstructionName !referenceSeq ![modelName string] ?instName;
+  ok := [impMap hasKey !instName];
+end routine;
+
+ #recursive routine.
+routine constructBehaviorInstructionTreeRec
+  ?? @behaviorMap                     behaviorMap            #behavior map -> constant
+  ?? @behaviorChunkListWithSuffix     behaviorListToCompute  #behaviors not yet taken into account
+  ?? @behaviorChunkListWithSuffix     instructionBehaviorList#current behavior list
+  ?! @behaviorChunkListWithSuffixList instructionList        #output list of behavior list.
+  ?? @lstring modelName #used to check that there is a corresponding format
+  ?? @instructionImplementationMap impMap #used to check that there is a corresponding format
+  ?! @uint nbInstEvaluated
+:
+
+  if [behaviorListToCompute length] > 0 then
+    #something to do..
+    @behaviorChunkListWithSuffix newBehaviorListToCompute := behaviorListToCompute;
+    @behaviorChunk currentBehavior;
+    @stringlist currentSuffixList;
+    @stringlist parentSuffixList;
+    @idfOrRefBehaviorIsIdf currentParent;
+    [!?newBehaviorListToCompute popFirst ?currentBehavior ?currentSuffixList ?currentParent ?*];
+    @behaviorChunkListWithSuffix newInstructionBehaviorList := instructionBehaviorList;
+
+    #update suffix.
+    parentSuffixList := currentSuffixList;
+    cast currentBehavior
+    when == @idfOrRefBehaviorIsIdf currentBehaviorIsIdf :
+      #get suffix.
+      @string suffixStr := [[currentBehaviorIsIdf postRefName] string];
+      if [suffixStr length] > 0 then
+        currentSuffixList += !suffixStr;
+      end if;
+    else
+    end cast;
+
+    newInstructionBehaviorList += !currentBehavior !currentSuffixList !currentParent !parentSuffixList;
+
+    cast currentBehavior
+    when == @idfOrRefBehaviorIsIdf currentBehaviorIsIdf :
+      #idf -> other behavior (alternative or aggregate)
+      @behavior behavior;
+      #check that the behavior is declared for agg and alt.
+      [behaviorMap searchKey ![currentBehaviorIsIdf name] ?behavior];
+      cast behavior
+      when == @aggBehavior currentBehaviorIsAgg :
+        #########    aggregate behavior    ##########    
+        @behaviorChunkList chunkList := [currentBehaviorIsAgg chunkList];
+        @behaviorChunkListWithSuffix behaviorListToComputeUpdated [emptyList];
+        foreach chunkList (@behaviorChunk chunk) do
+          behaviorListToComputeUpdated += !chunk !currentSuffixList !currentBehaviorIsIdf !parentSuffixList;
+        end foreach;
+        behaviorListToComputeUpdated := behaviorListToComputeUpdated . newBehaviorListToCompute;
+        #newBehaviorListToCompute := [currentBehaviorIsAgg chunkList] . newBehaviorListToCompute;
+        constructBehaviorInstructionTreeRec !behaviorMap !behaviorListToComputeUpdated !newInstructionBehaviorList !?instructionList !modelName !impMap !?nbInstEvaluated;
+      when == @altBehavior currentBehaviorIsAlt :
+        ##########    alternative behavior    ##########
+        @behaviorChunkList chunkList := [currentBehaviorIsAlt chunkList];
+        @uint currentCallToFind := 0;
+        loop [chunkList length]:
+        while currentCallToFind < [chunkList length] do
+          @bool callFound := false;
+          @behaviorChunkListWithSuffix tempList [emptyList];
+          @uint currentChunkId := 0;
+          foreach chunkList (@behaviorChunk chunk) do
+            cast chunk
+            when == @idfOrRefBehaviorIsDeclarationRef :
+              #if currentChunkId == currentCallToFind then break; end if;
+              tempList += !chunk !currentSuffixList !currentBehaviorIsIdf !parentSuffixList;
+            when == @behaviorImplementation :
+              #if currentChunkId == currentCallToFind then break; end if;
+              tempList += !chunk !currentSuffixList !currentBehaviorIsIdf !parentSuffixList;
+            else #this is either a ref, or a call to an agg or an alt.
+              if currentChunkId == currentCallToFind then
+                tempList += !chunk !currentSuffixList !currentBehaviorIsIdf !parentSuffixList;
+                callFound := true;
+              end if;
+            end cast;
+            currentChunkId := currentChunkId + 1;
+          end foreach;
+          if callFound then
+            @behaviorChunkListWithSuffix newBehaviorListToComputeCopy := tempList . newBehaviorListToCompute ;
+            constructBehaviorInstructionTreeRec !behaviorMap !newBehaviorListToComputeCopy !newInstructionBehaviorList !?instructionList !modelName !impMap !?nbInstEvaluated;
+          end if;
+          currentCallToFind := currentCallToFind + 1;
+        end loop;
+      else error here : "internal error: neither aggregate nor alternative behavior ?!";
+      end cast;
+    else 
+      ##########    reference or declaration ref or implementation      ##########    
+      constructBehaviorInstructionTreeRec !behaviorMap !newBehaviorListToCompute !newInstructionBehaviorList !?instructionList !modelName !impMap !?nbInstEvaluated;
+    end cast;
+  else #no more chunks in the list. This is a leaf.    
+    #We have to check 
+    #that there is a corresponding format.
+    @bool ok;
+    isThereACorrespondingFormatForBehavior !instructionBehaviorList !modelName !impMap ?ok;
+    if ok then
+      instructionList += !instructionBehaviorList;
+    end if;
+    nbInstEvaluated := nbInstEvaluated + 1;
+
+  end if;
+end routine;
+
+routine constructBehaviorInstructionTree
+  ?? @behaviorMap behaviorMap
+  ?? @lstring modelName #used to check that there is a corresponding format
+  ?? @instructionImplementationMap impMap #used to check that there is a corresponding format
+  !  @behaviorChunkListWithSuffixList decodedBehaviorChunkList 
+:
+  if [option .verbose_output value] then
+    message "contructing behavior tree...";
+  end if;
+
+  decodedBehaviorChunkList := [@behaviorChunkListWithSuffixList emptyList];
+  @behaviorChunkListWithSuffix behaviorList [emptyList];
+  @uint nbInstructionAccumulated := 0;
+
+  #get root behaviors. (may have many sub-trees).
+  @behaviorMap rootBehaviorMap;
+  detectRootBehaviors !behaviorMap ?rootBehaviorMap;
+
+  foreach rootBehaviorMap (@lstring rootBehaviorName *) do
+    if [option .verbose_output value] then
+      message "\n\tfrom root ".[rootBehaviorName string]."...";
+    end if;
+    @parameterCallList paramCall [emptyList];
+    @lstring emptyLString := [@lstring new !"" !here];
+    @idfOrRefBehaviorIsIdf startBehavior := [@idfOrRefBehaviorIsIdf new !rootBehaviorName !paramCall ! emptyLString];
+    @behaviorChunkListWithSuffix behaviorListToCompute [emptyList];
+    @stringlist emptyStringList [emptyList];
+    behaviorListToCompute += !startBehavior !emptyStringList !startBehavior !emptyStringList; #start behavior is its caller...
+    @uint nbInstEvaluated := 0;    
+    constructBehaviorInstructionTreeRec !behaviorMap !behaviorListToCompute !behaviorList !?decodedBehaviorChunkList !modelName !impMap !?nbInstEvaluated;
+    if [option .verbose_output value] then
+      @uint temp := [decodedBehaviorChunkList length] - nbInstructionAccumulated;
+      message [temp string]." instruction";
+      if temp > 1 then message "s."; else message "."; end if;
+      nbInstructionAccumulated := [decodedBehaviorChunkList length];
+      message " from ".[nbInstEvaluated string]." branch";
+      if nbInstEvaluated > 1 then message "es."; else message "."; end if;
+    end if;
+  end foreach;
+  if [option .verbose_output value] then
+    message "\nFound a total of ".[[decodedBehaviorChunkList length] string]." instructions behaviors.\n";
+  end if;
+end routine;
+
+routine checkBehaviorCallParameters 
+  ?? @lstring functionName 
+  ?? @behaviorPrototypeMap behaviorPrototypeMap 
+  ?? @parameterCallList paramCall
+:
+  @parameterDefList paramDef;
+  [behaviorPrototypeMap  searchKey !functionName ?paramDef];
+
+  checkCallDefParameters !paramCall !paramDef ![functionName location];
+end routine;
+
+function instructionBehaviorPart
+  ?? @behaviorMap behaviorMap 
+  ?? @lstring modelName
+  ?? @instructionImplementationMap impMap
+  -> @decodedInstBehaviorMap decodedInstBehaviorMap
+:
+  decodedInstBehaviorMap := [@decodedInstBehaviorMap emptyMap];
+  if not [option gadl_options.noBehavior value] then
+    #behavior
+    @behaviorChunkListWithSuffixList decodedBehaviorChunkList [emptyList];  
+    constructBehaviorInstructionTree !behaviorMap !modelName !impMap ?decodedBehaviorChunkList;
+    getDecodedInstBehaviorMap !behaviorMap !decodedBehaviorChunkList !impMap ![modelName string] ?decodedInstBehaviorMap;
+  end if;
+end function;
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

@@ -1,0 +1,120 @@
+#####################################################################
+# This program needs to initialize var $i with an appropriate arg	#
+# For example gdb -ex "set \$i = 100" -x my_gdb_script				#
+##################################################################### 
+
+# Connecting to jtag
+target remote localhost:3333
+
+# Start exec in external ram
+monitor reset halt
+monitor mww 0xE01FC040 0
+monitor mdw 0xE01FC040
+monitor mww 0xE002C014 0x0F804924
+monitor mdw 0xE002C014
+monitor mww 0xFFE00004 0x20000400
+monitor mdw 0xFFE00004
+
+# Upload code
+file ../tmp/test_code.elf
+load
+monitor mww 0xE01FC040 2
+monitor mdw 0xE01FC040
+
+#monitor soft_reset_halt
+
+# Specific breakpoint name of the loaded code
+b * _entryPoint
+
+# Start !
+continue
+
+define raz
+	monitor reg r0 0
+	monitor reg r1 0
+	monitor reg r2 0
+	monitor reg r3 0
+	monitor reg r4 0
+	monitor reg r5 0
+	monitor reg r6 0
+	monitor reg r7 0
+	monitor reg r8 0
+	monitor reg r9 0
+	monitor reg r10 0
+	monitor reg r11 0
+	monitor reg r12 0
+	monitor reg sp_usr 0
+	monitor reg lr_usr 0
+	monitor reg pc
+	monitor reg r8_fiq 0
+	monitor reg r9_fiq 0
+	monitor reg r10_fiq 0
+	monitor reg r11_fiq 0
+	monitor reg r12_fiq 0
+	monitor reg sp_fiq 0
+	monitor reg lr_fiq 0
+	monitor reg sp_irq 0
+	monitor reg lr_irq 0
+	monitor reg sp_svc 0
+	monitor reg lr_svc 0
+	monitor reg sp_abt 0
+	monitor reg lr_abt 0
+	monitor reg sp_und 0
+	monitor reg lr_und 0
+	monitor reg cpsr
+	monitor reg spsr_fiq
+	monitor reg spsr_irq
+	monitor reg spsr_svc
+	monitor reg spsr_abt
+	monitor reg spsr_und
+end
+
+define print_state
+	monitor reg r0
+	monitor reg r1
+	monitor reg r2
+	monitor reg r3
+	monitor reg r4
+	monitor reg r5
+	monitor reg r6
+	monitor reg r7
+	monitor reg r8
+	monitor reg r9
+	monitor reg r10
+	monitor reg r11
+	monitor reg r12
+	monitor reg sp_usr
+	monitor reg lr_usr
+	monitor reg pc
+	monitor reg r8_fiq
+	monitor reg r9_fiq
+	monitor reg r10_fiq
+	monitor reg r11_fiq
+	monitor reg r12_fiq
+	monitor reg sp_fiq
+	monitor reg lr_fiq
+	monitor reg sp_irq
+	monitor reg lr_irq
+	monitor reg sp_svc
+	monitor reg lr_svc
+	monitor reg sp_abt
+	monitor reg lr_abt
+	monitor reg sp_und
+	monitor reg lr_und
+	monitor reg cpsr
+	monitor reg spsr_fiq
+	monitor reg spsr_irq
+	monitor reg spsr_svc
+	monitor reg spsr_abt
+	monitor reg spsr_und
+end
+
+# Main loop
+raz
+while($i != 0)
+# step an instruction
+	monitor step
+## Show the state
+	print_state
+	set $i = $i - 1
+end

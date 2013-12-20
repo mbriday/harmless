@@ -1,0 +1,70 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<title>Mapping instructions on the architecture.</title>
+<style type="text/css">body {
+  font-family: Helvetica, sans-serif ;
+  font-size: small ;
+}
+
+h1 {
+  text-align: center ;
+}
+
+a.header_link {
+  border: 1px solid #999999 ;
+  padding: 4px ;
+  background-color: #FFFFCC ;
+  font-weight: bold ;
+}
+
+a:visited, a:link, a:active{
+  color: blue ;
+  text-decoration: underline ;
+}
+
+a:hover {
+  color:green ;
+  background-color: #FFFF00 ;
+  text-decoration: none ;
+}
+
+h2 {
+	font: bold 170\% Arial, Sans-Serif; 
+	white-space: pre;
+	margin-right: auto;
+	margin-left: 0pt;
+	text-align: center;
+	border-bottom: 1px dashed #aaa;
+	border-top: 1px dashed #aaa;
+	background-color: #ddd
+}
+
+</style></head><body><div>
+<h1>Pipeline sequences.</h1>
+<p>This section logs the pipeline paths. A pipeline paths is the list of sequential pipelines that are taken by an instruction. For instance on a superscalar architecture, there may have one pipeline path for instructions using the integer unit, one other pipeline path for floating point instructions, and so on.</p>
+<p>Pipeline paths are extracted from the 'pipeline expression' in the architecture view. For each pipeline path, the list of devices in pipeline stages are given.</p>
+%!HTML_LOG_PIPELINE_PATHS%
+<h1><a name="InstructionsAccesses">Instructions' accesses to components.</a></h1>
+<p>GraphViz should be installed on the computer to generates images (using the 'dot' tool). Then, you have to run 'make doc' to generate .svg images from .dot input graphs.</p>
+%!HTML_INSTRUCTION_CLASSES%
+%if exists instData then
+  foreach inst in instMappingOnPipeline do
+    %<h2><a name="%!inst::name%">Instruction "%!inst::name%"</a></h2>\n%
+    %<h3>Component access of instruction</h3>\n%
+    %<img src="%!inst::name%.svg" alt="GraphViz export"/>\n%
+    %<h3>Mapping instruction on pipelines</h3>\n%
+    foreach pipeline in inst::pipelineList do
+      %<p>Pipeline %!pipeline::pipelineName%:</p>%
+      if exists pipeline::file then
+        %<img src="./%!pipeline::file%.svg" alt="GraphViz export" />\n%
+      else
+        %<p>Instruction cannot map on pipeline %!pipeline::pipelineName%.</p>\n%
+      end if
+    end foreach
+    #$HTML_INSTRUCTION_MAPPING_FOR_".[instName string];
+    #$HTML_INSTRUCTION_CLASS_EXTRACTION_FOR_".[instName string]."$";
+    %<p><a href=\"#InstructionsAccesses\">top</a>\n%
+  end foreach
+ end if
+%

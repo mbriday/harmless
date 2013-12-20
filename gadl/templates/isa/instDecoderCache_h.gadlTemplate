@@ -1,0 +1,112 @@
+%template headerC%
+#ifndef __INST_DECODER_CACHE_H__
+#define __INST_DECODER_CACHE_H__
+
+#ifndef DO_NOT_USE_INTERNAL_INSTRUCTION_CACHE
+
+#include "types.h"
+
+class %!MODELNAME%_instDecoder;
+class %!MODELNAME%_instruction;
+class arch;
+
+#define IDC_VALID_OFFSET 0
+#define IDC_CHUNKS_OFFSET  1
+#define IDC_TAG_OFFSET   5
+
+#define IDC_TAG_CHUNKS    (32-IDC_TAG_OFFSET)
+/* number of instruction chunks used to fetch the instruction IDC_CHUNKS_MAX-1*/
+#define IDC_CHUNKS_MAX    (1 << (IDC_TAG_OFFSET - IDC_CHUNKS_OFFSET))
+#define IDC_CHUNKS_MASK   (IDC_CHUNKS_MAX-1)
+
+//uncomment the following line to get information about cache usage (hit/miss ratio)
+//#define INST_DECODER_CACHE_STATS
+
+//structure that correspond to a cache entry. It stores :
+//	* the instruction
+//	* a tag
+//	* a valid bit
+//	* the number of instruction code chunks
+struct %!MODELNAME%_instDecoderCacheEntry
+{
+	/**instruction stored in the cache*/
+	%!MODELNAME%_instruction *inst;
+	/** the control bit field is composed of
+	 * bit 0 : valid bit -> the entry contains an instruction (0 -> no data).
+	 * bit 1..4 : nb of chunks required. (i.e. the number of time the fetch 
+	 *                                    function should be called)
+	 * bit 5.. : tag. index length may be from 1??? to 14 bits. The size of the 
+	 *           cache will be 2^(index length) entries. The instruction 
+	 *           pointer (%!PC_SIZE_IN_BITS% bits) is composed of a  
+	 *           -- tag -- index -- zeros ( %!FETCH_ALIGNMENT_IN_BITS% '0' according to alignment)
+	 *           => tagLength+indexLength = %!PC_SIZE_IN_BITS%-%!FETCH_ALIGNMENT_IN_BITS%
+	 */
+	u32 control;
+};
+
+class executeInstAction;
+
+class %!MODELNAME%_instDecoderCache
+{
+	//buffer that stores instructions.
+	%!MODELNAME%_instDecoderCacheEntry *m_buffer;
+
+	//size of the block
+	const unsigned int m_indexLengthBits;
+
+	#ifdef INST_DECODER_CACHE_STATS
+		/// statistics: number of hits.
+		unsigned int m_hitCount;
+		/// statistics: number of misses.
+		unsigned int m_missCount;
+	#endif
+
+	/** check that an instruction is in the cache buffer. If this is the case, codeAddr is 
+     *  updated accordingly and the instruction pointer is returned. In the other case, a
+	 *  NULL pointer is returned.
+     */
+    %!MODELNAME%_instruction *isInBuffer(const %!PC_C_TYPE% index, 
+										const %!PC_C_TYPE% tag, 
+										%!PC_C_TYPE% &codeAddr%!defaultFetchDeclare%);
+
+	/** decode a new instruction (that was not in the cache), update the instruction 
+	 *  pointer, and set it in the buffer. 
+     *  If there is no entry available, the last recently used entry is removed
+     */
+    %!MODELNAME%_instruction* storeInBuffer(arch *_arch,
+							               %!PC_C_TYPE% &codeAddress,
+							               %!MODELNAME%_instDecoder *decoder,	
+							               const %!PC_C_TYPE% index, 
+							               const %!PC_C_TYPE% tag%!defaultFetchDeclare%);
+
+    public:
+	/** get instruction in the cache (and update instruction pointer) if it was previously used. 
+	 *  In the other case, the instruction is decoded, the instruction pointer is updated and 
+	 *  the new instruction is stored in the buffer.
+	 */
+    %!MODELNAME%_instruction *getInstruction(arch *_arch, %!PC_C_TYPE% &pc, %!MODELNAME%_instDecoder *%!defaultFetchDeclare%);
+	/** constructor.
+	 * \param indexLengthBits size of the buffer in bits. For instance 8 will build 
+	 * a direct cache with 256 entries.
+	 */
+    %!MODELNAME%_instDecoderCache(const unsigned int indexLengthBits);
+	/** print useful information on std output (cache use, nb of hits/miss) 
+	 */
+	void printCacheStats();
+
+	//just to know if an instruction is in the cache.
+	%!MODELNAME%_instruction *isInCache(const %!PC_C_TYPE% address);
+	
+	/** should be called when an executeInstAction is added
+	 * The executeInstAction embedds both an instruction AND a list of execute actions.
+	 */
+	void replaceInCache(const %!PC_C_TYPE% addr, %!MODELNAME%_instruction *inst,executeInstAction *eia);	
+	/** deconstructor.
+	 */
+	~%!MODELNAME%_instDecoderCache();
+
+    private:
+};
+
+#endif //DO_NOT_USE_INTERNAL_INSTRUCTION_CACHE
+#endif

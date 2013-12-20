@@ -1,0 +1,7 @@
+#
+# result of the oscilloscope
+#
+
+
+nop1.s => 11 nop1  750 ms
+executed 0xF0000 times

@@ -1,0 +1,32 @@
+#####################################################################
+# This program needs to initialize var $i with an appropriate arg	#
+# For example gdb -x my_gdb_script                   				#
+##################################################################### 
+
+# Connecting to jtag
+target remote localhost:3333
+
+# Start exec in external ram
+monitor reset halt
+monitor mww 0xE01FC040 0
+monitor mdw 0xE01FC040
+monitor mww 0xE002C014 0x0F804924
+monitor mdw 0xE002C014
+monitor mww 0xFFE00004 0x20000400
+monitor mdw 0xFFE00004
+
+# Upload code
+file code.elf
+load
+monitor mww 0xE01FC040 2
+monitor mdw 0xE01FC040
+
+#monitor soft_reset_halt
+
+# Specific breakpoint name of the loaded code
+b * _end
+
+# Start !
+continue
+
+quit
