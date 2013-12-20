@@ -8,7 +8,7 @@
 
 #define IHR_BUF_SIZE 256
 
-class arch;
+class core;
 
 //TODO: remove old 'C' style FILE* and replace with
 // c++ streams.
@@ -45,7 +45,7 @@ class iHexReader : public codeReader
 	/** read the file and update simulator program memory
 	 *  @return true if there is no problem.
 	 */
-	virtual bool readFile(const char * filename, arch *_arch, const bool verbose);	
+	virtual bool readFile(const char * filename, core *_core, const bool verbose);	
 };
 
 #endif

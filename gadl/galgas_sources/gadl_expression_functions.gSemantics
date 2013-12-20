@@ -1,0 +1,39 @@
+semantics gadl_expression_functions :
+  import "gadl_options.gOption" ;
+
+###############################################################################
+# functions:
+# * nbBitsToCodeUnsigned
+# * nbBitsToCodeSigned
+#
+###############################################################################
+
+#number of bits required to encode an unsigned number. tested.
+function nbBitsToCodeUnsigned
+  ?@uint64 val
+  -> @uint nbBits
+:
+  @uint var := 65; # max 64 loops.
+  nbBits := 0;
+  loop var:
+  while (val != 0L) do
+    val := val >> 1;
+    nbBits := nbBits + 1;
+  end loop;
+end function;
+
+#number of bits required to encode an signed number. tested.
+function nbBitsToCodeSigned
+  ?  @uint64 val
+  -> @uint nbBits
+:
+  nbBits := nbBitsToCodeUnsigned[!val];
+  if nbBits > 0 then #0 needs 0 bits to be encoded, even in signed.
+    if val >= (1L << (nbBits-1)) then #more than half of the value.
+      nbBits := nbBits + 1;
+    end if;
+  end if;
+end function;
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

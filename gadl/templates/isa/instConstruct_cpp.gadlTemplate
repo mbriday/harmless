@@ -6,7 +6,7 @@ using namespace std;
 
 #include "macro.h"
 
-%!MODELNAME%_instruction::%!MODELNAME%_instruction(const %!PC_C_TYPE% instructionPointer) : m_pc(instructionPointer)
+%!MODELNAME%_instruction::%!MODELNAME%_instruction(const %!idfStruct::PC_C_TYPE% instructionPointer) : m_pc(instructionPointer)
 {
 	m_user = 1;
 }

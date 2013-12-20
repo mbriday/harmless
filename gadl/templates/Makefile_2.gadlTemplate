@@ -39,13 +39,13 @@ IMAGES_DOC=$(IMAGES_DOT:.dot=.svg)
 ############# Swig configuration.
 # Swig is used to generate a Wrapper between C++ and Python (or other script languages)
 # see http://www.swig.org
-PYTHON_LIB = _%!MODELNAME%.so #where %!MODELNAME% should be the module name defined in arch.i
+PYTHON_LIB = _%!MODELNAME%.so #where %!MODELNAME% should be the module name defined in core.i
 # swig understang -Dflags for conditional compilation (DEFINES)
 SWIG=swig -python -c++ -classic
 PYTHON_INCLUDE = $(shell echo /usr/include/python*|tr ' ' '\\n'|sed "/_d/d"|sort|tail -n1)
 PYTHON_CFLAGS += -I$(PYTHON_INCLUDE)
 PYTHON_LDFLAGS = -l$(notdir $(PYTHON_INCLUDE)) -lstdc++
-INTERFACE = arch.i
+INTERFACE = core.i
 
 IO_STUBS_SRC_DIR=../ioStubs/simulatorSource
 ########################################################
@@ -76,7 +76,7 @@ endif
 
 # compiler optimisation
 CFLAGS_DEBUG = -O0 -g -Wall -fexceptions -Wno-deprecated #-ansi -pedantic
-CFLAGS_OPTIM = -O3 -fstrength-reduce -frerun-loop-opt -fexpensive-optimizations -fschedule-insns2 -funroll-loops -fomit-frame-pointer -fno-strict-aliasing -pipe -ffast-math -fexceptions
+CFLAGS_OPTIM = -O4 -funroll-loops -fomit-frame-pointer -fno-strict-aliasing -pipe -ffast-math -fexceptions
 
 ifeq ($(strip $(OPTIM)),1)
 	CFLAGS += $(CFLAGS_OPTIM)
@@ -135,7 +135,7 @@ SRCS_COM += $(GENERATED_SRCS)
 INTERFACE_SRC = $(addsuffix _wrap.cpp, $(basename $(INTERFACE)))
 INTERFACE_OBJ = $(addprefix $(OBJ_DIR)/,$(INTERFACE_SRC:.cpp=.o))
 
-$(INTERFACE_SRC): $(INTERFACE) arch.h
+$(INTERFACE_SRC): $(INTERFACE) core.h
 	$(SWIG) $(DEFINES) -o $@ $< 
 
 ########################################################
@@ -175,7 +175,7 @@ ifeq ($(strip $(USE_IO_STUBS)),1)
   endif
 endif
 
-arch.cpp: ioStubs.cpp %if useCAS then if exists A2CPP_GENERATED_HEADER then !A2CPP_GENERATED_HEADER end if end if%
+core.cpp: ioStubs.cpp %if exists A2CPP_GENERATED_HEADER then !A2CPP_GENERATED_HEADER end if%
 ##########
 #link
 

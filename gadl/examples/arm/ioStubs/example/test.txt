@@ -1,5 +1,0 @@
-This file should be read by the ARM program.
-To test the application:
-	compile the simulator with Files I/O stubs enabled
-	then compile the example user application (Makefile provided)
-	and run the simulation script.

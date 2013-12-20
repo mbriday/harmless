@@ -1,0 +1,68 @@
+semantics gadl_core :
+  import "gadl_options.gOption" ;
+  import "gadl_memory.gSemantics";
+  import "gadl_isa.gSemantics";
+  import "gadl_varIdfStruct.gSemantics";
+  import "gadl_templates.gSemantics" ;
+  import "gadl_semantics_templateExport.gSemantics" ;
+
+  #TODO TMP
+  import "gadl_semantics_data_dependency_instruction_classes.gSemantics" ;
+
+  
+routine coreSemantic
+  ?? @lstring coreName
+  ?? @ASTIsa ASTIsa 
+  ?? @ASTmemoryParamMap ASTmemChunk
+  ?? @stringlist unused memChunkOrder 
+  ?? @ASTmemSpaceMap ASTmemSpaceMap
+:
+  @TfieldMap templateStruct := [@TfieldMap emptyMap];
+  [!?templateStruct initTemplate !coreName];
+
+  ##########################################################################################
+  # memory space.
+  ##########################################################################################
+  @varIdfStruct idfStruct [default];
+  @memSpaceMap memSpaceMap := [ASTmemSpaceMap getMemSpaceMap];
+  idfStruct->memSpaceMap := memSpaceMap;
+  #message [idfStruct string];
+
+  ##########################################################################################
+  # ISA
+  ##########################################################################################
+  [ASTIsa getIsa !?idfStruct !coreName !?templateStruct ?@Isa isa];
+
+  ##########################################################################################
+  # local memory definition
+  ##########################################################################################
+  @memoryParamMap memChunk := [ASTmemChunk getMemMap];
+  [memChunk setInTemplate !lstringWith[!"memInCoreList"] !?templateStruct];
+  message [ASTmemChunk string];
+  message [memChunk string];
+  ##########################################################################################
+  # export data from idfStruct (components and so on).
+  ##########################################################################################
+  [idfStruct setInTemplate !?templateStruct];
+
+  ##########################################################################################
+  # template generation
+  ##########################################################################################
+  @string gadlLog := computeTemplate[!"" !templateStruct !"root"];
+  if [option gadl_options.templateLogFile value] then
+    extractTemplateStructure !templateStruct !"templateLog.xml";
+  end if;
+
+  ##########################################################################################
+  # filewrappers: add binary files inside the gadl compiler.
+  ##########################################################################################
+  addFileWrappers !coreName;
+  
+  #TMP:
+  @boolMap memSpaceWithRegister := [memChunk memSpaceWithRegisterBank];
+  @DDCRegisterAccessMap DDCRegisterAccessMap := getRegistersInInstructions[!idfStruct !isa->decodedBehaviorMap !memSpaceWithRegister];
+  
+end routine;
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

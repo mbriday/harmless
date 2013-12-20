@@ -3,7 +3,7 @@
 #define __ELF_READER_H__
 
 #ifdef USE_LIBELF
-class arch;
+class core;
 #include <libelf.h>
 #include <gelf.h>
 #include <stdio.h> //FILE
@@ -63,7 +63,7 @@ class elfReader : public codeReader
 	/* load data into simulator memory 
 	 *  @return true if there is no problem.
 	 */
-	bool loadIntoSimulator(unsigned int v_addr_start,Elf_Data * data, arch *_arch);
+	bool loadIntoSimulator(unsigned int v_addr_start,Elf_Data * data, core *_core);
 	/* init elf reading (connect to library, check elf kind, get Elf *) 
 	 *  @return true if there is no problem.
 	 */
@@ -71,7 +71,7 @@ class elfReader : public codeReader
 	/* get program headers, to make the link between virtual and physical addresses.*/
 	bool readProgramHeaders();
 	
-	bool manageBinaryCode(Elf_Data *data, GElf_Shdr *sectionHeader, const bool verbose, const char *name, arch *_arch);
+	bool manageBinaryCode(Elf_Data *data, GElf_Shdr *sectionHeader, const bool verbose, const char *name, core *_core);
 	void manageSymbols(Elf_Data *data, GElf_Shdr *sectionHeader, const bool verbose, const char *name);
 
 	public:
@@ -80,7 +80,7 @@ class elfReader : public codeReader
 	/** read the file and update simulator program memory
 	 *  @return true if there is no problem.
 	 */
-	bool readFile(const char * filename, arch *_arch, const bool verbose);	
+	bool readFile(const char * filename, core *_core, const bool verbose);	
 	
 	/* @return the physical address. 
 	 * If no physical address is matching, the virtual address is returned

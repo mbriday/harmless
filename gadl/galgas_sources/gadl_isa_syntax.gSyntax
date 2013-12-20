@@ -1,0 +1,78 @@
+syntax gadl_isa_syntax ("gadl_lexique.gLexique") :
+import "gadl_options.gOption" ;
+import "gadl_isa.gSemantics";
+
+#format
+nonterminal  <format>  
+  ?? @luint instructionSize
+  ?! @formatMap formatMap
+  ?! @uint internalFormatId
+;
+nonterminal <syntax>
+  ?! @syntaxMap syntaxMap
+  ?! @varMap fieldMap 
+  ?! @uint internalSyntaxId
+;
+nonterminal <printNumberType> ?! @printNumberTypeMap typeMap;
+#behavior
+nonterminal <behavior> ?!@ASTbehaviorMap ASTbehaviorMap ?!@uint internalBehaviorId;
+#defaults
+nonterminal <default> ?! @defaultSection defaultValues;
+nonterminal <component> ?! @ASTComponentMap ASTComponentMap 
+                        ?! @uint currentComponentId ?! @lstringMap componentMapOrder;
+
+rule <isa> !@ASTIsa ASTIsa
+:
+  #format stuff
+  @formatMap formatMap [emptyMap];
+  @uint internalFormatId := 0;
+  #syntax stuff.
+  @syntaxMap syntaxMap [emptyMap];
+  @varMap fieldSyntaxMap [emptyMap];
+  @uint internalSyntaxId := 0;
+  @printNumberTypeMap typeMap := [@printNumberTypeMap emptyMap];
+  #behavior stuff.
+  @ASTbehaviorMap ASTbehaviorMap [emptyMap];
+  @uint internalBehaviorId := 0;
+  #component map
+  @ASTComponentMap ASTComponentMap [emptyMap];
+  @lstringMap componentMapOrder [emptyMap]; #used to preserve description order of components.
+  @uint currentComponentId := 0;
+  #default  
+  @defaultSection defaultValues [default];
+  defaultValues->instructionSize := [@luint new !32 !here];
+  
+  $isa$; 
+  ${$;
+  repeat
+  while
+    <behavior> !?ASTbehaviorMap !?internalBehaviorId;
+  while
+    <format> ![defaultValues instructionSize] !?formatMap !?internalFormatId;
+  while
+    <syntax> !?syntaxMap !?fieldSyntaxMap !?internalSyntaxId;
+  while 
+     <printNumberType> !?typeMap;    
+  while
+    <default> !?defaultValues;
+  while
+    <component> !?ASTComponentMap !?currentComponentId !?componentMapOrder;
+  end repeat;
+  $}$;
+
+  ASTIsa := [@ASTIsa new !formatMap
+                         !internalFormatId
+                         !syntaxMap
+                         !fieldSyntaxMap
+                         !internalSyntaxId
+                         !typeMap
+                         !ASTbehaviorMap
+                         !internalBehaviorId
+                         !ASTComponentMap
+                         !componentMapOrder
+                         !currentComponentId
+                         !defaultValues];
+end rule ;
+
+end syntax ;
+# vim:ft=ggs:ts=2:sw=2

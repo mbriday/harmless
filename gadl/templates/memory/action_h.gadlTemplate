@@ -55,14 +55,14 @@ class readAction : public action
     virtual bool trigger(storage *, spyInfo *s) = 0;
 };
 
-class arch;
+class core;
 
 class executeAction : public action
 {
 	public:
     executeAction() : action() {};  
     virtual ~executeAction() {};
-    virtual bool trigger(arch *a) = 0;
+    virtual bool trigger(core *c) = 0;
 };
 
 #include "instructionBase.h"
@@ -82,7 +82,7 @@ class executeInstAction : public %!MODELNAME%_instruction
 	//single list management when instruction is not in the cache.
 	executeInstAction *m_next; 
 	private:
-	void triggerAction(arch *a);
+	void triggerAction(core *c);
 	public:
 	executeInstAction(const u32 address);
 	void setInstruction(%!MODELNAME%_instruction *inst) {m_inst=inst;};
@@ -100,7 +100,7 @@ class executeInstAction : public %!MODELNAME%_instruction
 	void setNext(executeInstAction *n) {m_next = n;};
 	
 	//only this following function is decorated.
-	virtual void execute(arch *a);
+	virtual void execute(core *c);
 	virtual unsigned char const size()	{return m_inst->size();};
 	virtual unsigned char const chunks(){return m_inst->chunks();};
 	virtual const char* const mnemo()   {return m_inst->mnemo();};	

@@ -1,7 +1,5 @@
 semantics gadl_semantics_hard_arch:
   import "gadl_options.gOption" ;
-  import "gadl_semantics.gSemantics" ;
-  import "gadl_semantics_behavior.gSemantics" ;
 
 #----------------------------------------------------------------------------
 #--- Architecture

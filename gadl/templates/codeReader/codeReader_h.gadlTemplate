@@ -5,7 +5,7 @@
 #include <iostream>
 #include <string>
 #include "types.h"
-class arch;
+class core;
 
 /* This class is used to get back data chunks which have been loaded into the simulator */
 class codeSection
@@ -29,7 +29,7 @@ class codeReader
 	 *  This function SHOULD be implemented.
 	 *  @return true if there is no problem.
 	 */
-	virtual bool readFile(const char * filename, arch *_arch, const bool verbose) = 0;	
+	virtual bool readFile(const char * filename, core *_core, const bool verbose) = 0;	
 	
 	/* @return the physical address. 
 	 * If no physical address is matching, the virtual address is returned

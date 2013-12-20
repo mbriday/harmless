@@ -5,7 +5,7 @@
 #include "instDecoderCache.h"
 #include "instructionBase.h" //for retain/release machanism.
 #include "utils.h" //SEGFAULTIF
-#include "arch.h"  //fetch function.
+#include "core.h"  //fetch function.
 
 using namespace std;
 
@@ -59,13 +59,13 @@ void %!MODELNAME%_instDecoderCache::printCacheStats()
 	cout << (float)nbUse / (max) << endl;
 }
 
-%!MODELNAME%_instruction *%!MODELNAME%_instDecoderCache::getInstruction(arch *_arch, %!PC_C_TYPE% &codeAddr, %!MODELNAME%_instDecoder *decoder%!defaultFetchDeclare%)
+%!MODELNAME%_instruction *%!MODELNAME%_instDecoderCache::getInstruction(core *_core, %!idfStruct::PC_C_TYPE% &codeAddr, %!MODELNAME%_instDecoder *decoder%!defaultFetchDeclare%)
 {
-	const %!PC_C_TYPE% addr = codeAddr >> %!FETCH_ALIGNMENT_IN_BITS%;
+	const %!idfStruct::PC_C_TYPE% addr = codeAddr >> %!FETCH_ALIGNMENT_IN_BITS%;
 	const int mask = (-1) << m_indexLengthBits;	
-	SEGFAULTIF(%!PC_SIZE_IN_BITS% > 32) //in this case, update mask type to 64 bits.
-	const %!PC_C_TYPE% index = addr & (~mask);
-	const %!PC_C_TYPE% tag = addr >> m_indexLengthBits;
+	SEGFAULTIF(%!idfStruct::PC_SIZE_IN_BITS% > 32) //in this case, update mask type to 64 bits.
+	const %!idfStruct::PC_C_TYPE% index = addr & (~mask);
+	const %!idfStruct::PC_C_TYPE% tag = addr >> m_indexLengthBits;
 
 	/* SEGFAULTIF(tag > (1<<IDC_TAG_SIZE)) // in that case, use a bigger cache. */
 	
@@ -77,7 +77,7 @@ void %!MODELNAME%_instDecoderCache::printCacheStats()
 		inst->retain();
 	}
 	else {
-        inst = storeInBuffer(_arch, codeAddr, decoder, index, tag%!defaultFetchParam%);
+        inst = storeInBuffer(_core, codeAddr, decoder, index, tag%!defaultFetchParam%);
 		#ifdef INST_DECODER_CACHE_STATS
 			m_missCount++;
 		#endif
@@ -85,7 +85,7 @@ void %!MODELNAME%_instDecoderCache::printCacheStats()
     return inst;
 }
 
-%!MODELNAME%_instruction *%!MODELNAME%_instDecoderCache::isInBuffer(const %!PC_C_TYPE% index, const %!PC_C_TYPE% tag, %!PC_C_TYPE% &codeAddr%!defaultFetchDeclare%)
+%!MODELNAME%_instruction *%!MODELNAME%_instDecoderCache::isInBuffer(const %!idfStruct::PC_C_TYPE% index, const %!idfStruct::PC_C_TYPE% tag, %!idfStruct::PC_C_TYPE% &codeAddr%!defaultFetchDeclare%)
 {
 	%!MODELNAME%_instruction *result = NULL;
 	%!MODELNAME%_instDecoderCacheEntry *entry = &(m_buffer[index]);
@@ -102,15 +102,15 @@ void %!MODELNAME%_instDecoderCache::printCacheStats()
     return result;
 }
 
-%!MODELNAME%_instruction *%!MODELNAME%_instDecoderCache::storeInBuffer(arch *_arch,
-									%!PC_C_TYPE% &codeAddr,
+%!MODELNAME%_instruction *%!MODELNAME%_instDecoderCache::storeInBuffer(core *_core,
+									%!idfStruct::PC_C_TYPE% &codeAddr,
 									%!MODELNAME%_instDecoder *decoder,	
-									const %!PC_C_TYPE% index, 
-									const %!PC_C_TYPE% tag%!defaultFetchDeclare%)
+									const %!idfStruct::PC_C_TYPE% index, 
+									const %!idfStruct::PC_C_TYPE% tag%!defaultFetchDeclare%)
 {
 	//cerr <<"store instruction @"<<hex <<codeAddr<<endl;
 	//fetch function called in the decodeDirect function.
-    %!MODELNAME%_instruction *inst = decoder->decodeWithExecActionCache(_arch, codeAddr%!defaultFetchParam%);
+    %!MODELNAME%_instruction *inst = decoder->decodeWithExecActionCache(_core, codeAddr%!defaultFetchParam%);
 	const u8 chunks = inst->chunks();
 	SEGFAULTIF(chunks >= IDC_CHUNKS_MAX);
 	if(inst!= NULL)
@@ -150,27 +150,27 @@ void %!MODELNAME%_instDecoderCache::printCacheStats()
 	delete [] m_buffer;
 }
 
-%!MODELNAME%_instruction *%!MODELNAME%_instDecoderCache::isInCache(const %!PC_C_TYPE% codeAddr)
+%!MODELNAME%_instruction *%!MODELNAME%_instDecoderCache::isInCache(const %!idfStruct::PC_C_TYPE% codeAddr)
 {
-	%!PC_C_TYPE% addr = codeAddr >> %!FETCH_ALIGNMENT_IN_BITS%;
+	%!idfStruct::PC_C_TYPE% addr = codeAddr >> %!FETCH_ALIGNMENT_IN_BITS%;
 	const int mask = (-1) << m_indexLengthBits;	
-	SEGFAULTIF(%!PC_SIZE_IN_BITS% > 32) //in this case, update mask type to 64 bits.
-	const %!PC_C_TYPE% index = addr & (~mask);
-	const %!PC_C_TYPE% tag = addr >> m_indexLengthBits;
+	SEGFAULTIF(%!idfStruct::PC_SIZE_IN_BITS% > 32) //in this case, update mask type to 64 bits.
+	const %!idfStruct::PC_C_TYPE% index = addr & (~mask);
+	const %!idfStruct::PC_C_TYPE% tag = addr >> m_indexLengthBits;
 
 	/* SEGFAULTIF(tag > (1<<IDC_TAG_SIZE)) // in that case, use a bigger cache. */
 	
-	%!PC_C_TYPE% tmp = codeAddr; //will be updated.. but not used after
+	%!idfStruct::PC_C_TYPE% tmp = codeAddr; //will be updated.. but not used after
 	return isInBuffer(index, tag, tmp);
 }
 
-void %!MODELNAME%_instDecoderCache::replaceInCache(const %!PC_C_TYPE% codeAddr, %!MODELNAME%_instruction *prevInst,executeInstAction *eia)
+void %!MODELNAME%_instDecoderCache::replaceInCache(const %!idfStruct::PC_C_TYPE% codeAddr, %!MODELNAME%_instruction *prevInst,executeInstAction *eia)
 {
-	%!PC_C_TYPE% addr = codeAddr >> %!FETCH_ALIGNMENT_IN_BITS%;
+	%!idfStruct::PC_C_TYPE% addr = codeAddr >> %!FETCH_ALIGNMENT_IN_BITS%;
 	const int mask = (-1) << m_indexLengthBits;	
-	SEGFAULTIF(%!PC_SIZE_IN_BITS% > 32) //in this case, update mask type to 64 bits.
-	const %!PC_C_TYPE% index = addr & (~mask);
-	const %!PC_C_TYPE% tag = addr >> m_indexLengthBits;
+	SEGFAULTIF(%!idfStruct::PC_SIZE_IN_BITS% > 32) //in this case, update mask type to 64 bits.
+	const %!idfStruct::PC_C_TYPE% index = addr & (~mask);
+	const %!idfStruct::PC_C_TYPE% tag = addr >> m_indexLengthBits;
 
 	%!MODELNAME%_instDecoderCacheEntry *entry = &(m_buffer[index]);
 	const u32 entryCon=entry->control;

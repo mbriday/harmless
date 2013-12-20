@@ -5,7 +5,7 @@
 #ifndef DO_NOT_USE_INTERNAL_INSTRUCTION_CACHE
 #include "instDecoderCache.h"
 #endif
-#include "arch.h"
+#include "core.h"
 using namespace std;
 /** set internal instruction cache size.
  *  The instruction cache is used by the simulator to
@@ -19,7 +19,7 @@ using namespace std;
 %
 #up to 256 decoder functions.
 
-let decoderFuncArgs := MODELNAME."_instDecoder *decoder, arch *_arch, ".PC_C_TYPE." &pc, const ".PC_C_TYPE." pcBase, const ".INST_DEFAULT_SIZE_C_STR." chunk1".defaultFetchDeclare
+let decoderFuncArgs := MODELNAME."_instDecoder *decoder, core *_core, ".idfStruct::PC_C_TYPE." &pc, const ".idfStruct::PC_C_TYPE." pcBase, const ".INST_DEFAULT_SIZE_C_STR." chunk1".defaultFetchDeclare
 
 foreach func in DECODER_FUNCTION_LIST do
   if func::exist then
@@ -62,16 +62,16 @@ end foreach
 }
 
 
-%!MODELNAME%_instruction* %!MODELNAME%_instDecoder::decode(arch *_arch, %!PC_C_TYPE% &pc%!defaultFetchDeclare%)
+%!MODELNAME%_instruction* %!MODELNAME%_instDecoder::decode(core *_core, %!idfStruct::PC_C_TYPE% &pc%!defaultFetchDeclare%)
 {
 	#ifndef DO_NOT_USE_INTERNAL_INSTRUCTION_CACHE
-		return cache->getInstruction(_arch, pc, this%!defaultFetchParam%);
+		return cache->getInstruction(_core, pc, this%!defaultFetchParam%);
 	#else
-		return decodeWithExecActionCache(_arch, pc%!defaultFetchParam%);
+		return decodeWithExecActionCache(_core, pc%!defaultFetchParam%);
 	#endif
 }
 
-%!MODELNAME%_instruction* %!MODELNAME%_instDecoder::decodeWithExecActionCache(arch *_arch, %!PC_C_TYPE% &codeAddr%!defaultFetchDeclare%)
+%!MODELNAME%_instruction* %!MODELNAME%_instDecoder::decodeWithExecActionCache(core *_core, %!idfStruct::PC_C_TYPE% &codeAddr%!defaultFetchDeclare%)
 {
 	//search if instruction is in the cache.
 	executeInstAction *inst = m_execActionNotInCache.getAndRemoveAt(codeAddr);
@@ -90,20 +90,20 @@ end foreach
 		} else { 
 			//cout << "instruction was not yet decoded." << endl;
 			//there is an action, but instruction was not previously decoded. Do it now.
-			inst->setInstruction(decodeDirect(_arch, codeAddr%!defaultFetchParam%));
+			inst->setInstruction(decodeDirect(_core, codeAddr%!defaultFetchParam%));
 			return inst;
 		}
 	} else { //not in exec cache.
-		return decodeDirect(_arch, codeAddr%!defaultFetchParam%);
+		return decodeDirect(_core, codeAddr%!defaultFetchParam%);
 	}
 }
 
-%!MODELNAME%_instruction* %!MODELNAME%_instDecoder::decodeDirect(arch *_arch, u32 &pc)
+%!MODELNAME%_instruction* %!MODELNAME%_instDecoder::decodeDirect(core *_core, u32 &pc)
 {
-	const %!PC_C_TYPE% pcBase = pc;
+	const %!idfStruct::PC_C_TYPE% pcBase = pc;
 	const %!INST_DEFAULT_C_SIZE% instCode = %!FETCH_FUNCTION_CONDITION%;
 	unsigned int tabEntry = instCode >> %!INST_SHIFT%; //most significant bits -> first part of the opcode.
-	%!MODELNAME%_instruction *inst = %!MODELNAME%_decodeTab[tabEntry](this, _arch, pc, pcBase, instCode);
+	%!MODELNAME%_instruction *inst = %!MODELNAME%_decodeTab[tabEntry](this, _core, pc, pcBase, instCode);
 	if(inst == NULL)
 	{
 		//not decoded. May be an illegal opcode (an instruction that follows a jump?)
@@ -190,7 +190,7 @@ void %!MODELNAME%_instDecoder::cacheRemoveInstruction(%!MODELNAME%_instruction *
 	}
 }
 
-bool %!MODELNAME%_instDecoder::removeExecuteActionAtAddress(const %!PC_C_TYPE% addr, executeAction *ea)
+bool %!MODELNAME%_instDecoder::removeExecuteActionAtAddress(const %!idfStruct::PC_C_TYPE% addr, executeAction *ea)
 {
 	bool found = false;
 	//search if the instruction associated to this action is in the cache.

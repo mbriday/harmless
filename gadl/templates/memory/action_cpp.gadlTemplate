@@ -3,11 +3,11 @@
 #include "action.h"
 using namespace std;
 
-void executeInstAction::execute(arch *a)
+void executeInstAction::execute(core *_core)
 {
 	//cout << "execute decorated instruction @" << hex << getInstructionPointer() << endl;
-	triggerAction(a);
-	m_inst->execute(a);
+	triggerAction(_core);
+	m_inst->execute(_core);
 };
 
 executeInstAction::executeInstAction(const u32 address) :
@@ -83,7 +83,7 @@ bool executeInstAction::removeExecuteAction(executeAction* act)
 	return found;
 }
 
-void executeInstAction::triggerAction(arch *a)
+void executeInstAction::triggerAction(core *_core)
 {
 	if(m_action)
 	{
@@ -93,7 +93,7 @@ void executeInstAction::triggerAction(arch *a)
         while(currentAction)
         {
             next = (executeAction *)(currentAction->next());
-            if(currentAction->trigger(a))	//call the trigger method
+            if(currentAction->trigger(_core))	//call the trigger method
             {
                 //remove the execute action.
                 if(previous) //not first action, there is a previous
@@ -108,7 +108,7 @@ void executeInstAction::triggerAction(arch *a)
                     {
 						m_action = NULL;
                     }
-                } 
+                }
                 delete currentAction;
                 currentAction = previous; //rewind (previous may be NULL)
             } 

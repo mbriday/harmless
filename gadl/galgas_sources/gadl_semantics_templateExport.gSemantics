@@ -1,0 +1,128 @@
+semantics gadl_semantics_templateExport :
+  import "gadl_options.gOption" ;
+  import "gadl_semantics_implementation_code_generation.gSemantics" ;
+  import "gadl_semantics_implementation.gSemantics" ;
+
+## setter for instDeclaration (for getter function in generated code).
+reader @instDeclaration setter
+  -> @string str
+:
+  switch access
+  when programCounter,GPR,SFR:
+    str := "\t\t\tm_".[[selfcopy name] string]." = value;";
+  when registerSlice:
+    error here: "internal error: @instDeclaration getter with slice":str;
+  when localVar, field:
+    str := [[selfcopy name] string];
+  end switch;
+end reader;
+
+
+override reader @instDeclarationRegSlice setter
+  -> @string str
+:
+  switch access
+  when programCounter,GPR,SFR,localVar, field:
+    error here: "internal error: @instDeclaration getter with slice":str;
+  when registerSlice:
+    str := "\t\t\t".[[type getBaseType] getCType] ." __temp = ".[idf string]."();\n";
+    str .= "\t\t\t__temp = ".[fieldList getAssignCode ![@codeCtx C] !"__temp" !"value"].";\n";
+    str .= "\t\t\tset".[idf string]."(__temp);";
+  end switch;
+end reader;
+
+## getter for instDeclaration (for getter function in generated code).
+reader @instDeclaration getter
+  -> @string str
+:
+  switch access
+  when programCounter,GPR,SFR:
+    str := "return m_".[[selfcopy name] string].";";
+  when registerSlice:
+    error here: "internal error: @instDeclaration getter with slice":str;
+  when localVar, field:
+    str := [[selfcopy name] string];
+  end switch;
+end reader;
+
+override reader @instDeclarationRegSlice getter
+  -> @string str
+:
+  switch access
+  when programCounter,GPR,SFR,localVar, field:
+    error here: "internal error: @instDeclaration getter with slice":str;
+  when registerSlice:
+    str := "return ".[fieldList getExpCode ![@codeCtx C] !"m_".[idf string]].";";
+  end switch;
+end reader;
+
+method @varIdfStruct setInTemplate
+  ?! @TfieldMap templateStruct
+:
+  @TfieldMap idfStructBody [emptyMap];
+  
+  #program counter specific
+  [selfcopy->varMap checkProgramCounter ?@varBaseType typePC ?@lstring PCname];
+  addStringValue !?idfStructBody !lstringWith[!"PC_SIZE_IN_BITS"] ! [[typePC size] string];
+  addStringValue !?idfStructBody !lstringWith[!"PC_C_TYPE"] ![typePC getCType];
+  addStringValue !?idfStructBody !lstringWith[!"PC_NAME"] ![PCname string];
+
+  @TfieldMapList varListTpl [emptyList];
+  #varMap -> registers : type and name
+  foreach varMap do
+    @TfieldMap varMapRegBody [emptyMap];
+    addLStringValue !?varMapRegBody !"name" !lkey;
+    @string typeStr := [[type getBaseType] getCType]; #only base types supported for now.
+    addStringValue !?varMapRegBody !lstringWith[!"type"] !typeStr;
+    addBoolValue !?varMapRegBody !lstringWith[!"constant"] !constant;
+    addUnsignedValue !?varMapRegBody !lstringWith[!"varClassId"] ![varClass id];
+    @uint size := 0;
+    if (type is >= @varBaseType) then
+      size := [[type getBaseType] size];
+    end if;
+    addUnsignedValue !?varMapRegBody !lstringWith[!"size"] ![size uint64]; #size in bits.
+
+    #getter code.
+    addStringValue !?varMapRegBody !lstringWith[!"getter"] ![inst getter];
+    
+    #setter code.
+    addStringValue !?varMapRegBody !lstringWith[!"setter"] ![inst setter];
+
+    varListTpl += !varMapRegBody;
+  end foreach;
+  addListValue !?idfStructBody !lstringWith[!"varList"] !varListTpl;
+  
+  #to be done in a memSpaceMap category
+  @TfieldMapList memSpaceListTpl [emptyList];  
+  foreach memSpaceMap do
+    @TfieldMap memSpaceMapBody [emptyMap];
+    addLStringValue !?memSpaceMapBody !"name" !lkey;
+    addUnsignedValue !?memSpaceMapBody !lstringWith[!"width"] ![width uint64]; #bus width
+    addBoolValue !?memSpaceMapBody !lstringWith[!"isProgram"] !isProgram;
+    addUnsignedValue !?memSpaceMapBody !lstringWith[!"stride"]  ![stride uint64];
+    @TfieldMapList memSpaceAccessSizeTpl [emptyList];
+    foreach methodMap do
+      @TfieldMap methodMapBody [emptyMap];
+      @uint methodSize := [[outType getBaseType] size];
+      if methodSize > 0 then #return u0 in write accessor.
+        addUnsignedValue !?methodMapBody !lstringWith[!"size"] ![methodSize uint64]; #method size (access)
+        memSpaceAccessSizeTpl += !methodMapBody;    
+      end if;
+    end foreach;
+    addListValue !?memSpaceMapBody !lstringWith[!"methodSizeList"] !memSpaceAccessSizeTpl;
+    memSpaceListTpl += !memSpaceMapBody;    
+  end foreach;
+  addListValue !?idfStructBody !lstringWith[!"memSpaceList"] !memSpaceListTpl;
+  
+  #typedefMap -> memberList - declaration , name, component!!
+  #componentMap -> à faire en 2 fois (componentMap et functionMap)
+  #memSpaceMap ? -> pas sûr
+#  foreach selfcopy->varMap do
+#  end foreach;
+  #typedefMap
+  addStructValue !?templateStruct !lstringWith[!"idfStruct"] !idfStructBody;
+end method;
+
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

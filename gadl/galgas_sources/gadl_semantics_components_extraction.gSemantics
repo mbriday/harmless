@@ -11,42 +11,47 @@ semantics gadl_semantics_components_extraction :
 ## getting components inside an expression
 #############################################################################
 #default: not adding nodes.
-method @cExpression getComponents 
+method @expression getComponents 
   ?? @graphNodeList unused nextNodeList # list of successors.
   !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
 :
   rootNodeList := [@graphNodeList emptyList];
 end method;
 
-#@cExpDummy               -> nothing.
-#@cExpInstructionSize     -> nothing.
-#@cExpInstructionAddress  -> nothing.
+# * expDummy              -> nothing
+# * expIntConst           -> nothing
+# * expInstructionSize    -> nothing
+# * expInstructionAddress -> nothing
+# * expIdf                -> done -> here is the hard work!
+# * expCast               -> done
+# * expBitFieldOp         -> done
+# * expUnary              -> done
+# * expBinary             -> done
+
 #@cIdf                    -> nothing.
-#@cUintConst              -> nothing.
-#@cSliceFieldOp           -> nothing.
-#@cUintConst              -> nothing.
-override method @cTabIndice  getComponents
+
+#override method @cTabIndice  getComponents
+#  ?? @graphNodeList nextNodeList # list of successors.
+#  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
+#:
+#  [expIndice getComponents !nextNodeList ?rootNodeList];
+#end method;
+
+override method @expCast getComponents
   ?? @graphNodeList nextNodeList # list of successors.
   !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
 :
-  [expIndice getComponents !nextNodeList ?rootNodeList];
+  [expCasted getComponents !nextNodeList ?rootNodeList];
 end method;
 
-override method @cCast getComponents
-  ?? @graphNodeList nextNodeList # list of successors.
-  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
-:
-  [expression getComponents !nextNodeList ?rootNodeList];
-end method;
-
-override method @cBitFieldOp  getComponents
+override method @expBitFieldOp  getComponents
   ?? @graphNodeList nextNodeList # list of successors.
   !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
 :
   [expField getComponents !nextNodeList ?rootNodeList];
 end method;
 
-override method @cUnaryOp  getComponents
+override method @expUnary  getComponents
   ?? @graphNodeList nextNodeList # list of successors.
   !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
 :
@@ -56,8 +61,8 @@ end method;
 #internal routine used by "getComponents" of @cExpression that
 #handle 2 sub-expressions.
 routine getComponentsIn2Expressions
-  ?? @cExpression expRight
-  ?? @cExpression expLeft
+  ?? @expression expRight
+  ?? @expression expLeft
   ?? @graphNodeList nextNodeList # list of successors.
   !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
 :
@@ -72,72 +77,53 @@ routine getComponentsIn2Expressions
   end if;
 end routine;
 
-override method @cBinaryBasicOp  getComponents
+override method @expBinary  getComponents
   ?? @graphNodeList nextNodeList # list of successors.
   !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
 :
   getComponentsIn2Expressions !expRight !expLeft !nextNodeList ?rootNodeList;
 end method;
 
-override method @cRotationOp  getComponents
-  ?? @graphNodeList nextNodeList # list of successors.
-  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
-:
-  getComponentsIn2Expressions !expRight !expLeft !nextNodeList ?rootNodeList;
-end method;
-
-override method @cXorOp  getComponents
-  ?? @graphNodeList nextNodeList # list of successors.
-  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
-:
-  getComponentsIn2Expressions !expRight !expLeft !nextNodeList ?rootNodeList;
-end method;
-
-override method @cCatOp  getComponents
-  ?? @graphNodeList nextNodeList # list of successors.
-  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
-:
-  getComponentsIn2Expressions !expRight !expLeft !nextNodeList ?rootNodeList;
-end method;
-
-import "gadl_semantics_function.gSemantics";
-override method @cfunctionCall getComponents
+override method @expIdf getComponents
   ?? @graphNodeList nextNodeList # list of successors.
   !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
 :
   rootNodeList := [@graphNodeList emptyList];
-  @graphNodeList currentNextNodeList := nextNodeList;
-  foreach > paramList (@cExpression exp ...) do #foreach with reverse order.
-    [exp getComponents !currentNextNodeList ?rootNodeList];
-    if [rootNodeList length] > 0 then #there is a new root.
-      currentNextNodeList := rootNodeList;
-    end if;
-  end foreach;
-  if [rootNodeList length] == 0 then #last chunk was not a root, get back the target.
-    rootNodeList := currentNextNodeList;
-  end if;
-end method;
-
-override method @cComponentMethod getComponents ##this is the related expression.
-  ?? @graphNodeList nextNodeList # list of successors.
-  !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
-:
-  #parameters first.
-  rootNodeList := [@graphNodeList emptyList];
-  @graphNodeList currentNextNodeList := nextNodeList;
-  foreach > param (@cExpression exp ...) do #foreach with reverse order.
-    [exp getComponents !currentNextNodeList ?rootNodeList];
-    if [rootNodeList length] > 0 then #there is a new root.
-      currentNextNodeList := rootNodeList;
-    end if;
-  end foreach;
-  #then component call.
-  @lstringlist data [emptyList];
-  data += !componentName;
-  data += !methodName;
-  rootNodeList := [@graphNodeList emptyList];
-  @string uid := getGraphNodeUniqueId[![componentName string]."_".[methodName string] !currentNextNodeList];
-  rootNodeList += ![@graphNode new !data !currentNextNodeList !uid];
+  switch detectedType
+    when unknown,registerAccess,registerBitField,localVar: #nothing.
+    when structMember,tabularAccess: #maybe in parameter, or in the tab index.
+      @graphNodeList currentNextNodeList := nextNodeList;
+      foreach > idfList do
+        foreach > paramList (@expression exp ...) do #foreach with reverse order.
+          [exp getComponents !currentNextNodeList ?rootNodeList];
+          if [rootNodeList length] > 0 then #there is a new root.
+            currentNextNodeList := rootNodeList;
+          end if;
+        end foreach;
+      end foreach;
+      if [rootNodeList length] == 0 then #last chunk was not a root, get back the target.
+        rootNodeList := currentNextNodeList;
+      end if;
+    when componentCall,memoryAccess:
+      #parameters first.
+      @graphNodeList currentNextNodeList := nextNodeList;
+      foreach > idfList do      
+        foreach > paramList (@expression exp ...) do #foreach with reverse order.
+          [exp getComponents !currentNextNodeList ?rootNodeList];
+          if [rootNodeList length] > 0 then #there is a new root.
+            currentNextNodeList := rootNodeList;
+          end if;
+        end foreach;
+      end foreach;
+      #then component call.
+      @lstringlist data [emptyList];
+      foreach idfList do
+        data += !idf;
+      end foreach;
+      rootNodeList := [@graphNodeList emptyList];
+      @string uid := getGraphNodeUniqueId[![idfList string] !currentNextNodeList];
+      rootNodeList += ![@graphNode new !data !currentNextNodeList !uid];
+  end switch;
 end method;
 
 #############################################################################
@@ -145,38 +131,33 @@ end method;
 #############################################################################
 
 #default: not adding nodes.
-method @cInstruction getComponents 
+method @instruction getComponents 
   ?? @graphNodeList unused nextNodeList # list of successors.
   !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
 :
   rootNodeList := [@graphNodeList emptyList];
 end method;
 
-override method @cCompMethodCall getComponents ##this is the related instruction.
+override method @instFunctionCall getComponents ##this is the related instruction.
   ?? @graphNodeList nextNodeList # list of successors.
   !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
 :
-  @lstringlist data [emptyList];
-  data += !componentName;
-  data += !methodName;
-  rootNodeList := [@graphNodeList emptyList];
-  @string uid := getGraphNodeUniqueId[![componentName string]."_".[methodName string] ! nextNodeList];
-  rootNodeList += ![@graphNode new !data !nextNodeList !uid];
+  [exp getComponents !nextNodeList ?rootNodeList];
 end method;
 
-override method @cIfBlock getComponents 
+override method @instIf getComponents 
   ?? @graphNodeList nextNodeList # list of successors.
   !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
 :
   @graphNodeList IfNodeList   := [@graphNodeList emptyList];
   @graphNodeList ElseNodeList := [@graphNodeList emptyList];
-  getComponentsInInstructionList !ifInstList   !nextNodeList ?IfNodeList;
-  getComponentsInInstructionList !elseInstList !nextNodeList ?ElseNodeList;
+  getComponentsInInstructionList !instIfList   !nextNodeList ?IfNodeList;
+  getComponentsInInstructionList !instElseList !nextNodeList ?ElseNodeList;
   MergeGraphNodeList ?rootNodeList !IfNodeList !ElseNodeList;
 #  rootNodeList := IfNodeList . ElseNodeList;
 end method;
 
-override method @cAssign getComponents 
+override method @instAssignment getComponents 
   ?? @graphNodeList nextNodeList # list of successors.
   !  @graphNodeList rootNodeList # the root (may have 0, 1 or more nodes).
 :
@@ -191,7 +172,7 @@ routine getComponentsInInstructionList
 :
   rootNodeList := [@graphNodeList emptyList];
   @graphNodeList currentNextNodeList := nextNodeList;
-  foreach > instList (@cInstruction inst) do #foreach with reverse order.
+  foreach > instList do #foreach with reverse order.
     [inst getComponents !currentNextNodeList ?rootNodeList];
     if [rootNodeList length] > 0 then #there is a new root.
       currentNextNodeList := rootNodeList;
@@ -207,25 +188,27 @@ end routine;
 #############################################################################
 
 routine getInstructionComponentGraph
-  ?? @instructionListMap instListMap 
+  ?? @decodedBehaviorMap decodedBehaviorMap 
   ?? @defaultSection defaultValues #user fetch.
   !  @graphNodeMap componentAccessMap
 :
   componentAccessMap := [@graphNodeMap emptyMap];
-  foreach instListMap (@lstring instName @instructionList instListConst) do
+  foreach decodedBehaviorMap (@lstring instName * @instructionList instListConst *) do
     @instructionList instList := instListConst; #local copy.
     #we add the implicit fetch.
+    @idfItemList idfList [emptyList];
     if not isThereAUserFetch[!defaultValues] then
-      @lstring comp := [@lstring new !"__fetch_component" !here];
-      @lstring meth := [@lstring new !"__implicit_fetch" !here];
-      @cCompMethodCall implicitFetch := [@cCompMethodCall new !here !comp !meth ![@parameterCallList emptyList]];
-      [!?instList insertAtIndex !implicitFetch !0];
+      idfList += !lstringWith[!"__fetch_component"] ![@idfItemType basic] ![@expressionlist emptyList];
+      idfList += !lstringWith[!"__implicit_fetch"] ![@idfItemType functionCall] ![@expressionlist emptyList];
     else
-      @lstring comp := [defaultValues fetchComponentName];
-      @lstring meth := [defaultValues fetchMethodName];
-      @cCompMethodCall explicitFetch := [@cCompMethodCall new !here !comp !meth ![@parameterCallList emptyList]];
-      [!?instList insertAtIndex !explicitFetch !0];
+      idfList += ![defaultValues fetchComponentName] ![@idfItemType basic] ![@expressionlist emptyList];
+      idfList += ![defaultValues fetchMethodName] ![@idfItemType functionCall] ![@expressionlist emptyList];
     end if;
+    @varBaseType dummyType := [@varBaseType new ![@varKind unsigned] !0 !here];
+    @expIdf idf := [@expIdf new !dummyType !idfList ![@idfType componentCall] !false !""];
+
+    @instruction fetch := [@instFunctionCall new !here !idf];
+    [!?instList insertAtIndex !fetch !0];
     #ok, done. Now, construct the graph.
     @graphNodeList nextNodeList [emptyList];
     @graphNodeList rootNodeList;

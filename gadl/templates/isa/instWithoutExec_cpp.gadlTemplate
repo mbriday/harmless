@@ -2,7 +2,7 @@
 #include "instruction.h" //first for precompiled headers
 #include <iostream>
 #include "macro.h"
-#include "arch.h"
+#include "core.h"
 #include "utils.h"
 
 using namespace std;
@@ -13,7 +13,7 @@ void %!MODELNAME%_instruction::release() {
 	if(!m_user) delete this;
 }
 
-void %!MODELNAME%_instructionStall::execute(arch *_arch){}
+void %!MODELNAME%_instructionStall::execute(core *_core){}
 
 // instructions without any behavior...
 
@@ -26,7 +26,7 @@ end if
 foreach inst in INST_CONSTRUCTOR do
   if not exists instWithCodeMap[inst::name] then
     #no behavior -> add a default one.
-    %void %!inst::name%::execute(arch *_arch){\n%
+    %void %!inst::name%::execute(core *_core){\n%
     %\tcerr << "instruction %!inst::name% have no behavior defined" << endl;\n%
     %}\n%
   end if

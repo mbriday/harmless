@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <string> /* for instruction mnemonique */
 
-class arch;
+class core;
 
 /** base class of all the instruction object. Should not be instantiated.
   */
@@ -21,11 +21,11 @@ class %!MODELNAME%_instruction {
 	* when the instruction is read. It corresponds to the pipeline
 	* register of the instruction pointer.
 	*/
-	const %!PC_C_TYPE% m_pc;
+	const %!idfStruct::PC_C_TYPE% m_pc;
 
 	public:
 
-    %!MODELNAME%_instruction(const %!PC_C_TYPE% instructionPointer);
+    %!MODELNAME%_instruction(const %!idfStruct::PC_C_TYPE% instructionPointer);
     virtual ~%!MODELNAME%_instruction() {};
 
 	/// this method is only used to know if an the instruction is a 
@@ -34,16 +34,16 @@ class %!MODELNAME%_instruction {
 	virtual bool isInstAction() {return false;};
 
 	/// \return the value of the instruction pointer in the pipeline.
-	inline %!PC_C_TYPE% const getInstructionPointer() {return m_pc;};	
+	inline %!idfStruct::PC_C_TYPE% const getInstructionPointer() {return m_pc;};	
 	///mnemonic of the instruction
 	virtual const char* const mnemo() {return "MNEMO_NOT_DEFINED";};
 	
 	/** Fonction that effectively execute the instruction. This methods
 	 *  body is lead by the 'behavior' description in Harmless.
-	 *  the arch pointer is not stored in the instruction to save space 
+	 *  the core pointer is not stored in the instruction to save space 
 	 *  many instruction may be in cache.
 	 */
-	virtual void execute(arch *) = 0;
+	virtual void execute(core *) = 0;
 
 	/** @return the size of the instruction code in bytes.
         if the instruction size is not based on a multiple
@@ -106,10 +106,10 @@ class %!MODELNAME%_instructionStall : public %!MODELNAME%_instruction
   const %!INST_DEFAULT_SIZE_C_STR% m_code; //code of the first chunk of the instruction.
   public:
 	///class code should be 0
-	%!MODELNAME%_instructionStall(const %!PC_C_TYPE% instructionPointer=0, const %!INST_DEFAULT_SIZE_C_STR% code = 0)
+	%!MODELNAME%_instructionStall(const %!idfStruct::PC_C_TYPE% instructionPointer=0, const %!INST_DEFAULT_SIZE_C_STR% code = 0)
 		: %!MODELNAME%_instruction(instructionPointer), m_code(code) {};
 	virtual ~%!MODELNAME%_instructionStall() {};
-	virtual void execute(arch *); // nop
+	virtual void execute(core *); // nop
 	virtual const char* const mnemo() 
 	{
 		char *result = new char[64];

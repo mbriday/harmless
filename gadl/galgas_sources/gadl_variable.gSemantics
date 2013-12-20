@@ -1,363 +1,147 @@
 semantics gadl_variable :
   import "gadl_options.gOption" ;
+  import "gadl_types.gSemantics" ;
+  import "gadl_semantics_instruction.gSemantics" ;
   
-  
-enum @varKind {
-  unsigned, signed, float,type
-}
 
-reader @varKind msg -> @string outResult :
-  switch selfcopy
-    when unsigned : outResult := "an unsigned integer" ;
-    when signed   : outResult := "a signed integer" ;
-    when float    : outResult := "a float" ;
-    when type     : outResult := "a new type" ;
-  end switch ;
-end reader ;
-
-#----------------------------------------------------------------------------
-#-------------------------- variables  type TAB
-#----------------------------------------------------------------------------
-
-#--------------------------
-class @varTabType extends @varType {
-  #@lstring idTabType;
-  @uint tabSize;
-  @string nm;
-  @lstring composant;
-}
-override method @varTabType getDeclaration !@string str ?@string idf :
-  @string typeDec := [selfcopy  getCType]; 
-  str:= typeDec." ".idf."[".tabSize."]" ;
-end method;
-
-override reader @varTabType getCType
-  -> @string str 
-:
-   if kind == [@varKind unsigned] then 
-    str := "u"; 
-  elsif kind == [@varKind signed] then 
-    str := "s";
-  elsif kind == [@varKind float] then 
-    str := "f";
-  elsif kind == [@varKind type] then 
-    str := "gadl_type_".[composant string]."_".nm;
-  else
-    error location: "3 -- internal error: unable to determine the kind of variable";
-    
-    str := "";
-  end if;
-  @uint size2;
-  getCSizeFor !size ?size2; 
-  if kind != [@varKind type] then 
-     str .=[size2 string];
-  end if;
-  #str .= "[".tabSize."]" ; 
-end reader;
-
-override method @varTabType getCSize !@uint str :
- str := size;
-end method;
-
-override method @varTabType getStringType !@string str :
-  if kind == [@varKind unsigned] then 
-    str := "u"; 
-  elsif kind == [@varKind signed] then 
-    str := "s";
-  elsif kind == [@varKind float] then 
-    str := "f";
-  elsif kind == [@varKind type] then 
-    str := [composant string]."_".nm;
-  else
-    error location: "4 -- internal error: cannot know the kind of variable";
-    str := "";
-  end if;
-  @uint size2;
-  getCSizeFor !size ?size2; 
-  if kind != [@varKind type] then 
-    str .=[size2 string];
-   end if;
-end method;
-#----------------------------------------------------------------------------
-#-------------------------- variables  type DEF
-#----------------------------------------------------------------------------
-class @VarTypeDef extends @varType {
-  @string idTabType;
-  @lstring CompName;
-}
-override reader @VarTypeDef getCType
-  -> @string str
-:
-  str := "gadl_type_".[CompName string]."_".idTabType; 
-end reader;
-
-override method @VarTypeDef getStringType !@string str :
-  str :=  "gadl_type_".[CompName string]."_".idTabType; 
-end method;
-#--------------------------
-class @TypeDef extends @varType {
-  @string idTabType;
-  @varTypeStructDefMap varTypeStructDefMap;
-}
-override reader @TypeDef getCType
-  -> @string str 
-:
-  if kind == [@varKind type] then 
-    str := idTabType; 
-  else
-    error location: "--->internal error: cannot know the kind of variable typedef";
-    str := "";
-  end if;
-end reader;
-
-override method @TypeDef getCSize !@uint str :
- str := 1;
-end method;
-
-override method @TypeDef getStringType !@string str :
-  str := idTabType ;
-end method;
-
-#----------------------------------------------------------------------------
-#-------------------------- variables 
-#----------------------------------------------------------------------------
-#void (in function return type) is equal to u0
-# a var type refers to the type of an integer variable: u1, s3, ...
-class @varType {
-    @varKind kind  ;
-    @uint size  ; #size in bits.
-    @location location  ;
-}
- 
-method @varType getDeclaration !@string str ?@string idf :
-  @string typeDec := [selfcopy getCType];
-  str:= typeDec." ".idf;
-end method;   
-
-method @varType getStringType !@string str :
-  if kind == [@varKind unsigned] then 
-    str := "u"; 
-  elsif kind == [@varKind signed] then 
-    str := "s";
-  elsif kind == [@varKind float] then 
-    str := "f";
-  elsif kind == [@varKind type] then 
-    str := "TEST TYPE ";
-  else
-    error location: "internal error: unable to determine the kind of variable";
-    str := "";
-  end if; 
-  str .= [size string];
-end method;
-
-method @varType getCSize !@uint Csize :
-  if kind == [@varKind unsigned] | kind == [@varKind signed] then
-    if size <= 8 then Csize := 8;
-    elsif size <= 16 then Csize := 16;
-    elsif size <= 32 then Csize := 32;
-    elsif size <= 64 then Csize := 64;
-    elsif size <= 128 then Csize := 128;
-    else Csize := 0; error location : "cannot handle size considered > 128 bits?";
-    end if;
-  elsif kind == [@varKind float] then
-    if size <= 32 then Csize := 32;
-    elsif size <= 64 then Csize := 64;
-    else Csize := 0; error location : "cannot handle size considered > 64 bits?";
-    end if;
-  else
-    error location: "internal error: unable to determine the kind of variable";
-    Csize := 0;
-  end if; 
-end method;
-
-reader @varType getUppaalType
-  -> @string str
-:
-  if kind != [@varKind unsigned] then
-    warning location : "error here: only unsigned ints are supported for Uppaal export.";
-  end if;
-  str := "int[0,";
-  @uint max := (1 << size) - 1;
-  if size > 8 then
-    warning location: "The variable size may be difficult to handle by the Uppaal model checker. Consider using variables of smaller size";
-  end if;
-  str .= [max string]."]";
-end reader;
-
-reader @varType getCType
-  -> @string str
-:
-  if kind == [@varKind unsigned] & (size == 0) then str := "void";
-  else
-    #kind
-    if kind == [@varKind unsigned] then 
-      str := "u"; 
-    elsif kind == [@varKind signed] then 
-      str := "s";
-    elsif kind == [@varKind float] then 
-      str := "f";
-    elsif kind == [@varKind type] then 
-         str := "TEST TYPE CTYPE 2";
-    else
-      error location: "vartype 3 internal error: unable to determine the kind of variable";
-      str := "";
-    end if; 
-    #size.
-    if kind == [@varKind unsigned] | kind == [@varKind signed] then
-      if size <= 8 then str .= "8";
-      elsif size <= 16  then str .= "16";
-      elsif size <= 32  then str .= "32";
-      elsif size <= 64  then str .= "64";
-      elsif size <= 128 then str .= "128";
-      else error location : "cannot handle size considered > 128 bits?";
-      end if;
-    elsif kind == [@varKind float] then
-      if size <= 32 then str .= "32";
-      elsif size <= 64 then str .= "64";
-      else error location : "cannot handle size considered > 64 bits?";
-      end if;
-    elsif kind == [@varKind type] then 
-      str := "TEST TYPE CTYPE";
-    else
-      error location: "vartype 4 internal error: cannot know the kind of variable";
-    end if; 
-  end if; 
-end reader;
-
-#list of @varType. Used in expressions. A list is required because methods can return more than one parameter.
-list @varTypeList {
-  @varType type ;
-}
-
-routine getCSizeFor
-  ?? @uint size
-  !  @uint CSize
-:
-  @varType sizeVar := [@varType new ![@varKind unsigned] !size !here];
-  [sizeVar getCSize ?CSize];
-end routine;
-
-#get the corresponding C type for a var Type: 
-#u3 -> u8 (i.e. unsigned char)
-routine getCTypeFor
-  ?? @uint size
-  !  @string CTypeString
-  !  @uint CSize
-:
-  @varType sizeVar := [@varType new ![@varKind unsigned] !size !here];
-  CTypeString := [sizeVar getCType];
-  [sizeVar getCSize ?CSize];
-end routine;
-
-#check that types are compatibles:
-#They should have the same kind.
-#type should have a larger size than typeOut (value truncated in other cases).
-routine checkCorrectOutType 
-  ?? @varType type
-  ?? @varType outType 
-:
-  if ([type kind] != [outType kind]) then
-    Warning [outType location] : "using variables of different kinds (unsigned, signed, float) !\n".
-            "Try to convert ".[[type kind] msg]." to ".[[outType kind] msg];
-  else 
-    @string t :="";
-    @string c :="";
-    @string t2 :="";
-    @string c2 :="";
-
-    @varKind knd :=[type  kind];
-    if knd  == [@varKind type] then 
-      cast type
-      when == @varTabType tabtype :
-        t := [tabtype nm];
-        c := [[tabtype composant] string];
-      when == @VarTypeDef typeDef : 
-        t := [typeDef idTabType];
-        c := [[typeDef CompName] string];
-      end cast;
-      cast outType
-      when == @varTabType tabtype : 
-        t2 := [tabtype nm];
-        c2 := [[tabtype composant] string];
-      when == @VarTypeDef typeDef : 
-        t2 := [typeDef idTabType];
-        c2 := [[typeDef CompName] string];
-      end cast;
-      if t != t2 |  c != c2 then
-        error here :"type are different :".t2.".".c2." and ".t.".".c;
-      end if;       
-    end if;  
-  end if;
-  if ([type size] < [outType size]) then 
-    if [option gadl_options.warnIfResultMayBeTruncated value] then
-    Warning [outType location] : "result may be truncated!\n".
-        "Try to store a value of " .[[outType size] string] ." bit(s) in ".[[outType location] locationString]."\n".
-        "in a data defined with only ". [[type size] string] ." bit(s) in ".[[type location] locationString];
-    Warning [type location] : "result may be truncated!\n".
-        "Try to store a value of " .[[outType size] string] ." bit(s) in ".[[outType location] locationString]."\n".
-        "in a data defined with only ". [[type size] string] ." bit(s) in ".[[type location] locationString];
-    end if;
-  end if;
-end routine;
+#useful functions:
+# checkTypeExists -> check recursively that member types are defined: 
+#                    generate an error if there is a pb.
 
 #variables declared in implementation parts. May be either:
 #  * a classic variable (use of a C++ internal type during generation)
-#  * a register defined in a memory part (that may trigger action)
-abstract class @abstractVar {
-  @varType type  ; #sign and length.
-  @bool constant; #true if the variable is constant, false else.
+#  * a register
+
+enum @varClass {
+  programCounter,
+  GPR,            #will be used in data dependency controller
+  SFR,
+  registerSlice,
+  localVar,
+  field
 }
 
-class @classicVar extends @abstractVar{
-  @string prefix;  #name used for code generation.
-  @string suffix;  #name used for code generation.
-}
-
-enum @regType {
-  componentRegister,
-  componentRegisterPart,
-  componentProgramCounter, #Warning: it should be defined in memory
-  memoryRegister,
-  memoryRegisterPart,
-  memoryProgramCounter #Warning: it should be defined in component
-}
-
-reader @regType msg -> @string outResult :
+reader @varClass msg -> @string outResult :
   switch selfcopy
-    when componentRegister        : outResult := "a register defined in a component" ;
-    when componentRegisterPart    : outResult := "a register slice defined in a component" ;
-    when componentProgramCounter  : outResult := "a program counter defined in a component" ;
-    when memoryRegister           : outResult := "a register defined in a component memory" ; 
-    when memoryRegisterPart       : outResult := "a register slice defined in a component memory" ;
-    when memoryProgramCounter     : outResult := "a program counter defined in a component memory" ;
+    when programCounter : outResult := "the program counter" ;
+    when GPR            : outResult := "a general purpose register" ;
+    when SFR            : outResult := "a special function register" ; 
+    when registerSlice  : outResult := "a register slice" ; 
+    when localVar       : outResult := "a local variable" ;     
+    when field          : outResult := "a binary field of instruction" ;     
   end switch ;
 end reader ;
 
-class @registerVar extends @abstractVar {
-  @regType regType;
+#reader for template export. not very clean
+reader @varClass id -> @uint64 outResult:
+  switch selfcopy
+    when programCounter : outResult := 0L;
+    when GPR            : outResult := 1L;
+    when SFR            : outResult := 2L;
+    when registerSlice  : outResult := 3L;
+    when localVar       : outResult := 4L;
+    when field          : outResult := 5L;
+  end switch ;
+end reader ;
+
+map @varMap {
+  #3 first arguments are redondants with instDeclaration…
+  @varAbstractType type  ;#return type:scalar, custom or tabular.
+  @bool constant; #true if the variable should not be modified.
+  @varClass varClass;
+  @instDeclaration inst;
+  insert insertKey error message "the '%K' symbol is already defined in %L" ; 
+  search searchKey error message "the '%K' symbol is not defined" ;
+  remove removeKey error message "the '%K' symbol is not defined. Can't remove it." ;
 }
 
-class @registerVarSlice extends @registerVar {
-  @lstring baseRegisterName;
+#check that the program counter is:
+# * is defined
+# * is not defined twice
+# * has a correct type (varBaseType, unsigned)
+# * is not constant
+# -> return the type.
+method @varMap checkProgramCounter
+  ! @varBaseType typePC
+  ! @lstring name
+:
+  name := [@lstring new !"" !here]; #dummy init
+  typePC := [@varBaseType new ![@varKind unsigned] !1 !here];
+  @bool found := false;
+  foreach selfcopy do
+    if varClass == [@varClass programCounter] then
+      if not found then
+        #Ok. First time found.
+        name := lkey;
+        typePC := [type getBaseType];
+        if [typePC kind] != [@varKind unsigned] then
+          error lkey: "The program counter type should be unsigned. It is defined as ".[[typePC kind] msg];
+        end if;
+        if constant then
+          error lkey: "The program counter should not be declared constant";
+        end if;
+        found := true;
+      else
+        #error: 2 program counters.
+        error lkey: "The program counter is defined twice, this is not allowed in description";
+        error name: "The program counter is defined twice, this is not allowed in description";
+      end if;
+    end if;
+  end foreach;
+  if not found then
+    error here: "No program counter defined in Instruction Set Architecture.";
+  end if;
+end method;
+
+
+reader @varMap string
+  -> @string str
+:
+  str := "\n";
+  foreach selfcopy do
+    str .= "\t".[lkey string]." -> ".[varClass msg];
+    if constant then str .= ", const"; end if;
+    str .= " (".[type string].")";
+  between str .= "\n";
+  end foreach;
+end reader;
+
+#*****************************************************************************
+#* maps related to structured types (custom)
+#*****************************************************************************
+
+map @typedefMemberMap {
+  @varAbstractType type;
+  insert insertKey error message "the '%K' member is already defined in %L" ; 
+  search searchKey error message "the '%K' member is not defined in map" ;
 }
-#Type TypeDefMap
-map @TypeStructDefMap{
-  @TypeDef TypeDef;
-  insert insertKey error message "the '%K' type is already defined in %L" ; 
-  search searchKey error message "the '%K' type is not defined" ;
+
+map @typedefMap {
+  @typedefMemberMap typedefMemberMap;
+  insert insertKey error message "the '%K' member is already defined in %L" ; 
+  search searchKey error message "the '%K' member is not defined in map" ;
 }
-map @varTypeStructDefMap{
-  @varType type;
-  insert insertKey error message "the '%K' type is already defined in %L" ; 
-  search searchKey error message "the '%K' type is not defined" ;
+
+function getRegSliceName
+  ?? @string registerName
+  ?? @string sliceName
+  -> @string regSliceName
+:
+  regSliceName := registerName."_".sliceName;
+end function;
+
+
+#*****************************************************************************
+#  @instDeclaration should be declared here, because of varMap.
+#*****************************************************************************
+
+class @instDeclaration extends @instruction {
+  @varAbstractType type;
+  @lstring idf feature nogetter; #should not be used directly -> use the 'name' reader instead.
+  @varClass access;
+  @string prefixLocal; #used to get a unique local var name.
 }
-# variable declared. Key is the identifier.
-map @varMap {
- @abstractVar var;
- insert insertKey error message "the '%K' symbol is already defined in %L" ; 
- search searchKey error message "the '%K' symbol is not defined" ;
-}
+
 
 end semantics ;
-
 # vim:ft=ggs:ts=2:sw=2

@@ -1,0 +1,104 @@
+syntax gadl_components_parser ("gadl_lexique.gLexique") :
+  import "gadl_components.gSemantics" ;
+  import "gadl_variable.gSemantics" ; #varClass.
+
+#from gadl_implementation_parser
+nonterminal <typeDeclaration> ! @varAbstractType type;
+nonterminal <implementationOrEmpty> ?! @ASTInstructionList instList;
+nonterminal <typeDefinition> ?! @ASTInstructionList instList;
+nonterminal <declaration> ?! @ASTInstructionList instList;
+#from gadl_expression_parser
+nonterminal <bitField> !@ASTfieldList fieldList;
+
+#from gadl_function_parser
+#not the outType and functionName in the rule due to grammar LL1 restrictions.
+nonterminal <functionDef> 
+  ?? @varAbstractType outType
+  ?? @lstring functionName
+  ?! @ASTFunctionMap ASTFunctionMap
+;
+
+#TODO: should be moved.
+rule <registerDef>
+  ?! @ASTInstructionList regDefList
+:
+  @varClass varClass;
+  select
+    $register$;
+    varClass := [@varClass GPR];
+  or
+    $program$; $counter$;
+    varClass := [@varClass programCounter];
+  end select;
+  @varAbstractType type;
+  <typeDeclaration> ?type;
+  @lstring idf;
+  $idf$ ?idf;
+  regDefList += ![@ASTInstDeclaration new !here !varClass !type !idf];
+  select
+  or
+    <registerBitAccessDef> !idf !type !?regDefList;
+  end select;
+end rule;
+
+rule <registerBitAccessDef>
+  ?? @lstring regName
+  ?? @varAbstractType type
+  ?! @ASTInstructionList regDefList
+:
+  ${$;
+  repeat
+  while
+    @lstring bitFieldName;
+    $idf$ ?bitFieldName;
+    $:=$; $slice$;
+    @ASTfieldList fieldList;
+    <bitField> ?fieldList;
+    regDefList += ![@ASTInstDeclarationRegSlice new !here 
+                                ![@varClass registerSlice] !type !regName 
+                                !bitFieldName !fieldList];
+  end repeat;  
+  $}$;
+end rule;
+
+rule <component> 
+  ?! @ASTComponentMap ASTComponentMap
+  ?! @uint currentComponentId
+  ?! @lstringMap componentMapOrder
+:
+  @lstring compName;
+  $component$; 
+  $idf$ ?compName; 
+  ${$;
+    @ASTFunctionMap ASTFunctionMap [emptyMap];
+    #should contains typedef and local var allocation
+    @ASTInstructionList regDefList [emptyList];
+    repeat
+      select
+      #  #structured types definitions. -> TODO moved to peripheral
+      #  <typeDefinition> !?regDefList;
+      #or 
+        <registerDef> !?regDefList;
+      or
+        @varAbstractType type;
+        <typeDeclaration> ?type;
+        @lstring idf;
+        $idf$ ?idf;
+        #select #TODO: to remove: no local var in component.
+        #  #simple local var declaration
+        #  regDefList += ![@ASTInstDeclaration new !here ![@varClass localVar] !type !idf];
+        #or
+          #function def.
+          <functionDef> !type !idf !?ASTFunctionMap;
+        #end select;
+      end select;
+    while
+    end repeat;
+    [!?ASTComponentMap insertKey !compName !ASTFunctionMap !regDefList];
+    [!?componentMapOrder insertKey ![@lstring new !"comp_".[currentComponentId string] !here] !compName];
+    currentComponentId := currentComponentId + 1;
+  $}$;
+end rule;
+
+end syntax ;
+# vim:ft=ggs:ts=2:sw=2

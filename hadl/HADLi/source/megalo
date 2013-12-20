@@ -1,8 +1,0 @@
-
-model HADLi:KM3:EBNF
-model HADLi:TCS:EBNF
-model HADLd2HADLi:ATL:EBNF
-model HADLiPreschedule:ATL:EBNF
-model HADLiSchedule:ATL:EBNF
-model HADLiGroup:ATL:EBNF
-   

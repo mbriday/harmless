@@ -40,44 +40,44 @@ filewrapper templateFileWrapper in "../templates" {
 
 routine addBinary
   ?? @filewrapper fw
-  ?? @lstring modelName
+  ?? @lstring exportDir
   ?? @string fileName
 :
   const @data fileContents := [fw binaryFileContentsAtPath !fileName] ;
-  const @string directory := [modelName string]."/bin";
+  const @string directory := [exportDir string]."/bin";
   [directory makeDirectory];
   [fileContents writeToExecutableFile !directory."/".fileName];
 end routine;
 
 routine addStaticLibrary
   ?? @filewrapper fw
-  ?? @lstring modelName
+  ?? @lstring exportDir
   ?? @string libName
 :
   #first generate dirs.
   foreach [fw allDirectoryPathes] do
-    const @string dir := [modelName string].mValue;
+    const @string dir := [exportDir string].mValue;
     [dir makeDirectory] ;
   end foreach ;
   #second, the static lib (bin)
   @string binaryLibName := libName.".a";
   const @data fileContents := [fw binaryFileContentsAtPath !"lib/".binaryLibName];
-  const @string libDir := [modelName string]."/lib";
+  const @string libDir := [exportDir string]."/lib";
   [libDir makeDirectory];
   [fileContents writeToFileWhenDifferentContents !libDir."/".binaryLibName ?*];
   #then the include dir (and subdirs)
   foreach [fw allTextFilePathes] do
     const @string contents := [fw textFileContentsAtPath !mValue] ;
-    [contents writeToFileWhenDifferentContents ![modelName string].mValue ?*] ;
+    [contents writeToFileWhenDifferentContents ![exportDir string].mValue ?*] ;
   end foreach ;
 end routine;
 
 routine addFileWrappers
-  ?? @lstring modelName
+  ?? @lstring exportDir
 :
-  addBinary        ![filewrapper a2cppFileWrapper]  !modelName !"a2cpp";
-  addBinary        ![filewrapper p2aFileWrapper]    !modelName !"p2a";
-  addStaticLibrary ![filewrapper libelfFileWrapper] !modelName !"libelf";
+  addBinary        ![filewrapper a2cppFileWrapper]  !exportDir !"a2cpp";
+  addBinary        ![filewrapper p2aFileWrapper]    !exportDir !"p2a";
+  addStaticLibrary ![filewrapper libelfFileWrapper] !exportDir !"libelf";
 end routine;
 
 end semantics ;

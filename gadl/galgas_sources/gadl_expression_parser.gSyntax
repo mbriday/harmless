@@ -1,19 +1,14 @@
 syntax gadl_expression_parser ("gadl_lexique.gLexique") :
   import "gadl_options.gOption" ;
-  import "gadl_semantics.gSemantics" ;
-  import "gadl_semantics_expression.gSemantics" ;
-  import "gadl_semantics_implementation.gSemantics" ;
-  import "gadl_components.gSemantics" ;
-  import "gadl_semantics_function.gSemantics" ;  
-  import "gadl_semantics_pathElement.gSemantics";
+  import "gadl_semantics_AST_expression.gSemantics" ;
 
-#from implementation.
 
-nonterminal  <typeDeclaration> 
-  !  @varType type
-  ?? @componentMap componentMap
-  ?? @lstring compName
-;
+#TODO.
+#nonterminal  <typeDeclaration> 
+#  !  @varType type
+#  ?? @containerMap containerMap
+#  ?? @lstring compName
+#;
 
 #################################################
 #
@@ -21,7 +16,7 @@ nonterminal  <typeDeclaration>
 #     priority: (highest first)
 #     '(' ')'
 #     '{' '}'                    -> extract bit field from var
-#     '!' '~'                    -> unary operators ->not bnot
+#     '!' '~' '-'                -> unary operators
 #     '*' '/' '%'                -> multiply/divide
 #     '+' '-'                    -> add/sub
 #     '<<' '>>' 'ror' 'rol'      -> shift and rotation
@@ -43,971 +38,711 @@ nonterminal  <typeDeclaration>
 # comparison: Warn if sign is different.
 #################################################
 
+# TODO:check
+#rule <componentMethodCall>
+#  !  @lstring methodName
+#  !  @parameterCallList param
+#  ?? @varMap varMap
+#  ?? @containerMap containerMap
+#  ?? @lstring componentName
+#  !  @bool isBitRegisterAccess #true->reg bit access, false->method call.
+#  ?? @bool checkParameters
+#  ?? @expressionContext expContext
+#:
+#  $idf$ ?methodName;
+#  @parameterDefList paramDef [emptyList];
+#  @functionMap methodMap [emptyMap];
+#  @bool ok := false;
+#  #is that only a bit access??
+#  @string bitAccessName := [componentName string]."_".[methodName string];
+#  if [varMap hasKey !bitAccessName] then
+#    #yes: register bit access.
+#    isBitRegisterAccess := true;
+#  else
+#    isBitRegisterAccess := false;
+#    #no: method access 
+#    [containerMap searchKey !componentName ?* ?* ?methodMap ?* ?* ?* ?* ?* ?*];
+#    if [methodMap hasKey ![methodName string]] then #component method or component mem access.
+#      [methodMap searchKey !methodName ?paramDef ?* ?*];
+#      ok := true;
+#    end if;
+#  end if;
+#  select
+#    select
+#      #no parameters or register bit access.
+#      param := [@parameterCallList emptyList];
+#    or
+#      $.$;
+#      @lstring chunkName;
+#      $idf$ ?chunkName;
+#      methodName := [@lstring new ![methodName string]."_".[chunkName string] !here];
+#      if [methodMap hasKey ![methodName string]] then #component chunk mem access.
+#        [methodMap searchKey !methodName ?paramDef ?* ?*];
+#        ok := true;
+#      end if;
+#      select
+#        select
+#          param := [@parameterCallList emptyList];
+#        or
+#          $.$;
+#          @lstring aliasName;
+#          $idf$ ?aliasName;
+#          methodName := [@lstring new ![methodName string]."_".[aliasName string] !here];
+#          if [methodMap hasKey ![methodName string]] then #component alias mem access.
+#            [methodMap searchKey !methodName ?paramDef ?* ?*];
+#            ok := true;
+#          end if;
+#          select
+#            param := [@parameterCallList emptyList];
+#          or
+#            <parameterCall> ?param !varMap !containerMap !expContext;
+#          end select;
+#        end select;
+#      or
+#        <parameterCall> ?param !varMap !containerMap !expContext;
+#      end select;
+#    end select;
+#  or
+#    <parameterCall> ?param !varMap !containerMap !expContext;
+#  end select;
+#  if ok then
+#    if checkParameters then
+#      # parameter check.
+#      checkCallDefParameters !param !paramDef !here;
+#    end if;
+#  elsif not isBitRegisterAccess then
+#    error here: "The method is not defined for the component.";
+#  end if;
+#end rule;
 
-rule <componentMethodCall>
-  !  @lstring methodName
-  !  @parameterCallList param
-  ?? @varMap varMap
-  ?? @componentMap componentMap
-  ?? @lstring componentName
-  !  @bool isBitRegisterAccess #true->reg bit access, false->method call.
-  ?? @bool checkParameters
-  ?? @expressionContext expContext
+#TODO check
+#rule <parameterCall>
+#  ! @parameterCallList param
+#  ?? @varMap varMap
+#  ?? @containerMap containerMap
+#  ?? @expressionContext expContext
+#:
+#  param := [@parameterCallList emptyList];
+#  $($;
+#  select
+#  or
+#    repeat
+#      @cExpression exp;
+#      <expression> !varMap ?exp !containerMap !0 !expContext;
+#      param += !exp !here;
+#      #can not check for parameters here... we can call not yet defined functions. TODO elsewhere.
+#    while
+#    $,$;
+#    end repeat;
+#  end select;
+#  $)$;
+#end rule;
+
+#TODO check
+#rule <functionDef>
+#  ?? @varMap varMap
+#  !  @lstring functionName
+#  !  @parameterDefList param
+#  !  @varMap functionVarMap
+#:
+#
+#  functionVarMap := [@varMap mapWithMapToOverride !varMap];
+#  param := [@parameterDefList emptyList];
+#  $idf$ ?functionName;
+#  select
+#  or
+#    @string prefix :=  [functionName string]."_";
+#    <parameterDef> !prefix !?param !?functionVarMap;
+#  end select;
+#end rule;
+
+# TODO: check.
+#rule <parameterDef>
+#  ?? @string prefix
+#  ?! @parameterDefList param
+#  ?! @varMap varMap
+#:
+#  $($;
+#  select
+#  or
+#    repeat
+#      @bool out;
+#      select
+#        out := false;
+#      or
+#        $out$;
+#        out := true;
+#      end select;
+#      @varType type;
+#      @containerMap containerMap := [@containerMap emptyMap];
+#      @TypeStructDefMap TypeList [emptyMap];
+#      @lstring compName := [@lstring new !"CompNameNotdefined paramedef" !here];
+#      
+#      <typeDeclaration> ?type !containerMap  !compName;
+#      @lstring  paramName;
+#      $idf$ ?paramName;
+#      #var is constant if not declared out. else the variable should be modified.
+#      @classicVar var := [@classicVar new !type !not out !prefix !""];
+#      [!?varMap insertKey !paramName !var]; #TODO: no tabulars?
+#      param += !out !paramName !var;
+#    while
+#    $,$;
+#    end repeat;
+#  end select;
+#  $)$;
+#end rule;
+
+#TODO check
+#rule <pathElement>
+#  ?? @varMap varMap
+#  ?? @containerMap containerMap
+#  ?? @uint tmpId
+#  ?? @expressionContext expContext
+#  !  @pathElement node
+#:
+#  @pathElement child;
+#  @lstring name;
+#  $idf$ ?name;
+# 
+#  child :=[@nullChild new ];
+#  @parameterCallList param [emptyList];
+#  select 
+#    node := [@nodeIdf new !child !child !name];
+#  or
+#   <parameterCall> ?param !varMap !containerMap !expContext ;
+#   node := [@parameterCallElement new !child !child !name !param];
+#   #log param;
+# end select;
+# select 
+# 
+# or 
+#   $[$;
+#   @cExpression expTab;
+#   <expression> !varMap ?expTab !containerMap !tmpId !expContext;
+#   #if [node isParameterCall] then
+#    #  node := [@tabElementParameterCall new !child !child!name !expTab !param ];
+#   #else 
+#      node := [@tabElement new !child !child !name !expTab];
+#   #end if;
+#   $]$ ;
+#
+# end select;
+#end rule;
+#
+#TODO: Check
+#rule <pathName>
+#  ?? @varMap varMap
+#  ?? @containerMap containerMap
+#  ?? @uint tmpId
+#  ?? @expressionContext expContext
+#  ?? @lstring  currentComponent
+#  
+#  !@cExpression outExp
+#:
+#  @pathElement node; 
+#  node :=[@rootChild new ![@nullChild new ] ![@nullChild new ]];
+#  <pathNameRec> !varMap !containerMap !tmpId !expContext !?node;
+#  evalPath   !containerMap !varMap!node !currentComponent !tmpId ?outExp;
+#   #@varType outType := [@varType new ![@varKind unsigned] !8 !here];
+#   #outExp := [@cIntConst new !getTypeListFrom[!outType] !1L] ;
+#end rule;
+#
+#
+#
+#rule <pathNameRec>
+#  ?? @varMap varMap
+#  ?? @containerMap containerMap
+#  ?? @uint tmpId
+#  ?? @expressionContext expContext
+#  ?! @pathElement node
+#   
+#:
+#  @pathElement child;
+#  <pathElement> !varMap !containerMap !tmpId !expContext ?child;
+#  @bool v;
+#  v := [child hasChild ];
+#  if v then 
+#    [!?node setChild  !child];
+#  end if;
+#  select 
+#  or 
+#    $.$;<pathNameRec> !varMap !containerMap !tmpId !expContext !?child ;
+#  end select ;
+#end rule;
+
+rule <paramCall>
+  ! @ASTExpressionlist idfExpList
 :
-  $idf$ ?methodName;
-  @parameterDefList paramDef [emptyList];
-  @functionMap methodMap [emptyMap];
-  @bool ok := false;
-  #is that only a bit access??
-  @string bitAccessName := [componentName string]."_".[methodName string];
-  if [varMap hasKey !bitAccessName] then
-    #yes: register bit access.
-    isBitRegisterAccess := true;
-  else
-    isBitRegisterAccess := false;
-    #no: method access 
-    [componentMap searchKey !componentName ?* ?* ?methodMap ?* ?* ?* ?* ?* ?*];
-    if [methodMap hasKey ![methodName string]] then #component method or component mem access.
-      [methodMap searchKey !methodName ?paramDef ?* ?*];
-      ok := true;
-    end if;
-  end if;
+  idfExpList := [@ASTExpressionlist emptyList];
+  $($;
   select
+    #no param
+  or
+    repeat
+     @ASTExpression expCall;
+     <expression> ?expCall;
+     idfExpList += !expCall;
+    while
+      $,$;
+    end repeat;
+  end select;
+  $)$;
+end rule;
+
+rule <idf>
+  !  @ASTExpression exp
+:
+  @ASTidfItemList idfList [emptyList];
+  repeat
+    @lstring name;
+    $idf$ ?name;
+    @ASTExpressionlist idfExpList [emptyList];
     select
-      #no parameters or register bit access.
-      param := [@parameterCallList emptyList];
+      #just an idf
+      idfList += !name ![@idfItemType basic] !idfExpList;
     or
-      $.$;
-      @lstring chunkName;
-      $idf$ ?chunkName;
-      methodName := [@lstring new ![methodName string]."_".[chunkName string] !here];
-      if [methodMap hasKey ![methodName string]] then #component chunk mem access.
-        [methodMap searchKey !methodName ?paramDef ?* ?*];
-        ok := true;
-      end if;
-      select
-        select
-          param := [@parameterCallList emptyList];
-        or
-          $.$;
-          @lstring aliasName;
-          $idf$ ?aliasName;
-          methodName := [@lstring new ![methodName string]."_".[aliasName string] !here];
-          if [methodMap hasKey ![methodName string]] then #component alias mem access.
-            [methodMap searchKey !methodName ?paramDef ?* ?*];
-            ok := true;
-          end if;
-          select
-            param := [@parameterCallList emptyList];
-          or
-            <parameterCall> ?param !varMap !componentMap !expContext;
-          end select;
-        end select;
-      or
-        <parameterCall> ?param !varMap !componentMap !expContext;
-      end select;
+      #param call
+      <paramCall> ?idfExpList;
+      idfList += !name ![@idfItemType functionCall] !idfExpList;
+    or
+      #tab
+      @ASTExpression expInd;
+      $[$; <expression> ?expInd; $]$;
+      idfExpList += !expInd;
+      idfList += !name ![@idfItemType tabular] !idfExpList;
     end select;
-  or
-    <parameterCall> ?param !varMap !componentMap !expContext;
-  end select;
-  if ok then
-    if checkParameters then
-      # parameter check.
-      checkCallDefParameters !param !paramDef !here;
-    end if;
-  elsif not isBitRegisterAccess then
-    error here: "The method is not defined for the component.";
-  end if;
+  while $.$;
+  end repeat;
+  exp := [@ASTIdf new !here !idfList];
 end rule;
 
-rule <parameterCall>
-  ! @parameterCallList param
-  ?? @varMap varMap
-  ?? @componentMap componentMap
-  ?? @expressionContext expContext
-:
-  param := [@parameterCallList emptyList];
-  $($;
-  select
-  or
-    repeat
-      @cExpression exp;
-      <expression> !varMap ?exp !componentMap !0 !expContext;
-      param += !exp !here;
-      #can not check for parameters here... we can call not yet defined functions. TODO elsewhere.
-    while
-    $,$;
-    end repeat;
-  end select;
-  $)$;
-end rule;
-
-
-rule <functionDef>
-  ?? @varMap varMap
-  !  @lstring functionName
-  !  @parameterDefList param
-  !  @varMap functionVarMap
-:
-
-  functionVarMap := [@varMap mapWithMapToOverride !varMap];
-  param := [@parameterDefList emptyList];
-  $idf$ ?functionName;
-  select
-  or
-    @string prefix :=  [functionName string]."_";
-    <parameterDef> !prefix !?param !?functionVarMap;
-  end select;
-end rule;
-
-
-rule <parameterDef>
-  ?? @string prefix
-  ?! @parameterDefList param
-  ?! @varMap varMap
-:
-  $($;
-  select
-  or
-    repeat
-      @bool out;
-      select
-        out := false;
-      or
-        $out$;
-        out := true;
-      end select;
-      @varType type;
-      @componentMap componentMap := [@componentMap emptyMap];
-      @TypeStructDefMap TypeList [emptyMap];
-      @lstring compName := [@lstring new !"CompNameNotdefined paramedef" !here];
-      
-      <typeDeclaration> ?type !componentMap  !compName;
-      @lstring  paramName;
-      $idf$ ?paramName;
-      #var is constant if not declared out. else the variable should be modified.
-      @classicVar var := [@classicVar new !type !not out !prefix !""];
-      [!?varMap insertKey !paramName !var]; #TODO: no tabulars?
-      param += !out !paramName !var;
-    while
-    $,$;
-    end repeat;
-  end select;
-  $)$;
-end rule;
-
-
-rule <pathElement>
-  ?? @varMap varMap
-  ?? @componentMap componentMap
-  ?? @uint tmpId
-  ?? @expressionContext expContext
-  !  @pathElement node
-:
-  @pathElement child;
-  @lstring name;
-  $idf$ ?name;
- 
-  child :=[@nullChild new ];
-  @parameterCallList param [emptyList];
-  select 
-    node := [@nodeIdf new !child !child !name];
-  or
-   <parameterCall> ?param !varMap !componentMap !expContext ;
-   node := [@parameterCallElement new !child !child !name !param];
-   #log param;
- end select;
- select 
- 
- or 
-   $[$;
-   @cExpression expTab;
-   <expression> !varMap ?expTab !componentMap !tmpId !expContext;
-   #if [node isParameterCall] then
-    #  node := [@tabElementParameterCall new !child !child!name !expTab !param ];
-   #else 
-      node := [@tabElement new !child !child !name !expTab];
-   #end if;
-   $]$ ;
-
- end select;
-end rule;
-
-rule <pathName>
-  ?? @varMap varMap
-  ?? @componentMap componentMap
-  ?? @uint tmpId
-  ?? @expressionContext expContext
-  ?? @lstring  currentComponent
-  
-  !@cExpression outExp
-:
-  @pathElement node; 
-  node :=[@rootChild new ![@nullChild new ] ![@nullChild new ]];
-  <pathNameRec> !varMap !componentMap !tmpId !expContext !?node;
-  evalPath   !componentMap !varMap!node !currentComponent !tmpId ?outExp;
-   #@varType outType := [@varType new ![@varKind unsigned] !8 !here];
-   #outExp := [@cIntConst new !getTypeListFrom[!outType] !1L] ;
-end rule;
-
-
-
-rule <pathNameRec>
-  ?? @varMap varMap
-  ?? @componentMap componentMap
-  ?? @uint tmpId
-  ?? @expressionContext expContext
-  ?! @pathElement node
-   
-:
-  @pathElement child;
-  <pathElement> !varMap !componentMap !tmpId !expContext ?child;
-  @bool v;
-  v := [child hasChild ];
-  if v then 
-    [!?node setChild  !child];
-  end if;
-  select 
-  or 
-    $.$;<pathNameRec> !varMap !componentMap !tmpId !expContext !?child ;
-  end select ;
-end rule;
-
-#at this stage: factor sends the length of the factor in bits
 rule <factor>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId 
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
   select
     @luint64 cst;
     $unumber$ ?cst;
-    @uint nbBits := nbBitsToCodeUnsigned[![cst uint64]];
-    #nb bits must be >0, when used in the expression (s8)(0)
-    if nbBits == 0 then nbBits := nbBits + 1; end if;
-    @varType outType := [@varType new ![@varKind unsigned] !nbBits !here];
-    outExp := [@cIntConst new !getTypeListFrom[!outType] ![cst uint64] !false] ;
+    exp := [@ASTIntConst new ![cst location] ![cst uint64] !false ![@varKind unsigned]];
   or
     @luint64 cst;
-    @uint nbBits;
     $snumber$ ? cst;
-    nbBits := nbBitsToCodeSigned[![cst uint64]];
-    #nb bits must be >0, when used in the expression (s8)(0)
-    if nbBits == 0 then nbBits := nbBits + 1; end if;
-    @varType outType := [@varType new ![@varKind signed] !nbBits !here];
-    outExp := [@cIntConst new !getTypeListFrom[!outType] ![cst uint64] !false] ;
+    exp := [@ASTIntConst new ![cst location] ![cst uint64] !false ![@varKind signed]]; #only positive values.
   or
     $true$;  #understood as '1', type u1
-    @varType outType := [@varType new ![@varKind unsigned] !1 !here];
-    outExp := [@cIntConst new !getTypeListFrom[!outType] !1L !false] ;
+    exp := [@ASTIntConst new !here !1L !false ![@varKind unsigned]];
   or
     $false$;  #understood as '0', type u1
-    @varType outType := [@varType new ![@varKind unsigned] !1 !here];
-    outExp := [@cIntConst new !getTypeListFrom[!outType] !0L !false] ;
+    exp := [@ASTIntConst new !here !0L !false ![@varKind unsigned]];
   or
     $instruction$;
     select
       $size$;
-      if expContext != [@expressionContext timing] then
-        error here : "The 'instruction size' expression should only be used in a timing view. Here is ".[expContext msg];
-      end if;
-      @varType outType := [@varType new ![@varKind unsigned] !8 !here]; #instruction size -> u8
-      outExp := [@cExpInstructionSize new !getTypeListFrom[!outType] ];
+      exp := [@ASTExpInstructionSize new !here];
     or
       $address$;
-      if expContext != [@expressionContext syntaxView] & expContext != [@expressionContext behavior] then
-        error here : "The 'instruction address' expression should only be used in a syntax view. Here is ".[expContext msg];
-      end if;
-      @varType outType := [@varType new ![@varKind unsigned] !32 !here]; #instruction address -> u32
-      outExp := [@cExpInstructionAddress new !getTypeListFrom[!outType] ];
+      exp := [@ASTExpInstructionAddress new !here];
     end select;
   or
     $($;
-    select
-      <expression> !varMap ?outExp !componentMap !tmpId !expContext;
+    select #### nested expression ###
+      <expression> ?exp;
     or ######  CAST   ######
-      @luint varSize;
-      $uvar$ ? varSize;
+      @varKind toKind;
+      @luint toSize;
+      select
+        $uvar$ ? toSize;
+        toKind := [@varKind unsigned];
+      or
+        $svar$ ? toSize;
+        toKind := [@varKind signed];
+      end select; #TODO: add fvar.
       $)$;$($;
-      <expression> !varMap ?outExp !componentMap !tmpId !expContext;
-      if [varSize uint] == 0 then
-        error here: "type u0 is not accepted for a cast!\n";
-      end if;
-      @varType outType := [@varType new ![@varKind unsigned] ![varSize uint] !here]; #unsigned
-      outExp := [@cCast new !getTypeListFrom[!outType] !outExp];
-    or ######  CAST   ######
-      @luint varSize;
-      $svar$ ? varSize;
-      $)$;$($;
-      <expression> !varMap ?outExp !componentMap !tmpId !expContext;
-      if [varSize uint] == 0 then
-        error here: "type s0 is not accepted!\n";
-      end if;
-      @varType outType := [@varType new ![@varKind signed] ![varSize uint] !here]; #signed
-      outExp := [@cCast new !getTypeListFrom[!outType] !outExp];
+      <expression> ?exp;
+      @varBaseType toType := [@varBaseType new !toKind ![toSize uint] !here];
+      exp := [@ASTCast new !here !exp !toType];
     end select;
     $)$;
-  or
-    @lstring lsempty := [@lstring new !"" !here];
-    <pathName> !varMap !componentMap !tmpId !expContext !lsempty  ?outExp;
+  or #identifier
+    <idf> ?exp;
   end select;
 end rule;
 
 rule <factorField>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId 
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
-  <factor> !varMap ?outExp !componentMap !tmpId !expContext;
+  <factor> ?exp;
   select
   or
-    @varType outType;
-    checkOneExpressionOutType !outExp ?outType;
-    @fieldList fieldList;
-    <bitField> !varMap !componentMap !true ?fieldList !?outType !expContext;
-    outExp := [@cBitFieldOp new !getTypeListFrom[!outType] !outExp !fieldList] ;
+    @ASTfieldList fieldList;
+    <bitField> ?fieldList;
+    exp := [@ASTBitFieldOp new !here !exp !fieldList];
   end select;
 end rule;
 
 rule <unary>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId 
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
   select
-    <factorField> !varMap ?outExp !componentMap !tmpId !expContext;
+    <factorField> ?exp;
   or
+    @ASTExpression expFactor;
     $!$;
-    @location loc := here;
-    <factorField> !varMap ?outExp !componentMap !tmpId !expContext;
-    @varType outType;
-    checkOneExpressionOutType !outExp ?outType;
-    checkBool !outType !loc;
-    outExp := [@cUnaryOp new ![outExp typeList] !outExp !0] ; #no update of type.
+    <factorField> ?expFactor;
+    exp := [@ASTUnaryOp new !here !expFactor !0];
   or
-    $~$; <factorField> !varMap ?outExp !componentMap !tmpId !expContext;
-    checkOneExpressionOutType !outExp ?*;
-    outExp := [@cUnaryOp new ![outExp typeList] !outExp !1] ; #no update of type.
+    @ASTExpression expFactor;
+    $~$;
+    <factorField> ?expFactor;
+    exp := [@ASTUnaryOp new !here !expFactor !1];
   or
-    $-$; <factorField> !varMap ?outExp !componentMap !tmpId !expContext;
-    checkOneExpressionOutType !outExp ?*;
-    outExp := [@cUnaryOp new ![outExp typeList] !outExp !2] ; #no update of type.
+    @ASTExpression expFactor;
+    $-$;
+    <factorField> ?expFactor;
+    exp := [@ASTUnaryOp new !here !expFactor !2];
   end select;
 end rule;
 
 rule <term>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId 
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
-  #TODO: update var type.
-  <unary> !varMap ?outExp !componentMap !tmpId !expContext;
+  <unary> ?exp;
   repeat
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $*$; <unary> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    @varType outType;
-    typeMult !leftType !rightType ?outType;
-    outExp := [@cBinaryBasicOp new !getTypeListFrom[!outType] !outExp !rightOperand !0] ;
+    @ASTExpression expR;
+    $*$; <unary> ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !0];
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $/$; <unary> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    @varType outType;
-    typeDiv !leftType !rightType ?outType;
-    outExp := [@cBinaryBasicOp new !getTypeListFrom[!outType] !outExp !rightOperand !1] ;
+    @ASTExpression expR;
+    $/$; <unary> ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !1];
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $%$; <unary> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    @varType outType;
-    typeDiv !leftType !rightType ?outType;
-    outExp := [@cBinaryBasicOp new !getTypeListFrom[!outType] !outExp !rightOperand !2] ;
+    @ASTExpression expR;
+    $%$; <unary> ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !2];
   end repeat;
 end rule;
 
 rule <termShiftRol>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId 
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
-  <term> !varMap ?outExp !componentMap !tmpId !expContext;
+  <term> ?exp;
   repeat
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $+$; <term> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    @varType outType := typeAdd[!leftType !rightType];
-    outExp := [@cBinaryBasicOp new !getTypeListFrom[!outType] !outExp !rightOperand !3] ;
+    @ASTExpression expR;
+    $+$; <term> ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !3];
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $-$; <term> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    @varType outType;
-    typeSub !leftType !rightType ?outType;
-    outExp := [@cBinaryBasicOp new !getTypeListFrom[!outType] !outExp !rightOperand !4] ;
+    @ASTExpression expR;
+    $-$; <term> ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !4];
   end repeat;
+
 end rule;
 
 rule <termRelation>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId 
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
-  <termShiftRol> !varMap ?outExp !componentMap !tmpId !expContext;
+  <termShiftRol> ?exp;
   select
   or
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $>>$; <termShiftRol> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    #we cannot have a minimal right shift type...
-    outExp := [@cBinaryBasicOp new ![outExp typeList] !outExp !rightOperand !5] ;
+    @ASTExpression expR;
+    $>>$; <termShiftRol>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !5];
   or
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $<<$; <termShiftRol> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    #we can have a maximal left shift size... but the new size can be too
-    #far from the reality... :-/ not done NOW.
-    outExp := [@cBinaryBasicOp new ![outExp typeList] !outExp !rightOperand !6] ;
+    @ASTExpression expR;
+    $<<$; <termShiftRol>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !6];
   or
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $ror$; <termShiftRol> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    #type not modified.
-    outExp := [@cRotationOp new ![outExp typeList] !outExp !rightOperand ![leftType size] !0] ;
+    @ASTExpression expR;
+    $ror$; <termShiftRol>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !19];
   or
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    #type not modified.
-    $rol$; <termShiftRol> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    outExp := [@cRotationOp new ![outExp typeList] !outExp !rightOperand ![leftType size] !1] ;
+    @ASTExpression expR;
+    $rol$; <termShiftRol>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !20];
   end select;
 end rule;
 
-
 rule <ComparisonExpression>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId 
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
-  <termRelation> !varMap ?outExp !componentMap !tmpId !expContext;
+  <termRelation> ?exp;
   repeat
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $<$; <termRelation> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    checkCompareType !leftType !rightType;
-    @varType outType := [@varType new ![@varKind unsigned] !1 !here];
-    outExp := [@cBinaryBasicOp new !getTypeListFrom[!outType] !outExp !rightOperand !7] ;
+    @ASTExpression expR;
+    $<$; <termRelation>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !7];
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $>$; <termRelation> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    checkCompareType !leftType !rightType;
-    @varType outType := [@varType new ![@varKind unsigned] !1 !here];
-    outExp := [@cBinaryBasicOp new !getTypeListFrom[!outType] !outExp !rightOperand !8] ;
+    @ASTExpression expR;
+    $>$; <termRelation>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !8];
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $<=$; <termRelation> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    checkCompareType !leftType !rightType;
-    @varType outType := [@varType new ![@varKind unsigned] !1 !here];
-    outExp := [@cBinaryBasicOp new !getTypeListFrom[!outType] !outExp !rightOperand !9] ;
+    @ASTExpression expR;
+    $<=$; <termRelation>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !9];
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $>=$; <termRelation> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    checkCompareType !leftType !rightType;
-    @varType outType := [@varType new ![@varKind unsigned] !1 !here];
-    outExp := [@cBinaryBasicOp new !getTypeListFrom[!outType] !outExp !rightOperand !10] ;
+    @ASTExpression expR;
+    $>=$; <termRelation>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !10];
   end repeat;
 end rule;
 
 rule <binAndTerm>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId 
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
-  <ComparisonExpression> !varMap ?outExp !componentMap !tmpId !expContext;
+  <ComparisonExpression> ?exp;
   repeat
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $=$; <ComparisonExpression> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    checkCompareType !leftType !rightType;
-    @varType outType := [@varType new ![@varKind unsigned] !1 !here];
-    outExp := [@cBinaryBasicOp new !getTypeListFrom[!outType] !outExp !rightOperand !11] ;
+    @ASTExpression expR;
+    $=$; <ComparisonExpression>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !11];
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $!=$; <ComparisonExpression> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    checkCompareType !leftType !rightType;
-    @varType outType := [@varType new ![@varKind unsigned] !1 !here];
-    outExp := [@cBinaryBasicOp new !getTypeListFrom[!outType] !outExp !rightOperand !12] ;
+    @ASTExpression expR;
+    $!=$; <ComparisonExpression>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !12];
   end repeat;
 end rule;
 
 rule <binXorTerm>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId 
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
-  <binAndTerm> !varMap ?outExp !componentMap !tmpId !expContext;
+  <binAndTerm> ?exp;
   repeat
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $&$; <binAndTerm> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    @varType outType;
-    typeMaxSize !leftType !rightType ?outType;
-    outExp := [@cBinaryBasicOp new !getTypeListFrom[!outType] !outExp !rightOperand !13] ;
+    @ASTExpression expR;
+    $&$; <binAndTerm>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !13];
   end repeat;
 end rule;
 
 rule <binOrTerm>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId 
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
-  <binXorTerm> !varMap ?outExp !componentMap !tmpId !expContext;
+  <binXorTerm> ?exp;
   repeat
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $^$; <binXorTerm> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    @varType outType;
-    typeMaxSize !leftType !rightType ?outType;
-    outExp := [@cBinaryBasicOp new !getTypeListFrom[!outType] !outExp !rightOperand !14] ;
+    @ASTExpression expR;
+    $^$; <binXorTerm>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !14];
   end repeat;
 end rule;
 
 rule <boolAndTerm>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId 
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
-  <binOrTerm> !varMap ?outExp !componentMap !tmpId !expContext;
+  <binOrTerm> ?exp;
   repeat
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $|$; <binOrTerm> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    @varType outType;
-    typeMaxSize !leftType !rightType ?outType;
-    outExp := [@cBinaryBasicOp new !getTypeListFrom[!outType] !outExp !rightOperand !15] ;
+    @ASTExpression expR;
+    $|$; <binOrTerm>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !15];
   end repeat;
 end rule;
 
 rule <boolXorTerm>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId 
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
-  @location leftLoc := here;
-  <boolAndTerm> !varMap ?outExp !componentMap !tmpId !expContext;
+  <boolAndTerm> ?exp;
   repeat
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $&&$;
-    @location rightLoc := here;
-    <boolAndTerm> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    checkBool !leftType  !leftLoc;
-    checkBool !rightType !rightLoc;
-    outExp := [@cBinaryBasicOp new ![outExp typeList] !outExp !rightOperand !16] ;
+    @ASTExpression expR;
+    $&&$; <boolAndTerm>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !16];
   end repeat;
 end rule;
 
 rule <boolOrTerm>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId 
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
-  @location leftLoc := here;
-  <boolXorTerm> !varMap ?outExp !componentMap !tmpId !expContext;
+  <boolXorTerm> ?exp;
   repeat
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $^^$;
-    @location rightLoc := here;
-    <boolXorTerm> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    checkBool !leftType  !leftLoc;
-    checkBool !rightType !rightLoc;
-    outExp := [@cXorOp new ![outExp typeList] !outExp !rightOperand] ;
+    @ASTExpression expR;
+    $^^$; <boolXorTerm>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !17];
   end repeat;
 end rule;
 
 rule <catTerm>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId 
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
-  @location leftLoc := here;
-  <boolOrTerm> !varMap ?outExp !componentMap !tmpId !expContext;
+  <boolOrTerm> ?exp;
   repeat
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $||$;
-    @location rightLoc := here;
-    <boolOrTerm> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    checkBool !leftType  !leftLoc;
-    checkBool !rightType !rightLoc;
-    outExp := [@cBinaryBasicOp new ![outExp typeList] !outExp !rightOperand !17] ;
+    @ASTExpression expR;
+    $||$; <boolOrTerm>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !18];
   end repeat;
 end rule;
 
-# expression:
-# tmpId is a constant that is used to give a unique id to temporary variable for component methods that
-#       can return more than one parameter. At this date, tmpId is only used in the declaration of a component
-#       method call expression.
 rule <expression>
-  ?? @varMap varMap
-  !  @cExpression outExp
-  ?? @componentMap componentMap
-  ?? @uint tmpId
-  ?? @expressionContext expContext
+  !  @ASTExpression exp
 :
-  <catTerm> !varMap ?outExp !componentMap !tmpId !expContext;
+  <catTerm> ?exp;
   repeat
   while
-    @varType leftType;
-    checkOneExpressionOutType !outExp ?leftType;
-    @cExpression rightOperand ;
-    $cat$; <catTerm> !varMap ?rightOperand !componentMap !tmpId !expContext;
-    @varType rightType;
-    checkOneExpressionOutType !rightOperand ?rightType;
-    @varType outType;
-    typeCat !leftType !rightType ?outType;
-    outExp := [@cCatOp new !getTypeListFrom[!outType] !outExp !rightOperand ![rightType size]] ;     #TODO: type size is the sum?
+    @ASTExpression expR;
+    $cat$; <catTerm>  ?expR;
+    exp := [@ASTBinaryBasicOp new !here !exp !expR !21];
   end repeat;
 end rule;
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+#
+##################################################
+##     bitField. (syntax and semantic checked)
+## {10..4,5,3}
+## check:
+##  * only unsigned values.
+##  * in a range, 2nd value is smaller than the first one.
+##  * can not access to a bit if size of data is not correct.
+##  It returns the new size, (unsigned value).
+##  Update: bitField can be empty {-} (used for formats..):
+##          type is u0, fieldList is empty
+##  Update: for formats, we need to access bit fields without braces
+##          to respect LL1 grammar restrictions. Initial rule is split in 2.
+##  major update: Extend bitfield to expressions. In order to keep a LL1
+##          compliant grammar, the rule is rewritten specifically for formats
+##          which allows only unsigned numbers. The empty bitfield is removed here.
+##################################################
 
-#################################################
-#     bitField. (syntax and semantic checked)
-# {10..4,5,3}
-# check:
-#  * only unsigned values.
-#  * in a range, 2nd value is smaller than the first one.
-#  * can not access to a bit if size of data is not correct.
-#  It returns the new size, (unsigned value).
-#  Update: bitField can be empty {-} (used for formats..):
-#          type is u0, fieldList is empty
-#  Update: for formats, we need to access bit fields without braces
-#          to respect LL1 grammar restrictions. Initial rule is split in 2.
-#  major update: Extend bitfield to expressions. In order to keep a LL1
-#          compliant grammar, the rule is rewritten specifically for formats
-#          which allows only unsigned numbers. The empty bitfield is removed here.
-#################################################
-
-rule <bitFieldWithoutBraces>
-  ?? @varMap varMap
-  ?? @componentMap componentMap
-  ?? @bool allowExpression
-  !  @fieldList fieldList
-  ?! @varType type
-  ?? @expressionContext expContext
-:
-  @uint nbMaxBitsTotal := 0;
-  fieldList := [@fieldList emptyList];
-  repeat
-    @uint nbMaxBits := [type size] - 1;
-    @bool firstValIsUint;
-    @uint fromBit;        #value must not be taken into account if firstValIsUint is false;
-    @cExpression fromExp;
-    <expression> !varMap ?fromExp !componentMap !0 !expContext;
-    @varType fromType;
-    checkOneExpressionOutType !fromExp ?fromType;
-
-    if [fromType kind] != [@varKind unsigned] then
-      error here : "expression in bitfield must return an unsigned value";
-    end if;
-    cast fromExp
-    when == @cIntConst constVal :
-      firstValIsUint := true;
-      fromBit := [[constVal value] uint];
-      if fromBit >= [type size] then
-        error here : "bit access impossible with the type considered\n".
-          "size of data is ".[[type size] string]." bits";
-      end if;
-      if [constVal negative] then
-        error here: "Bit access impossible: negative value";
-      end if;
-      nbMaxBits := fromBit;
-    else
-      firstValIsUint := false;
-      fromBit := 0; #dummy value.
-      if not allowExpression then
-        error here: "Expressions not allowed in bitfields in this context";
-      end if;
-      #nbMaxBits correctly initialized.
-    end cast;
-    select
-      fieldList += !fromExp !fromExp !1 !true !here; #only 1 bit, not depending of the expression.
-      nbMaxBits := 0; #there is the +1 at the end of the loop
-    or
-      $..$;
-      @bool allValuesAreUint := false;
-      @cExpression toExp;
-      <expression> !varMap ?toExp !componentMap !0 !expContext;
-      @varType toType;
-      checkOneExpressionOutType !toExp ?toType;
-
-      if [toType kind] != [@varKind unsigned] then
-        error here : "expression in bitfield must return an unsigned value";
-      end if;
-      cast toExp
-      when == @cIntConst toBitConst :
-        if firstValIsUint then
-          allValuesAreUint := true;
-          if(fromBit  < [[toBitConst value] uint]) then
-            error here : "value is higher than the previous one in the range.";
-          end if;
-        end if;
-        if [toBitConst negative] then
-          error here: "Bit access impossible: negative value";
-        end if;
-        nbMaxBits := nbMaxBits - [[toBitConst value] uint];
-      else
-        if not allowExpression then
-          error here: "Expressions not allowed in bitfields in this context";
-        end if;
-        #nbMaxBits can't be resized.
-      end cast;
-      fieldList += !fromExp !toExp !nbMaxBits+1 !allValuesAreUint !here;
-    end select;
-    nbMaxBitsTotal := nbMaxBitsTotal + nbMaxBits + 1;
-  while
-  $,$;
-  end repeat;
-  type := [@varType new ![@varKind unsigned] !nbMaxBitsTotal !here];
-end rule;
+#rule <bitFieldWithoutBraces>
+#  ?? @varMap varMap
+#  ?? @containerMap containerMap
+#  ?? @bool allowExpression
+#  !  @fieldList fieldList
+#  ?! @varAbstractType type
+#  ?? @expressionContext expContext
+#:
+#  @varBaseType baseType := [type getBaseType];
+#  [baseType checkKind ![@varKind unsigned]]; #bitfield on unsigned types only.
+#  @uint nbMaxBitsTotal := 0;
+#  fieldList := [@fieldList emptyList];
+#  repeat
+#    @uint nbMaxBits := [baseType size] - 1;
+#    @bool firstValIsUint;
+#    @uint fromBit;        #value must not be taken into account if firstValIsUint is false;
+#    @cExpression fromExp;
+#    <expression> !varMap ?fromExp !containerMap !0 !expContext;
+#    [[fromExp type] checkKind ![@varKind unsigned]];
+#    cast fromExp: #TODO: update with expression eval.
+#    when == @cIntConst constVal do
+#      firstValIsUint := true;
+#      fromBit := [[constVal value] uint];
+#      if fromBit >= [baseType size] then
+#        error here : "bit access impossible with the type considered\n".
+#          "size of data is ".[[baseType size] string]." bits";
+#      end if;
+#      if [constVal negative] then
+#        error here: "Bit access impossible: negative value";
+#      end if;
+#      nbMaxBits := fromBit;
+#    else
+#      firstValIsUint := false;
+#      fromBit := 0; #dummy value.
+#      if not allowExpression then
+#        error here: "Expressions not allowed in bitfields in this context";
+#      end if;
+#      #nbMaxBits correctly initialized.
+#    end cast;
+#    select #not a range -> only one bit.
+#      fieldList += !fromExp !fromExp !1 !true !here; #only 1 bit, not depending of the expression.
+#      nbMaxBits := 0; #there is the +1 at the end of the loop
+#    or #range.
+#      $..$;
+#      @bool allValuesAreUint := false;
+#      @cExpression toExp;
+#      <expression> !varMap ?toExp !containerMap !0 !expContext;
+#      [[toExp type]checkKind ![@varKind unsigned]];
+#      cast toExp: #TODO: update with eval.
+#      when == @cIntConst toBitConst do
+#        if firstValIsUint then
+#          allValuesAreUint := true;
+#          if(fromBit  < [[toBitConst value] uint]) then
+#            error here : "value is higher than the previous one in the range.";
+#          end if;
+#        end if;
+#        if [toBitConst negative] then
+#          error here: "Bit access impossible: negative value";
+#        end if;
+#        nbMaxBits := nbMaxBits - [[toBitConst value] uint];
+#      else
+#        if not allowExpression then
+#          error here: "Expressions not allowed in bitfields in this context";
+#        end if;
+#        #nbMaxBits can't be resized.
+#      end cast;
+#      fieldList += !fromExp !toExp !nbMaxBits+1 !allValuesAreUint !here;
+#    end select;
+#    nbMaxBitsTotal := nbMaxBitsTotal + nbMaxBits + 1;
+#  while
+#  $,$;
+#  end repeat;
+#  type := [@varBaseType new ![@varKind unsigned] !nbMaxBitsTotal !here];
+#end rule;
+#
+#rule <bitField>
+#  ?? @varMap varMap
+#  ?? @containerMap containerMap
+#  ?? @bool allowExpression
+#  !  @fieldList fieldList
+#  ?! @varAbstractType expType
+#  ?? @expressionContext expContext
+#:
+#  ${$;
+#    <bitFieldWithoutBraces> !varMap !containerMap !allowExpression ?fieldList !?expType !expContext;
+#  $}$;
+#end rule;
 
 rule <bitField>
-  ?? @varMap varMap
-  ?? @componentMap componentMap
-  ?? @bool allowExpression
-  !  @fieldList fieldList
-  ?! @varType type
-  ?? @expressionContext expContext
+  ! @ASTfieldList fieldList
 :
+  fieldList := [@ASTfieldList emptyList];
   ${$;
-    <bitFieldWithoutBraces> !varMap !componentMap !allowExpression ?fieldList !?type !expContext;
+  repeat
+    @ASTExpression expFrom;
+    <expression> ?expFrom;
+    select
+      fieldList += !expFrom !expFrom !true; #expTo unused.
+    or
+      @ASTExpression expTo;
+      $..$;
+      <expression> ?expTo;
+      fieldList += !expFrom !expTo !false;
+    end select;
+  while
+    $,$;
+  end repeat;
   $}$;
 end rule;
 
-
-######################
-#routines
-######################
-
-
-
-routine typeSub
-  ?? @varType leftType
-  ?? @varType rightType
-  !  @varType outType
-:
-    if [leftType kind] != [rightType kind] then
-      error here : "substract expressions of different kind (signed/unsigned/float)";
-    end if;
-    if [leftType kind] == [@varKind unsigned] then #unsigned
-      outType := leftType;
-    elsif [leftType kind] == [@varKind signed] then #unsigned                            #signed.
-      if [leftType size] > [rightType size] then  #max of the 2 operands
-        outType := [@varType new ![leftType kind] ![leftType size] !here];
-      else
-        outType := [@varType new ![leftType kind] ![rightType size] !here];
-      end if;
-    else
-      #float
-      error [leftType location]: "internal error, not yet implemented with floats" :outType;
-    end if;
-end routine;
-
-#multiplication: sum of sizes. Sign changed.
-routine typeMult
-  ?? @varType leftType
-  ?? @varType rightType
-  !  @varType outType
-:
-  if [leftType kind] != [@varKind float] & [rightType kind] != [@varKind float] then
-    @varKind kind := [leftType kind];
-    if [leftType kind] != [rightType kind] then #only signed and unsigned here.
-      kind := [@varKind signed]; #unsigned by signed gives signed result.
-    end if;
-    outType := [@varType new !kind ![leftType size]+[rightType size] !here];
-  else
-    error here: "internal error: multiply float not implemented." :outType;
-  end if;
-end routine;
-
-#division: same size. Sign changed.
-routine typeDiv
-  ?? @varType leftType
-  ?? @varType rightType
-  !  @varType outType
-:
-  if [leftType kind] != [@varKind float] & [rightType kind] != [@varKind float] then
-    if [leftType kind] != [rightType kind] then #only signed and unsigned here.
-      error here : "Divide signed and unsigned expressions";
-    end if;
-    outType := [@varType new ![leftType kind] ![leftType size] !here];
-  else
-    error here: "internal error: divide float not implemented." : outType;
-  end if;
-end routine;
-
-routine typeCat
-  ?? @varType leftType
-  ?? @varType rightType
-  !  @varType outType
-:
-    if [rightType kind] == [@varKind signed] then
-      error [rightType location] : "concatenation : right operand is signed";
-    end if;
-    if [rightType kind] == [@varKind float] | [leftType kind] == [@varKind float] then
-      error [rightType location] : "concatenation : no float allowed.";
-    end if;
-    outType := [@varType new ![leftType kind] !([leftType size]+[rightType size]) !here];
-end routine;
-
-routine typeMaxSize
-  ?? @varType leftType
-  ?? @varType rightType
-  !  @varType outType
-:
-  if [leftType kind] != [@varKind float] & [rightType kind] != [@varKind float] then
-    if [leftType kind] != [rightType kind] then
-      error [leftType location]  : "left and right operands have not the same sign.";
-      error [rightType location] : "left and right operands have not the same sign.";
-    end if;
-    @uint max := [leftType size];
-    if [rightType size] > [leftType size] then max := [rightType size]; end if;
-    outType := [@varType new ![leftType kind] !max ![leftType location]];
-  else
-    error here: "cannot use float for binary operations." :outType;
-  end if;
-end routine;
-
-routine checkCompareType
-  ??@varType leftType
-  ??@varType rightType
-:
-  #if (sizeL != sizeR) then
-  #  error here : "Cannot compare expressions of different sizes\n".
-  #  "left size :".[sizeL description]."\n".
-  #  "right size :".[sizeR description];
-  #end if;
-  if ([leftType kind] != [rightType kind]) then
-    Warning here : "compare expressions of different types (unsigned, signed, float)";
-  end if;
-end routine;
-
-routine checkFunctionCallType
-  ??@varType typeDef
-  ??@varType typeCall
-:
-  @location locDef := [typeDef location];
-  @location locCall := [typeCall location];
-  if [typeDef kind] != [typeCall kind] then
-    error here : "kind of argument in :". [locCall locationString] .
-      "is different than the defined sign in" . [locDef locationString].
-      "(unsigned, signed, float)";
-  end if;
-  if [typeDef size] < [typeCall size] then
-    if [option gadl_options.warnIfResultMayBeTruncated value] then
-     Warning here : "result may be truncated!\n".
-        "argument in call method requires ". [[typeCall size] string] ." bit(s) in ".[locCall locationString]."\n".
-        "while argument is defined with " .[[typeDef size] string] ." bit(s) in ".[locDef locationString];
-    end if;
-  end if;
-end routine;
+#
+#
+#######################
+##routines
+#######################
+#
+#routine checkFunctionCallType
+#  ??@varType typeDef
+#  ??@varType typeCall
+#:
+#  @location locDef := [typeDef location];
+#  @location locCall := [typeCall location];
+#  if [typeDef kind] != [typeCall kind] then
+#    error here : "kind of argument in :". [locCall locationString] .
+#      "is different than the defined sign in" . [locDef locationString].
+#      "(unsigned, signed, float)";
+#  end if;
+#  if [typeDef size] < [typeCall size] then
+#    if [option gadl_options.warnIfResultMayBeTruncated value] then
+#     Warning here : "result may be truncated!\n".
+#        "argument in call method requires ". [[typeCall size] string] ." bit(s) in ".[locCall locationString]."\n".
+#        "while argument is defined with " .[[typeDef size] string] ." bit(s) in ".[locDef locationString];
+#    end if;
+#  end if;
+#end routine;
 
 end syntax ;
 # vim:ft=ggs:ts=2:sw=2

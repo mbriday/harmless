@@ -1,176 +1,97 @@
 syntax gadl_implementation_parser ("gadl_lexique.gLexique") :
   import "gadl_options.gOption" ;
-  import "gadl_semantics.gSemantics" ;
-  import "gadl_semantics_implementation.gSemantics" ;
-  import "gadl_semantics_expression.gSemantics" ;
-  import "gadl_components.gSemantics" ;
-  import "gadl_semantics_function.gSemantics" ;  
-  import "gadl_semantics_pathElement.gSemantics" ;
+  import "gadl_semantics_AST_implementation.gSemantics" ;
 
-#expression related rules.
-nonterminal  <expression> 
-  ?? @varMap varMap
-  !  @cExpression outExp 
-  ?? @componentMap componentMap
-  ?? @uint tmpId
-  ?? @expressionContext expContext
-;
-nonterminal <pathName>
-  ?? @varMap varMap
-  ?? @componentMap componentMap
-  ?? @uint tmpId
-  ?? @expressionContext expContext
-  ?? @lstring unused currentComponent
-  !  @cExpression outExp
-;
+nonterminal <expression> !@ASTExpression exp;
+nonterminal <idf> !@ASTExpression exp;
+nonterminal <bitField> !@ASTfieldList fieldList;
 
-nonterminal  <parameterCall>  
-  ! @parameterCallList param 
-  ?? @varMap varMap
-  ?? @componentMap componentMap
-  ?? @expressionContext expContext
-;
 
-nonterminal  <componentMethodCall> 
-  !  @lstring methodName 
-  !  @parameterCallList param 
-  ?? @varMap varMap
-  ?? @componentMap componentMap
-  ?? @lstring componentName
-  !  @bool isBitRegisterAccess
-  ?? @bool checkParameters
-  ?? @expressionContext expContext
-;
-
-nonterminal  <bitField> 
-  ?? @varMap varMap 
-  ?? @componentMap componentMap 
-  ?? @bool allowExpression 
-  !  @fieldList fieldList 
-  ?! @varType type
-  ?? @expressionContext expContext
-;
-
-#################################################
-#
-#     Implementation part.
-#    
-#################################################
-
-rule <ifImplementation>
-  ?! @varMap varMap 
-  ?! @instructionList instIfBlockList 
-  ?? @componentMap componentMap
-  ?? @lstring currentComponent
-  ?? @expressionContext expContext
+rule <implementationOrEmpty>
+  ?! @ASTInstructionList instList
 :
-  @returnTypeList returnList [emptyList];
   select
     #empty implementation
   or
-    <implementation> !? varMap !?instIfBlockList !componentMap !currentComponent !expContext !returnList;
+    <implementation> !?instList;
   end select;
 end rule;
 
+
 rule <ifInstruction>
-  ?? @varMap varMap 
-  ?? @componentMap componentMap
-  ?? @lstring currentComponent
-  !  @cInstruction inst
-  ?! @uint tmpId
-  ?? @expressionContext expContext
+  ! @ASTInstruction inst
 :
-  @cExpression expIf;
-  @varType outTypeIf;
-  <expression>  !varMap ?expIf !componentMap !tmpId !expContext;
-  checkOneExpressionOutType !expIf ?outTypeIf;
-  checkBool !outTypeIf !here;
+  @ASTExpression expIf;
+  @ASTInstructionList IfInstructionList [emptyList];
+  @ASTInstructionList elseInstructionList [emptyList];
+  const @location loc := here;
+  <expression>  ?expIf;
   $then$;
-  @varMap ifVarMap := [@varMap mapWithMapToOverride !varMap] ;
-  @instructionList IfInstructionList := [@instructionList emptyList];
-  <ifImplementation> !?ifVarMap !?IfInstructionList !componentMap !currentComponent !expContext;
-  #@cIfBlock instIfBlock := [@cIfBlock new !expIf !instIfBlockList !0];
-  #instList += !instIfBlock;
-  @instructionList elseInstructionList [emptyList];
+  <implementationOrEmpty> !?IfInstructionList;
   select
     #no else.
   or
     $else$;
-    @varMap elseVarMap := [@varMap mapWithMapToOverride !varMap] ;
-    <ifImplementation> !?elseVarMap !?elseInstructionList !componentMap !currentComponent !expContext;
+    <implementationOrEmpty> !?elseInstructionList;
   or
     $elseif$;
-    @cInstruction instElse;
-    <ifInstruction> !varMap !componentMap !currentComponent ?instElse !?tmpId !expContext;
+    @ASTInstruction instElse;
+    <ifInstruction> ?instElse;
     elseInstructionList += !instElse;
   end select;
-  inst := [@cIfBlock new !here !expIf !IfInstructionList !elseInstructionList];
+  inst := [@ASTInstIf new !loc !expIf !IfInstructionList !elseInstructionList];
+  
 end rule;
 
-# if block, with elseif and else blocks.
-rule <ifBloc> 
-  ?? @varMap varMap 
-  ?! @instructionList instList
-  ?? @componentMap componentMap
-  ?? @lstring currentComponent
-  ?! @uint tmpId
-  ?? @expressionContext expContext
+rule <ifBlock>
+  ?! @ASTInstructionList instList
 :
   $if$;
-  @cInstruction inst;
-  <ifInstruction> !varMap !componentMap !currentComponent ?inst !?tmpId !expContext;
+  @ASTInstruction inst;
+  <ifInstruction> ?inst;
   instList += !inst;
-  $end$; $if$;
+  $end$; $if$;  
 end rule;
 
-rule <loopBloc> 
-  ?? @varMap varMap 
-  ?! @instructionList instList
-  ?? @componentMap componentMap
-  ?? @lstring currentComponent
-  ?! @uint tmpId
-  ?? @expressionContext expContext
+rule <return>
+  ?! @ASTInstructionList instList
 :
+  @ASTExpression exp;
+  $return$;
+  <expression> ?exp;
+  instList += ![@ASTInstReturn new !here !exp];
+end rule;
+
+#this rule is used to prevent the execution of the next xx instructions.
+rule <instNop>
+  ?! @ASTInstructionList instList
+:
+  @ASTExpression exp;
+  $nop$;
+  <expression> ?exp;
+  $instruction$;
+  instList += ![@ASTInstNop new !here !exp];
+end rule;
+
+rule <loopBlock>
+  ?! @ASTInstructionList instList
+:
+  @ASTInstructionList loopInstList [emptyList];
   $loop$;
-  @luint64 guard;
-  $unumber$ ?guard;
+  const @location loc := here;
+  @ASTExpression guard;
+  <expression> ?guard;
   $while$;
-  @cExpression expCondition;
-  @varType outTypeCondition;
-  <expression>  !varMap ?expCondition !componentMap !tmpId !expContext;
-  checkOneExpressionOutType !expCondition ?outTypeCondition;
-  checkBool !outTypeCondition !here;
+  @ASTExpression expCondition;
+  <expression> ?expCondition;
   $do$;
-  @varMap loopVarMap := [@varMap mapWithMapToOverride !varMap] ;
-  @instructionList LoopInstructionList := [@instructionList emptyList];
-  @returnTypeList returnList [emptyList];
-  <implementation> !?loopVarMap !?LoopInstructionList !componentMap !currentComponent !expContext !returnList;
-  @cLoopBlock inst := [@cLoopBlock new !here !guard !expCondition !LoopInstructionList !tmpId];
-  tmpId := tmpId + 1; #one temp var required for guard condition.
-  instList += !inst;
+  <implementation> !?loopInstList;
   $end$; $loop$;
+  instList += ![@ASTInstLoop new !loc !guard !expCondition !loopInstList];
 end rule;
 
-rule <interruptCall> 
-  ?! @instructionList instList
-  ?? @expressionContext expContext
-:
-  if expContext != [@expressionContext behavior] & expContext != [@expressionContext component] then
-    error here: "An interrupt should be generated either in a component or in a behavior";
-  end if;
-  $interrupt$;
-  @luint64 trapId;
-  $unumber$ ?trapId;
-  @cInterruptInst inst := [@cInterruptInst new !here !expContext !trapId];
-  instList += !inst;
-end rule;
-
-# this rule is used to detect case in the description that should not happen
-# and should leads to a Warning or an error generation.
 rule <errorHandling>
-  ?? @varMap unused varMap 
-  ?! @instructionList instList
-  ?? @componentMap unused componentMap
+  ?! @ASTInstructionList instList
 :
   @bool onlyWarn;
   select 
@@ -182,558 +103,155 @@ rule <errorHandling>
   end select;
   @lstring msg;
   $caracterStr$ ?msg;
-  @cErrorInst inst := [@cErrorInst new !here !onlyWarn !msg];
-  instList += !inst;
-end rule;
-
-rule <addStall>
-  ?? @varMap varMap 
-  ?! @instructionList instList
-  ?? @componentMap componentMap
-  ?? @expressionContext expContext
-:
-  $stall$;
-  @cExpression exp;
-  if expContext != [@expressionContext component] then
-    error here: "the 'stall <expression> cycle' instruction should only be inserted in a component.";
-  end if;
-  <expression>  !varMap ?exp !componentMap !0 !expContext;
-  @cInsertStall inst := [@cInsertStall new !here !exp];
-  instList += !inst;
-  $cycle$;
-end rule;
-
-#this rule is used to prevent the execution of the next xx instructions.
-rule <nopInst>
-  ?? @varMap varMap 
-  ?! @instructionList instList
-  ?? @componentMap componentMap
-  ?? @expressionContext expContext
-:
-  $nop$;
-  @cExpression exp;
-  <expression>  !varMap ?exp !componentMap !0 !expContext;
-  @cNopInst inst := [@cNopInst new !here !expContext !exp];
-  instList += !inst;
-  $instruction$;
+  instList += ![@ASTInstError new !here !onlyWarn !msg];
 end rule;
 
 #This instruction print the text in parameter on stderr.
 #used to model the uart.
-rule <printInst>
-  ?? @varMap varMap 
-  ?! @instructionList instList
-  ?? @componentMap componentMap
-  ?? @expressionContext expContext
+rule <instPrint>
+  ?! @ASTInstructionList instList
 :
   $print$;
   repeat
     select
-      @cExpression exp;
-      <expression>  !varMap ?exp !componentMap !0 !expContext;
-      @cPrintInst inst := [@cPrintInst new !here !exp];
-      instList += !inst;
+      @ASTExpression exp;
+      <expression> ?exp;
+      instList += ![@ASTInstPrint new !here !exp];
     or  
       @lstring msg;
       $caracterStr$ ?msg;
-      @cMessageInst inst := [@cMessageInst new !here !msg];
-      instList += !inst;
+      instList += ![@ASTInstMessage new !here !msg];
     end select;
   while $,$;
   end repeat;
 end rule;
 
-rule <return> 
-  ?? @varMap varMap 
-  ?! @instructionList instList
-  ?? @componentMap componentMap
-  ?? @lstring currentComponent
-  ?? @expressionContext expContext
-  ?? @returnTypeList returnList
+rule <assignmentLeft>
+  ?? @ASTExpression idf
+  ?! @ASTInstructionList instList
 :
-  @cExpressionList expReturnList [emptyList];
-  $return$;
-  repeat
-    @cExpression exp;
-    <expression>  !varMap ?exp !componentMap !0 !expContext;
-    expReturnList += !exp;
-  while
-    $,$;
-  end repeat;
-  @cReturn inst := [@cReturn new !here !expReturnList !currentComponent !returnList];
-  [inst checkArguments];
-  instList += !inst;
+  @ASTfieldList fieldList;
+  select
+    fieldList := [@ASTfieldList emptyList];
+  or
+    <bitField> ?fieldList; 
+  end select;
+  @ASTExpression exp;
+  $:=$;
+  <expression> ?exp;
+  instList += ![@ASTInstAssignment new !here !idf !fieldList !exp];
 end rule;
 
-rule <assignment>
-  ?! @varMap varMap 
-  ?! @instructionList instList
-  ?? @componentMap componentMap
-  ?? @cExpression leftSideExp
-  ?? @lstring currentComponent
-  ?! @uint tmpId
-  ?? @expressionContext expContext
+rule <assignmentOrFunctionCall>
+  ?! @ASTInstructionList instList
 :
-#  @abstractVar var;
-  @leftAssignPart leftPart [emptyList];
-  @varTypeList leftTypeList [emptyList];
-  @fieldList fieldLeft;
-  @varType leftType;
-  <assignLeftSide> !leftSideExp !varMap !componentMap ?leftType ?fieldLeft !expContext;
-  leftPart += !leftSideExp !fieldLeft;
-  leftTypeList += !leftType; #!getVarSize[![var type] !fieldLeft];
+  @ASTExpression idf;
+  <idf> ?idf;
   select
-    #assignment
-    $:=$; 
-    @cExpression expRight;
-    <assignRightSide> !leftTypeList !varMap ?expRight !componentMap !tmpId !expContext;
-    @cAssign instAssign := [@cAssign new !here !leftPart !expRight !0];
-    instList += !instAssign;
+    #function call.
+    instList += ![@ASTInstFunctionCall new !here !idf];
   or
-    #a:b := assignment.
-    #it is expansed in:
-    #-> tmp declaration 
-    #-> tmp := exp;
-    #-> a := tmp >> sizeB;
-    #-> b := tmp & maskSizeB;
-
-    $:$;
-    @cExpression leftSideExp2;
-    <pathName> !varMap !componentMap !tmpId !expContext !currentComponent ?leftSideExp2;
-    @fieldList fieldLeft2;
-    @varType leftType2;
-    <assignLeftSide> !leftSideExp2 !varMap !componentMap ?leftType2 ?fieldLeft2 !expContext;
-    #generate temporary variable (and declare it
-    @classicVar varTmp;
-    @lstring varTmpName;
-    @uint size2 := [leftType2 size];
-    @varType typeTmp := [@varType new ![@varKind unsigned] ![leftType size]+size2 !here];
-    getTempVar !?tmpId !typeTmp ?varTmpName ?varTmp;
-    [!?varMap insertKey ! varTmpName !varTmp];
-    @cIdf tmpIdf := [@cIdf new !getTypeListFrom[!typeTmp] !varTmpName !varTmp];
-    instList += ![@cDeclareVar new !here !varTmpName ! varTmp];
-
-    #tmp := exp;
-    $:=$; 
-    @cExpression expRight;
-    <assignRightSide> !getTypeListFrom[![varTmp type]] !varMap ?expRight !componentMap !tmpId !expContext;
-    @leftAssignPart leftPartTmp [emptyList];
-    leftPartTmp += !tmpIdf ![@fieldList emptyList];
-    instList += ![@cAssign new !here !leftPartTmp !expRight !0];
-    
-    #a := tmp >> sizeB;
-    @cExpression expRightTmp := [@cIdf new !getTypeListFrom[!typeTmp] !varTmpName !varTmp];
-    @uint sizeOfShift := nbBitsToCodeUnsigned[![size2 uint64]];
-    @uint outShiftSize := [typeTmp size] - sizeOfShift;
-    @varTypeList shiftVarType := getTypeListFrom[![@varType new ![@varKind unsigned] !sizeOfShift !here]];
-    @cExpression expRightShiftVal := [@cIntConst new !shiftVarType ![size2 uint64] !false];
-    @cExpression expRightTmp1 := [@cBinaryBasicOp new !getTypeListFrom[![@varType new ![@varKind unsigned] !outShiftSize !here]] !expRightTmp !expRightShiftVal !5] ; #>>
-    @leftAssignPart leftPartA [emptyList];
-    leftPartA += !leftSideExp !fieldLeft;
-    instList += ![@cAssign new !here !leftPartA !expRightTmp1 !0];
-
-    #b := tmp & maskSizeB;
-    @uint mask := (1<<size2)-1;
-    @uint sizeOfMask := nbBitsToCodeUnsigned[![mask uint64]];
-    @cExpression expRightAndMask := [@cIntConst new !getTypeListFrom[![@varType new ![@varKind unsigned] !sizeOfMask !here]] ![mask uint64] !false];
-    @cExpression expRightTmp2 := [@cBinaryBasicOp new !shiftVarType !expRightTmp !expRightAndMask !13] ; #&
-    @leftAssignPart leftPartB [emptyList];
-    leftPartB += !leftSideExp2 !fieldLeft2;
-    instList += ![@cAssign new !here !leftPartB !expRightTmp2 !0];
-  or
-    $,$;
-    repeat
-      @cExpression outExpNext;
-      <pathName> !varMap !componentMap !tmpId !expContext !currentComponent ?outExpNext;
-      @fieldList fieldLeftNext;
-      @varType leftTypeNext;
-      <assignLeftSide> !leftSideExp !varMap !componentMap ?leftTypeNext ?fieldLeftNext !expContext;
-      leftPart += !leftSideExp !fieldLeftNext;
-      leftTypeList += !getVarSize[!leftTypeNext !fieldLeftNext];
-    while
-      $,$;
-    end repeat;
-    #assignment
-    $:=$; 
-    @cExpression expRight;
-    <assignRightSide> !leftTypeList !varMap ?expRight !componentMap !tmpId !expContext;
-    @cAssign instAssign := [@cAssign new !here !leftPart !expRight !tmpId];
-    tmpId := tmpId + ([leftPart length] - 1); #no tmp var for first assigment.
-    instList += !instAssign;
+    <assignmentLeft> !idf !?instList;
   end select;
 end rule;
 
-rule <assignmentOrFunctionCall> 
-  ?! @varMap varMap 
-  ?! @instructionList instList
-  ?? @componentMap componentMap
-  ?? @lstring currentComponent
-  ?! @uint tmpId
-  ?? @expressionContext expContext
+rule <typeDeclaration>
+  ! @varAbstractType type
 :
-  @cExpression outExp;
-  <pathName> !varMap !componentMap !tmpId !expContext !currentComponent ?outExp;
-  select
-    #This is a function call (or component call
-    #add 'currentComponent' at the beginning of the nodePath... or not :-)
-    cast outExp
-    when == @cComponentMethod cm :
-       @cCompMethodCall inst := [@cCompMethodCall new !here ![cm componentName] ![cm methodName] ![cm param]];
-       instList += !inst;
-    else
-      error here : "An component method call is awaited here";
-    end cast;
-  or
-    <assignment> !?varMap !?instList !componentMap !outExp !currentComponent !?tmpId !expContext;
-  end select;
-end rule;
-
-#assignment left side. Does not contains the idf 
-#(LL1 grammar restriction with function calls)
-rule <assignLeftSide>
-  ?? @cExpression leftSideExp
-#  ?? @lstring idf 
-  ?? @varMap varMap 
-  ?? @componentMap componentMap
-  !  @varType type
-#  !  @abstractVar outVar
-  !  @fieldList fieldLeft
-  ?? @expressionContext expContext
-:
-#  #check that variable is declared.
-#  @abstractVar var;
-#  [varMap searchKey !idf ?var];
-#  #assign a constant?
-#  if [var constant] then
-#    error here: "the variable ".[idf string]." is constant, and should not be assigned";
-#  end if;
-  #bitfield?
-  fieldLeft := [@fieldList emptyList];
-  checkOneExpressionOutType !leftSideExp ?type;
-  select
-  or
-    #bit field access.
-    <bitField> !varMap !componentMap !true ?fieldLeft !?type !expContext; #allow expressions.
-  end select;
-end rule;
-
-rule <assignRightSide> 
-  ?? @varTypeList leftTypeList  
-  ?? @varMap varMap 
-  !  @cExpression exp
-  ?? @componentMap componentMap
-  ?? @uint tmpId
-  ?? @expressionContext expContext
-:
-  <expression>  !varMap ?exp !componentMap !tmpId !expContext;
-  @varTypeList outTypeList := [exp typeList];
-
-  if [outTypeList length] == 0 then
-    error here: "void value not ignored as it ought to be in assignment.";
-  end if;
-  if [outTypeList length] != [leftTypeList length] then
-    error here: [[leftTypeList length] string]." returned are required in assigment, but the expression ".
-                "returns ".[[outTypeList length] string]." values.";
-  end if;
-  foreach leftTypeList (@varType leftType), outTypeList (@varType outType) do
-    checkCorrectOutType !leftType !outType;
-  end foreach;
-end rule;
-
-##############
-# declaration:
-# check that: 
-# * variable is at most 64 bits (implementation easier)
-# * variable is not declared in the varMap.
-# * tabular size is an unsigned number.
-#
-# may not declare multiple variable as in 'C' (separated by ',')
-# allow declare and assign, example:
-# u8 val2 := 3;
-##############
-
-rule <declaration> 
-  ?! @varMap varMap 
-  ?! @instructionList instList 
-  ?? @componentMap componentMap
-  ?? @lstring currentComponent
-  ?? @string prefix
-  ?! @uint tmpId
-  ?? @expressionContext expContext
-:
-  @varType type;
-  <typeDeclaration> ?type !componentMap !currentComponent; 
-  @lstring idf;
-  $idf$ ? idf;
-  <basicDeclaration> !type !idf !false !false !false !?varMap !?instList !componentMap !prefix !?tmpId !expContext ?*;
-end rule;
-
-
-# basic declaration rule:
-#  this rule is used to declare a new variable (can be a tabular) which
-#  can be initialized. The type and the name of the variable must be already
-#  known.
-# parameters are:
-# * type is the type of the generated variable.
-# * idf is the name of the generated variable.
-# * isConstant; if it is true, the variable declared should not be modified.
-# * noDeclarationInstruction: if it is true, no instruction is generated to 
-#    declare the new variable, but an instruction may be generated if
-#    the variable is initialized. This feature is useful in components, 
-#    where the declaration is done in another file.
-# * isRegister. Declare a register instead of a classic var. A register should
-#   not generate a declaration instruction (noDeclarationInstruction must be set)
-# * varMap is a variable map, for use in the right side expression (assignment)
-# * instList is the instruction list that is updated by the rule. 0 to 2 instuctions
-#   are added (declaration and assignment).
-# * componentMap is used in the right side expression (assignment)
-# * prefix is a string that is added at the beginning of a classic variable declaration
-#   It is used in behaviors, to prevent variable names collision, each variable is 
-#   prefixed with the name of its behavior.
-# * assign is a boolean that is true if there is an assignement (for checks).
-# * defTab is a boolean that is true if there is tabular definition (for checks).
-rule <basicDeclaration> 
-  ?? @varType type 
-  ?? @lstring idf
-  ?? @bool isConstant
-  ?? @bool noDeclarationInstruction
-  ?? @bool isRegister
-  ?! @varMap varMap 
-  ?! @instructionList instList
-  ?? @componentMap componentMap
-  ?? @string prefix
-  ?! @uint tmpId
-  ?? @expressionContext expContext
-  !  @bool assign #return true if there is an assignment
-:
-  @abstractVar variable;
-  if isRegister then
-    if expContext == [@expressionContext component] then
-      variable := [@registerVar new !type !isConstant ![@regType componentRegister]];
-    elsif expContext == [@expressionContext memory] then
-      variable := [@registerVar new !type !isConstant ![@regType memoryRegister]];
-    else
-      #This should not happen.
-      error here: "internal error: a register should not be defined in ".[expContext msg];
-      variable := [@registerVar new !type !isConstant ![@regType componentRegister]];
-    end if;
-    [!?varMap insertKey !idf !variable];
-    #no instruction related to register declaration. It should be done elsewhere.
-    if not noDeclarationInstruction then 
-      error here: "A register declaration should not generate an instruction";
-    end if;
-  else 
-    @classicVar variableC := [@classicVar new !type !isConstant !prefix !""];
-    variable := variableC;
-    [!?varMap insertKey !idf !variable];
-    if not noDeclarationInstruction then
-      @cDeclareVar instDec := [@cDeclareVar new !here !idf !variableC];
-      instList += !instDec;
-    end if;
-  end if;
-  select
-    assign := false;
-  or
-    $:=$;
-    @cExpression expRight;
-    <assignRightSide> !getTypeListFrom[![variable type]] !varMap ?expRight !componentMap !tmpId !expContext;
-    @cExpression expDummy := [@cIntConst new !getTypeListFrom[![@varType new ![@varKind unsigned] !0 !here]] !0L !false];
-    @fieldList emptyField := [@fieldList emptyList];
-    @leftAssignPart leftPart [emptyList];
-    @cIdf expLeft := [@cIdf new !getTypeListFrom[!type] !idf !variable];
-    leftPart += !expLeft !emptyField;
-    @cAssign instAssign := [@cAssign new !here !leftPart !expRight !0];
-    instList += !instAssign;
-    assign := true;
-    #assign a constant?
-    if [variable constant] then
-      error here: "the variable ".[idf string]." is constant, and should not be assigned";
-    end if;
-  end select;
-end rule;
-
-rule <tab_decl>
-  !@bool isTab
-  !@luint64 tabSize
-:
-  select
-    $[$; $unumber$ ?tabSize; $]$;
-    isTab := true;
-  or
-    isTab := false;
-    tabSize := [@luint64 new !0L !here];
-  end select;
-end rule;
-
-rule <newTypeinstantiation>
- !   @string nameType
- ??  @componentMap unused componentMap
- ??  @TypeStructDefMap  unused TypeList 
- ??  @lstring unused compName
-:
-  $type$; 
-  @lstring Type;
-  $idf$ ? Type;
-  nameType := [Type string];
-end rule;
-
-nonterminal <typeDeclaration> 
-  !  @varType type
-  ?? @componentMap componentMap 
- # ?? @TypeStructDefMap TypeList
-  ?? @lstring componentName
-;
-
-rule <typeDeclaration> 
-  !  @varType type
-  ?? @componentMap componentMap 
-  ?? @lstring componentName
-:
-  @varKind kind;
-  @luint varSize;
-  @varType defType;
-  @string nm;
-  defType := [@varType new ![@varKind signed] !0 !here];
-  @bool isType; #TODO: to remove: redondance d'info avec le 'kind'
-  isType := false;
+  @varAbstractType typeBase; #type of an item in a tabular
   select 
+    @luint varSize;
     $uvar$ ? varSize;
-    kind := [@varKind unsigned];
-    nm:="";
+    typeBase := [@varBaseType new ![@varKind unsigned] ![varSize uint] !here];
   or
+    @luint varSize;
     $svar$ ? varSize; 
-    kind := [@varKind signed];
-    nm:="";
+    typeBase := [@varBaseType new ![@varKind signed] ![varSize uint] !here];
   or
-    @TypeStructDefMap TypeList;
-    [componentMap searchKey !componentName ?* ?* ?* ?* ?* ?* ?* ?* ?TypeList];
-    <newTypeinstantiation> ?nm !componentMap !TypeList !componentName; 
-    isType := true;
-    varSize := [@luint new !1 !here];
-    kind := [@varKind type];
+    $void$;
+    typeBase := [@varBaseType new ![@varKind unsigned] !0 !here]; #void <=> u0
+  or
+    @lstring typeName;
+    $type$;
+    $idf$ ? typeName;
+    typeBase := [@varStructType new ![@varKind custom] !typeName];
   end select;
-  @bool isTab; @luint64 tabSize;
-  <tab_decl> ?isTab ?tabSize;
-  if ([varSize uint] == 0) & kind != [@varKind unsigned] then #detect void
-    error here: "type s0 and f0 are not accepted!\n";
-  end if;
+  #this may be a tabular.
+  select
+    @luint64 tabLength;
+    $[$; $unumber$ ?tabLength; $]$;
+    type := [@varTabularType new ![@varKind tabular] !typeBase ![tabLength uint]];
+  or
+    type := typeBase;
+  end select;
+end rule;
   
-  if [varSize uint] > 128 then
-    error varSize : "Size is higher than 128 bits! Not yet taken into account.";
-  end if;
- 
-  if isTab  then
-    if isType then 
-      @bool asType;
-      @TypeStructDefMap TypeList;
-      [componentMap searchKey !componentName ?* ?* ?* ?* ?* ?* ?* ?* ?TypeList];
-      asType := [TypeList hasKey !nm];
-      if not asType then   
-        error here : "Type  ".nm." not defined in ".componentName ;
-      end if;
-    end if;
-    type := [@varTabType new !kind ![varSize uint] !here ![tabSize uint] !nm !componentName];
-  elsif isType then
-    @bool asType;
-    @TypeStructDefMap TypeList;
-    [componentMap searchKey !componentName ?* ?* ?* ?* ?* ?* ?* ?* ?TypeList];
-    asType := [TypeList hasKey !nm];
-    if not asType then
-      error here : "Type  " .nm." not defined in ".componentName ;
-    end if;
-    type := [@VarTypeDef new !kind ![varSize uint] !here !nm !componentName ];     
-  else 
-    type := [@varType new !kind ![varSize uint] !here];
-  end if;
-end rule;
-
-
-# regarder comment faire l'assignation unique. Il faut regarder dans 
-# les differentes branches, et utiliser un stringset. Le stringset integre
-# toutes les assignations qui sont faites dans une branche (un bloc if).
-# il suffit alors de comparer chaque stringset pour verifier que les 
-# allocations sont bien les memes. Par contre, ceci ne marche pas avec 
-# les variables cachees....
-rule <implementation> 
-  ?! @varMap varMap
-  ?! @instructionList instList
-  ?? @componentMap componentMap
-  ?? @lstring currentComponent
-  ?? @expressionContext expContext
-  ?? @returnTypeList returnList
+rule <declaration>
+  ?! @ASTInstructionList instList
 :
-  #This id is incremented each time that a tmp var is required.
-  #That way, each tmp variable get a unique name.
-  @uint tmpId := 0; 
-  #declaration before implementation.
+  @varAbstractType type;
+  <typeDeclaration> ?type;
   repeat
-  while
-    @string prefix := ""; #local var. No prefix.
-    <declaration> !? varMap !?instList !componentMap !currentComponent !prefix !?tmpId !expContext;
-  end repeat;
-  <implementationWithoutDeclaration> !? varMap !? instList !componentMap !currentComponent !?tmpId !expContext !returnList;
-end rule;
-
-
-#the return statement must be the last instruction.
-#the boolean value hasReturn is true if there is a return statement.
-#The rule that "call" this implementation rule should make an error
-#if a return statement was required.
-rule <implementationWithoutDeclaration> 
-  ?! @varMap varMap 
-  ?! @instructionList instList
-  ?? @componentMap componentMap
-  ?? @lstring currentComponent
-  ?! @uint tmpId
-  ?? @expressionContext expContext
-  ?? @returnTypeList returnList
-:
-  #declaration before implementation.
-  @bool hasReturn := false;
-  repeat
+    @lstring idf;
+    $idf$ ?idf;
+    instList += ![@ASTInstDeclaration new !here ![@varClass localVar] !type !idf];
     select
-      <assignmentOrFunctionCall> !? varMap !?instList !componentMap !currentComponent !?tmpId !expContext;
-      #we force to use return as the last instruction.
-      if hasReturn then error here : "\"return\" should be the last instruction."; end if;
-    or
-      <loopBloc> !varMap !?instList !componentMap !currentComponent !?tmpId !expContext;
-      #we force to use return as the last instruction.
-      if hasReturn then error here : "\"return\" should be the last instruction."; end if;
-    or
-      <ifBloc> !varMap !?instList !componentMap !currentComponent !?tmpId !expContext;
-      #we force to use return as the last instruction.
-      if hasReturn then error here : "\"return\" should be the last instruction."; end if;
-    or
-      <return> !varMap !?instList !componentMap !currentComponent !expContext !returnList;
-      #we force to use return as the last instruction.
-      if hasReturn then
-        error here : "Only one \"return\" instruction allowed.";
-      end if;
-      hasReturn := true;
-    or
-      <nopInst> ! varMap !?instList !componentMap !expContext;
-      #we force to use return as the last instruction.
-      if hasReturn then error here : "\"return\" should be the last instruction."; end if;
-    or
-      <interruptCall> !?instList !expContext;
-      #we force to use return as the last instruction.
-      if hasReturn then error here : "\"return\" should be the last instruction."; end if;
-    or
-      <errorHandling> !varMap !?instList !componentMap;
-      #we force to use return as the last instruction.
-      if hasReturn then error here : "\"return\" should be the last instruction."; end if;
-    or
-      <printInst> !varMap !?instList !componentMap !expContext;
-      #we force to use return as the last instruction.
-      if hasReturn then error here : "\"return\" should be the last instruction."; end if;
-    or
-      <addStall> ! varMap !?instList !componentMap !expContext;
-      #we force to use return as the last instruction.
-      if hasReturn then error here : "\"return\" should be the last instruction."; end if;
+    or 
+      <assignmentLeft> ![idf getASTExp] !?instList;
     end select;
   while
-  end repeat;  
+    $,$;
+  end repeat;
 end rule;
+
+rule <typeDefinition>
+  ?! @ASTInstructionList instList
+:
+  @typedefMemberMap memberMap [emptyMap];
+  @lstring idf;
+  $typedef$;
+  const @location loc := here;
+  $idf$ ?idf;
+  ${$;
+  repeat
+    @varAbstractType type;
+    @lstring member;
+    <typeDeclaration> ?type;
+    $idf$ ?member;
+    [!?memberMap insertKey !member !type];
+  while
+  end repeat;
+  $}$;
+  instList += ![@ASTInstTypeDefinition new !loc !idf !memberMap];
+end rule;
+
+rule <implementation> 
+  ?! @ASTInstructionList instList
+:
+  repeat
+    select
+      <ifBlock> !?instList;
+    or
+      <return> !?instList;
+    or
+      <instNop> !?instList;
+    or
+      <loopBlock> !?instList;
+    or
+      <errorHandling> !?instList;
+    or
+      <instPrint> !?instList;
+    or
+      <assignmentOrFunctionCall> !?instList;
+    or
+      <declaration> !?instList;
+    or
+      <typeDefinition> !?instList;
+    end select;
+  while
+  end repeat;
+end rule;
+
 
 
 end syntax ;

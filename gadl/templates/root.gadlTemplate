@@ -4,19 +4,20 @@
 write to MODELNAME."/Makefile":
   template Makefile_1
 
-#let useCAS := false
+let useCAS := false
+let useCounters := false
 
 #get the list of all .cpp files for compilation.
 let cppFileList := emptyList #files common to each target.
 
-##Instruction Set Architecture related files.
+#Instruction Set Architecture related files.
 template isa in isa
-#
+
 #logs..
 template log in log
 
-#Cycle accurate related files
-template cas in cas
+##Cycle accurate related files
+#template cas in cas
 
 #utils to generate code (types, macro, ..)
 template utils in utils
@@ -30,14 +31,14 @@ template codeReader in codeReader
 #task and stack observation
 template stackObs in stackObs
 
-#TODO: work in progress.
-template peripherals in peripherals
-
+##TODO: work in progress.
+#template peripherals in peripherals
+#
 #Makefile targets (standalone, python and gdb).
 template target in target
 
 #casC -> compiled CAS specific files.
-template casC in casC
+#template casC in casC
 
 #generate a counter Map to count
 # *component method access
@@ -49,12 +50,12 @@ if exists useCounters then
       let key := "counter_".component::name."_".method::name
     let counterMap[key] := true
     end foreach
-    foreach reg in component::registerList do
-      let key := "counter_read_".reg::regName
+    foreach reg in idfStruct::varList do
+      let key := "counter_read_".reg::name
       if not exists counterMap[key] then
         let counterMap[key] := true
       end if
-      let key := "counter_write_".reg::regName
+      let key := "counter_write_".reg::name
       if not exists counterMap[key] then
         let counterMap[key] := true
       end if
@@ -91,19 +92,19 @@ end if
 template timing in timing
 
 #main header.
-write to MODELNAME."/arch.h":
-  template arch_h
+write to MODELNAME."/core.h":
+  template core_h
 end write
 
-write to MODELNAME."/arch.cpp":
-  template arch_cpp
+write to MODELNAME."/core.cpp":
+  template core_cpp
 end write
-%arch.cpp \\\n%
+%core.cpp \\\n%
 
-write to MODELNAME."/componentTypeDef.h":
-  template componentTypeDef_h
-end write
-
+#write to MODELNAME."/componentTypeDef.h":
+#  template componentTypeDef_h
+#end write
+#
   template Makefile_2
 end write
 %

@@ -42,7 +42,7 @@ foreach inst in INST_CONSTRUCTOR do
 	public:
 	%!inst::name !instContructorParam[inst::name]%;
 	virtual ~%!inst::name%() {};
-	virtual void execute(arch *);
+	virtual void execute(core *);
 	virtual const char* const mnemo();
 %#	/** binary code size in bytes
 %	virtual unsigned char const size() {return %![codeSizeInBytes string]%;};

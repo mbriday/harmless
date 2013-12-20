@@ -1,0 +1,21 @@
+semantics gadl_container:
+  import "gadl_options.gOption" ;
+
+abstract class @container {
+  @lstring name;
+}
+
+#TODO: a mettre ailleurs
+#TODO: à refaire, puisqu'on va gérer les container à travers une map.
+class @component extends @container{
+}
+
+
+map @containerMap
+{
+  @container container;
+  insert insertKey error message "the '%K' container is already defined in %L" ; 
+  search searchKey error message "the '%K' container is not defined" ;
+}
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

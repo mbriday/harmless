@@ -224,11 +224,11 @@ list keyWordList error message "the '%K' keyword" style keywordsStyle:
 "error","warning",                                       #error detection.
 "component","void","every",                              #component
 "interrupt",                                             #interrupt handling
-"memory","width","address","type","RAM","ROM",           #memory
+"memory","space","width","type","RAM","ROM",           #memory
 "register","stride","read","program","counter",
 "pipeline","stage","machine",                            #pipeline
 "bypass","release","in","maps","to","stall",
-"default","instruction","fetch","debug",                 #global
+"default","fetch","debug",                               #global
 "big","little","endian",                                 #global (endianness)
 "typedef",                                               # structured types.
                                                          # 'in' expression.
@@ -237,16 +237,16 @@ list keyWordList error message "the '%K' keyword" style keywordsStyle:
 "signed","or",
 "syntax","switch","number","octal","decimal",            #syntax
 "hexadecimal","binary","suffix","prefix",          
-"size","jumpTaken","add","cycle","use",                  #cycles 
+"jumpTaken","add","cycle","use",                         #cycles 
 "timing","signal","emit","wait","for",                   #timing        
 "broadcast","activation",                                #timing        
 "return","print",                                        #implementation
 "if","then","elseif","else","end",                       #conditional
 "loop","while",                                          #loops 
-"true","false",                                          #boolean
-"ror","rol",                                             #rotation op
-"cat";                                                   #concatenation 
-
+"true","false","ror","rol","cat",                        #expression
+"instruction","size","address",                          #expression
+"core", "import","isa","from"                            #core
+;
 #-------------a variable .. and identifers (1/2).---------------------
 # TODO: not terminated. u3f does not send an identifier for instance.
 @string idStr ;

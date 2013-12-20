@@ -1,20 +1,29 @@
-gui gadl_cocoa "cocoa":
-with option "gadl_options.gOption";
+gui gadl_cocoa "cocoa" :
 
+with option "gadl_options.gOption" ;
+
+#with lexique "gadl_lexique.gLexique" {
+#  fileExtension: "isa" ;
+#  title: "ISA Source" ;
+#  blockComment : "--" ;
+#
+#  label $component$, $idf$;
+#  label $format$, $idf$;
+#  label $behavior$, $idf$;
+#  label $syntax$, $idf$;
+#}
 
 with lexique "gadl_lexique.gLexique" {
-  fileExtension : "hadl" ;
-  title: "Source" ;
+  fileExtension: "core" ;
+  title: "Core Source" ;
   blockComment : "--" ;
 
-  label $component$, $idf$;
-  label $format$, $idf$;
-  label $behavior$, $idf$;
-  label $syntax$, $idf$;
+  label $core$, $idf$;
   label $machine$, $idf$;
   label $pipeline$, $idf$;
   label $architecture$, $idf$;
 }
+
 
 with lexique "template_scanner.gLexique" {
   fileExtension : "gadlTemplate" ;
@@ -23,5 +32,4 @@ with lexique "template_scanner.gLexique" {
 }
 
 end gui ;
-
 # vim:ft=ggs:ts=2:sw=2

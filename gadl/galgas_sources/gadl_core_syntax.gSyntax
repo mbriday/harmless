@@ -1,0 +1,65 @@
+syntax gadl_core_syntax ("gadl_lexique.gLexique") :
+import "gadl_options.gOption" ;
+import "gadl_memory.gSemantics";
+import "gadl_isa.gSemantics";
+import "gadl_isa_grammar.gGrammar";
+import "gadl_varIdfStruct.gSemantics"; #lstringMap
+import "gadl_core.gSemantics";
+
+nonterminal <memoryChunk>
+  ?! @ASTmemoryParamMap ASTmemChunk 
+  ?! @stringlist memChunkOrder
+;
+nonterminal <memorySpace> ?! @ASTmemSpaceMap ASTmemSpaceMap;
+
+rule <importIsa>
+  ?!@lstringMap importIsaMap
+:
+  $import$; $isa$;
+  $idf$ ?@lstring isaName;
+  $from$;
+  $caracterStr$ ?@lstring srcFile;  
+  [!?importIsaMap insertKey !isaName !srcFile];
+end rule;
+
+rule <core> :
+  #memory stuff
+  @ASTmemoryParamMap ASTmemChunk [emptyMap];
+  @stringlist memChunkOrder [emptyList];
+  #importing isa
+  @lstringMap importIsaMap [emptyMap];
+  @ASTmemSpaceMap ASTmemSpaceMap [emptyMap];
+ 
+  repeat
+  while
+    #mem space definition.
+    <memorySpace> !?ASTmemSpaceMap;
+  while
+    #ISA importation
+    <importIsa> !?importIsaMap;
+  end repeat;
+
+  $core$; $idf$ ?@lstring coreName;
+  $:$; $isa$; $idf$ ?@lstring isaNameInCore;
+  [importIsaMap searchKey !isaNameInCore ?@lstring isaFileName];
+  grammar gadl_isa_grammar in isaFileName ??@ASTIsa ASTIsa;
+  ${$;
+    <coreBody> !?ASTmemChunk !?memChunkOrder;
+  $}$;
+  #Ok. Parsing done. Now apply semantic.
+
+  coreSemantic !coreName !ASTIsa !ASTmemChunk !memChunkOrder !ASTmemSpaceMap;
+end rule ;
+
+rule <coreBody>
+  ?! @ASTmemoryParamMap ASTmemChunk
+  ?! @stringlist memChunkOrder
+:
+  repeat
+  while
+    <memoryChunk> !?ASTmemChunk !?memChunkOrder;
+  end repeat;
+end rule;
+
+end syntax ;
+# vim:ft=ggs:ts=2:sw=2

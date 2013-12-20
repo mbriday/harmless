@@ -1,7 +1,7 @@
 semantics gadl_semantics_register_access :
   import "gadl_components.gSemantics" ;
   import "gadl_semantics_implementation.gSemantics" ;
-  import "gadl_semantics_expression_const.gSemantics";
+  import "gadl_memory.gSemantics" ;
 
 #This list get pipeline information for the DDC:
 # for each component that get registers, it stores the 
@@ -16,36 +16,47 @@ list @DDCPipelineInfoList {
   @lstring pipelineStageWriteName;  
 }
 
-#this class is used only to get information about the memory registers file
-# -> a unique name
-# -> nb of elements (i.e. if this is a 32 bits registers, it is the size/4). It uses the stride.
-# key is componentName_memoryName_memoryChunkName or
-# key is componentName_memoryName.
-map @DDCMemoryRegisterInfoMap {
-  @lstring componentName;
-  @lstring memoryName;
-  @lstring memoryChunkName;
-  @uint nbElt;
-  @uint width;
-  @sint chunkId feature setter; #store the chunkId. Default is '-1' -> bad value.
-  @uint chunkOffset feature setter; #store the chunkOffset. Default is '0'
-  insert insertKey error message "the '%K' DDCMemoryRegisterInfoMap is already defined in %L" ; 
-  search searchKey error message "the '%K' DDCMemoryRegisterInfoMap is not defined" ;
-}
+##this class is used only to get information about the memory registers file
+## -> a unique name
+## -> nb of elements (i.e. if this is a 32 bits registers, it is the size/4). It uses the stride.
+## key is componentName_memoryName_memoryChunkName or
+## key is componentName_memoryName.
+#map @DDCMemoryRegisterInfoMap {
+#  @lstring componentName;
+#  @lstring memoryName;
+#  @lstring memoryChunkName;
+#  @uint nbElt;
+#  @uint width;
+#  @sint chunkId feature setter; #store the chunkId. Default is '-1' -> bad value.
+#  @uint chunkOffset feature setter; #store the chunkOffset. Default is '0'
+#  insert insertKey error message "the '%K' memSpaceWithRegister is already defined in %L" ; 
+#  search searchKey error message "the '%K' memSpaceWithRegister is not defined" ;
+#}
 
-#list all the R/W accesses. It should have
-#"@DDCMemoryRegisterInfoMap" entries. One entry for each
-#register file.
-# key is componentName_memorame -> memid.
+#access to a register file.
+#Key is the memory chunk name.
 map @DDCRegisterFileAccess {
-  @lstring componentName;
-  @lstring memoryName;
-  @stringMap methodAccessMap; #method access map -> read32, memoryName_read8, memoryName_memoryChunkName_write32..
-  #String value is either "read" or "write".
+  @bool read;  #got a read  access;
+  @bool write; #got a write access;
   insert insertKey error message "the '%K' DDCRegisterFileAccess is already defined in %L" ; 
   search searchKey error message "the '%K' DDCRegisterFileAccess is not defined" ;
   remove removeKey error message "the '%K' DDCRegisterFileAccess is not defined and cannot be removed." ;
 }
+
+
+##list all the R/W accesses. It should have
+##"@boolMap" entries. One entry for each
+##register file.
+## key is componentName_memoryName -> memid.
+#map @DDCRegisterFileAccess {
+#  @lstring componentName;
+#  @lstring memoryName;
+#  @stringMap methodAccessMap; #method access map -> read32, memoryName_read8, memoryName_memoryChunkName_write32..
+#  #String value is either "read" or "write".
+#  insert insertKey error message "the '%K' DDCRegisterFileAccess is already defined in %L" ; 
+#  search searchKey error message "the '%K' DDCRegisterFileAccess is not defined" ;
+#  remove removeKey error message "the '%K' DDCRegisterFileAccess is not defined and cannot be removed." ;
+#}
 
 #This map stores for each instruction (the key) the 
 #structures that records the read/write registers access.
@@ -58,7 +69,7 @@ map @DDCRegisterAccessMap
   search searchKey error message "the '%K' @DDCRegisterAccessMap is not defined" ;
 }
 
-#used to store a register mask for each item in DDCMemoryRegisterInfoMap and in classical registers.
+#used to store a register mask for each item in memSpaceWithRegister and in classical registers.
 #key is the register file access:
 # key is componentName_memoryName_memoryChunkName or
 # key is componentName_memoryName.
@@ -81,540 +92,388 @@ map @regMaskMapMap
 ####################################################################################
 # below are the 'getRegisterUsage' methods for:
 # * instructions
+#   - @instIf
+#   - @instReturn
+#   - @instNop
+#   - @instLoop
+#   - @instError
+#   - @instPrint
+#   - @instMessage
+#   - @instFunctionCall
+#   - @instAssignment
+#   - @instDeclaration
+#     -> @instDeclarationRegSlice 
+#   - @instTypeDefinition
 # * expressions.
+#   - expDummy
+#   - expIntConst
+#   - expInstructionSize
+#   - expInstructionAddress
+#   - expIdf
+#   - expCast
+#   - expBitFieldOp
+#   + expUnary
+#   - expBinary
 ####################################################################################
-abstract method @cInstruction getRegisterUsage
- ?? @componentMap unused componentMap
+abstract method @instruction getRegisterUsage
+ ?? @varIdfStruct unused varIdfStruct
  ?! @boolMap unused registerReadAccess
  ?! @boolMap unused registerWriteAccess
  ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
+ ?? @boolMap unused memSpaceWithRegister
  ?? @bool unused assignment
 ;
 
-override method @cDummy getRegisterUsage
- ?? @componentMap unused componentMap
+override method @instError getRegisterUsage
+ ?? @varIdfStruct unused varIdfStruct
  ?! @boolMap unused registerReadAccess
  ?! @boolMap unused registerWriteAccess
  ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
+ ?? @boolMap unused memSpaceWithRegister
  ?? @bool unused assignment
 :
 end method;
 
-override method @cInterruptInst getRegisterUsage
- ?? @componentMap unused componentMap
+override method @instMessage getRegisterUsage
+ ?? @varIdfStruct unused varIdfStruct
  ?! @boolMap unused registerReadAccess
  ?! @boolMap unused registerWriteAccess
  ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
+ ?? @boolMap unused memSpaceWithRegister
  ?? @bool unused assignment
 :
 end method;
 
-override method @cErrorInst getRegisterUsage
- ?? @componentMap unused componentMap
+override method @instPrint getRegisterUsage
+ ?? @varIdfStruct unused varIdfStruct
  ?! @boolMap unused registerReadAccess
  ?! @boolMap unused registerWriteAccess
  ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
+ ?? @boolMap unused memSpaceWithRegister
  ?? @bool unused assignment
 :
 end method;
 
-override method @cMessageInst getRegisterUsage
- ?? @componentMap unused componentMap
- ?! @boolMap unused registerReadAccess
- ?! @boolMap unused registerWriteAccess
- ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-end method;
-
-override method @cPrintInst getRegisterUsage
- ?? @componentMap unused componentMap
- ?! @boolMap unused registerReadAccess
- ?! @boolMap unused registerWriteAccess
- ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-end method;
-
-override method @cNopInst getRegisterUsage
- ?? @componentMap componentMap
+override method @instNop getRegisterUsage
+ ?? @varIdfStruct varIdfStruct
  ?! @boolMap registerReadAccess
  ?! @boolMap registerWriteAccess
  ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+ ?? @boolMap memSpaceWithRegister
  ?? @bool unused assignment
 :
-  [condition getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
+  [cond getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
 end method;
 
-override method @cInsertStall getRegisterUsage
- ?? @componentMap componentMap
+override method @instIf getRegisterUsage
+ ?? @varIdfStruct varIdfStruct
  ?! @boolMap registerReadAccess
  ?! @boolMap registerWriteAccess
  ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+ ?? @boolMap memSpaceWithRegister
  ?? @bool unused assignment
 :
-  [condition getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-end method;
-
-override method @cAddCycleInst getRegisterUsage
- ?? @componentMap componentMap
- ?! @boolMap registerReadAccess
- ?! @boolMap registerWriteAccess
- ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-  [condition getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-end method;
-
-override method @cTimingMethodAccessBlock getRegisterUsage
- ?? @componentMap componentMap
- ?! @boolMap registerReadAccess
- ?! @boolMap registerWriteAccess
- ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-  foreach instList (@cInstruction inst) do
-    [inst getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
+  [cond getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
+  foreach instIfList do
+    [inst getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
+  end foreach;
+  foreach instElseList do
+    [inst getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
   end foreach;
 end method;
 
-override method @cIfBlock getRegisterUsage
- ?? @componentMap componentMap
- ?! @boolMap registerReadAccess
- ?! @boolMap registerWriteAccess
- ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-  [condition getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-  foreach ifInstList (@cInstruction inst) do
-    [inst getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-  end foreach;
-  foreach elseInstList (@cInstruction inst) do
-    [inst getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-  end foreach;
-end method;
-
-override method @cDeclareVar getRegisterUsage
- ?? @componentMap unused componentMap
+override method @instDeclaration getRegisterUsage
+ ?? @varIdfStruct unused varIdfStruct
  ?! @boolMap unused registerReadAccess
  ?! @boolMap unused registerWriteAccess
  ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
+ ?? @boolMap unused memSpaceWithRegister
  ?? @bool unused assignment
 :
 end method;
 
-override method @cLoopBlock getRegisterUsage
- ?? @componentMap componentMap
+override method @instTypeDefinition getRegisterUsage
+ ?? @varIdfStruct unused varIdfStruct
+ ?! @boolMap unused registerReadAccess
+ ?! @boolMap unused registerWriteAccess
+ ?! @DDCRegisterFileAccess unused registerFileAccess
+ ?? @boolMap unused memSpaceWithRegister
+ ?? @bool unused assignment
+:
+end method;
+
+override method @instLoop getRegisterUsage
+ ?? @varIdfStruct varIdfStruct
  ?! @boolMap registerReadAccess
  ?! @boolMap registerWriteAccess
  ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+ ?? @boolMap memSpaceWithRegister
  ?? @bool unused assignment
 :
-  [condition getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-  foreach loopInstructionList (@cInstruction inst) do
-    [inst getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
+  [expCondition getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
+  foreach loopInstList do
+    [inst getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
   end foreach;
 end method;
 
-override method @cAssign getRegisterUsage
- ?? @componentMap componentMap
+override method @instAssignment getRegisterUsage
+ ?? @varIdfStruct varIdfStruct
  ?! @boolMap registerReadAccess
  ?! @boolMap registerWriteAccess
  ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+ ?? @boolMap memSpaceWithRegister
  ?? @bool unused assignment
 :
   #right part of assignment.
-  [exp getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
+  [exp getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
   #left part are written.
-  foreach leftPart (@cExpression expLeft *) do
-    [expLeft getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !true];
-  end foreach;
-end method;
-
-override method @cAssignFunc getRegisterUsage
- ?? @componentMap componentMap
- ?! @boolMap registerReadAccess
- ?! @boolMap registerWriteAccess
- ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-  [expression getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
+  [idf getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !true];
 end method;
 
 routine checkForAccessInRegisterFile
- ?? @lstring componentName
- ?? @lstring methodName
- ?? @parameterCallList unused paramList
- ?? @string accessType #this can be either "read" or "write"
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap #it defines all memory components defined as register.
+ ?? @idfItemList idfList
+ ?? @bool read #read or write access.
+ ?? @boolMap memSpaceWithRegister
  ?! @DDCRegisterFileAccess registerFileAccess #it stores registers accesses (output)
 :
-  #foreach memory part defined as 'register'
-  foreach DDCMemoryRegisterInfoMap (* @lstring DDCcomponentName @lstring DDCmemoryName @lstring DDCmemoryChunkName * @uint width * *) do
-    #the component call should match (easy)
-    if [componentName string] == [DDCcomponentName string] then
-      #ok. Then, the method should match. If this is a memory alias, it is appended at the end of mem name.
-      @string methodKey := [DDCmemoryName string];
-      if [DDCmemoryChunkName string] != "" then
-        methodKey .= "_".[DDCmemoryChunkName string];
+  @lstring memChunkName := [idfList idfAtIndex !0]; #we don't need the type of access considered.
+  message "check for reg file access ".[memChunkName string].":";
+  if [memSpaceWithRegister hasKey ![memChunkName string]] then #this is a mem space with regs.
+    message "match";
+    if [registerFileAccess hasKey ![memChunkName string]] then
+      message "update";
+      #already a file access -> update
+      if read then
+        [!?registerFileAccess setReadForKey !true ![memChunkName string]]; #update
+      else
+        [!?registerFileAccess setWriteForKey !true ![memChunkName string]]; #update
       end if;
-      #then, look for a read or write access (read32, read16, .. method).
-      #Quick and dirty :-/
-      if ([methodName string] == (methodKey."_".accessType.[width string])) |
-         ([methodName string] == (methodKey."_".accessType."64")) |
-         ([methodName string] == (methodKey."_".accessType."32")) |
-         ([methodName string] == (methodKey."_".accessType."16")) |
-         ([methodName string] == (methodKey."_".accessType."8")) then
-         #The method is related to a register file. Store it.
-         @stringMap methodAccessMap [emptyMap];
-         @bool entryExist := false;
-         @string memId := [componentName string]."_".[DDCmemoryName string];
-         if [registerFileAccess hasKey !memId] then
-           #already a file access.
-           entryExist := true;
-           [registerFileAccess searchKey ![@lstring new !memId ![componentName location]] ?* ?* ?methodAccessMap];
-         end if;
-         @bool mapUpdate := false;
-         if not [methodAccessMap hasKey ![methodName string]] then
-           mapUpdate := true;
-           #not previously stored, update.
-           [!?methodAccessMap insertKey !methodName !accessType];
-         end if;
-         if not entryExist then
-           #add it
-           [!?registerFileAccess insertKey ![@lstring new !memId ![componentName location]] !componentName !DDCmemoryName !methodAccessMap];
-         else
-           if mapUpdate then
-             [!?registerFileAccess setMethodAccessMapForKey !methodAccessMap !memId]; #update
-           end if;
-         end if;
-      end if;
+    else
+      message "insert";
+      #no access. Insert entry.
+      @bool R := read;
+      @bool W := not read;
+      [!?registerFileAccess insertKey !memChunkName !R !W];
     end if;
-  end foreach;
-  #logRegisterFileAccess !registerFileAccess;
+  end if;
+  message "\n";
+
+#  #foreach memory part defined as 'register'
+#  foreach memSpaceWithRegister (* @lstring DDCcomponentName @lstring DDCmemoryName @lstring DDCmemoryChunkName * @uint width * *) do
+#    #the component call should match (easy)
+#    if [componentName string] == [DDCcomponentName string] then
+#      #ok. Then, the method should match. If this is a memory alias, it is appended at the end of mem name.
+#      @string methodKey := [DDCmemoryName string];
+#      if [DDCmemoryChunkName string] != "" then
+#        methodKey .= "_".[DDCmemoryChunkName string];
+#      end if;
+#      #then, look for a read or write access (read32, read16, .. method).
+#      #Quick and dirty :-/
+#      if ([methodName string] == (methodKey."_".accessType.[width string])) |
+#         ([methodName string] == (methodKey."_".accessType."64")) |
+#         ([methodName string] == (methodKey."_".accessType."32")) |
+#         ([methodName string] == (methodKey."_".accessType."16")) |
+#         ([methodName string] == (methodKey."_".accessType."8")) then
+#         #The method is related to a register file. Store it.
+#         @stringMap methodAccessMap [emptyMap];
+#         @bool entryExist := false;
+#         @string memId := [componentName string]."_".[DDCmemoryName string];
+#         if [registerFileAccess hasKey !memId] then
+#           #already a file access.
+#           entryExist := true;
+#           [registerFileAccess searchKey ![@lstring new !memId ![componentName location]] ?* ?* ?methodAccessMap];
+#         end if;
+#         @bool mapUpdate := false;
+#         if not [methodAccessMap hasKey ![methodName string]] then
+#           mapUpdate := true;
+#           #not previously stored, update.
+#           [!?methodAccessMap insertKey !methodName !accessType];
+#         end if;
+#         if not entryExist then
+#           #add it
+#           [!?registerFileAccess insertKey ![@lstring new !memId ![componentName location]] !componentName !DDCmemoryName !methodAccessMap];
+#         else
+#           if mapUpdate then
+#             [!?registerFileAccess setMethodAccessMapForKey !methodAccessMap !memId]; #update
+#           end if;
+#         end if;
+#      end if;
+#    end if;
+#  end foreach;
+#  #logRegisterFileAccess !registerFileAccess;
 end routine;
 
-override method @cCompMethodCall getRegisterUsage
- ?? @componentMap componentMap
+override method @instFunctionCall getRegisterUsage
+ ?? @varIdfStruct varIdfStruct
  ?! @boolMap registerReadAccess
  ?! @boolMap registerWriteAccess
  ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+ ?? @boolMap memSpaceWithRegister
  ?? @bool unused assignment
 :
   #register defined using the 'register' keyword.
-  foreach paramList (@cExpression exp *) do
-    [exp getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
+  foreach [exp idfList] do
+    foreach paramList do
+      [exp getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
+    end foreach;
   end foreach;
-  @functionMap methodMap;
-  @instructionList componentMethodCode;
-  [componentMap searchKey !componentName ?* ?* ?methodMap ?* ?* ?* ?* ?* ?*];
-  [methodMap searchKey !methodName ?* ?* ?componentMethodCode];
-  foreach componentMethodCode (@cInstruction inst) do
-    [inst getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-  end foreach;
-  #register file (memory). This could be only a write (the instruction does not returns any value).
-  checkForAccessInRegisterFile !componentName !methodName !paramList !"write" !DDCMemoryRegisterInfoMap !?registerFileAccess;
+  switch [exp detectedType]
+    when unknown,structMember,localVar,tabularAccess,registerAccess,registerBitField:
+      error loc: "invalid detected type for a function call".[[exp detectedType] msg];
+    when componentCall:
+      @instructionList instList := [varIdfStruct->componentMap getInstList ![exp idfList]];
+      foreach instList do
+        [inst getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
+      end foreach;
+    when memoryAccess:
+      #register file (memory). This could be only a write (the instruction does not returns any value).
+      checkForAccessInRegisterFile ![exp idfList] !false !memSpaceWithRegister !?registerFileAccess;  
+  end switch;
 end method;
 
-override method @cReturn getRegisterUsage
- ?? @componentMap componentMap
+override method @instReturn getRegisterUsage
+ ?? @varIdfStruct varIdfStruct
  ?! @boolMap registerReadAccess
  ?! @boolMap registerWriteAccess
  ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+ ?? @boolMap memSpaceWithRegister
  ?? @bool unused assignment
 :
-  foreach expressionList (@cExpression exp) do
-    [exp getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-  end foreach;
+  [exp getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
 end method;
 
 ##Expression category.
-abstract method @cExpression getRegisterUsage
- ?? @componentMap unused componentMap
+abstract method @expression getRegisterUsage
+ ?? @varIdfStruct unused varIdfStruct
  ?! @boolMap unused registerReadAccess
  ?! @boolMap unused registerWriteAccess
  ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
+ ?? @boolMap unused memSpaceWithRegister
  ?? @bool unused assignment
 ;
 
-override method @cIdf getRegisterUsage
- ?? @componentMap unused componentMap
+override method @expIdf getRegisterUsage
+ ?? @varIdfStruct varIdfStruct
  ?! @boolMap registerReadAccess
  ?! @boolMap registerWriteAccess
- ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
+ ?! @DDCRegisterFileAccess registerFileAccess
+ ?? @boolMap memSpaceWithRegister
  ?? @bool assignment
 :
-  @lstring varName := [@lstring new !"" !here];
-  @bool regToAdd := false;
-  cast var
-  when == @registerVarSlice rvs :
-    varName := [rvs baseRegisterName];
-    regToAdd := true;
-  when == @registerVar :
-    varName := idf;
-    regToAdd := true;    
-  when == @classicVar :
-    #nothing.
-  else
-    error here: "internal error: unknown abstract var.";
-  end cast;
-  if regToAdd then
-    if assignment then #from the left part of an assignment expression
-      if not [registerWriteAccess hasKey ![varName string]] then
-        [!?registerWriteAccess insertKey !varName];
+  #parameters (if any).
+  foreach idfList do
+    foreach paramList do
+      [exp getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
+    end foreach;
+  end foreach;
+
+  switch detectedType
+    when unknown,structMember,localVar,tabularAccess: #nothing to do.
+    when registerAccess,registerBitField:
+      @lstring regName := [idfList idfAtIndex !0]; #more than one idf in list for slices.
+      if assignment then #from the left part of an assignment expression
+        if not [registerWriteAccess hasKey ![regName string]] then
+          [!?registerWriteAccess insertKey !regName];
+        end if;
+      else
+        if not [registerReadAccess hasKey ![regName string]] then
+          [!?registerReadAccess insertKey !regName];
+        end if;
       end if;
-    else
-      if not [registerReadAccess hasKey ![varName string]] then
-        [!?registerReadAccess insertKey !varName];
-      end if;
-    end if;
-  end if;
+    when componentCall:
+      #instructions
+      @instructionList instList := [varIdfStruct->componentMap getInstList !idfList];
+      foreach instList do
+        [inst getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
+      end foreach;
+    when memoryAccess: #only a read inside an expression.
+      checkForAccessInRegisterFile !idfList !true !memSpaceWithRegister !?registerFileAccess;  
+  end switch;
 end method;
 
-override method @cTabIndice getRegisterUsage
- ?? @componentMap componentMap
+override method @expBinary getRegisterUsage
+ ?? @varIdfStruct varIdfStruct
  ?! @boolMap registerReadAccess
  ?! @boolMap registerWriteAccess
  ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+ ?? @boolMap memSpaceWithRegister
  ?? @bool unused assignment
 :
-  [expIndice getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
+  [expLeft getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
+  [expRight getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
 end method;
 
-override method @cTypeExtend getRegisterUsage
- ?? @componentMap unused componentMap
- ?! @boolMap unused registerReadAccess
- ?! @boolMap unused  registerWriteAccess
- ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-
-   #TODO 
-   #NEX TIME 
-end method;
-override method @cTypeTabMember getRegisterUsage
- ?? @componentMap unused componentMap
- ?! @boolMap unused registerReadAccess
- ?! @boolMap unused  registerWriteAccess
- ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-
-   #TODO 
-   #NEX TIME 
-end method;
-override method @cTypeMember getRegisterUsage
- ?? @componentMap unused componentMap
- ?! @boolMap unused registerReadAccess
- ?! @boolMap unused  registerWriteAccess
- ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-
-   #TODO 
-   #NEX TIME 
-end method;
-override method @cTypeTag getRegisterUsage
- ?? @componentMap unused componentMap
- ?! @boolMap unused registerReadAccess
- ?! @boolMap unused  registerWriteAccess
- ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-
-   #TODO 
-   #NEX TIME 
-end method;
-
-
-override method @cBinaryBasicOp getRegisterUsage
- ?? @componentMap componentMap
+override method @expBitFieldOp getRegisterUsage
+ ?? @varIdfStruct varIdfStruct
  ?! @boolMap registerReadAccess
  ?! @boolMap registerWriteAccess
  ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+ ?? @boolMap memSpaceWithRegister
  ?? @bool unused assignment
 :
-  [expLeft getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-  [expRight getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
+  [expField getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
 end method;
 
-override method @cBitFieldOp getRegisterUsage
- ?? @componentMap componentMap
+override method @expCast getRegisterUsage
+ ?? @varIdfStruct varIdfStruct
  ?! @boolMap registerReadAccess
  ?! @boolMap registerWriteAccess
  ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+ ?? @boolMap memSpaceWithRegister
  ?? @bool unused assignment
 :
-  [expField getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
+  [expCasted getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
 end method;
 
-override method @cCast getRegisterUsage
- ?? @componentMap componentMap
- ?! @boolMap registerReadAccess
- ?! @boolMap registerWriteAccess
- ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-  [expression getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-end method;
-
-override method @cCatOp getRegisterUsage
- ?? @componentMap componentMap
- ?! @boolMap registerReadAccess
- ?! @boolMap registerWriteAccess
- ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-  [expLeft getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-  [expRight getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-end method;
-
-override method @cComponentMethod getRegisterUsage
- ?? @componentMap componentMap
- ?! @boolMap registerReadAccess
- ?! @boolMap registerWriteAccess
- ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-  foreach param (@cExpression exp *) do
-    [exp getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-  end foreach;
-  @functionMap methodMap;
-  @instructionList componentMethodCode;
-  [componentMap searchKey !componentName ?* ?* ?methodMap ?* ?* ?* ?* ?* ?*];
-  [methodMap searchKey !methodName ?* ?* ?componentMethodCode];
-  foreach componentMethodCode (@cInstruction inst) do
-    [inst getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-  end foreach;
-  #register file (memory). This should only be a read (a write call does not returns anything).
-  checkForAccessInRegisterFile !componentName !methodName !param !"read" !DDCMemoryRegisterInfoMap !?registerFileAccess;
-end method;
-
-override method @cExpDummy getRegisterUsage
- ?? @componentMap unused componentMap
+override method @expDummy getRegisterUsage
+ ?? @varIdfStruct unused varIdfStruct
  ?! @boolMap unused registerReadAccess
  ?! @boolMap unused registerWriteAccess
  ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
+ ?? @boolMap unused memSpaceWithRegister
  ?? @bool unused assignment
 :
 end method;
 
-override method @cExpInstructionAddress getRegisterUsage
- ?? @componentMap unused componentMap
+override method @expInstructionAddress getRegisterUsage
+ ?? @varIdfStruct unused varIdfStruct
  ?! @boolMap unused registerReadAccess
  ?! @boolMap unused registerWriteAccess
  ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
+ ?? @boolMap unused memSpaceWithRegister
  ?? @bool unused assignment
 :
 end method;
 
-override method @cExpInstructionSize getRegisterUsage
- ?? @componentMap unused componentMap
+override method @expInstructionSize getRegisterUsage
+ ?? @varIdfStruct unused varIdfStruct
  ?! @boolMap unused registerReadAccess
  ?! @boolMap unused registerWriteAccess
  ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
+ ?? @boolMap unused memSpaceWithRegister
  ?? @bool unused assignment
 :
 end method;
 
-override method @cRotationOp getRegisterUsage
- ?? @componentMap componentMap
- ?! @boolMap registerReadAccess
- ?! @boolMap registerWriteAccess
- ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-  [expLeft getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-  [expRight getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-end method;
-
-override method @cSliceFieldOp getRegisterUsage
- ?? @componentMap unused componentMap
+override method @expIntConst getRegisterUsage
+ ?? @varIdfStruct unused varIdfStruct
  ?! @boolMap unused registerReadAccess
  ?! @boolMap unused registerWriteAccess
  ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
+ ?? @boolMap unused memSpaceWithRegister
  ?? @bool unused assignment
 :
 end method;
 
-override method @cIntConst getRegisterUsage
- ?? @componentMap unused componentMap
- ?! @boolMap unused registerReadAccess
- ?! @boolMap unused registerWriteAccess
- ?! @DDCRegisterFileAccess unused registerFileAccess
- ?? @DDCMemoryRegisterInfoMap unused DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-end method;
-
-override method @cUnaryOp getRegisterUsage
- ?? @componentMap componentMap
+override method @expUnary getRegisterUsage
+ ?? @varIdfStruct varIdfStruct
  ?! @boolMap registerReadAccess
  ?! @boolMap registerWriteAccess
  ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
+ ?? @boolMap memSpaceWithRegister
  ?? @bool unused assignment
 :
-  [exp getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-end method;
-
-override method @cXorOp getRegisterUsage
- ?? @componentMap componentMap
- ?! @boolMap registerReadAccess
- ?! @boolMap registerWriteAccess
- ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-  [expLeft getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-  [expRight getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-end method;
-
-override method @cfunctionCall getRegisterUsage
- ?? @componentMap componentMap
- ?! @boolMap registerReadAccess
- ?! @boolMap registerWriteAccess
- ?! @DDCRegisterFileAccess registerFileAccess
- ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
- ?? @bool unused assignment
-:
-  foreach paramList (@cExpression exp *) do
-    [exp getRegisterUsage !componentMap !?registerReadAccess !?registerWriteAccess !?registerFileAccess !DDCMemoryRegisterInfoMap !false];
-  end foreach;
+  [exp getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
 end method;
 
 end semantics ;
