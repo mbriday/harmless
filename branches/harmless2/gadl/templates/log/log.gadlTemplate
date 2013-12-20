@@ -1,0 +1,22 @@
+%
+
+#log related to ISA.
+#write to MODELNAME."/log/isa.log":
+#  template logISA in log
+#end write
+
+#log related to instruction components usage.
+if useCAS then
+  write to MODELNAME."/log/instructionMapping.html":
+    template instructionMapping_html in log
+  end write
+
+  write to MODELNAME."/log/instructionClass.html":
+    template instructionClass_html in log
+  end write
+end if
+
+#ISA log (the format part)
+write to MODELNAME."/log/logISA.txt":
+  template logISA in log
+end write

@@ -1,0 +1,3213 @@
+--
+-- PowerPC description
+--
+
+-- WONTDO : Here are the instructions that can't be described
+-- Conditional store, load-and-reserve, multiple and string word load/store
+-- Every instruction handling float values : load/store, aritmetics, status registers etc...
+-- Cache instruction: invalidate, lock, flush etc...
+-- External control instructions
+-- Synchro instruction
+-- Instructions handling Segment registers, timebase and TLB
+
+model powerpc {
+
+default {
+  instruction := 32
+  big endian
+  debug := gdbppc
+}
+
+
+component fetcher {
+  program counter u32 PC
+     
+  void reset() {
+    PC := 0
+  }
+   
+  void absBranch(u32 newPC, u1 cond)
+  {
+    if (cond) then 
+      PC := newPC 
+    end if   
+  }
+
+  --void test() {
+  --  u32 valTest
+  --  s32 valTestS
+  --  u32 toto
+  --  u32 totoP
+  --  valTest  := 0
+  --  valTest  := 1+valTest
+  --  valTest  := 1+2+toto
+  --  valTest  := ~(s5)(toto)-56
+  --  valTestS := (4s)*toto
+  --  valTest  := 2 << 3
+  --  valTest  := \xD rol 2
+  --  valTest  := \xD ror 1
+  --  valTest  := (u6)(\x8) rol 2
+  --  valTest  := (u6)(\x9) ror 2
+  --  valTest  := ((\xF cat \x55 cat \xaa) + 3){12+3..12,7..4,0}
+  --  toto     := totoP{4..3,0}
+  --}
+}
+
+component mem {
+  -- access
+  program memory  ram{
+    width   := 32  -- get 32 bits / access
+    address := 0..32mb
+    type    := RAM
+    
+    register u8 SERIAL0  maps to \x00002FFF
+  }
+}
+
+-- System Register Unit
+component SRU {
+ memory GPR{
+  width := 32
+  address := 0..127
+  stride := 4
+  type := register
+
+ }
+
+ register u32 CR{
+  CR0 := slice{31..28}
+  CR1 := slice{27..24}
+  CR2 := slice{23..20}
+  CR3 := slice{19..16}
+  CR4 := slice{15..12}
+  CR5 := slice{11..8}
+  CR6 := slice{7..4}
+  CR7 := slice{3..0}
+ }
+
+ register u32 CTR
+ register u32 LR
+ register u32 XER {
+  SO := slice{31}
+  OV := slice{30}
+  CA := slice{29}
+  byte_count := slice{6..0}
+ }
+
+ register u32 MSR {
+  POW := slice{18}
+  ILE := slice{16}
+  EE := slice{15}
+  PR := slice{14}
+  FP := slice{13}
+  ME := slice{12}
+  FE0 := slice{11}
+  SE := slice{10}
+  BE := slice{9}
+  FE1 := slice{8}
+  IP := slice{6}
+  IR := slice{5}
+  DR := slice{4}
+  RI := slice{1}
+  LE := slice{0}
+ }
+
+ register u32 SRR0
+ register u32 SRR1
+
+
+ void spr_write(u10 spr_no,u32 value){
+   if spr_no = 1 then
+   XER := value
+  elseif spr_no = 8 then
+   LR := value
+  elseif spr_no = 9 then
+   CTR := value
+  elseif spr_no = 26 then
+   SRR0 := value
+  elseif spr_no = 27 then
+   SRR1 := value
+  else
+   warning "Write to a non existing SPR"
+  end if
+ }
+
+ u32 spr_read(u10 spr_no){
+   u32 result
+  if spr_no = 1 then
+   result := XER
+  elseif spr_no = 8 then
+   result := LR
+  elseif spr_no = 9 then
+   result := CTR
+  elseif spr_no = 26 then
+   result := SRR0
+  elseif spr_no = 27 then
+   result := SRR1
+  else
+   warning "read from a non existing SPR"
+  end if
+  return result
+ }
+}
+
+-- dummy serial line, debugging purpose.
+component SERIAL
+{
+  when write on SERIAL0 do
+    print (s8)(SERIAL0{7..0})
+  end when
+}
+
+-- Float System Register Unit
+component FSRU {
+  memory FPR {
+   width := 32 -- 32 bit access at this date.
+   address := 0..127--0..255
+   stride := 8--4 -- 32 bits access at this date...
+   type := register
+  }
+}
+
+component Integer_Unit {
+
+ void updateCarry(u33 result) {
+  XER.CA := result{32}
+ }
+
+ void updateStatus(u33 result){ -- update CR0 when needed
+  s32 tmp := (s32)(result{31..0})
+
+   if tmp = 0s then
+    CR.CR0 := 2 -- EQ
+   elseif tmp > 0s then
+    CR.CR0 := 4 -- GT
+   else
+    CR.CR0 := 8 -- LT
+   end if
+
+   CR.CR0{0} := XER.SO -- Summary overflow (SO)â€”This is a copy of the final state of XER[SO] at the completion of the instruction.
+ }
+ 
+ void updateStatusAndCarry(u33 result){ -- update CR0 when needed
+  s32 tmp := (s32)(result{31..0})
+
+   if tmp = 0s then
+    CR.CR0 := 2 -- EQ
+   elseif tmp > 0s then
+    CR.CR0 := 4 -- GT
+   else
+    CR.CR0 := 8 -- LT
+   end if
+
+   CR.CR0{0} := XER.SO -- Summary overflow (SO)â This is a copy of the final state of XER[SO] at the completion of the instruction.
+   Integer_Unit.updateCarry(result)
+ }
+
+
+ void div_ov_signed(s32 ra, s32 rb) {
+  if ((u32)(ra) = \x8000_000 && (u32)(rb) = (u32)((s32)(-1s)) || rb = 0s) then
+   XER.OV := 1
+   XER.SO := XER.SO | XER.OV
+  end if
+ }
+  
+ void div_ov_signed_withUpdateStatus(s32 ra, s32 rb, u33 result) {
+  if ((u32)(ra) = \x8000_000 && (u32)(rb) = (u32)((s32)(-1s)) || rb = 0s) then
+   XER.OV := 1
+   XER.SO := XER.SO | XER.OV
+  end if
+  Integer_Unit.updateStatus(result)
+ }
+
+ void div_ov_unsigned(u32 ra, u32 rb) {
+  if rb = 0 then
+   XER.OV := 1
+   XER.SO := XER.SO | XER.OV
+  end if
+ }
+ 
+ void div_ov_unsigned_withUpdateStatus(u32 ra, u32 rb, u33 result) {
+  if rb = 0 then
+   XER.OV := 1
+   XER.SO := XER.SO | XER.OV
+  end if
+  Integer_Unit.updateStatus(result)
+ }
+
+ void mul_ov(u64 result) {
+  if (((s64)(result) >= (s64)((s32)(\x8000_0000s))) && ((s64)(result) <=
+   (s64)((s32)(\x7fff_ffffs ))))then
+   XER.OV := 0
+  else
+   XER.OV := 1
+  end if
+  XER.SO := XER.SO | XER.OV
+ }
+ 
+ void mul_ov_withUpdateStatus(u64 result, u33 res) {
+  if (((s64)(result) >= (s64)((s32)(\x8000_0000s))) && ((s64)(result) <=
+   (s64)((s32)(\x7fff_ffffs ))))then
+   XER.OV := 0
+  else
+   XER.OV := 1
+  end if
+  XER.SO := XER.SO | XER.OV
+  Integer_Unit.updateStatus(res)
+ }
+ 
+ void updateOverflowArith(u33 result, u32 op1, u32 op2){ -- Update OV and SO when needed
+  XER.OV :=    ( op1{31} &&  op2{31} && !result{31})
+            || (!op1{31} && !op2{31} &&  result{31})
+  XER.SO := XER.SO | XER.OV
+ }
+ 
+ void updateOverflowArith_withUpdateStatus(u33 result, u32 op1, u32 op2){ -- Update OV and SO when needed
+  XER.OV :=    ( op1{31} &&  op2{31} && !result{31})
+            || (!op1{31} && !op2{31} &&  result{31})
+  XER.SO := XER.SO | XER.OV
+  Integer_Unit.updateStatus(result)
+ }
+ 
+ void updateOverflowArith_withUpdateCarry(u33 result, u32 op1, u32 op2){ -- Update OV and SO when needed
+  XER.OV :=    ( op1{31} &&  op2{31} && !result{31})
+            || (!op1{31} && !op2{31} &&  result{31})
+  XER.SO := XER.SO | XER.OV
+  Integer_Unit.updateCarry(result)
+ }
+ 
+ void updateOverflowArith_withUpdateStatusAndCarry(u33 result, u32 op1, u32 op2){ -- Update OV and SO when needed
+  XER.OV :=    ( op1{31} &&  op2{31} && !result{31})
+            || (!op1{31} && !op2{31} &&  result{31})
+  XER.SO := XER.SO | XER.OV
+  Integer_Unit.updateStatus(result)
+  Integer_Unit.updateCarry(result)
+ }
+
+ u4 logicalCompare(u32 op1, u32 op2){
+  u4 res
+  if op1 < op2 then
+   res := 8
+  elseif op1 > op2 then
+   res := 4
+  else
+   res := 2
+  end if
+
+  res := res | (u4)(XER.SO)
+
+  return res
+ }
+
+ u4 arithCompare(s32 op1, s32 op2){
+  u4 res
+  if op1 < op2 then
+   res := 8
+  elseif op1 > op2 then
+   res := 4
+  else
+   res := 2
+  end if
+
+  res := res | (u4)(XER.SO)
+
+  return res
+ }
+
+ u32 insertWithMask(u32 src, u32 mask, u32 insert){
+  return (insert & mask) | (src & ~mask)
+ }
+ 
+  u32 insertWithMaskAndUpdateStatus(u32 src, u32 mask, u32 insert){
+   u33 result := (insert & mask) | (src & ~mask)
+   Integer_Unit.updateStatus(result)
+   return result
+ }
+}
+
+component effective_address_Unit {
+ void eff_addr_add (out u32 rd, u32 ra, u32 rb) {
+  rd := ra + rb
+ }
+}
+
+
+--##==================================================
+--## Behavior description
+--##==================================================
+
+behavior add_inst #rd #ra
+ field u5 rD
+ field u5 rA
+ u33 result
+ u32 op1
+ u32 op2
+ u32 carry
+ select
+  case
+   #rb #add
+   field u5 rB
+   do
+    op1 := SRU.GPR.read32(rA)
+    op2 := SRU.GPR.read32(rB)
+    carry := 0
+   end do
+
+  case #adde #rb
+   field u5 rB
+   do
+    op1 := SRU.GPR.read32(rA)
+    op2 := SRU.GPR.read32(rB)
+    carry := (u32)(XER.CA)
+   end do
+
+  case
+    #addi #simm
+   field s16 SIMM
+   do
+    if rA != 0 then
+     op1 := SRU.GPR.read32(rA)
+    else
+     op1 := 0
+    end if
+    op2 := (u32)((s32)(SIMM))
+    carry := 0
+   end do
+
+  case
+    #addic #simm
+   field s16 SIMM
+   do
+    op1 := SRU.GPR.read32(rA)
+    op2 := (u32)((s32)(SIMM))
+    carry := 0
+   end do
+
+  case #addis #simm
+   field s16 SIMM
+   do
+    if rA != 0 then
+     op1 := SRU.GPR.read32(rA)
+    else
+     op1 := 0
+    end if
+    op2 := (u32)((s32)(SIMM<<16))
+    carry := 0
+   end do
+
+  case #addme
+   do
+    op1 := SRU.GPR.read32(rA)
+    op2 := \xFFFFFFFF -- or (u32)((s32)(-1s))
+    carry := (u32)(XER.CA)
+   end do
+
+  case #addze
+   do
+    op1 := SRU.GPR.read32(rA)
+    op2 := 0
+    carry := (u32)(XER.CA)
+   end do
+
+  case #subf
+   field u5 rB #rb
+   do
+    op1 := (u32)(~ SRU.GPR.read32(rA))
+    op2 := SRU.GPR.read32(rB)
+    carry := 1
+   end do
+
+  case #subfe
+   field u5 rB #rb
+   do
+    op1 := ~SRU.GPR.read32(rA)
+    op2 := SRU.GPR.read32(rB)
+    carry := (u32)(XER.CA)
+   end do
+
+  case #subfic #simm
+   field s16 SIMM
+   do
+    op1 := ~SRU.GPR.read32(rA)
+    op2 := (u32)((s32)(SIMM))
+    carry := 1
+   end do
+
+  case #subfme
+   do
+    op1 := ~SRU.GPR.read32(rA)
+    op2 := \xFFFFFFFF -- or (u32)((s32)(-1s))
+    carry := (u32)(XER.CA)
+   end do
+
+  case #subfze
+   do
+    op1 := ~SRU.GPR.read32(rA)
+    op2 := 0
+    carry := (u32)(XER.CA)
+   end do
+  case #neg
+   do
+    op1 := ~SRU.GPR.read32(rA)
+    op2 := 0
+    carry := 1
+   end do
+ end select
+
+ u34 tmp
+ do
+--  Integer_Unit.add_fct(result, op1, op2, carry)  
+  tmp := op1 + op2 + carry
+  result := (u33)(tmp | tmp{33}<<32 |tmp{32}<<32)
+--  SRU.GPR.write32(rD, (u32)(result))
+ end do
+
+ select
+  case #useOv #noStatus --Integer_Unit.updateOverflow(result)
+   do
+    Integer_Unit.updateOverflowArith(result, op1, op2)
+   end do
+  case #useOv #useStatus --Integer_Unit.updateOverflow(result)
+   do
+    Integer_Unit.updateOverflowArith_withUpdateStatus(result, op1, op2)
+   end do
+  case #useOv #noStatus #withCarry --Integer_Unit.updateOverflow(result)
+   do
+    Integer_Unit.updateOverflowArith_withUpdateCarry(result, op1, op2)
+   end do
+  case #useOv #useStatus #withCarry--Integer_Unit.updateOverflow(result)
+   do
+    Integer_Unit.updateOverflowArith_withUpdateStatusAndCarry(result, op1, op2)
+   end do
+  case #noOv #noStatus
+  case #noOv #noStatus #withCarry do Integer_Unit.updateCarry(result) end do
+  case #noOv #useStatus do Integer_Unit.updateStatus(result) end do
+  case #noOv #useStatus #withCarry do Integer_Unit.updateStatusAndCarry(result) end do
+ end select
+
+-- select
+--  case #useStatus do Integer_Unit.updateStatus(result) end do
+--  case #noStatus
+-- end select
+
+-- select
+--   case #withCarry do Integer_Unit.updateCarry(result) end do
+--   case
+-- end select
+ 
+ do
+  SRU.GPR.write32(rD, (u32)(result))
+ end do
+end behavior
+
+behavior div_inst #rd #ra #rb
+ field u5 rA
+ field u5 rB
+ field u5 rD
+
+ u32 dividend
+ u32 divisor
+ u32 quotient
+
+ do
+  dividend := SRU.GPR.read32(rA)
+  divisor := SRU.GPR.read32(rB)
+ end do
+
+ select
+  case #divw
+   do
+--    Integer_Unit.signed_div_fct(quotient, (s32)(dividend), (s32)(divisor))
+    if (s32)(divisor) != 0s then
+     quotient := (u32)((s32)(dividend) / (s32)(divisor))
+    else
+     quotient := 0 -- Like in GDB simulator
+    end if
+   end do
+  case #divwu do --Integer_Unit.unsigned_div_fct(quotient, dividend, divisor) 
+   if divisor != 0 then
+    quotient := dividend / divisor
+   else
+    quotient := 0 -- like in GDB simulator
+   end if
+  end do
+ end select
+
+ select
+  case #useOv
+   select
+    case #divw #noStatus do Integer_Unit.div_ov_signed((s32)(dividend),(s32) (divisor)) end do
+    case #divw #useStatus do Integer_Unit.div_ov_signed_withUpdateStatus((s32)(dividend),(s32) (divisor), quotient) end do
+    case #divwu #noStatus do Integer_Unit.div_ov_unsigned(dividend, divisor) end do
+    case #divwu #useStatus do Integer_Unit.div_ov_unsigned_withUpdateStatus(dividend, divisor, quotient) end do
+   end select
+  case #noOv #noStatus
+  case #noOv #useStatus do Integer_Unit.updateStatus(quotient) end do
+ end select
+
+-- select
+--  case #useStatus do Integer_Unit.updateStatus(quotient) end do
+--  case #noStatus
+-- end select
+
+ do
+  SRU.GPR.write32(rD, quotient)
+ end do
+end behavior
+
+behavior mul_inst #rd #ra
+ field u5 rA
+ field u5 rD
+
+ u64 result
+ u32 op1
+ u32 op2
+ u32 resWrite
+
+ do op1 := SRU.GPR.read32(rA) end do
+
+ select
+  case #mulhw #rb
+   field u5 rB
+   do
+    op2 := SRU.GPR.read32(rB)
+--    Integer_Unit.signed_mul_fct(result, (s32)(op1), (s32)(op2))
+    result := (u64)((s32)(op1) * (s32)(op2))
+    resWrite := (u32)(result >> 32)
+   end do
+  case #mulhwu #rb
+   field u5 rB
+   do
+    op2 := SRU.GPR.read32(rB)
+--    Integer_Unit.unsigned_mul_fct(result, op1, op2)
+    result := (u64)(op1 * op2)
+    resWrite := (u32)(result >> 32)
+   end do
+  case #mullw #rb
+   field u5 rB
+   do
+    op2 := SRU.GPR.read32(rB)
+--    Integer_Unit.signed_mul_fct(result, (s32)(op1), (s32)(op2))
+    result := (u64)((s32)(op1) * (s32)(op2))
+    resWrite := (u32)(result)
+   end do
+  case #mulli #simm
+   field s16 SIMM
+   do
+    op2 := (u32)((s32)(SIMM))
+--    Integer_Unit.signed_mul_fct(result, (s32)(op1), (s32)(op2))
+    result := (u64)((s32)(op1) * (s32)(op2))
+    resWrite := (u32)(result)
+   end do
+ end select
+
+
+ select
+  case #useOv #noStatus
+   do
+    Integer_Unit.mul_ov(result)
+   end do
+  case #useOv #useStatus
+   do
+    Integer_Unit.mul_ov_withUpdateStatus(result, resWrite)
+   end do
+  case #noOv #useStatus do Integer_Unit.updateStatus(resWrite) end do
+  case #noOv #noStatus
+ end select
+
+-- select
+--  case #useStatus do Integer_Unit.updateStatus(resWrite) end do
+--  case #noStatus
+-- end select
+
+ do
+  SRU.GPR.write32(rD, resWrite)
+ end do
+end behavior
+
+behavior cmp_inst #cmp #crfd #l #ra
+ field u3 crfD
+ field u1 L
+ field u5 rA
+
+ u32 op1
+ u32 op2
+ u4 result
+
+ do
+  op1 := SRU.GPR.read32(rA)
+ end do
+
+ select
+  case #reg #rb
+   field u5 rB
+   do
+    op2 := SRU.GPR.read32(rB)
+   end do
+
+  case #immediate #simm
+   field s16 SIMM
+   do
+    op2 := (u32)((s32)(SIMM))
+   end do
+
+  case #immediate #uimm
+   field u16 UIMM
+   do
+    op2 := (u32)(UIMM)
+   end do
+ end select
+
+ select
+  case #arith
+   do
+    result := Integer_Unit.arithCompare((s32)(op1),(s32)(op2))
+   end do
+
+  case #logical
+   do
+    result := Integer_Unit.logicalCompare(op1,op2)
+   end do
+ end select
+
+ do
+  u32 mask := \xF000_0000 >> (4*crfD)
+  CR := (CR & ~mask) | (result << (28 - 4*crfD))
+ end do
+end behavior
+
+behavior logical_inst #ra #rs
+ field u5 rA
+ field u5 rS
+ u32 op1
+ u32 op2
+ u32 result
+
+ do
+  op1 := SRU.GPR.read32(rS)
+ end do
+
+ select
+  case #rb
+   field u5 rB
+   select
+    case #complemented
+     do op2 := ~SRU.GPR.read32(rB) end do
+    case #notcomplemented
+     do op2 := SRU.GPR.read32(rB) end do
+   end select
+
+  case #uimm
+   field u16 UIMM
+   select
+    case #shifted
+     do op2 := UIMM<<16 end do
+    case #notshifted
+     do op2 := (u32)(UIMM) end do
+   end select
+ end select
+
+ select
+  case #or
+   do --result := Integer_Unit.or_fct(op1,op2) 
+    result := op1 | op2
+   end do
+  case #xor
+   do --result := Integer_Unit.xor_fct(op1,op2) 
+    result := op1 ^ op2
+   end do
+  case #and
+   do --result := Integer_Unit.and_fct(op1,op2) 
+    result := op1 & op2
+   end do
+ end select
+
+ select
+  case #aftercomplemented
+   do result := ~result end do
+  case #notaftercomplemented
+ end select
+
+-- do SRU.GPR.write32(rA, result) end do
+
+ select
+  case #useStatus do Integer_Unit.updateStatus(result) end do
+  case #noStatus
+ end select
+ 
+ do SRU.GPR.write32(rA, result) end do
+end behavior
+
+behavior count_leading_zero_inst #cntlzw #ra #rs
+ field u5 rA
+ field u5 rS
+
+ u32 op
+ u32 result
+
+ do
+  u32 i := 0
+  result := 32
+  op := SRU.GPR.read32(rS)
+  loop 32
+  while (i < 32 && result = 32) do
+    if op{31-i} = 1 then
+      result := i
+    end if
+    i := i+1
+  end loop
+ end do
+
+ select
+  case #useStatus do Integer_Unit.updateStatus(result) end do
+  case #noStatus
+ end select
+
+ do SRU.GPR.write32(rA,result) end do
+end behavior
+
+behavior ext_sign_inst #ra #rs
+ field u5 rA
+ field u5 rS
+
+ u32 result
+ u32 op
+ do op := SRU.GPR.read32(rS) end do
+
+ select
+  case #extsb
+   do
+    result := (u32)((s32)((s8)((op & \xFF))))
+   end do
+
+  case #extsh
+   do
+    result := (u32)((s32)((s16)((op & \xFFFF))))
+   end do
+ end select
+
+ select
+  case #useStatus do Integer_Unit.updateStatus(result) end do
+  case #noStatus
+ end select
+
+ do SRU.GPR.write32(rA,result) end do
+end behavior
+
+behavior rotate_inst #me #mb #ra #rs
+ field u5 rA
+ field u5 rS
+ field u5 MB
+ field u5 ME
+
+ u5 n
+ select
+  case #sh
+   field u5 SH
+   do n := SH end do
+
+  case #rb
+   field u5 rB
+   do n := (u5)(SRU.GPR.read32(rB)) end do
+ end select
+ 
+ u32 rs2 := 0 
+ select
+ case #rlw
+  do
+   rs2 := SRU.GPR.read32(rA)
+  end do
+ case
+ end select
+
+ u32 r
+ do
+  r := (SRU.GPR.read32(rS)) rol n -- Integer_Unit.rotl(rs1, n)
+ end do
+
+ u32 m
+ do
+  if MB <= ME then
+   m := ((1<<(ME-MB+1))-1)<<(31-ME)
+  else
+   m := ~(u32)(((1<<(MB-ME-1))-1)<<(32-MB))
+  end if
+ end do
+
+ u32 result
+ select
+  case #rlwimi #noStatus do result := Integer_Unit.insertWithMask(rs2, m, r) end do
+  case #rlwimi #useStatus do result := Integer_Unit.insertWithMaskAndUpdateStatus(rs2, m, r) end do
+  case #rlwinm #noStatus do --result := Integer_Unit.and_fct(m, r) 
+   result := m & r
+  end do
+  case #rlwinm #useStatus do --result := Integer_Unit.and_fct(m, r) 
+    result := m & r
+    Integer_Unit.updateStatus(result) 
+   end do
+  case #rlwnm #noStatus do --result := Integer_Unit.and_fct(m, r) 
+   result := m & r
+  end do
+  case #rlwnm #useStatus do --result := Integer_Unit.and_fct(m, r) 
+    result := m & r
+    Integer_Unit.updateStatus(result)
+   end do
+ end select
+
+-- select
+--  case #useStatus do Integer_Unit.updateStatus(result) end do
+--  case #noStatus
+-- end select
+
+ do SRU.GPR.write32(rA, result) end do
+end behavior
+
+behavior shift_inst #ra #rs
+ --
+ -- The doc is not very usefull on these one...
+ -- Works on test vectors
+ --
+ field u5 rA
+ field u5 rS
+ u32 result
+ u32 src
+
+ do src := SRU.GPR.read32(rS) end do
+
+ u6 n
+ select
+  case #rb
+   field u5 rB
+   do n := (u6)(SRU.GPR.read32(rB)) end do
+  case #sh
+   field u5 SH
+   do n := (u6)(SH) end do
+ end select
+
+ select
+  case #slw
+   do
+    if n{5} = 0 then
+     result := src << (u5)(n) --Integer_Unit.shiftLeft(src,(u5)(n))
+    else
+     result := 0
+    end if
+   end do
+
+  case #srw
+   do
+    if n{5} = 0 then
+     result := src >> (u5)(n) --Integer_Unit.shiftRightLogical(src,(u5)(n))
+    else
+     result := 0
+    end if
+   end do
+
+  case #sraw
+   do
+    if n{5} = 0 then
+     result := (u32)((s32)(src)>>(u5)(n)) --Integer_Unit.shiftRightArithmetic(src,(u5)(n))
+    else
+     result := (u32)((s32)((s1)(src{31})))
+    end if
+
+    if (n != 0) && ((src & ((1<<n)-1)) != 0) then
+     XER.CA := result{31}
+    else
+     XER.CA := 0
+    end if
+   end do
+
+ end select
+
+ -- u32 m
+ -- do
+ --  if n{5} = 0 then
+ --   m := Integer_Unit.createMask(31, 31-n)
+ --   result := Integer_Unit.insertWithMask(src, m, r)
+ --  else
+ --   m := 0
+ --  end if
+ -- end do
+ --
+ -- do
+ --  result := Integer_Unit.insertWithMask(src, m, r)
+ -- end do
+
+
+ select
+  case #useStatus do Integer_Unit.updateStatus(result) end do
+  case #noStatus
+ end select
+
+ do SRU.GPR.write32(rA, result) end do
+end behavior
+
+behavior branch_inst
+ --Do we have something to do before jumping?
+ select
+  case #bc
+   select
+    case #d do CTR := CTR - 1 end do
+    case #nd
+   end select
+  case #b
+ end select
+
+ -- Do we Jump?
+ u1 doJump
+ select
+  case #b  do doJump := 1 end do
+  case #bc #bo #bi
+  field u5 BO
+  field u5 BI
+
+  u1 ctr_ok
+  u1 cond_ok
+
+  do
+   ctr_ok := BO{2} | ((CTR != 0) ^ BO{1})
+   cond_ok := BO{4} | (CR{31-BI} = BO{3})
+
+   doJump := ctr_ok & cond_ok
+  end do
+
+  -- create tag tree to match format & syntax
+  select
+   case #d
+    select
+     case #z
+     case #nz
+    end select
+   case #nd
+  end select
+  select
+   case #t
+   case #f
+   case #noCond
+  end select
+  select
+   case #revStatPred
+   case #statPred
+  end select
+ end select
+
+ -- Where do we jump?
+ u32 value
+ select
+  case #li
+   field s24 LI
+   do value := (u32)((s32)(LI<<2)) end do
+  case #bd
+   field s14 BD
+   do value := (u32)((s32)(BD<<2)) end do
+  case #ctr
+   do value := CTR end do
+  case #tolr
+   do value := LR end do
+ end select
+
+ u32 target_address
+
+ select
+  case #abs do target_address := value end do
+  case #rel do target_address := (u32)((s32)(PC) + (s32)(value) - 4s) end do
+ end select
+
+
+  -- link register update.
+ select
+  case #updatelr #SP_Check do LR := PC end do
+  case 
+ end select
+ 
+ -- Si we jump then do it...
+ do
+--  if doJump then
+  fetcher.absBranch(target_address, doJump)
+--  end if
+ end do
+
+end behavior
+
+behavior move_to_spr #mtspr #rs #spr
+ field u5 rS
+ field u10 SPR
+
+ u32 value
+ do
+  value := SRU.GPR.read32(rS)
+  SRU.spr_write(SPR, value)
+ end do
+end behavior
+
+behavior move_from_spr #mfspr #rd #spr
+ field u5 rD
+ field u10 SPR
+
+ u32 value
+ do
+  value := SRU.spr_read(SPR)
+  SRU.GPR.write32(rD, value)
+ end do
+end behavior
+
+behavior move_from_CR #mfcr #rd
+ field u5 rD
+
+ do
+  SRU.GPR.write32(rD,CR)
+ end do
+end behavior
+
+behavior move_to_crf #mtcrf #crm #rs
+ field u5 rS
+ field u8 CRM
+
+ u32 mask
+ u32 insert
+
+ do
+  mask := 0
+  if (CRM & (1<<7)) != 0 then
+   mask := mask | ( \xF << (4*7))
+  end if
+  if (CRM & (1<<6)) != 0 then
+   mask := mask | ( \xF << (4*6))
+  end if
+  if (CRM & (1<<5)) != 0 then
+   mask := mask | ( \xF << (4*5))
+  end if
+  if (CRM & (1<<4)) != 0 then
+   mask := mask | ( \xF << (4*4))
+  end if
+  if (CRM & (1<<3)) != 0 then
+   mask := mask | ( \xF << (4*3))
+  end if
+  if (CRM & (1<<2)) != 0 then
+   mask := mask | ( \xF << (4*2))
+  end if
+  if (CRM & (1<<1)) != 0 then
+   mask := mask | ( \xF << (4*1))
+  end if
+  if (CRM & 1) != 0 then
+   mask := mask | ( \xF)
+  end if
+
+  insert := SRU.GPR.read32(rS)
+
+  CR :=  Integer_Unit.insertWithMask(CR, mask, insert)
+ end do
+end behavior
+
+behavior getBaseAddress(out u32 base_addr)  #ra
+ field u5 rA
+ select
+  case #u
+   do
+    base_addr := SRU.GPR.read32(rA)
+   end do
+  case #notu
+   do
+    if rA != 0 then
+     base_addr := SRU.GPR.read32(rA)
+    else
+     base_addr := 0
+    end if
+   end do
+ end select
+end behavior
+
+-- notu_ra
+behavior load_float #load #fd #frd #d
+  u32 effective_address
+  u32 base_addr
+  field s16 D
+  field u5 frD
+  getBaseAddress(base_addr)
+  -- write64 and read64 not yet implmented...
+  do 
+    u32 valueL
+    u32 valueH
+    effective_address_Unit.eff_addr_add (effective_address, base_addr, (u32) (D))
+    valueL := mem.read32(effective_address)
+    valueH := mem.read32(effective_address+4)
+    FSRU.FPR.write32(frD<<1, valueL) --32 bits access at this date.
+    FSRU.FPR.write32(frD<<1+1, valueH) --32 bits access at this date.
+  end do
+  select
+    case #u #ra field u5 rA do SRU.GPR.write32(rA, effective_address) end do
+    case #notu
+  end select
+end behavior
+
+behavior store_float #store #fd #frs #d
+  u32 effective_address
+  u32 base_addr
+  field s16 D
+  field u5 frS
+  getBaseAddress(base_addr)
+  -- write64 and read64 not yet implmented...
+  do 
+    u32 valueL
+    u32 valueH
+    effective_address_Unit.eff_addr_add (effective_address, base_addr, (u32) (D))
+    valueL := FSRU.FPR.read32(frS<<1) --32 bits access at this date.
+    valueH := FSRU.FPR.read32(frS<<1+1) --32 bits access at this date.
+    mem.write32(effective_address  , valueL)
+    mem.write32(effective_address+4, valueH)
+  end do
+  select
+    case #u #ra field u5 rA do SRU.GPR.write32(rA, effective_address) end do
+    case #notu
+  end select
+end behavior
+
+behavior store_inst  #store 
+  u32 value
+  u32 base_addr
+  u32 effective_address
+  getBaseAddress(base_addr)
+
+ select
+  case #rs
+   field u5 rS
+   do
+    value := SRU.GPR.read32(rS)
+   end do
+--  case #frs
+ -- Floating point operand
+ end select
+
+ select
+  case #br -- byte reversed
+   select
+    case #word
+     do
+      value := value{7..0} cat value{15..8} cat value{23..16} cat value{31..24}
+     end do
+    case #half
+     do
+      value := (u32)(value{7..0} cat value{15..8})
+     end do
+   end select
+  case
+ end select
+
+ -- Adresse?
+ select
+  case #d
+   field s16 D
+   do
+    effective_address_Unit.eff_addr_add (effective_address, base_addr, (u32) (D))
+--    effective_address := (u32)((s32)(base_addr) + (s32)(D))
+   end do
+
+  case #x #rb
+   field u5 rB
+   do
+    effective_address_Unit.eff_addr_add (effective_address, base_addr, SRU.GPR.read32(rB))
+--    effective_address := (u32)(base_addr + SRU.GPR.read32(rB))
+   end do
+ end select
+
+ -- Effective storage
+ select
+  case #word
+   do
+    mem.write32(effective_address, value)
+   end do
+  case #half
+   do
+    mem.write16(effective_address, (u16)(value))
+   end do
+  case #byte
+   do
+    mem.write8(effective_address, (u8)(value))
+   end do
+ end select
+
+ -- update
+ select
+  case #u #ra field u5 rA do SRU.GPR.write32(rA, effective_address) end do
+  case #notu
+ end select
+end behavior
+
+behavior load_inst  #load #rd
+ field u5 rD
+
+ u32 value
+ u32 base_addr
+ u32 effective_address
+ getBaseAddress(base_addr)
+ -- Adresse?
+ select
+  case #d
+   field s16 D
+   do
+     effective_address_Unit.eff_addr_add (effective_address, base_addr, (u32) (D))
+--     effective_address := (u32)((s32)(base_addr) + (s32)(D))
+   end do
+
+  case #x #rb
+   field u5 rB
+   do
+     effective_address_Unit.eff_addr_add (effective_address, base_addr, SRU.GPR.read32(rB))
+--     effective_address := (u32)(base_addr + SRU.GPR.read32(rB))
+   end do
+ end select
+
+ -- Effective loading
+ select
+  case #word
+   do
+    value := mem.read32(effective_address)
+   end do
+   select
+    case #zero
+    case #algebraic
+    case #br
+     do
+      value := value{7..0} cat value{15..8} cat value{23..16} cat value{31..24}
+     end do
+   end select
+  case #half
+   do
+    value := mem.read16(effective_address)
+   end do
+   select
+    case #zero
+    case #algebraic
+     do
+      value := (u32)((s32)((s16)(value)))
+     end do
+    case #br
+     do
+      value := (u32)(value{7..0} cat value{15..8})
+     end do
+   end select
+  case #byte
+   do
+    value := mem.read8(effective_address)
+   end do
+   select
+    case #zero
+    case #algebraic
+     do
+      value := (u32)((s32)((s8)(value)))
+     end do
+   end select
+ end select
+
+ -- update
+ select
+  case #u #ra field u5 rA do SRU.GPR.write32(rA, effective_address) end do
+  case #notu
+ end select
+
+ do
+  SRU.GPR.write32(rD, value)
+ end do
+end behavior
+
+behavior return_from_interrupt #rfi
+ u32 mask
+ do
+  mask := \xFF73 -- Mask to insert SRR1 into MSR (cf doc instruction rfi)
+  fetcher.absBranch(SRR0 & \xFFFFFFFC, 1)
+  MSR  := Integer_Unit.insertWithMask(MSR, mask, SRR1) 
+ end do
+end behavior
+
+behavior move_from_MSR #mfmsr #rd
+ field u5 rD
+ do
+  SRU.GPR.write32(rD, MSR)
+ end do
+end behavior
+
+behavior move_to_MSR #mtmsr #rs
+ field u5 rS
+ do
+  MSR := SRU.GPR.read32(rS)
+ end do
+end behavior
+
+behavior system_call #sc #SP_Check
+ do
+  SRR0 := PC
+  SRR1 := (SRR1 & ~ \x783FFF73) | (MSR & \x87C0FFFF & \x783FFF73)-- Cf doc SC instruction
+
+  MSR := (MSR & \xFFFB13CC) | (u32)(MSR.ILE)
+
+--  if MSR.IP = 1 then
+--   fetcher.absBranch(\xFFF00C00, 1)
+--  else
+--   fetcher.absBranch(\x00001080, 1)
+   fetcher.absBranch(\x00000C00, 1)
+--  end if
+ end do
+end behavior
+
+
+behavior CR_logical_operation #crba #crbb #crbd
+ field u5 crbA
+ field u5 crbB
+ field u5 crbD
+ u1 op1
+ u1 op2
+ u1 res
+
+ --get the bits
+ do
+  op1 := CR{31 - crbA}
+  op2 := CR{31 - crbB}
+ end do
+
+ -- do the actual operation
+ select
+  case #crand
+   do res := op1 & op2 end do
+  case #crandc
+   do res := op1 & ~op2 end do
+  case #creqv
+   do res := op1 = op2 end do
+  case #crnand
+   do res := ~(op1 & op2) end do
+  case #crnor
+   do res := ~(op1 | op2) end do
+  case #cror
+   do res := op1 | op2 end do
+  case #crorc
+   do res := op1 | ~op2 end do
+  case #crxor
+   do res := op1 ^ op2 end do
+ end select
+
+ do CR{31-crbD} := res end do
+end behavior
+
+behavior move_CR_fields #mcrf #crfs #crfd
+ field u3 crfS
+ field u3 crfD
+
+ do
+  CR{(7-crfD)*4+3..(7-crfD)*4} := CR{(7-crfS)*4+3..(7-crfS)*4}
+ end do
+end behavior
+
+-- Can't test this instruction as it's NOT implemented in PSIM
+behavior move_to_condition_register_from_XER #mcrxr #crfd
+ field u3 crfD
+ do
+  CR{(7-crfD)*4+3..(7-crfD)*4} := XER{31..27}
+  XER{31..27} := (u4)(0)
+ end do
+end behavior
+
+behavior trap_instructions #tw
+ #to_f #ra
+ field u5 rA
+ field u5 TO
+
+ u32 op1
+ do op1 := SRU.GPR.read32(rA) end do
+ u32 op2
+ select
+  case #rb #reg
+   field u5 rB
+   do op2 := SRU.GPR.read32(rB) end do
+  case #simm #imm
+   field s16 SIMM
+   do op2 := (u32)((s32)(SIMM)) end do
+ end select
+
+ -- create the tree tag as in format & syntaxe but don't use it here
+ select
+  case #lt
+  case #le
+  case #eq
+  case #ge
+  case #gt
+  case #nl
+  case #ne
+  case #ng
+  case #llt
+  case #lle
+  case #lge
+  case #lgt
+  case #lnl
+  case #lng
+  case #notSimple
+ end select
+
+ u1 do_TRAP
+ do
+  do_TRAP := 0
+  if ((s32)(op1) < (s32)(op2)) & TO{4} then
+   do_TRAP := 1
+  end if
+  if ((s32)(op1) > (s32)(op2)) & TO{3} then
+   do_TRAP := 1
+  end if
+  if (op1 = op2) & TO{2} then
+   do_TRAP := 1
+  end if
+  if (op1 < op2) & TO{1} then
+   do_TRAP := 1
+  end if
+  if (op1 > op2) & TO{0} then
+   do_TRAP := 1
+  end if
+
+  if do_TRAP then
+   SRR0 := PC - 4
+   SRR1{30..27} := 0
+   SRR1{21..13 } := 0 --
+   SRR1{17} := 1     -- Trap exception
+    SRR1{16} := 0 -- SSR0 contains the "trap" instruction
+   SRR1{15..8} := MSR {15..8}
+   SRR1{6..4} := MSR{6..4}
+   SRR1{1..0} := MSR{1..0}
+   MSR.POW := 0
+   MSR.EE := 0
+   MSR.PR := 0
+   MSR.FP := 0
+   MSR.FE0 := 0
+   MSR.SE := 0
+   MSR.BE := 0
+   MSR.FE1 := 0
+   MSR.IR := 0
+   MSR.DR := 0
+   MSR.RI := 0
+   MSR.LE := MSR.ILE
+
+   if MSR.IP = 1 then
+    fetcher.absBranch(\xFFF00700, 1)
+   else
+    fetcher.absBranch(\x00000700, 1)
+   end if
+  end if
+ end do
+end behavior
+
+
+--##==================================================
+--## Format description
+--##==================================================
+format Instruction -- primary opcode
+  select slice{31..26}
+    case 3  is #tw #imm     to_f    ra simm
+    case 7  is #mulli   rd      ra simm #noStatus #noOv
+    case 8  is #subfic  rd      ra simm #noStatus #noOv #withCarry
+    case 10 is #cmp #logical #immediate  crfd l  ra uimm
+    case 11 is #cmp #arith #immediate    crfd l  ra simm
+    case 12 is #addic #withCarry #noStatus  rd      ra simm #noOv
+    case 13 is #addic #withCarry #useStatus  rd      ra simm #noOv
+    case 14 is #addi    rd      ra simm #noStatus #noOv
+    case 15 is #addis   rd      ra simm #noStatus #noOv
+    case 16 is bc_x bo bi bd
+    case 17 is sc
+    case 18 is b_x li
+    case 19 is inst_19
+    case 20 is #rlw #rlwimi StatusMayUpdate rs ra sh mb me
+    case 21 is #rlwinm StatusMayUpdate rs ra sh mb me
+    case 23 is #rlwnm  StatusMayUpdate rs ra rb mb me
+    case 24 is #or #notshifted #noStatus    rs ra uimm #notaftercomplemented
+    case 25 is #or #shifted #noStatus   rs ra uimm #notaftercomplemented
+    case 26 is #xor #notshifted    #noStatus rs ra uimm #notaftercomplemented
+    case 27 is #xor #shifted #noStatus  rs ra uimm #notaftercomplemented
+    case 28 is #and #notshifted #useStatus rs ra uimm #notaftercomplemented
+    case 29 is #and #shifted #useStatus rs ra uimm #notaftercomplemented
+    case 31 is inst_31
+    case 32 is #load #word #zero #notu    rd ra d
+    case 33 is #load #word #zero #u    rd ra d
+    case 34 is #load #byte #zero #notu    rd ra d
+    case 35 is #load #byte #zero #u    rd ra d
+    case 36 is #store #word #notu    rs ra d
+    case 37 is #store #word #u    rs ra d
+    case 38 is #store #byte #notu    rs ra d
+    case 39 is #store #byte #u    rs ra d
+    case 40 is #load #half #zero #notu    rd ra d
+    case 41 is #load #half #zero #u    rd ra d
+    case 42 is #load #half #algebraic #notu    rd ra d
+    case 43 is #load #half #algebraic #u    rd ra d
+    case 44 is #store #half #notu    rs ra d
+    case 45 is #store #half #u    rs ra d
+    case 46 is #load #mw #notu    rd ra d
+    case 47 is #store #mw #notu   rs ra d
+    case 48 is #load #fs #notu    frd ra d
+    case 49 is #load #fs #u    frd ra d
+    case 50 is #load #fd #notu    frd ra d
+    case 51 is #load #fd #u    frd ra d
+    case 52 is #store #fs #notu   frs ra d
+    case 53 is #store #fs #u   frs ra d
+    case 54 is #store #fd #notu   frs ra d
+    case 55 is #store #fd #u   frs ra d
+    case 59 is inst_59
+    case 63 is inst_63
+  end select
+end format
+
+format StatusMayUpdate
+  select slice{0}
+    case 0 is #noStatus
+    case 1 is #useStatus
+  end select
+end format
+
+format OvMayUpdate
+  select slice{10}
+    case 0 is #noOv
+    case 1 is #useOv
+  end select
+end format
+
+format bc_x
+  select slice{1..0}
+   case 0 is #bc #rel
+    case 1 is #bc #updatelr #rel #SP_Check
+    case 2 is #bc #abs
+    case 3 is #bc #updatelr #abs #SP_Check
+  end select
+end format
+
+format b_x
+  select slice{1..0}
+   case 0 is #b #rel
+    case 1 is #b #updatelr #rel #SP_Check
+    case 2 is #b #abs
+    case 3 is #b #abs #updatelr #SP_Check
+  end select
+end format
+
+format sc
+  select slice{25..0}
+    case \m00_0000_0000_0000_0000_0000_0010 is #sc #SP_Check
+  end select
+end format
+
+format inst_19
+  select slice{10..0}
+    case \m000_0000_000- is #mcrf crfd crfs
+    case \m000_0010_0000 is #bc #tolr #abs bo bi
+    case \m000_0010_0001 is #bc #tolr #abs #updatelr #SP_Check bo bi
+    case \m000_0100_001- is #crnor crbd crba crbb
+    case \m000_0110_010- is #rfi
+    case \m001_0000_001- is #crandc crbd crba crbb
+    case \m001_0010_110- is #isync
+    case \m001_1000_001- is #crxor crbd crba crbb
+    case \m010_0000_001- is #crand crbd crba crbb
+    case \m001_1100_001- is #crnand crbd crba crbb
+    case \m010_0100_001- is #creqv crbd crba crbb
+    case \m011_0100_001- is #crorc crbd crba crbb
+    case \m011_1000_001- is #cror crbd crba crbb
+    case \m100_0010_0000 is #bc #ctr #abs bo bi
+    case \m100_0010_0001 is #bc #ctr #abs #updatelr #SP_Check bo bi
+  end select
+end format
+
+format inst_31
+  select slice{10..0}
+    case \m-10_0001_010- is #add      StatusMayUpdate rd ra rb OvMayUpdate
+    case \m-00_0001_010- is #add   #withCarry StatusMayUpdate rd ra rb OvMayUpdate
+    case \m-01_0001_010- is #adde  #withCarry StatusMayUpdate rd ra rb OvMayUpdate
+    case \m-01_1101_010- is #addme #withCarry StatusMayUpdate rd ra OvMayUpdate
+    case \m-01_1001_010- is #addze #withCarry StatusMayUpdate rd ra OvMayUpdate
+    case \m000_0011_100- is #and #notcomplemented #notaftercomplemented     StatusMayUpdate rs ra rb
+    case \m000_0111_100- is #and #complemented #notaftercomplemented   StatusMayUpdate rs ra rb
+    case \m000_0000_000- is #cmp #reg #arith    crfd l ra rb
+    case \m000_0100_000- is #cmp #logical #reg    crfd l ra rb
+    case \m000_0011_010- is #cntlzw   StatusMayUpdate rs ra
+    case \m101_1110_110- is #dcba     ra rb
+    case \m000_1010_110- is #dcbf     ra rb
+    case \m011_1010_110- is #dcbi     ra rb
+    case \m000_0110_110- is #dcbst    ra rb
+    case \m010_0010_110- is #dcbt     ra rb
+    case \m001_1110_110- is #dcbtst   ra rb
+    case \m111_1110_110- is #dcbz     ra rb
+    case \m-11_1101_011- is #divw     StatusMayUpdate rd ra rb OvMayUpdate
+    case \m-11_1001_011- is #divwu    StatusMayUpdate rd ra rb OvMayUpdate
+    case \m010_0110_1100 is #eciwx    rd ra rb
+    case \m011_0110_1100 is #ecowx    rs ra rb
+    case \m110_1010_1100 is #eieio
+    case \m010_0011_100- is #xor #aftercomplemented #notcomplemented      StatusMayUpdate rs ra rb
+    case \m111_0111_010- is #extsb    StatusMayUpdate rs ra
+    case \m111_0011_010- is #extsh    StatusMayUpdate rs ra
+    case \m111_1010_110- is #icbi     ra rb
+    case \m000_1110_111- is #load #byte #zero #u #x    rd ra rb
+    case \m000_1010_111- is #load #byte #zero #x #notu    rd ra rb
+    case \m100_1110_111- is #load #fd #u #x    frd ra rb
+    case \m100_1010_111- is #load #fd #x #notu    frd ra rb
+    case \m100_0110_111- is #load #fs #u #x    frd ra rb
+    case \m100_0010_111- is #load #fs #x #notu    frd ra rb
+    case \m010_1110_111- is #load #half #algebraic #u #x    rd ra rb
+    case \m010_1010_111- is #load #half #algebraic #x #notu     rd ra rb
+    case \m110_0010_110- is #load #half #br #x #notu    rd ra rb
+    case \m010_0110_111- is #load #half #zero #u #x    rd ra rb
+    case \m010_0010_111- is #load #half #zero #x #notu     rd ra rb
+    case \m100_1010_101- is #load #sw #i #notu    rd ra nb
+    case \m100_0010_101- is #load #sw #x #notu    rd ra rb
+    case \m000_0010_100- is #load #word #algebraic #r #x #notu   rd ra rb
+    case \m100_0010_110- is #load #word #br #x #notu   rd ra rb
+    case \m000_0110_111- is #load #word #zero #u #x    rd ra rb
+    case \m000_0010_1110 is #load #word #zero #x #notu    rd ra rb
+    case \m100_0000_000- is #mcrxr    crfd
+    case \m000_0010_011- is #mfcr     rd
+    case \m000_1010_011- is #mfmsr    rd
+    case \m010_1010_011- is #mfspr    rd spr
+    case \m100_1010_0110 is #mfsr     rd sr
+    case \m101_0010_0110 is #mfsrin   rd rb
+    case \m010_1110_0110 is #mftb     rd tbr
+    case \m001_0010_000- is #mtcrf    rs crm
+    case \m001_0010_010- is #mtmsr    rs
+    case \m011_1010_011- is #mtspr    rs spr
+    case \m001_1010_0100 is #mtsr     rs sr
+    case \m001_1110_0100 is #mtsrin   rs rb
+    case \m-00_1001_011- is #mulhw    StatusMayUpdate rd ra rb #noOv
+    case \m-00_0001_011- is #mulhwu   StatusMayUpdate rd ra rb #noOv
+    case \m-01_1101_011- is #mullw    StatusMayUpdate rd ra rb OvMayUpdate
+    case \m011_1011_100- is #and #notcomplemented #aftercomplemented   StatusMayUpdate rs ra rb
+    case \m-00_1101_000- is #neg      StatusMayUpdate rd ra OvMayUpdate
+    case \m000_1111_100- is #or #aftercomplemented #notcomplemented      StatusMayUpdate rs ra rb
+    case \m011_0111_100- is #or #notaftercomplemented #notcomplemented      StatusMayUpdate rs ra rb
+    case \m011_0011_100- is #or #complemented #notaftercomplemented       StatusMayUpdate rs ra rb
+    case \m000_0011_000- is #slw      StatusMayUpdate rs ra rb
+    case \m110_0011_000- is #sraw     StatusMayUpdate rs ra rb
+    case \m110_0111_000- is #sraw   StatusMayUpdate rs ra sh
+    case \m100_0011_000- is #srw     StatusMayUpdate rs ra rb
+    case \m001_1110_1110 is #store #byte #u #x    rs ra rb
+    case \m001_1010_1110 is #store #byte #x #notu    rs ra rb
+    case \m101_1110_111- is #store #fd #u #x   frs ra rb
+    case \m101_1010_111- is #store #fd #x #notu   frs ra rb
+    case \m111_1010_111- is #store #fiw #x #notu   frs ra rb
+    case \m101_0110_111- is #store #fs #u #x   frs ra rb
+    case \m101_0010_111- is #store #fs #x #notu   frs ra rb
+    case \m111_0010_110- is #store #half #br #x #notu  rs ra rb
+    case \m011_0110_111- is #store #half #u #x    rs ra rb
+    case \m011_0010_111- is #store #half #x #notu    rs ra rb
+    case \m101_1010_101- is #store #sw #i #notu   rs ra nb
+    case \m101_0010_101- is #store #sw #x #notu   rs ra rb
+    case \m101_0010_110- is #store #word #br #x #notu  rs ra rb
+    case \m001_0010_1101 is #store #word #c #x #notu   rs ra rb #useStatus
+    case \m001_0110_111- is #store #word #u #x    rs ra rb
+    case \m001_0010_111- is #store #word #x #notu    rs ra rb
+    case \m-00_0101_000- is #subf     StatusMayUpdate rd ra rb OvMayUpdate
+    case \m-00_0001_000- is #subf     StatusMayUpdate rd ra rb OvMayUpdate #withCarry
+    case \m-01_0001_000- is #subfe    StatusMayUpdate rd ra rb OvMayUpdate #withCarry
+    case \m-01_1101_000- is #subfme   StatusMayUpdate rd ra OvMayUpdate  #withCarry
+    case \m-01_1001_000- is #subfze   StatusMayUpdate rd ra OvMayUpdate  #withCarry
+    case \m100_1010_1100 is #sync
+    case \m010_1110_0100 is #tlbia
+    case \m010_0110_0100 is #tlbie    rb
+    case \m100_0110_110- is #tlbsync
+    case \m000_0000_1000 is #tw #reg      to_f ra rb
+    case \m010_0111_100- is #xor #notcomplemented #notaftercomplemented     StatusMayUpdate rs ra rb
+  end select
+end format
+
+format inst_59
+  select slice{20..0}
+    case \m-----_-----_00000_10010- is #fdivs    StatusMayUpdate frd fra frb
+    case \m-----_-----_00000_10100- is #fsubs    StatusMayUpdate frd fra frb
+    case \m-----_-----_00000_10101- is #fadds    StatusMayUpdate frd fra frb
+    case \m00000_-----_00000_10110- is #fsqrts   StatusMayUpdate frd frb
+    case \m00000_-----_00000_11000- is #fres     StatusMayUpdate frd frb
+    case \m-----_00000_-----_11001- is #fmuls    StatusMayUpdate frd fra frc
+    case \m-----_-----_-----_11100- is #fmsubs   StatusMayUpdate frd fra frb frc
+    case \m-----_-----_-----_11101- is #fmadds   StatusMayUpdate frd fra frb frc
+    case \m-----_-----_-----_11110- is #fnmsubs  StatusMayUpdate frd fra frb frc
+    case \m-----_-----_-----_11111- is #fnmadds  StatusMayUpdate frd fra frb frc
+  end select
+end format
+
+format inst_63
+  select slice{25..0}
+    case \m---00_-----_-----_000_0000_000_0 is #fcmpu    crfd fra frb
+    case \m-----_00000_-----_000_0001_100_- is #frsp     StatusMayUpdate frd frb
+    case \m-----_00000_-----_000_0001_110_- is #fctiw    StatusMayUpdate frd frb
+    case \m-----_00000_-----_000_0001_111_- is #fctiwz   StatusMayUpdate frd frb
+    case \m---00_-----_-----_000_0100_000_0 is #fcmpo    crfd fra frb
+    case \m-----_00000_00000_000_0100_110_- is #mtfsb1   StatusMayUpdate crbd
+    case \m-----_00000_-----_000_0101_000_- is #fneg     StatusMayUpdate frd frb
+    case \m---00_---00_00000_000_1000_000_0 is #mcrfs    crfd crfs
+    case \m-----_00000_00000_000_1000_110_- is #mtfsb0   StatusMayUpdate crbd
+    case \m-----_00000_-----_000_1001_000_- is #fmr      StatusMayUpdate frd frb
+    case \m---00_00000_----0_001_0000_110_- is #mtfsfi   StatusMayUpdate crfd imm
+    case \m-----_00000_-----_001_0001_000_- is #fnabs    StatusMayUpdate frd frb
+    case \m-----_00000_-----_010_0001_000_- is #fabs     StatusMayUpdate frd frb
+    case \m0_--------_0_-----_100_1000_111_- is #mffs     StatusMayUpdate frd
+    case \m0_--------_0_-----_101_1000_111_- is #mtfsf    StatusMayUpdate fm frb
+    case \m-----_-----_-----_00000_10_010_- is #fdiv     StatusMayUpdate frd fra frb
+    case \m-----_-----_-----_00000_10_100_- is #fsub     StatusMayUpdate frd fra frb
+    case \m-----_-----_-----_00000_10_101_- is #fadd     StatusMayUpdate frd fra frb
+    case \m-----_00000_-----_00000_10_110_- is #fsqrt    StatusMayUpdate frd frb
+    case \m-----_00000_-----_00000_11_010_- is #frsqrte  StatusMayUpdate frd frb
+    case \m-----_-----_-----_-----_1-_---_- is inst_63_short
+    case \m-----_-----_00000_-----_11_001_- is #fmul     StatusMayUpdate frd fra     frc
+  end select
+end format
+
+format inst_63_short
+  select slice{5..0}
+    case \m11_101- is #fmadd    StatusMayUpdate frd fra frb frc
+    case \m11_100- is #fmsub    StatusMayUpdate frd fra frb frc
+    case \m11_111- is #fnmadd   StatusMayUpdate frd fra frb frc
+    case \m11_110- is #fnmsub   StatusMayUpdate frd fra frb frc
+    case \m10_111- is #fsel     StatusMayUpdate frd fra frb frc
+  end select
+end format
+
+
+--
+-- fields specifications
+--
+
+format to_f #to_f
+ TO := slice{25..21}
+ select slice{25..21}
+  case 1 is #lgt
+  case 2 is #llt
+  case 4 is #eq
+  case 5 is #lge
+  case 6 is #lle
+  case 8 is #gt
+  case 12 is #ge
+  case 16 is #lt
+  case 20 is #le
+  case 24 is #ne
+  others is #notSimple
+ end select
+end format
+
+format bo   #bo
+  BO := slice{25..21}
+  select slice{25..22}
+    case \m0000 is #d #nz #f  -- BICond
+    case \m0001 is #d #z #f  -- BICond
+    case \m001- is #nd #f  -- BICond
+    case \m0100 is #d #nz #t  -- BICond
+    case \m0101 is #d #z #t  -- BICond
+    case \m011- is #nd #t  -- BICond
+    case \m1-00 is #d #nz #noCond
+    case \m1-01 is #d #z #noCond
+    case \m1-1- is #nd #noCond
+  end select
+  select slice{21}
+    case 1 is #revStatPred
+    case 0 is #statPred
+  end select
+end format
+
+format ra   #ra   rA := slice{20..16} end format
+format simm #simm SIMM := signed slice{15..0} end format
+format rd   #rd   rD := slice{25..21} end format
+format crfd #crfd crfD := slice{25..23} end format
+format l    #l    L := slice{21} end format
+format uimm #uimm UIMM := slice{15..0} end format
+format bi   #bi   BI := slice{20..16} end format
+format bd   #bd   BD := signed slice{15..2} end format
+format li   #li   LI := signed slice{25..2} end format
+format rs   #rs   rS := slice{25..21} end format
+format sh   #sh   SH := slice{15..11} end format
+format mb   #mb   MB := slice{10..6} end format
+format me   #me   ME := slice{5..1} end format
+format rb   #rb   rB := slice{15..11} end format
+format crm  #crm  CRM := slice{19..12} end format
+format sr   #sr   SR := slice{19..16} end format
+format spr  #spr  SPR := slice{15..11,20..16} end format
+format tbr  #tbr  TBR := slice{20..11} end format
+format frd  #frd  frD := slice{25..21} end format
+format nb   #nb   NB := slice{15..11} end format
+format frs  #frs  frS := slice{25..21} end format
+format fra  #fra  frA := slice{20..16} end format
+format frb  #frb  frB := slice{15..11} end format
+format frc  #frc  frC := slice{10..6} end format
+format d    #d    D := signed slice{15..0} end format
+format crbd #crbd crbD := slice{25..21} end format
+format crfs #crfs crfS := slice{20..18} end format
+format imm  #imm  IMM := slice{15..12} end format
+format fm   #fm   FM := slice{24..17} end format
+format crba #crba crbA := slice{20..16} end format
+format crbb #crbb crbB := slice{15..11} end format
+
+
+
+--------------------------------------------
+-- SYNTAX
+--------------------------------------------
+
+
+syntax useStatus
+ select
+  case -- In order to deal with instructions that have neither #noStatus
+       -- nor #useStatus
+  case #noStatus
+  case #useStatus "."
+ end select
+end syntax
+
+syntax useOvFlag
+ select
+  case
+  case #noOv
+  case #useOv "o"
+ end select
+end syntax
+
+syntax classicalInstructions
+ select
+  case #add     "add"     useOvFlag useStatus " " AMrDrArB
+  case #add     "addc"    useOvFlag useStatus " " AMrDrArB #withCarry
+  case #adde    "adde"    useOvFlag useStatus " " AMrDrArB #withCarry
+  case #addic   "addic"   useOvFlag useStatus " " AMrDrASIMM #withCarry
+  case #addme   "addme"   useOvFlag useStatus " " AMrDrA #withCarry
+  case #addze   "addze"   useOvFlag useStatus " " AMrDrA #withCarry
+  case #and     "and"     useOvFlag useStatus " " AMrArSrB #notcomplemented #notaftercomplemented
+  case #and     "andc"    useOvFlag useStatus " " AMrArSrB #complemented #notaftercomplemented
+  case #and     "andi"    useOvFlag useStatus " " AMrArSUIMM #notshifted #notaftercomplemented
+  case #and     "andis"   useOvFlag useStatus " " AMrArSUIMM #shifted #notaftercomplemented
+  case #b       "b"       useOvFlag useStatus " " AMRelTargetAddr
+  case #b #abs      "ba"      useOvFlag useStatus " " AMTargetAddr
+  case #b #updatelr #SP_Check     "bl"      useOvFlag useStatus " " AMRelTargetAddr
+  case #b #abs #updatelr #SP_Check   "bla"     useOvFlag useStatus " " AMTargetAddr
+  case #cntlzw  "cntlzw"  useOvFlag useStatus " " AMrArS
+  case #crand   "crand"   useOvFlag useStatus " " AMcrbDcrbAcrbB
+  case #crandc  "crandc"  useOvFlag useStatus " " AMcrbDcrbAcrbB
+  case #crnand  "crnand"  useOvFlag useStatus " " AMcrbDcrbAcrbB
+  case #crorc   "crorc"   useOvFlag useStatus " " AMcrbDcrbAcrbB
+  case #dcba    "dcba"    useOvFlag useStatus " " AMrArB
+  case #dcbf    "dcbf"    useOvFlag useStatus " " AMrArB
+  case #dcbi    "dcbi"    useOvFlag useStatus " " AMrArB
+  case #dcbst   "dcbst"   useOvFlag useStatus " " AMrArB
+  case #dcbt    "dcbt"    useOvFlag useStatus " " AMrArB
+  case #dcbtst  "dcbtst"  useOvFlag useStatus " " AMrArB
+  case #dcbz    "dcbz"    useOvFlag useStatus " " AMrArB
+  case #divw    "divw"    useOvFlag useStatus " " AMrDrArB
+  case #divwu   "divwu"   useOvFlag useStatus " " AMrDrArB
+  case #eciwx   "eciwx"   useOvFlag useStatus " " AMrDrArB
+  case #ecowx   "ecowx"   useOvFlag useStatus " " AMrSrArB
+  case #eieio   "eieio"   useOvFlag useStatus
+  case #xor     "eqv"     useOvFlag useStatus " " AMrArSrB #aftercomplemented #notcomplemented
+  case #extsb   "extsb"   useOvFlag useStatus " " AMrArS
+  case #extsh   "extsh"   useOvFlag useStatus " " AMrArS
+  case #fabs    "fabs"    useOvFlag useStatus " " AMfrDfrB
+  case #fadd    "fadd"    useOvFlag useStatus " " AMfrDfrAfrB
+  case #fadds   "fadds"   useOvFlag useStatus " " AMfrDfrAfrB
+  case #fcfid   "fcfid"   useOvFlag useStatus
+  case #fcmpo   "fcmpo"   useOvFlag useStatus " " AMcrfDfrAfrB
+  case #fcmpu   "fcmpu"   useOvFlag useStatus " " AMcrfDfrAfrB
+  case #fctiw   "fctiw"   useOvFlag useStatus " " AMfrDfrB
+  case #fctiwz  "fctiwz"  useOvFlag useStatus " " AMfrDfrB
+  case #fdiv    "fdiv"    useOvFlag useStatus " " AMfrDfrAfrB
+  case #fdivs   "fdivs"   useOvFlag useStatus " " AMfrDfrAfrB
+  case #fmadd   "fmadd"   useOvFlag useStatus " " AMfrDfrAfrCfrB
+  case #fmadds  "fmadds"  useOvFlag useStatus " " AMfrDfrAfrCfrB
+  case #fmr     "fmr"     useOvFlag useStatus " " AMfrDfrB
+  case #fmsub   "fmsub"   useOvFlag useStatus " " AMfrDfrAfrCfrB
+  case #fmsubs  "fmsubs"  useOvFlag useStatus " " AMfrDfrAfrCfrB
+  case #fmul    "fmul"    useOvFlag useStatus " " AMfrDfrAfrC
+  case #fmuls   "fmuls"   useOvFlag useStatus " " AMfrDfrAfrC
+  case #fnabs   "fnabs"   useOvFlag useStatus " " AMfrDfrB
+  case #fneg    "fneg"    useOvFlag useStatus " " AMfrDfrB
+  case #fnmadd  "fnmadd"  useOvFlag useStatus " " AMfrDfrAfrCfrB
+  case #fnmadds "fnmadds" useOvFlag useStatus " " AMfrDfrAfrCfrB
+  case #fnmsub  "fnmsub"  useOvFlag useStatus " " AMfrDfrAfrCfrB
+  case #fnmsubs "fnmsubs" useOvFlag useStatus " " AMfrDfrAfrCfrB
+  case #fres    "fres"    useOvFlag useStatus " " AMfrDfrB
+  case #frsp    "frsp"    useOvFlag useStatus " " AMfrDfrB
+  case #frsqrte "frsqrte" useOvFlag useStatus " " AMfrDfrB
+  case #fsel    "fsel"    useOvFlag useStatus " " AMfrDfrAfrCfrB
+  case #fsqrt   "fsqrt"   useOvFlag useStatus " " AMfrDfrB
+  case #fsqrts  "fsqrts"  useOvFlag useStatus " " AMfrDfrB
+  case #fsub    "fsub"    useOvFlag useStatus " " AMfrDfrAfrB
+  case #fsubs   "fsubs"   useOvFlag useStatus " " AMfrDfrAfrB
+  case #icbi    "icbi"    useOvFlag useStatus " " AMrArB
+  case #isync   "isync"   useOvFlag useStatus
+  case #load #byte #zero     #notu "lbz"     useOvFlag useStatus " " AMrDdrA
+  case #load #byte #zero #u    "lbzu"    useOvFlag useStatus " " AMrDdrA
+  case #load #byte #zero #u #x   "lbzux"   useOvFlag useStatus " " AMrDrArB
+  case #load #byte #zero #x    #notu "lbzx"    useOvFlag useStatus " " AMrDrArB
+  case #load #fd     #notu "lfd"     useOvFlag useStatus " " AMfrDdrA
+  case #load #fd #u    "lfdu"    useOvFlag useStatus " " AMfrDdrA
+  case #load #fd #u #x   "lfdux"   useOvFlag useStatus " " AMfrDrArB
+  case #load #fd #x    #notu "lfdx"    useOvFlag useStatus " " AMfrDrArB
+  case #load #fs     #notu "lfs"     useOvFlag useStatus " " AMfrDdrA
+  case #load #fs #u    "lfsu"    useOvFlag useStatus " " AMfrDdrA
+  case #load #fs #u #x   "lfsux"   useOvFlag useStatus " " AMfrDrArB
+  case #load #fs #x    #notu "lfsx"    useOvFlag useStatus " " AMfrDrArB
+  case #load #half #algebraic     #notu "lha"     useOvFlag useStatus " " AMrDdrA
+  case #load #half #algebraic #u    "lhau"    useOvFlag useStatus " " AMrDdrA
+  case #load #half #algebraic #u #x   "lhaux"   useOvFlag useStatus " " AMrDrArB
+  case #load #half #algebraic #x    #notu "lhax"    useOvFlag useStatus " " AMrDrArB
+  case #load #half #br #x   #notu "lhbrx"   useOvFlag useStatus " " AMrDrA0rB
+  case #load #half #zero     #notu "lhz"     useOvFlag useStatus " " AMrDdrA
+  case #load #half #zero #u    "lhzu"    useOvFlag useStatus " " AMrDdrA
+  case #load #half #zero #u #x   "lhzux"   useOvFlag useStatus " " AMrDrA0rB
+  case #load #half #zero #x    #notu "lhzx"    useOvFlag useStatus " " AMrDrA0rB
+  case #load #mw     #notu "lmw"     useOvFlag useStatus " " AMrDdrA
+  case #load #sw #i    #notu "lswi"    useOvFlag useStatus " " AMrDrANB
+  case #load #sw #x    #notu "lswx"    useOvFlag useStatus " " AMrDrA0rB
+  case #load #word #algebraic #r #x   #notu "lwarx"   useOvFlag useStatus " " AMrDrA0rB
+  case #load #word #br #x   #notu "lwbrx"   useOvFlag useStatus " " AMrDrA0rB
+  case #load #word #zero     #notu "lwz"     useOvFlag useStatus " " AMrDdrA
+  case #load #word #zero #u    "lwzu"    useOvFlag useStatus " " AMrDdrA
+  case #load #word #zero #u #x   "lwzux"   useOvFlag useStatus " " AMrDrA0rB
+  case #load #word #zero #x    #notu "lwzx"    useOvFlag useStatus " " AMrDrA0rB
+  case #mcrf    "mcrf"    useOvFlag useStatus " " AMcrfDcrfS
+  case #mcrfs   "mcrfs"   useOvFlag useStatus " " AMcrfDcrfS
+  case #mcrxr   "mcrxr"   useOvFlag useStatus " " AMcrfD
+  case #mfcr    "mfcr"    useOvFlag useStatus " " AMrD
+  case #mffs    "mffs"    useOvFlag useStatus " " AMfrD
+  case #mfmsr   "mfmsr"   useOvFlag useStatus " " AMrD
+  case #mfspr   "mfspr"   useOvFlag useStatus " " AMrDSPR
+  case #mfsr    "mfsr"    useOvFlag useStatus " " AMrDSR
+  case #mfsrin  "mfsrin"  useOvFlag useStatus " " AMrDrB
+  case #mftb    "mftb"    useOvFlag useStatus " " AMrDTBR
+  case #mtcrf   "mtcrf"   useOvFlag useStatus " " AMCRMrS
+  case #mtfsb0  "mtfsb0"  useOvFlag useStatus " " AMcrbD
+  case #mtfsb1  "mtfsb1"  useOvFlag useStatus " " AMcrbD
+  case #mtfsf   "mtfsf"   useOvFlag useStatus " " AMFMfrB
+  case #mtfsfi  "mtfsfi"  useOvFlag useStatus " " AMcrfDIMM
+  case #mtmsr   "mtmsr"   useOvFlag useStatus " " AMrS
+  case #mtspr   "mtspr"   useOvFlag useStatus " " AMSPRrS
+  case #mtsr    "mtsr"    useOvFlag useStatus " " AMSRrS
+  case #mtsrin  "mtsrin"  useOvFlag useStatus " " AMrSrB
+  case #mulhw   "mulhw"   useOvFlag useStatus " " AMrDrArB
+  case #mulhwu  "mulhwu"  useOvFlag useStatus " " AMrDrArB
+  case #mulli   "mulli"   useOvFlag useStatus " " AMrDrASIMM
+  case #mullw   "mullw"   useOvFlag useStatus " " AMrDrArB
+  case #mullwo  "mullwo"  useOvFlag useStatus " " AMrDrArB
+  case #and     "nand"    useOvFlag useStatus " " AMrArSrB #aftercomplemented #notcomplemented
+  case #neg     "neg"     useOvFlag useStatus " " AMrDrA
+  case #nego    "nego"    useOvFlag useStatus " " AMrDrA
+  case #or      "nor"     useOvFlag useStatus " " AMrArSrB #aftercomplemented #notcomplemented
+  case #or      "orc"     useOvFlag useStatus " " AMrArSrB #notaftercomplemented #complemented
+  case #or      "ori"     useOvFlag useStatus " " AMrArSUIMM #notshifted #notaftercomplemented
+  case #or      "oris"    useOvFlag useStatus " " AMrArSUIMM #shifted #notaftercomplemented
+  case #rfi     "rfi"     useOvFlag useStatus
+  case #rlw #rlwimi  "rlwimi"  useOvFlag useStatus " " AMrArSSHMBME
+  case #sc #SP_Check    "sc"      useOvFlag useStatus
+  case #slw     "slw"     useOvFlag useStatus " " AMrArSrB
+  case #sraw    "sraw"    useOvFlag useStatus " " AMrArSrB
+  case #sraw    "srawi"   useOvFlag useStatus " " AMrArSSH
+  case #srw     "srw"     useOvFlag useStatus " " AMrArSrB
+  case #store #byte #notu    "stb"     useOvFlag useStatus " " AMrSdrA
+  case #store #byte #u    "stbu"    useOvFlag useStatus " " AMrSdrA
+  case #store #byte #u #x   "stbux"   useOvFlag useStatus " " AMrSrArB
+  case #store #byte #x  #notu  "stbx"    useOvFlag useStatus " " AMrSrArB
+  case #store #fd #notu   "stfd"    useOvFlag useStatus " " AMfrSdrA
+  case #store #fd #u   "stfdu"   useOvFlag useStatus " " AMfrSdrA
+  case #store #fd #u #x  "stfdux"  useOvFlag useStatus " " AMfrSrArB
+  case #store #fd #x #notu  "stfdx"   useOvFlag useStatus " " AMfrSrArB
+  case #store #fiw #x #notu "stfiwx"  useOvFlag useStatus " " AMfrSrArB
+  case #store #fs #notu   "stfs"    useOvFlag useStatus " " AMfrSdrA
+  case #store #fs #u   "stfsu"   useOvFlag useStatus " " AMfrSdrA
+  case #store #fs #u #x  "stfsux"  useOvFlag useStatus " " AMfrSrA0rB
+  case #store #fs #x #notu  "stfsx"   useOvFlag useStatus " " AMfrSrA0rB
+  case #store #half #notu    "sth"     useOvFlag useStatus " " AMrSdrA
+  case #store #half #br #x #notu "sthbrx"  useOvFlag useStatus " " AMrSrA0rB
+  case #store #half #u    "sthu"    useOvFlag useStatus " " AMrSdrA
+  case #store #half #u #x   "sthux"   useOvFlag useStatus " " AMrSrA0rB
+  case #store #half #x #notu   "sthx"    useOvFlag useStatus " " AMrSrA0rB
+  case #store #mw #notu   "stmw"    useOvFlag useStatus " " AMrSdrA
+  case #store #sw #i #notu  "stswi"   useOvFlag useStatus " " AMrSrA0NB
+  case #store #sw #x #notu  "stswx"   useOvFlag useStatus " " AMrSrA0rB
+  case #store #word #notu    "stw"     useOvFlag useStatus " " AMrSdrA
+  case #store #word #br #x #notu "stwbrx"  useOvFlag useStatus " " AMrSrA0rB
+  case #store #word #c #x #notu  "stwcx"   useOvFlag useStatus " " AMrSrA0rB
+  case #store #word #u    "stwu"    useOvFlag useStatus " " AMrSdrA
+  case #store #word #u #x   "stwux"   useOvFlag useStatus " " AMrSrA0rB
+  case #store #word #x #notu   "stwx"    useOvFlag useStatus " " AMrSrA0rB
+  case #subf    "subf"    useOvFlag useStatus " " AMrDrArB
+  case #subf    "subfc"   useOvFlag useStatus " " AMrDrArB #withCarry
+  case #subfco  "subfco"  useOvFlag useStatus " " AMrDrArB
+  case #subfe   "subfe"   useOvFlag useStatus " " AMrDrArB  #withCarry
+  case #subfic  "subfic"  useOvFlag useStatus " " AMrDrASIMM #withCarry
+  case #subfme  "subfme"  useOvFlag useStatus " " AMrDrA #withCarry
+  case #subfmeo "subfmeo" useOvFlag useStatus " " AMrDrA
+  case #subfo   "subfo"   useOvFlag useStatus " " AMrDrArB
+  case #subfze  "subfze"  useOvFlag useStatus " " AMrDrA #withCarry
+  case #subfzeo "subfzeo" useOvFlag useStatus " " AMrDrA
+  case #sync    "sync"    useOvFlag useStatus
+  case #tlbia   "tlbia"   useOvFlag useStatus
+  case #tlbie   "tlbie"   useOvFlag useStatus " " AMrB
+  case #tlbsync "tlbsync" useOvFlag useStatus
+  case #xor     "xor"     useOvFlag useStatus " " AMrArSrB #notcomplemented #notaftercomplemented
+  case #xor     "xori"    useOvFlag useStatus " " AMrArSUIMM #notshifted #notaftercomplemented
+  case #xor     "xoris"   useOvFlag useStatus " " AMrArSUIMM #shifted #notaftercomplemented
+ end select
+end syntax
+
+syntax AMrDrA #rd #ra
+ field u5 rD
+ field u5 rA
+ "r\d,r\d", rD, rA
+end syntax
+
+syntax AMrDrArB #rd #ra #rb
+ field u5 rD
+ field u5 rA
+ field u5 rB
+ "r\d,r\d,r\d", rD, rA, rB
+end syntax
+
+syntax AMrDrA0rB #rd #ra #rb
+ field u5 rD
+ field u5 rA
+ field u5 rB
+ "r\d,", rD
+ if rA != 0 then
+  "r"
+ end if
+ "\d,r\d", rA, rB
+end syntax
+
+syntax AMrDrASIMM #rd #ra #simm
+ field u5 rD
+ field u5 rA
+ field s16 SIMM
+ "r\d,r\d,\d", rD, rA, SIMM
+end syntax
+
+syntax AMcrbD #crbd
+ field u5 crbD
+  if (crbD>>2) != 0 then
+  "4*cr\d+", crbD>>2
+  end if
+ if crbD{1..0} = 0 then "lt"
+ elseif crbD{1..0} = 1 then "gt"
+ elseif crbD{1..0} = 2 then "eq"
+ elseif crbD{1..0} = 3 then "so"
+ end if
+end syntax
+
+syntax AMcrbDcrbAcrbB #crbd #crba #crbb
+ AMcrbD ","
+ field u5 crbA
+ field u5 crbB
+  if (crbA>>2) != 0 then
+  "4*cr\d+", crbA>>2
+  end if
+ if crbA{1..0} = 0 then "lt"
+ elseif crbA{1..0} = 1 then "gt"
+ elseif crbA{1..0} = 2 then "eq"
+ elseif crbA{1..0} = 3 then "so"
+ end if
+ ","
+  if (crbB>>2) != 0 then
+  "4*cr\d+", crbB>>2
+  end if
+ if crbB{1..0} = 0 then "lt"
+ elseif crbB{1..0} = 1 then "gt"
+ elseif crbB{1..0} = 2 then "eq"
+ elseif crbB{1..0} = 3 then "so"
+ end if
+end syntax
+
+syntax AMcrfD #crfd
+ field u3 crfD
+ "cr\d",crfD
+end syntax
+
+syntax AMcrfDcrfS #crfd #crfs
+ AMcrfD
+ field u3 crfS
+ ",cr\d", crfS
+end syntax
+
+syntax AMcrfDfrAfrB #crfd #fra #frb
+ AMcrfD
+ field u5 frA
+ field u5 frB
+ ",f\d,f\d", frA, frB
+end syntax
+
+syntax AMcrfDIMM #crfd #imm
+ field u5 crfD
+ field u4 IMM
+ "\d,\d",crfD, IMM
+end syntax
+
+syntax AMCRMrS #rs #crm
+ field u8 CRM
+ "\d,", CRM
+ AMrS
+end syntax
+
+syntax AMFMfrB #fm #frb
+ field u8 FM
+ "\x,", FM
+ AMfrB
+end syntax
+
+syntax AMfrD #frd
+ field u5 frD
+ "f\d", frD
+end syntax
+
+syntax AMfrDdrA #frd #ra #d
+ AMfrD
+ ","
+ AMdrA
+end syntax
+
+syntax AMfrDfrAfrB #frd #fra #frb
+ AMfrD
+ ","
+ AMfrA
+ ","
+ AMfrB
+end syntax
+
+syntax AMfrDfrAfrC #frd #fra #frc
+ AMfrD
+ ","
+ AMfrA
+ ","
+ AMfrC
+end syntax
+
+syntax AMfrDfrAfrCfrB #frd #fra #frb #frc
+ AMfrD
+ ","
+ AMfrA
+ ","
+ AMfrC
+ ","
+ AMfrB
+end syntax
+
+syntax AMfrDfrB #frd #frb
+ AMfrD
+ ","
+ AMfrB
+end syntax
+
+syntax AMfrDrArB #frd #ra #rb
+ AMfrD
+ ","
+ field u5 rA
+ if rA != 0 then
+  "r"
+ end if
+ "\d,",rA
+ AMrB
+end syntax
+
+syntax AMrArB #ra #rb
+ AMrA
+ ","
+ AMrB
+end syntax
+
+syntax AMrArS #ra #rs
+ AMrA
+ ","
+ AMrS
+end syntax
+
+syntax AMrArSrB #ra #rs #rb
+ AMrA
+ ","
+ AMrS
+ ","
+ AMrB
+end syntax
+
+syntax AMrArSUIMM #ra #rs #uimm
+ AMrA
+ ","
+ AMrS
+ ","
+ AMUIMM
+end syntax
+
+syntax AMrD #rd
+ field u5 rD
+ "r\d", rD
+end syntax
+
+syntax AMrDdrA #rd #ra #d
+ AMrD
+ ","
+ AMdrA
+end syntax
+
+syntax AMrDrANB #rd #ra #nb
+ AMrD
+ ","
+ AMrA
+ ","
+ AMNB
+end syntax
+
+syntax AMrDrB #rd #rb
+ AMrD
+ ","
+ AMrB
+end syntax
+
+syntax AMrDSPR #rd #spr
+ AMrD
+ ","
+ AMSPR
+end syntax
+
+syntax AMrDSR #rd #sr
+ AMrD
+ ","
+ AMSR
+end syntax
+
+syntax AMrDTBR #rd #tbr
+ AMrD
+ ","
+ field u10 TBR
+ "\d", TBR
+end syntax
+
+syntax AMrS #rs
+ field u5 rS
+ "r\d", rS
+end syntax
+
+syntax AMrSrArB #rs #ra #rb
+ AMrS
+ ","
+ AMrA
+ ","
+ AMrB
+end syntax
+
+syntax AMrSrA0rB #rs #ra #rb
+ AMrS
+ ","
+ AMrA0
+ ","
+ AMrB
+end syntax
+
+syntax AMrSrB #rs #rb
+ AMrS
+ ","
+ AMrB
+end syntax
+
+syntax AMSPRrS #spr #rs
+ AMSPR
+ ","
+ AMrS
+end syntax
+
+syntax AMSRrS #sr #rs
+ AMSR
+ ","
+ AMrS
+end syntax
+
+syntax AMTargetAddr #li
+ field s24 LI
+ "\x", LI<<2
+end syntax
+
+syntax AMfrSdrA #frs #ra #d
+ AMfrS
+ ","
+ AMdrA
+end syntax
+
+syntax AMfrSrArB #frs #ra #rb
+ AMfrS
+ ","
+ AMrA
+ ","
+ AMrB
+end syntax
+
+syntax AMfrSrA0rB #frs #ra #rb
+ AMfrS
+ ","
+ field u5 rA
+ if rA != 0 then
+  "r"
+ end if
+ "\d,", rA
+ AMrB
+end syntax
+
+syntax AMrArSSH #ra #rs #sh
+ AMrA
+ ","
+ AMrS
+ ","
+ AMSH
+end syntax
+
+syntax AMrArSSHMBME #ra #rs #sh #mb #me
+ AMrA
+ ","
+ AMrS
+ ","
+ AMSH
+ ","
+ AMMB
+ ","
+ AMME
+end syntax
+
+syntax AMrB #rb
+ field u5 rB
+ "r\d", rB
+end syntax
+
+syntax AMrSdrA #rs #ra #d
+ AMrS
+ ","
+ AMdrA
+end syntax
+
+syntax AMrSrA0NB #rs #ra #nb
+ AMrS
+ ","
+ field u5 rA
+ if rA != 0 then
+  "r"
+ end if
+
+ "\d,", rA
+ AMNB
+end syntax
+
+syntax AMdrA
+ field s16 D
+ field u5 rA
+ if rA != 0 then
+  "\d(r\d)", D, rA
+ else
+  "\d(0)", D
+ end if
+end syntax
+
+syntax AMfrA
+ field u5 frA
+ "f\d", frA
+end syntax
+
+syntax AMfrB
+ field u5 frB
+ "f\d", frB
+end syntax
+
+syntax AMfrS
+ field u5 frS
+ "f\d", frS
+end syntax
+
+syntax AMrA
+ field u5 rA
+ "r\d", rA
+end syntax
+
+syntax AMrA0
+ field u5 rA
+ if rA != 0 then
+  "r"
+ end if
+ "\d", rA
+end syntax
+
+syntax AMSPR
+ field u10 SPR
+ "\x", SPR{4..0} cat SPR{9..5}
+end syntax
+
+syntax AMSR
+ field u4 SR
+ "\x", SR
+end syntax
+
+syntax AMfrC
+ field u5 frC
+ "f\d", frC
+end syntax
+
+syntax AMMB
+ field u5 MB
+ "\d", MB
+end syntax
+
+syntax AMME
+ field u5 ME
+ "\d", ME
+end syntax
+
+syntax AMNB
+ field u5 NB
+ "\d", NB
+end syntax
+
+syntax AMSH
+ field u5 SH
+ "\d", SH
+end syntax
+
+syntax AMUIMM
+ field u16 UIMM
+ "\d", UIMM
+end syntax
+
+syntax AMrASIMM
+ field s16 SIMM
+ field u5 rA
+ "r\d,\d", rA, SIMM
+end syntax
+
+syntax AMRelTargetAddr #li #rel
+ field s24 LI
+ "\x", (u32)((u32)(LI<<2) + (instruction address) - 4)
+end syntax
+
+
+-- Simplified mnemonics
+
+syntax addi #addi #rd #ra #simm #noStatus #noOv
+ field u5 rA
+ field u5 rD
+ field s16 SIMM
+ if rA = 0 then
+  "li r\d,\d",rD,SIMM
+ else
+  "addi r\d,r\d,\d", rD, rA, SIMM
+ end if
+
+end syntax
+
+syntax addis #addis #rd #ra #simm #noStatus #noOv
+ field u5 rA
+ field u5 rD
+ field s16 SIMM
+ if rA = 0 then
+  "lis r\d,\d",rD,SIMM
+ else
+  "addis r\d,r\d,\d", rD, rA, SIMM
+ end if
+end syntax
+
+syntax cmp #cmp #reg #crfd #l #ra #rb #arith
+ field u1 L
+ field u3 crfD
+ field u5 rA
+ field u5 rB
+ if L = 0 then
+  "cmpw "
+  if crfD != 0 then "cr" end if
+  "\d,r\d,r\d", crfD, rA, rB
+ else
+  "cmp cr\d,\d,r\d,r\d",crfD, L, rA, rB
+ end if
+end syntax
+
+syntax cmpi #cmp #immediate #crfd #l #ra #simm #arith
+ field u1 L
+ field u3 crfD
+ field u5 rA
+ field s16 SIMM
+ if L = 0 then
+  if crfD = 0 then
+   "cmpwi r\d,\d", rA, SIMM
+  else
+   "cmpwi cr\d,r\d,\d", crfD, rA, SIMM
+  end if
+ else
+  if crfD = 0 then
+   "cmpdi r\d,\d", rA, SIMM
+  else
+   "cmpdi cr\d,r\d,\d",crfD, rA, SIMM
+  end if
+ end if
+end syntax
+
+syntax cmpl #cmp #logical #reg #crfd #l #ra #rb
+ field u1 L
+ field u3 crfD
+ field u5 rA
+ field u5 rB
+ if L = 0 then
+  "cmplw "
+  if crfD != 0 then
+   "cr\d,", crfD
+  end if
+  "r\d,r\d", rA, rB
+ else
+  "cmpl cr\d,\d,r\d,r\d",crfD, L, rA, rB
+ end if
+end syntax
+
+syntax cmpli #cmp #logical #immediate #crfd #l #ra #uimm
+ field u1 L
+ field u3 crfD
+ field u5 rA
+ field u16 UIMM
+ if L = 0 then
+  if crfD = 0 then
+   "cmplwi r\d,\d", rA, UIMM
+  else
+   "cmplwi cr\d,r\d,\d", crfD, rA, UIMM
+  end if
+ else
+  if crfD = 0 then
+   "cmpldi r\d,\d", rA, UIMM
+  else
+   "cmpldi cr\d,r\d,\d",crfD, rA, UIMM
+  end if
+ end if
+end syntax
+
+syntax creqv #creqv #crbd #crba #crbb
+ field u5 crbD
+ field u5 crbA
+ field u5 crbB
+ if crbD = crbA && crbA = crbB then
+  "crset "
+  if (crbD>>2) != 0 then
+   "4*cr\d+", crbD>>2
+  end if
+  if crbD{1..0} = 0 then "lt"
+  elseif crbD{1..0} = 1 then "gt"
+  elseif crbD{1..0} = 2 then "eq"
+  elseif crbD{1..0} = 3 then "so"
+  end if
+ else
+  "creqv "
+  if (crbD>>2) != 0 then
+   "4*cr\d+", crbD>>2
+  end if
+  if crbD{1..0} = 0 then "lt"
+  elseif crbD{1..0} = 1 then "gt"
+  elseif crbD{1..0} = 2 then "eq"
+  elseif crbD{1..0} = 3 then "so"
+  end if
+  ","
+
+  if (crbA>>2) != 0 then
+   "4*cr\d+",crbA>>2
+  end if
+  if crbA{1..0} = 0 then "lt"
+  elseif crbA{1..0} = 1 then "gt"
+  elseif crbA{1..0} = 2 then "eq"
+  elseif crbA{1..0} = 3 then "so"
+  end if
+  ","
+
+  if (crbB>>2) != 0 then
+   "4*cr\d+",crbB>>2
+  end if
+  if crbB{1..0} = 0 then "lt"
+  elseif crbB{1..0} = 1 then "gt"
+  elseif crbB{1..0} = 2 then "eq"
+  elseif crbB{1..0} = 3 then "so"
+  end if
+ end if
+end syntax
+
+syntax crnor #crnor #crbd #crba #crbb
+ field u5 crbD
+ field u5 crbA
+ field u5 crbB
+ if crbA = crbB then
+  "crnot "
+
+  if (crbD>>2) != 0 then
+   "4*cr\d+", crbD>>2
+  end if
+  if crbD{1..0} = 0 then "lt"
+  elseif crbD{1..0} = 1 then "gt"
+  elseif crbD{1..0} = 2 then "eq"
+  elseif crbD{1..0} = 3 then "so"
+  end if
+  ","
+
+  if (crbA>>2) != 0 then
+   "4*cr\d+",crbA>>2
+  end if
+  if crbA{1..0} = 0 then "lt"
+  elseif crbA{1..0} = 1 then "gt"
+  elseif crbA{1..0} = 2 then "eq"
+  elseif crbA{1..0} = 3 then "so"
+  end if
+ else
+  "crnor "
+
+  if (crbD>>2) != 0 then
+   "4*cr\d+", crbD>>2
+  end if
+  if crbD{1..0} = 0 then "lt"
+  elseif crbD{1..0} = 1 then "gt"
+  elseif crbD{1..0} = 2 then "eq"
+  elseif crbD{1..0} = 3 then "so"
+  end if
+  ","
+  if (crbA>>2) != 0 then
+   "4*cr\d+",crbA>>2
+  end if
+  if crbA{1..0} = 0 then "lt"
+  elseif crbA{1..0} = 1 then "gt"
+  elseif crbA{1..0} = 2 then "eq"
+  elseif crbA{1..0} = 3 then "so"
+  end if
+  ","
+  if (crbB>>2) != 0 then
+   "4*cr\d+",crbB>>2
+  end if
+  if crbB{1..0} = 0 then "lt"
+  elseif crbB{1..0} = 1 then "gt"
+  elseif crbB{1..0} = 2 then "eq"
+  elseif crbB{1..0} = 3 then "so"
+  end if
+ end if
+end syntax
+
+syntax cror #cror #crbd #crba #crbb
+ field u5 crbD
+ field u5 crbA
+ field u5 crbB
+ if crbA = crbB then
+  "crmove "
+
+  if (crbD>>2) != 0 then
+   "4*cr\d+", crbD>>2
+  end if
+  if crbD{1..0} = 0 then "lt"
+  elseif crbD{1..0} = 1 then "gt"
+  elseif crbD{1..0} = 2 then "eq"
+  elseif crbD{1..0} = 3 then "so"
+  end if
+  ","
+
+  if (crbA>>2) != 0 then
+   "4*cr\d+",crbA>>2
+  end if
+  if crbA{1..0} = 0 then "lt"
+  elseif crbA{1..0} = 1 then "gt"
+  elseif crbA{1..0} = 2 then "eq"
+  elseif crbA{1..0} = 3 then "so"
+  end if
+ else
+  "cror "
+
+  if (crbD>>2) != 0 then
+   "4*cr\d+", crbD>>2
+  end if
+  if crbD{1..0} = 0 then "lt"
+  elseif crbD{1..0} = 1 then "gt"
+  elseif crbD{1..0} = 2 then "eq"
+  elseif crbD{1..0} = 3 then "so"
+  end if
+  ","
+
+  if (crbA>>2) != 0 then
+   "4*cr\d+",crbA>>2
+  end if
+  if crbA{1..0} = 0 then "lt"
+  elseif crbA{1..0} = 1 then "gt"
+  elseif crbA{1..0} = 2 then "eq"
+  elseif crbA{1..0} = 3 then "so"
+  end if
+  ","
+
+  if (crbB>>2) != 0 then
+   "4*cr\d+",crbB>>2
+  end if
+  if crbB{1..0} = 0 then "lt"
+  elseif crbB{1..0} = 1 then "gt"
+  elseif crbB{1..0} = 2 then "eq"
+  elseif crbB{1..0} = 3 then "so"
+  end if
+ end if
+end syntax
+
+syntax crxor #crxor #crbd #crba #crbb
+ field u5 crbD
+ field u5 crbA
+ field u5 crbB
+ if crbD = crbA && crbA = crbB then
+  "crclr "
+  if (crbD>>2) != 0 then
+   "4*cr\d+", crbD>>2
+  end if
+  if crbD{1..0} = 0 then "lt"
+  elseif crbD{1..0} = 1 then "gt"
+  elseif crbD{1..0} = 2 then "eq"
+  elseif crbD{1..0} = 3 then "so"
+  end if
+ else
+  "crxor "
+
+  if (crbD>>2) != 0 then
+   "4*cr\d+", crbD>>2
+  end if
+  if crbD{1..0} = 0 then "lt"
+  elseif crbD{1..0} = 1 then "gt"
+  elseif crbD{1..0} = 2 then "eq"
+  elseif crbD{1..0} = 3 then "so"
+  end if
+  ","
+
+  if (crbA>>2) != 0 then
+   "4*cr\d+",crbA>>2
+  end if
+  if crbA{1..0} = 0 then "lt"
+  elseif crbA{1..0} = 1 then "gt"
+  elseif crbA{1..0} = 2 then "eq"
+  elseif crbA{1..0} = 3 then "so"
+  end if
+  ","
+
+  if (crbB>>2) != 0 then
+   "4*cr\d+",crbB>>2
+  end if
+  if crbB{1..0} = 0 then "lt"
+  elseif crbB{1..0} = 1 then "gt"
+  elseif crbB{1..0} = 2 then "eq"
+  elseif crbB{1..0} = 3 then "so"
+  end if
+ end if
+end syntax
+
+syntax tw
+ "tw"
+ #to_f #ra
+ select
+  case #lt "lt"
+  case #le "le"
+  case #eq "eq"
+  case #ge "ge"
+  case #gt "gt"
+  case #nl "nl"
+  case #ne "ne"
+  case #ng "ng"
+  case #llt "llt"
+  case #lle "lle"
+  case #lge "lge"
+  case #lgt "lgt"
+  case #lnl "lnl"
+  case #lng "lng"
+  case #notSimple
+ end select
+
+ select
+  case #tw #reg " "
+  case #tw #imm "i "
+ end select
+
+ select
+  case #tw #imm
+   select
+    case #lt AMrASIMM #simm
+    case #le AMrASIMM #simm
+    case #eq AMrASIMM #simm
+    case #ge AMrASIMM #simm
+    case #gt AMrASIMM #simm
+    case #nl AMrASIMM #simm
+    case #ne AMrASIMM #simm
+    case #ng AMrASIMM #simm
+    case #llt AMrASIMM #simm
+    case #lle AMrASIMM #simm
+    case #lge AMrASIMM #simm
+    case #lgt AMrASIMM #simm
+    case #lnl AMrASIMM #simm
+    case #lng AMrASIMM #simm
+    case #notSimple #simm
+     field u5 TO
+     field u5 rA
+     field s16 SIMM
+     "\d,r\d,\d" , TO, rA, SIMM
+   end select
+  case #tw
+   select
+    case #lt AMrArB #rb
+    case #le AMrArB #rb
+    case #eq AMrArB #rb
+    case #ge AMrArB #rb
+    case #gt AMrArB #rb
+    case #nl AMrArB #rb
+    case #ne AMrArB #rb
+    case #ng AMrArB #rb
+    case #llt AMrArB #rb
+    case #lle AMrArB #rb
+    case #lge AMrArB #rb
+    case #lgt AMrArB #rb
+    case #lnl AMrArB #rb
+    case #lng AMrArB #rb
+    case #notSimple #rb
+     field u5 TO
+     field u5 rA
+     field u5 rB
+     "\d,r\d,r\d" , TO, rA, rB
+   end select
+
+
+ end select
+end syntax
+
+syntax branchSimplified #bo #bi
+  field u5 BO
+  field u5 BI
+  select
+    case #d
+      select
+     case #nz #t "dnzt"
+     case #nz #f "dnzf"
+     case #nz #noCond if BI = 0 then "dnz" else "c" end if
+     case #z #t "dzt"
+     case #z #f "dzf"
+     case #z #noCond if BI = 0 then "dz" else "c" end if
+      end select
+
+    case #nd
+      select
+        case #noCond "c" --branch conditional 'always'
+        case #t BICondTrue
+        case #f BICondFalse
+      end select
+  end select
+end syntax
+
+syntax BICondTrue #bi
+  field u5 BI
+  if BI{1..0} = 0 then "lt"
+  elseif BI{1..0} = 1 then "gt"
+  elseif BI{1..0} = 2 then "eq"
+  elseif BI{1..0} = 3 then "so"
+  end if
+end syntax
+
+syntax BICondFalse #bi
+  field u5 BI
+  if BI{1..0} = 0 then "ge"
+  elseif BI{1..0} = 1 then "le"
+  elseif BI{1..0} = 2 then "ne"
+  elseif BI{1..0} = 3 then "ns"
+  end if
+end syntax
+
+syntax conditionnalBranch #bo #bi
+  "b"
+  select
+    case #bc     branchSimplified        AMPredBranch " " branchOperand AMRelBD
+    case #bc #abs    branchSimplified "a"    AMPredBranch " " branchOperand AMAbsBD
+    case #bc #updatelr #SP_Check    branchSimplified "l"    AMPredBranch " " branchOperand AMRelBD
+    case #bc #updatelr #abs #SP_Check   branchSimplified "la"   AMPredBranch " " branchOperand AMAbsBD
+  end select
+end syntax
+
+syntax conditionnalBranchRel2Reg #bo #bi
+  "b"
+ field u5 BI
+  select
+  case #bc #ctr #abs  "cctr"  AMPredBranchNotTaken " \d,",BI BISimplified
+  case #bc #ctr #abs #updatelr #SP_Check "cctrl" AMPredBranchNotTaken " \d,",BI BISimplified
+  case #bc #tolr #abs   "clr"   AMPredBranchNotTaken " \d,",BI BISimplified
+  case #bc #tolr #abs #updatelr #SP_Check "clrl"  AMPredBranchNotTaken " \d,",BI BISimplified
+  end select
+
+  select
+    case #d
+      select
+     case #nz #t
+     case #nz #f
+     case #nz #noCond
+     case #z #t
+     case #z #f
+     case #z #noCond
+      end select
+
+    case #nd
+      select
+        case #noCond
+        case #t
+        case #f
+      end select
+  end select
+end syntax
+
+syntax branchOperand
+
+  -- bo
+  field u5 BO
+  field u5 BI
+  select
+    case #d
+      select
+     case #nz #t
+     case #nz #f
+     case #nz #noCond if BI != 0 then "\d,",BO{4..1}*2 end if
+     case #z #t
+     case #z #f
+     case #z #noCond if BI != 0 then "\d,",BO{4..1}*2 end if
+      end select
+
+    case #nd
+      select
+        case #noCond "\d,",BO --branch conditional 'always'
+        case #t
+        case #f
+      end select
+  end select
+ select
+ case #d
+  select
+  case #nz #t BISimplified ","
+  case #nz #f BISimplified ","
+  case #nz #noCond
+  if BI != 0 then
+   if BI{4..2} != 0 then
+    "4*cr\d+",BI{4..2}
+   end if
+
+   if BI{1..0} = 0 then "lt"
+   elseif BI{1..0} = 1 then "gt"
+   elseif BI{1..0} = 2 then "eq"
+   elseif BI{1..0} = 3 then "so"
+   end if
+   ","
+  end if
+  case #z #t BISimplified ","
+  case #z #f BISimplified ","
+  case #z #noCond
+  if BI != 0 then
+   if BI{4..2} != 0 then
+    "4*cr\d+",BI{4..2}
+   end if
+
+   if BI{1..0} = 0 then "lt"
+   elseif BI{1..0} = 1 then "gt"
+   elseif BI{1..0} = 2 then "eq"
+   elseif BI{1..0} = 3 then "so"
+   end if
+   ","
+  elseif BO = 20 then
+   "lt,"
+  end if
+
+  end select
+
+ case #nd
+  select
+   case #noCond
+  if BI{4..2} != 0 then
+   "4*cr\d+",BI{4..2}
+  end if
+
+  if BI{1..0} = 0 then "lt"
+  elseif BI{1..0} = 1 then "gt"
+  elseif BI{1..0} = 2 then "eq"
+  elseif BI{1..0} = 3 then "so"
+  end if
+  ","
+   case #t if BI{4..2}!=0 then "cr\d,",BI{4..2} end if
+   case #f if BI{4..2}!=0 then "cr\d,",BI{4..2} end if
+  end select
+ end select
+end syntax
+
+syntax BISimplified
+ field u5 BI
+ if BI{4..2} != 0 then
+  "4*cr\d+",BI{4..2}
+ end if
+ BICondTrue
+end syntax
+
+syntax AMPredBranchNotTaken
+ select
+  case #revStatPred "+"
+  case #statPred    "-"
+ end select
+end syntax
+
+syntax AMPredBranch #bd
+ field s14 BD
+ select
+  case #revStatPred
+   if BD < 0s then
+    "-"
+   elseif BD >= 0s then
+    "+"
+   end if
+  case #statPred
+   if BD < 0s then
+    "+"
+   elseif BD >= 0s then
+    "-"
+   end if
+ end select
+end syntax
+
+syntax AMAbsBD
+ field s14 BD
+ "\x", BD<<2
+end syntax
+
+syntax AMRelBD #rel
+ field s14 BD
+ "\x", (u32)((u32)(BD<<2) - 4 + instruction address)
+end syntax
+
+
+syntax syntax_or #or #ra #rb #rs #notcomplemented #notaftercomplemented
+ field u5 rA
+ field u5 rS
+ field u5 rB
+ if rS = rB then
+  "mr"
+ else
+  "or"
+ end if
+
+ useStatus
+
+ if rS = rB then
+  " r\d,r\d",rA, rS
+ else
+  " r\d,r\d,r\d", rA, rS, rB
+ end if
+end syntax
+
+syntax rlwnm #rlwnm #ra #rs #rb #mb #me
+ field u5 rA
+ field u5 rS
+ field u5 rB
+ field u5 MB
+ field u5 ME
+
+ if MB = 0 && ME = 31 then
+  "rotlw"
+ else
+  "rlwnm"
+ end if
+
+ useStatus " "
+
+ if MB = 0 && ME = 31 then
+  "r\d,r\d,r\d", rA, rS, rB
+ else
+  "r\d,r\d,r\d,\d,\d", rA, rS, rB, MB, ME
+ end if
+end syntax
+
+syntax rlwinm #rlwinm #ra #rs #sh #mb #me
+ field u5 rA
+ field u5 rS
+ field u5 SH
+ field u5 MB
+ field u5 ME
+
+ if MB = 0 && ME = 31 then
+  "rotlwi"
+ elseif SH = 0 && ME = 31 then
+  "clrlwi"
+ else
+  "rlwinm"
+ end if
+ useStatus " "
+
+
+ if MB = 0 && ME = 31 then
+  "r\d,r\d,\d", rA, rS, SH
+ elseif SH = 0 && ME = 31 then
+   "r\d,r\d,\d", rA, rS, MB
+ else
+   "r\d,r\d,\d,\d,\d", rA, rS, SH, MB, ME
+ end if
+end syntax
+
+
+--
+-- Component for the GDB interface
+--
+component gdbppc {
+ 
+ -- As there is only one memory in this description, simply returns the value at the given addresse
+  u8 read8(u32 v_addr) {
+  return mem.read8(v_addr)
+  }
+
+ -- As there is only one memory in this description, simply writes the value at the given addresse
+  void write8(u32 v_addr, u8 val) {
+  mem.write8(v_addr, val)
+  }
+
+ -- returns the number of registers required by the GDB client
+  u8 getNBRegister() {
+  return 70
+  -- r0 to r31, f0 to 31, pc, msr, cr, lr, ctr and xer = 70 registers
+  -- See gdb sources and Gdb command "info all-registers" and "info registers"
+ }
+
+ -- returns the value and the size (in the GDB protocol) of the register id
+ -- Registers id are taken from gdb command info all-registers and gdb sources
+  u32 getRegister(u8 id, out u8 sizeInBits) {
+  u32 result
+  if id <=31 then
+   result := SRU.GPR.read32(id)
+   sizeInBits := 32
+  elseif id <= 63 then
+   -- Float register are still not implemented in Harmless so, return 0
+   result := 0 -- TODO
+   sizeInBits := 64 -- These are 64 bits registers
+  elseif id = 64 then
+   result := PC
+   sizeInBits := 32
+  elseif id = 65 then
+   result := MSR
+   sizeInBits := 32
+  elseif id = 66 then
+   result := CR
+   sizeInBits := 32
+  elseif id = 67 then
+   result := LR
+   sizeInBits := 32
+  elseif id = 68 then
+   result := CTR
+   sizeInBits := 32
+  elseif id = 69 then
+   result := XER
+   sizeInBits := 32
+  else
+   warning "trying to read in a non described register"
+  end if
+
+  return result
+  }
+
+ -- Write value in the register id (in the GDB protocol order)
+  void setRegister(u8 id, u32 value) {
+  if id <=31 then
+   SRU.GPR.write32(id, value)
+  elseif id <= 63 then
+   -- do nothing as float registers are not implemented
+  elseif id = 64 then
+   PC := value
+  elseif id = 65 then
+   MSR := value
+  elseif id = 66 then
+   CR := value
+  elseif id = 67 then
+   LR := value
+  elseif id = 68 then
+   CTR := value
+  elseif id = 69 then
+   XER := value
+  else
+   warning "trying to write in a non described register"
+  end if
+  }
+}
+
+}
+-- errorformat=%f:%l:%c:%m
+-- makeprg=gadl\ \%
+-- vim:ft=hadl:ts=2:sw=2:tw=0

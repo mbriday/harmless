@@ -1,0 +1,43 @@
+
+syntax P2A {
+
+   template ConfigurationFile main context
+      :  "version" version
+         [ statements ]{indentIncr=0, nbNL=1}
+      ;
+
+   template Statement abstract;
+
+   template Pipeline addToContext
+      :  "pipeline" name
+      ;
+
+   template Stage addToContext
+      :  owningPipeline{refersTo=name} "addStage" name
+      ;
+
+   template Resource addToContext
+      :  owningPipeline{refersTo=name} "addResource"
+         (isExternal? "external" : "internal" parallelism)
+         name priority "priority"
+      ;
+
+   template InstructionClass addToContext
+      :  owningPipeline{refersTo=name} "addInstructionClass" name
+      ;
+
+   template ResourceUsage abstract;
+
+   template Dependency
+      :  owningInstructionClass{refersTo=name} "dependResource" resource{refersTo=name} stage{refersTo=name}
+      ;
+
+   template GetResource
+      :  owningInstructionClass{refersTo=name} "getResource" resource{refersTo=name} stage{refersTo=name}
+      ;
+
+   template ReleaseResource
+      :  owningInstructionClass{refersTo=name} "releaseResource" resource{refersTo=name} stage{refersTo=name}
+      ;
+}
+

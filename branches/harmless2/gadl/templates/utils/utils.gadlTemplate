@@ -1,0 +1,29 @@
+%
+
+#utils for simulation.
+write to MODELNAME."/macro.h":
+  template headerC
+  template macro_h in utils
+end write
+
+write to MODELNAME."/types.cpp":
+  template types_cpp in utils
+end write
+%types.cpp \\\n%
+
+write to MODELNAME."/types.h":
+  template types_h in utils
+end write
+
+write to MODELNAME."/utils.cpp":
+  template utils_cpp in utils
+end write
+%utils.cpp \\\n%
+
+write to MODELNAME."/utils.h":
+  template utils_h in utils
+end write
+
+write to MODELNAME."/fifo.h":
+  template fifo_h in utils
+end write

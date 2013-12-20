@@ -1,0 +1,102 @@
+
+module HADLcHeader;
+create OUT:HADLcOUT from IN:HADLcIN;
+
+rule TModel {
+   from src : HADLcIN!Model 
+   to dest : HADLcOUT!Model (
+         name <- src.name + 'Header',
+         includedFiles <- src.includedFiles->select(f| f.appearsInHeader),
+         elements <-
+            -- Incomplete struct types
+            src.elements
+               ->select(e| e.oclIsKindOf(HADLcIN!StructType))
+               ->collect(e| thisModule.resolveTemp(e, 'incomplete'))
+               
+            -- Enumeration types
+            ->union(src.elements->select(e| e.oclIsKindOf(HADLcIN!EnumType)))
+            
+            -- Function prototypes
+            ->union(src.elements->select(e| e.oclIsKindOf(HADLcIN!Function)))
+            
+            -- Complete struct types
+            ->union(src.elements->select(e| e.oclIsKindOf(HADLcIN!StructType)))
+      )
+}
+
+rule TIncludeFile  {
+   from src : HADLcIN!IncludeFile (src.appearsInHeader)
+   to dest : HADLcOUT!IncludeFile (
+         name <- src.name,
+         isStandard <- src.isStandard,
+         appearsInHeader <- src.appearsInHeader
+      )
+}
+
+rule TStructType  {
+   from src : HADLcIN!StructType  
+   to
+      dest : HADLcOUT!StructType (
+            name <- src.name,
+            fields <- src.fields
+         ),
+      incomplete : HADLcOUT!StructType (
+            name <- src.name
+         )
+}
+
+rule TStructField  {
+   from src : HADLcIN!StructField  
+   to dest : HADLcOUT!StructField (
+         typeName <- src.typeName,
+         isEnum <- src.isEnum,
+         isStruct <- src.isStruct,
+         isPointer <- src.isPointer,
+         isArray <- src.isArray,
+         name <- src.name,
+         "size" <- src."size"
+      )
+}
+
+rule TEnumType  {
+   from src : HADLcIN!EnumType  
+   to dest : HADLcOUT!EnumType (
+         name <- src.name,
+         literals <- src.literals
+      )
+}
+
+rule TEnumLiteral  { 
+   from src : HADLcIN!EnumLiteral  
+   to dest : HADLcOUT!EnumLiteral (
+         name <- src.name
+      )
+}
+
+rule TFunction { 
+   from src : HADLcIN!Function 
+   to
+      dest : HADLcOUT!Function (
+            typeName <- src.typeName,
+            isEnum <- src.isEnum,
+            isStruct <- src.isStruct,
+            isPointer <- src.isPointer,
+            isArray <- src.isArray,
+            name <- src.name,
+            parameters <- src.parameters
+         )
+}
+
+rule TParameter  { 
+   from src : HADLcIN!Parameter  
+   to
+      dest : HADLcOUT!Parameter (
+            typeName <- src.typeName,
+            isEnum <- src.isEnum,
+            isStruct <- src.isStruct,
+            isPointer <- src.isPointer,
+            isArray <- src.isArray,
+            name <- src.name
+         )
+}
+

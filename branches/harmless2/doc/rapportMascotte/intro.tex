@@ -1,0 +1,21 @@
+\newpage
+\section{Introduction}
+
+%provenance directe du fichier Mascotte -> Base de l'intro.
+L'objectif, global et final, de l'étude est l'obtention par une technique de simulation, du WCET d'un code exécutable. La simulation concerne l'exécution d'un code sur une architecture matérielle monoprocesseur ou multiprocesseurs (n{\oe}uds en réseau, CAN par exemple). L'architecture matérielle comprend les processeurs et les périphériques associés (cas des micro-contrôleurs), y compris les contrôleurs réseaux. Le code étant connu le problème est la simulation réaliste de l'architecture matérielle, donc entre autres la simulation réaliste du processeur. L'inconvénient majeur d'une telle approche, traitée de façon classique, est que tout changement de processeur nécessite de refaire le simulateur, ce qui est complexe et coûteux en temps. C'est pourquoi l'approche proposée est fondée sur les langages de description d'architecture matérielle. 
+
+Un langage de description d'architecture matérielle permet de décrire tout ou partie des différents  composants matériels qui forment un calculateur, voire un ensemble de calculateurs communiquant au  travers d'un réseau. Traditionnellement les langages de description d'architecture se sont focalisés, d'une 
+part sur la description du jeu d'instructions du microprocesseur et de l'architecture associée (à condition que cette architecture reste simple), et d'autre part sur l'exploration de l'espace de conception (\textsl{Design Space Exploration}) avec l'objectif de produire un simulateur du processeur et des outils logiciels comme un assembleur et un compilateur. On peut citer nML, LISA ou encore eXPression. La description de la hiérarchie mémoire est  assez peu abordée, les aspects réseau et utilisation de processeurs hétérogènes pas du tout. De plus, le noyau d'exécution le plus sophistiqué qu'il est possible de décrire consiste en un pipeline.  Le contexte où nous nous plaçons est différent puisqu'il s'agit de décrire des processeurs existants ainsi  que les périphériques associés (orientation marquée vers les microcontrôleurs) afin de : 
+\begin{itemize}
+\item disposer d'une description incluant des paramètres temporels pour alimenter des outils de placement, de validation ou de  calcul du WCET ;
+\item générer un simulateur automatiquement à partir de la description de l'architecture. 
+\end{itemize}
+
+Un tel simulateur peut alors être intégré au sein d'une plate-forme logicielle utilisée pour la mise au point,  le débogage et le test des programmes temps réel ou encore, comme c'est le cas ici, dans la plateforme OTAWA pour permettre l'évaluation du WCET sur du code exécutable. Par ailleurs, contrairement aux 
+langages existants qui se focalisent sur la description structurelle, ce langage prendrait principalement en  compte la description temporelle. Décrire l'architecture au moyen d'un langage dédié présente plusieurs avantages : la mise en {\oe}uvre et les  modifications de la plate-forme sont plus rapides et la mise au point du simulateur, dans la mesure où il  peut être généré automatiquement, est aussi plus rapide puisqu'une vérification de la cohérence de  l'architecture peut être faite à partir de la description.  Il s'agit donc d'étudier un  langage et les modèles associés afin de décrire des architectures complexes 
+incluant la hiérarchie mémoire, les bus, les réseaux de communication, etc. du point de vue fonctionnel,  structurel et temporel. Les simulateurs générés utiliseront SystemC (un standard actuel pour la simulation)  et offriront un support pour le test et le débogage de haut niveau (tâches et communication) et bas niveau  (instructions et matériel).  Cette proposition s'appuie sur l'expertise de l'IRCCyN dans le domaine (développement de l'outil ReTiS  de validation d'architecture opérationnelle par simulation fine, construit autour de l'Infineon C167 avec contrôleur CAN). 
+
+
+
+
+

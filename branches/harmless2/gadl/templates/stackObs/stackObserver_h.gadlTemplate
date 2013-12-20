@@ -1,0 +1,129 @@
+%template headerC%
+#ifdef GADL_SP_CHECK_ALLOWED
+#ifdef GADL_SP_FAILURE_CHECK_ALLOWED
+
+#include <string>
+#include <iostream>
+#include "types.h"
+#include "stackTypes.h"
+#include "action.h"
+
+
+#define OVERFLOW_DETECTION	true
+#define UNDERFLOW_DETECTION	false
+#define DEFAULT_SIZE_FOR_PROTECTION_AREA	2
+//#include "arch.h"
+class stackSpyController;
+
+
+/** stackObserverAction
+ * Monitor each stack byte
+ */
+class stackObserverAction : public writeAction{
+	// STACK LIST Ajouter sur chaque stack un temoin de "niveau" plus un flag overflow et un underflow + FLAG stackObserverON (peut être)
+	// Ajouter une action sur chaque octect du stack (à faire dans l'action statique qui détecte SP Init
+	protected :
+	stackObserver *m_observer;
+	stackInfo *m_stack;
+	type_sp m_observerAddr;	// Addr of observer
+	
+	public :
+	stackObserverAction(stackObserver *obs,stackInfo *stk,type_sp addr) : writeAction(), m_observer(obs),m_stack(stk),m_observerAddr(addr){};	// Constructeur
+	virtual ~stackObserverAction() {};	// Destructeur
+	virtual bool trigger(storage *, u8 , spyInfo *)=0;
+};
+
+/** stackUseObserverAction
+ * Monitor stack use and modify stack info (about real stack use) if recquiered
+ */
+class stackUseObserverAction : public stackObserverAction{
+	public :
+	stackUseObserverAction(stackObserver *obs,stackInfo *stk,type_sp addr) : stackObserverAction(obs,stk,addr) {};	// Constructeur
+	virtual ~stackUseObserverAction() {};	// Destructeur
+	virtual bool trigger(storage *, u8 , spyInfo *);
+};
+
+/** stackOutObserverAction
+ * Monitor stack under/over flow return error and update stack info flag about over and underflow
+ */
+class stackOutObserverAction : public stackObserverAction{
+	bool m_typeOfStackFailure;
+	public :
+	stackOutObserverAction(stackObserver *obs,stackInfo *stk,type_sp addr,bool typeOfFailure) : stackObserverAction(obs,stk,addr),m_typeOfStackFailure(typeOfFailure) {};	// Constructeur
+	virtual ~stackOutObserverAction() {};	// Destructeur
+	virtual bool trigger(storage *, u8 , spyInfo *);
+};
+
+/**
+ *
+ */
+class stackObserverSysFuncItem{
+	private :
+	stackObserverSysFuncItem *m_nextItem;
+	string m_functionSymbol;
+	
+	public :
+	/* Usual */
+	stackObserverSysFuncItem(string functionSymbol):m_nextItem(NULL),m_functionSymbol(functionSymbol){};
+	virtual ~stackObserverSysFuncItem(){};
+	/* Access */
+	inline string getFunctionSymbol(){return m_functionSymbol;};
+	inline void setFunctionSymbol(string symbol){m_functionSymbol=symbol;}
+	inline stackObserverSysFuncItem *getPtrNext(){return m_nextItem;};
+	inline void setPtrNext(stackObserverSysFuncItem* nextItem){m_nextItem=nextItem;};
+	/* Functions */
+	virtual bool isSameFunction(string symbol);
+};
+
+/**
+ *
+ */
+class stackObserverSysFuncList{
+	private :
+	stackObserver *m_observer;
+	stackObserverSysFuncItem *m_firstItem;
+	int m_nbItems;
+	bool m_empty;
+	
+	public :
+	/* Usual */
+	stackObserverSysFuncList(stackObserver *observer):m_observer(observer),m_firstItem(NULL),m_nbItems(0),m_empty(true){};
+	virtual ~stackObserverSysFuncList(){};
+	
+	/* Access */
+	inline int getNbItems(){return m_nbItems;};
+	inline bool getEmpty(){return m_empty;};
+
+	/* Functions */
+	virtual void addSystemFunction(stackObserverSysFuncItem *newFuncItem);
+	virtual bool isAnExclusionFunction(type_prgaddr pcValue);
+	
+};
+
+/** stackObserver
+ * Manage stack monitoring
+ */
+class stackObserver{
+	private :
+	stackSpyController *m_controller;
+	type_sp m_sizeOfProtectionArea;
+	stackObserverSysFuncList *m_observerExclusionList;	// Stack failure exclusion list
+	//new stackObserverSysFuncList(this)
+	public :
+	/* Usual */
+	stackObserver(stackSpyController *ctrl):m_controller(ctrl),m_sizeOfProtectionArea(DEFAULT_SIZE_FOR_PROTECTION_AREA),m_observerExclusionList(new stackObserverSysFuncList(this)){};	
+	virtual ~stackObserver(){};
+	
+	/* Access */
+	inline stackSpyController* getController(){return m_controller;};
+	inline void setSizeOfProtectionArea(type_sp size){m_sizeOfProtectionArea=size;};	// Define number of byte use to detect over/underflow of stack
+	inline type_sp getSizeOfProtectionArea(){return m_sizeOfProtectionArea;};
+	inline stackObserverSysFuncList *getObserverSysFuncList(){return m_observerExclusionList;};
+	
+	/* Functions */
+	virtual void addStackObservation(stackInfo *stk);	// Add a Stack observer (for underflow overflow and stack use detection) on the defined Task/stack
+	virtual void setExclusionOnSystemFunction(stackObserverSysFuncItem *newFuncItem);
+};
+
+#endif // GADL_SP_FAILURE_CHECK_ALLOWED
+#endif // GADL_SP_CHECK_ALLOWED

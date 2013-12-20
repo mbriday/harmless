@@ -1,0 +1,175 @@
+
+--
+-- Restrictions :
+--    if statements are not supported in source HADLi models
+--
+
+module HADLiPreschedule;
+create OUT:HADLiOUT from IN:HADLiIN;
+
+rule TOperationCall { 
+   from src : HADLiIN!OperationCall
+   to dest : HADLiOUT!OperationCall (
+         component <- src.component,
+         calledOperation <- src.calledOperation,
+         body <- src.body,
+         reservations <-
+            src.getPipeline().stages
+               ->collect(s|
+                     s.portActivations
+                        ->select(q| q.port.operations->includes(src.calledOperation))
+                  )
+               ->flatten()
+               ->collect(a| thisModule.TReservation(a))
+      )
+}
+
+lazy rule TReservation {
+   from src : HADLiIN!ExpandedPortActivation
+   to dest : HADLiOUT!Reservation (
+         stage <- src.owningStage,
+         port <- src.port,
+         releaseStage <- src.releaseStage,
+         bypassStages <- src.bypassStages
+      )
+
+}
+
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
+
+helper context HADLiIN!Statement def:
+   getPipeline() : HADLiIN!Pipeline =
+      if not self.owningBehavior.oclIsUndefined() then
+         self.owningBehavior.getPipeline()
+      else if not self.owningOperationCall.oclIsUndefined() then
+         self.owningOperationCall.getPipeline()
+      else -- if not self.owningForStatement.oclIsUndefined() then
+         self.owningForStatement.getPipeline()
+      endif endif;
+
+helper context HADLiIN!Behavior def:
+   getPipeline() : HADLiIN!Pipeline =
+      if not self.owningInstruction.oclIsUndefined() then
+         self.owningInstruction.owningPipeline
+      else -- if not self.owningBehavior.oclIsUndefined() then
+         self.owningBehavior.getPipeline()
+      endif;
+
+--------------------------------------------------------------------------------
+-- Straightforward copy rules
+--------------------------------------------------------------------------------
+
+rule TModel {
+   from src : HADLiIN!Model
+   to dest : HADLiOUT!Model (
+         name <- src.name,
+         architectures <- src.architectures,
+         pipelines <- src.pipelines,
+         components <- src.components,
+         variables <- src.variables
+      )
+}
+
+rule TArchitecture {
+   from src : HADLiIN!Architecture
+   to dest : HADLiOUT!Architecture (
+            name <- src.name,
+            fathers <- src.fathers,
+            ports <- src.ports
+      )
+}
+
+rule TComponent { 
+   from src : HADLiIN!Component 
+   to dest : HADLiOUT!Component (
+         name <- src.name,
+         operations <- src.operations
+      )
+}
+
+rule TOperation { 
+   from src : HADLiIN!Operation 
+   to dest : HADLiOUT!Operation (
+         name <- src.name,
+         isExternal <- src.isExternal
+      )
+}
+
+rule TPipeline { 
+   from src : HADLiIN!Pipeline 
+   to dest : HADLiOUT!Pipeline (
+         name <- src.name,
+         architecture <- src.architecture,
+         stages <- src.stages,
+         instructions <- src.instructions
+      )
+}
+
+rule TStage { 
+   from src : HADLiIN!Stage 
+   to dest : HADLiOUT!Stage (
+         name <- src.name,
+         portActivations <- src.portActivations
+      )
+}
+
+rule TExpandedPort { 
+   from src : HADLiIN!ExpandedPort 
+   to dest : HADLiOUT!ExpandedPort (
+         name <- src.name,
+         component <- src.component,
+         operations <- src.operations
+      )
+}
+          
+rule TExpandedPortActivation {
+   from src : HADLiIN!ExpandedPortActivation
+   to dest : HADLiOUT!ExpandedPortActivation (
+         port <- src.port,
+         releaseStage <- src.releaseStage,
+         bypassStages <- src.bypassStages
+      )
+}
+
+rule TInstruction { 
+   from src : HADLiIN!Instruction 
+   to dest : HADLiOUT!Instruction (
+         name <- src.name,
+         root <- src.root
+      )
+}
+
+rule TBehavior { 
+   from src : HADLiIN!Behavior 
+   to dest : HADLiOUT!Behavior (
+         name <- src.name,
+         statements <- src.statements,
+         chunks <- src.chunks
+      )
+}
+
+rule TVariable {
+   from src : HADLiIN!Variable
+   to dest : HADLiOUT!Variable (
+         name <- src.name,
+         isGlobal <- src.isGlobal
+      )
+}
+
+rule TForStatement { 
+   from src : HADLiIN!ForStatement 
+   to dest : HADLiOUT!ForStatement (
+         body <- src.body
+      )
+}
+
+rule TDependencyStatement {
+   from src : HADLiIN!DependencyStatement
+   to dest : HADLiOUT!DependencyStatement (
+            sourceVariables <- src.sourceVariables,
+            targetVariable <- src.targetVariable
+         )
+}
+

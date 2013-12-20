@@ -1,0 +1,121 @@
+
+syntax HADLi {
+
+   template Model main
+      :  "model" name "{" [
+--            components
+--            variables
+            architectures
+            pipelines
+         ] "}"
+      ;
+
+   template Component
+      :  "component" name "{" [
+            operations
+         ] "}"
+      ;
+
+   template Operation
+      :  (isExternal? "external") "operation" name
+      ;
+
+   template Architecture
+      :  "architecture" name
+         (isDefined(fathers)? "extends" fathers{refersTo=name, separator=","})
+         "{" [
+            ports
+         ] "}"
+      ;
+
+   template Pipeline
+      : "pipeline" name ":" architecture{refersTo=name} "{" [
+--            stages
+            instructions
+            groups
+         ] "}"
+      ;
+
+   template Stage
+      :  "stage" name ":" portActivations{separator=","} ";"
+      ;
+
+   template ExpandedPort
+      :  "port" name ":" component{refersTo=name}
+         "->" operations{refersTo=name, separator=","} ";"
+      ;
+
+   template ExpandedPortActivation
+      :  owningStage{refersTo=name} "." port{refersTo=name}
+         (isDefined(releaseStage)? "release" "in" "<" releaseStage{refersTo=name} ">")
+         (isDefined(bypassStages)? "bypass" "in" "<" bypassStages{refersTo=name, separator=","} ">")
+      ;
+
+   template Instruction
+      :  "instruction" name ":" root
+      ;
+
+   template Behavior
+      :  "behavior" name "{" [
+            chunks
+            statements
+         ] "}"
+      ;
+
+   template Statement abstract;
+
+   template ForStatement
+      :  "loop" "{" [
+            body
+         ] "}"
+      ;
+
+   template OperationCall
+      :  "call" component{refersTo=name} "." calledOperation{refersTo=name}
+         (isDefined(reservations)? "->" reservations{separator=","} : "<" "unmapped" ">" )
+         (isDefined(body)?
+            "{" [
+               body
+            ] "}"
+         )
+      ;
+
+   template Reservation
+      :  stage{refersTo=name} "." port{refersTo=name}
+         (isDefined(releaseStage)? "release" "in" "<" releaseStage{refersTo=name} ">")
+         (isDefined(bypassStages)? "bypass" "in" "<" bypassStages{refersTo=name, separator=","} ">")
+      ;  
+
+   template DependencyStatement
+      :  "dep" targetVariable{refersTo=name, separator=","} "<-"
+         (isDefined(sourceVariables)?
+            sourceVariables{refersTo=name, separator=","} ";" :
+            "<" "data" ">"
+         )
+      ;
+
+   template Group
+      :  "group" name ":" instructions{refersTo=name, separator=","} "{" [
+            signature
+         ] "}"
+      ;
+
+   template Variable
+      :  "var" name
+      ;
+
+   symbols {
+      lcurly = "{":leftSpace,rightNone;
+      rcurly = "}":leftNone,rightSpace;
+      lpar = "(":leftNone,rightNone;
+      rpar = ")":leftNone,rightSpace;
+      colon = ":":leftSpace,rightSpace;
+      dot = ".":leftNone,rightNone;
+      arrow = "->":leftSpace,rightSpace;
+      semi = ";":leftNone,rightSpace;
+      comma = ",":leftNone,rightSpace;
+      lt = "<":leftSpace,rightNone;
+      gt = ">":leftNone,rightSpace;
+   }
+}
+

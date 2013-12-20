@@ -1,0 +1,128 @@
+%template headerC%
+#ifndef __%!MODELNAME%_INSTRUCTION_BASE_H__
+#define __%!MODELNAME%_INSTRUCTION_BASE_H__
+
+#include "types.h"
+#include <stdio.h>
+#include <string> /* for instruction mnemonique */
+
+class arch;
+
+/** base class of all the instruction object. Should not be instantiated.
+  */
+class %!MODELNAME%_instruction {
+	/// use for the retain/release mechanism.
+	int m_user;
+%if useCAS then%
+	/// class code of the instruction (used by pipeline model)
+	//const unsigned int m_classCode;
+%end if%
+	/** instruction pointer, corresponding to the value
+	* when the instruction is read. It corresponds to the pipeline
+	* register of the instruction pointer.
+	*/
+	const %!PC_C_TYPE% m_pc;
+
+	public:
+
+    %!MODELNAME%_instruction(const %!PC_C_TYPE% instructionPointer);
+    virtual ~%!MODELNAME%_instruction() {};
+
+	/// this method is only used to know if an the instruction is a 
+	// 'executeInstAction'. This is because there is no introspection
+	// in C++  :-/
+	virtual bool isInstAction() {return false;};
+
+	/// \return the value of the instruction pointer in the pipeline.
+	inline %!PC_C_TYPE% const getInstructionPointer() {return m_pc;};	
+	///mnemonic of the instruction
+	virtual const char* const mnemo() {return "MNEMO_NOT_DEFINED";};
+	
+	/** Fonction that effectively execute the instruction. This methods
+	 *  body is lead by the 'behavior' description in Harmless.
+	 *  the arch pointer is not stored in the instruction to save space 
+	 *  many instruction may be in cache.
+	 */
+	virtual void execute(arch *) = 0;
+
+	/** @return the size of the instruction code in bytes.
+        if the instruction size is not based on a multiple
+        of 8 bits, the C type that can match is used.
+        For instance: if the instruction size is 10 bits,
+        the size will be 2 (16 bits) if one fetch is used,
+        4 if 2 fetches are used, and so on.
+	 */
+	virtual unsigned char const size() = 0;
+
+	/** @return the number of binary chunks of the instruction binary code. 
+	    To get the real instruction size, simply mulptiplys this value by the 
+	    instruction default code size ( bits for the ).
+     */
+	virtual unsigned char const chunks() = 0;
+
+	//must be call by the class that gets the instance.
+	inline void retain() {m_user++;};
+	// The condition is deleted only if the number of users is nul.
+	void release();
+
+	/** This fonction returns true if a jump is taken. Obviously it should
+	 *  be called AFTER the execute method.
+	 * For instruction that do not perform a jump it always return false.
+	 */
+	virtual bool jumpTaken() {return false;};
+
+	%if useCAS then%
+	/** \return the code of the instruction class. 
+	*
+	* This information is needed by the pipeline model
+	* to get the right automata transition.
+	*/
+	virtual unsigned int const instClass() = 0;
+
+	//DDC related function.
+	virtual void lockDDCWriteRegs(u64 &) {};
+	virtual void getDDCReadRegs(u64 &) {};
+	%end if%
+
+    /**Return static information about an instruction 
+     * that could be used by p2ac. This is used through a Python
+     * script, that cannot handle a pointer to powerpc_instruction
+     * directly
+     */
+    std::string getStaticInfo();
+
+%  foreach all in ALL_ID_LIST do
+     %\tvirtual bool hasID_%!all::ID%() {return false;};\n%
+   end foreach
+%};
+
+/** instruction object that represents a stall
+ * this class is used when an instruction enters in the 
+ * pipeline and is not taken into account after (instruction that
+ * follows a branch instruction, misprediction of an instruction, ..)
+ */
+class %!MODELNAME%_instructionStall : public %!MODELNAME%_instruction
+{
+  const %!INST_DEFAULT_SIZE_C_STR% m_code; //code of the first chunk of the instruction.
+  public:
+	///class code should be 0
+	%!MODELNAME%_instructionStall(const %!PC_C_TYPE% instructionPointer=0, const %!INST_DEFAULT_SIZE_C_STR% code = 0)
+		: %!MODELNAME%_instruction(instructionPointer), m_code(code) {};
+	virtual ~%!MODELNAME%_instructionStall() {};
+	virtual void execute(arch *); // nop
+	virtual const char* const mnemo() 
+	{
+		char *result = new char[64];
+		int index = 0;	
+		index += sprintf (result + index,"Stall");
+		if(m_code)
+			index += sprintf (result + index," (\%0%!INST_SIZE_IN_HALF_BYTES%x)",m_code);
+		return result;
+	};
+	virtual unsigned char const size() {return %!INST_SIZE_IN_BYTES%;};
+	virtual unsigned char const chunks() {return 1;};
+	virtual unsigned int const instClass() {return 0;};
+};
+
+#endif
+

@@ -1,0 +1,90 @@
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+external_ram     0x0000000081000000 0x0000000000100000
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+LOAD /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccu3FyMn.o
+
+.text           0x0000000081000000      0x164
+ *(.init)
+                0x0000000081000000                . = ALIGN (0x4)
+ *(.text)
+ .text          0x0000000081000000      0x12c /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccu3FyMn.o
+                0x0000000081000000                main
+ .text          0x000000008100012c       0x38 build/crt0.o
+                0x0000000081000130                _entryPoint
+                0x0000000081000158                shouldNotHappen
+                0x0000000081000164                . = ALIGN (0x4)
+ *(.rodata)
+                0x0000000081000164                . = ALIGN (0x4)
+ *(.rodata*)
+                0x0000000081000164                . = ALIGN (0x4)
+ *(.glue_7t)
+ .glue_7t       0x0000000000000000        0x0 linker stubs
+                0x0000000081000164                . = ALIGN (0x4)
+ *(.glue_7)
+ .glue_7        0x0000000000000000        0x0 linker stubs
+                0x0000000081000164                . = ALIGN (0x4)
+                0x0000000081000164                etext = .
+
+.vfp11_veneer   0x0000000081000164        0x0
+ .vfp11_veneer  0x0000000000000000        0x0 linker stubs
+
+.v4_bx          0x0000000081000164        0x0
+ .v4_bx         0x0000000000000000        0x0 linker stubs
+
+.iplt           0x0000000081000164        0x0
+ .iplt          0x0000000000000000        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccu3FyMn.o
+
+.rel.dyn        0x0000000081000164        0x0
+ .rel.iplt      0x0000000000000000        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccu3FyMn.o
+
+.data           0x0000000081000164        0x0
+                0x0000000081000164                __data_start = .
+ *(.data)
+ .data          0x0000000081000164        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccu3FyMn.o
+ .data          0x0000000081000164        0x0 build/crt0.o
+                0x0000000081000164                . = ALIGN (0x4)
+                0x0000000081000164                edata = .
+                0x0000000081000164                _edata = .
+                0x0000000081000164                __data_end = .
+
+.igot.plt       0x0000000081000164        0x0
+ .igot.plt      0x0000000000000000        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccu3FyMn.o
+
+.bss            0x0000000081000164        0x0
+                0x0000000081000164                __bss_start__ = .
+ *(.bss)
+ .bss           0x0000000081000164        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccu3FyMn.o
+ .bss           0x0000000081000164        0x0 build/crt0.o
+ *(COMMON)
+                0x0000000081000164                . = ALIGN (0x4)
+                0x0000000081000164                __bss_end__ = .
+                0x0000000081000164                end = .
+                0x00000000810ffffc                _init_sp = 0x810ffffc
+LOAD build/crt0.o
+OUTPUT(build/test_dataProcessing.elf elf32-littlearm)
+
+.ARM.attributes
+                0x0000000000000000       0x20
+ .ARM.attributes
+                0x0000000000000000       0x20 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccu3FyMn.o
+ .ARM.attributes
+                0x0000000000000020       0x14 build/crt0.o
+
+.debug_line     0x0000000000000000       0x9a
+ .debug_line    0x0000000000000000       0x9a /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccu3FyMn.o
+
+.debug_info     0x0000000000000000       0x8e
+ .debug_info    0x0000000000000000       0x8e /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccu3FyMn.o
+
+.debug_abbrev   0x0000000000000000       0x14
+ .debug_abbrev  0x0000000000000000       0x14 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccu3FyMn.o
+
+.debug_aranges  0x0000000000000000       0x20
+ .debug_aranges
+                0x0000000000000000       0x20 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccu3FyMn.o

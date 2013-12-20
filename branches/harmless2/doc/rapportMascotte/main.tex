@@ -1,0 +1,45 @@
+\documentclass[11pt]{article}
+\usepackage{geometry}                % See geometry.pdf to learn the layout options. There are lots.
+\geometry{a4paper}                   % ... or a4paper or a5paper or ... 
+%\geometry{landscape}                % Activate for for rotated page geometry
+%\usepackage[parfill]{parskip}    % Activate to begin paragraphs with an empty line rather than an indent
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{epstopdf}
+\DeclareGraphicsRule{.tif}{png}{.png}{`convert #1 `dirname #1`/`basename #1 .tif`.png}
+\usepackage{tabularx}
+\usepackage{url}
+\usepackage[french]{babel}	%francais
+\usepackage[latin1]{inputenc}	%francais
+\usepackage{xspace} %pour les guillemets franÁais : \og coucou \fg
+\usepackage[french, vlined, ruled]{algorithm2e}
+
+\newcommand{\cad}{c'est-‡-dire~}
+\title{
+\LARGE{\'Etude d'un langage de description des propriÈtÈs temporelles d'une architecture et d'un outil de gÈnÈration de simulateur temporel.}\\\LARGE{$\star$}\\
+\Large{PrÈsentation des choix techniques}
+\\
+\large{Projet MasCotTE, lot ‡ T0+9 de la t‚che 1.3}
+%Projet soutenu par l'ANR
+}
+\author{MikaÎl Briday, Jean-Luc BÈchennec et Yvon Trinquet \\ IRCCyN \\ BP 92101 \\ 1, rue de la NoÎ \\ 44321 Nantes cedex 3}
+\date{}                                           % Activate to display a given date or no date
+
+\begin{document}
+\maketitle
+~
+\newpage
+~
+\newpage
+\tableofcontents
+\input{intro.tex}
+\input{etatArt.tex}
+\input{jeuInstruction.tex}
+\input{archi.tex}
+\input{conclusion.tex}
+
+\bibliographystyle{plain}
+\bibliography{hadl}
+
+
+\end{document}

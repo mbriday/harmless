@@ -1,0 +1,58 @@
+#include "timingSignal.h"
+
+
+%let signalSrcToDstMap := emptyMap
+let signalDstToSrcMap := emptyMap
+let nbSig := 0 #size of tabulars..
+if exists archList then
+  foreach arch in archList do
+    foreach connection in arch::signalConnectList do
+      let sigSrcName := deviceToTimingMap[connection::devNameSrc]."_".connection::sigNameSrc
+      let sigDstName := "all"
+      if connection::devNameDst != "" then
+        let sigDstName := deviceToTimingMap[connection::devNameDst]."_".connection::sigNameDst
+      end if
+      let idSrc := signalEmitDevOffsetList[connection::devNameSrc] + signalEmitDevMap[sigSrcName]
+      let idDst := 0
+      if sigDstName != "all" then
+        let idDst := signalWaitDevOffsetList[connection::devNameDst] + signalWaitDevMap[sigDstName]
+      end if
+      %// %!idSrc% -> %!idDst% => %
+      !connection::devNameSrc%.%!connection::sigNameSrc%->%
+      if connection::devNameDst != "" then
+        !connection::devNameDst%.%!connection::sigNameDst
+      else % (all)%
+      end if
+      % \n%
+      let signalSrcToDstMap[[idSrc string]] := idDst
+      if idDst != 0 then #remove the 'all'
+        let signalDstToSrcMap[[idDst string]] := idSrc
+      end if
+    end foreach
+    let nbSig := [arch::signalConnectList length]
+  end foreach
+end if
+
+if nbSigEmit > 0 then
+  loop id from 0 to nbSigEmit-1 
+  before %const unsigned int signalLinksTo[NB_SIGNAL_EMIT] = {%
+  do
+    !signalSrcToDstMap[[id string]] #entry should exists!
+  between %, %
+  after %};\n%
+  end loop
+end if
+
+if nbSigWait > 1 then
+  loop id from 1 to nbSigWait-1
+  before %const unsigned int signalLinksFrom[NB_SIGNAL_WAIT] = {0, %
+  do
+    let key := [id string]
+    if exists signalDstToSrcMap[key] then !signalDstToSrcMap[key]
+    else %0%
+    end if
+  between %, %
+  after %};\n%
+  end loop
+end if
+%

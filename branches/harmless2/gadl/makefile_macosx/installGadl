@@ -1,0 +1,7 @@
+#!/bin/sh
+echo "un coup de galgas"
+galgas ../galgas_sources/all_gadl.gProject
+echo "make gadl.."
+make -j 2 gadl64 >/dev/null -f makefile64
+echo "install gadl in the editor bundle."
+cp ./gadl64 /Applications/Harmless.app/Contents/Resources/gadl

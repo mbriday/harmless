@@ -1,0 +1,16 @@
+[model]
+# list of harmless models, separated by ':'. Dir relative to gadl/example.
+files=PPC/ppc_iss.hadl
+models=powerpc
+
+[build]
+define=
+target=python
+stubs=true
+pipelineTrace=false
+
+[compare] ##TODO: limited to python scripts.
+#if the file is not present (first run), a message is written and the file is created.
+script=mibench.py -e ppc
+files=resultPPC.log
+

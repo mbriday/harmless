@@ -1,0 +1,30 @@
+%template headerC%
+#include "instructionBase.h"
+#include <sstream>
+
+using namespace std;
+
+/** static information extracted from an instruction:
+ *  * PC
+ *  * mnemonic
+ *  * size (in bytes)
+ */
+
+string %!MODELNAME%_instruction::getStaticInfo() {
+	ostringstream oss;
+	string sep = "@";
+	//values written in decimal.
+	oss << dec << m_pc << sep;
+	oss << this->mnemo() << sep;
+	oss << (int)(this->chunks()) << sep;
+
+	//u64 maskWrite = 0;
+   	//u64 maskRead = 0;
+	//this->lockDDCWriteRegs(maskWrite);
+	//this->getDDCReadRegs(maskRead);
+	//oss << maskWrite << sep;
+	//oss << maskRead << sep;
+
+    return oss.str();
+}
+

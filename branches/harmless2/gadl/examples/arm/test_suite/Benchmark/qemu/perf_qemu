@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Read string ended by \0
+read var
+# kill qemu
+#killall -15 -r qemu-system-arm.*
+killall -15 qemu-system-arm

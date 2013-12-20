@@ -1,0 +1,27 @@
+%template headerC%
+#ifndef __TIMING_BASE_H__
+#define __TIMING_BASE_H__
+
+//#define DEBUG_TIMING
+
+#include <iostream>
+#include <string>
+
+class arch;
+
+class timingBase {
+	private:
+	timingBase *m_next; //single link list
+	u64 m_nextWakeUpDate; //single link list sorting value
+	public:
+	virtual void run(arch *_arch) = 0;
+	virtual void init() = 0 ;
+	virtual std::string toString() = 0;
+
+	//single link list related functions.
+   inline void setNext(timingBase *tb) {m_next = tb;};
+   inline timingBase * const next() {return m_next;};
+   inline void setNextWakeUpDate(const u64 date) {m_nextWakeUpDate = date;};
+   inline u64 const nextWakeUpDate() {return m_nextWakeUpDate;};
+};
+#endif //__TIMING_BASE_H__

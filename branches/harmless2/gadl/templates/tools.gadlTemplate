@@ -1,0 +1,8 @@
+%# This file is used to generate 'tools' used by gadl.
+#This template is NOT called by the 'root' template, because
+#some file should be used by gadl itself (the root templates is
+#only executed at the end of gadl computation).
+
+#new timing part (memory hierarchy)
+template timingTools in timing
+%

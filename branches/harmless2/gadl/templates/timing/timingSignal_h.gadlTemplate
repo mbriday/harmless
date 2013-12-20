@@ -1,0 +1,28 @@
+%template headerC%
+#ifndef __TIMING_SIGNAL_H__
+#define __TIMING_SIGNAL_H__
+
+#include <iostream>
+#include "types.h"
+
+#define NB_SIGNAL_WAIT %!nbSigWait%
+#define NB_SIGNAL_EMIT %!nbSigEmit%
+
+%#define offsets for devices
+foreach devWaitOffset in signalWaitDevOffsetList do
+  %#define SIGNAL_WAIT_%!KEY%_OFFSET %!devWaitOffset% \n%
+end foreach
+foreach devEmitOffset in signalEmitDevOffsetList do
+  %#define SIGNAL_EMIT_%!KEY%_OFFSET %!devEmitOffset% \n%
+end foreach %\n%
+foreach sigWait in signalWaitDevMap do
+  %#define SIGNAL_WAIT_%!KEY % %!sigWait% \n%
+end foreach
+foreach sigEmit in signalEmitDevMap do
+  %#define SIGNAL_EMIT_%!KEY% %!sigEmit% \n%
+end foreach %\n%
+%
+extern const unsigned int signalLinksFrom[NB_SIGNAL_WAIT];
+extern const unsigned int signalLinksTo[NB_SIGNAL_EMIT];
+
+#endif // __TIMING_SIGNAL_H__

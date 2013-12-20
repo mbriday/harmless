@@ -1,0 +1,112 @@
+%!TEX root = ./main.tex
+%!TEX encoding = UTF-8 Unicode
+
+\chapter{Peripherals}
+\label{chap:peripherals}
+\section{Introduction}
+At this date, only few description construction are available to describe peripherals. The 2 constructs are:
+\begin{itemize}
+\item react to a \emph{read/write access to the memory}. This is useful to describe a basic serial interface for instance.
+\item periodic behaviors. This is useful to describe basic timers.
+\end{itemize}
+
+\section{Detecting read/write accesses to the memory}
+\label{sec:whenReadWrite}
+Thanks to \emph{actions}, the user can attach an implementation chunk to a read/write access. The description is inside a component and looks like this:
+\begin{lstlisting}
+  when [write|read] on <registerName> do
+    <implementation>
+  end when
+\end{lstlisting}
+Where:
+\begin{itemize}
+\item \texttt{[write|read]} is \texttt{read} or \texttt{write};
+\item \texttt{<registerName>} is the name of a register (defined either in a component or a memory chunk);
+\item\texttt{ <implementation>} is an implementation part, as in methods or behavior in \Blocdo (see section \ref{sec:behDo});
+\end{itemize}
+
+Note that this implementation is based on \emph{actions}, and the compilation flag (see section \ref{sec:cflags}) SHOULD be set. If not, the implementation is \emph{never} executed and the simulator does not return any error.
+
+Here is an example of a \emph{dummy} serial line for the AVR:
+\begin{lstlisting}
+component uart {
+  void reset() {
+    UCSR0A.UDRE0 := 1 -- transmission complete.
+  }
+
+  when write on UDR0 do
+    print UDR0
+    UCSR0A.UDRE0 := 1 -- transmission complete.
+  end when
+}
+\end{lstlisting}
+UDR0 and UCSR0A are Specific Function Registers.
+
+\section{Cyclic behavior}
+The following construct models cyclic behaviors:
+\begin{lstlisting}
+every <unsigned number> cycle [if <condition>] do
+  <implementation>
+end every
+\end{lstlisting}
+The code in <implementation> is "executed" periodically, depending on the number of cycles.
+
+Note that:
+\begin{itemize}
+\item this implementation is based on the \emph{cycles} and can not be used with a functional simulator (the number of cycles stays to 0);
+\item the period is defined as an <unsigned number> and \emph{can not} be modified at this date;
+\item if the \texttt{[if <condition>]} part is omitted, it is the an always true condition;
+\end{itemize}
+
+As for read/write accesses, a cyclic behaviors is described inside a component.
+
+When using the basic temporal description (chapter \ref{chap:timing}), the number of cycles required by an instruction may lead to miss the deadline: if date is 10 and the next instruction requires 3 cycles. Then, even if the cyclic deadline is 12, it will be wake up at date 13. However, the delay is not propagated and the next deadline will be 24.
+
+\emph{This mechanism is not yet implemented in temporal simulators based on the micro-architecture description.}
+
+\subsection{Example}
+Here is the example of a simple timer, associated to an interrupt. 
+
+\begin{lstlisting}
+component timer2 {
+  every 1024 cycle if (TCCR2A.CS2 != 0) do
+    TCNT2 := (u8)(TCNT2 + 1) -- FF to 0 is ok (u8)
+    if TCNT2 = 0 then      -- overflow
+      if TIMSK2.TOIE2 then   -- local interrupt overflow mask
+        interrupt \x14
+      end if
+    end if
+  end every
+}
+\end{lstlisting}
+
+Where registers (TCNT2, TIMSK2 and TCCR2A), are defined like this:
+\begin{lstlisting}
+component sram {
+  memory ram {
+    width   := 16  -- get 16 bits / access
+    address := \x0..\x10FF
+    type    := RAM
+    -- ...
+    -- timer 2
+    register u8  TCCR2A maps to \xB0 {
+      CS2 := slice{2..0} -- Clock select bits
+    }
+    register u8 TCNT2 maps to \xB2
+    register u8 TIMSK2 maps to \x70 {
+      TOIE2 := slice{0}  -- interrupt enable.
+    }
+  }
+}
+\end{lstlisting}
+\subsection{Implementation}
+The implementation of these cyclic parts uses an ordered single linked list, where the first item has the next deadline. This way, the overhead at runtime (except the execution of the cyclic behavior) is limited to a comparison in the simulator main loop, not depending on the number of cyclic sections.
+
+\subsection{Cyclic behavior on functional simulators}
+If there is no temporal description of the processor model, you can use the following work-around at the end of description:
+\begin{lstlisting}
+timing allInstruction
+  do add 1 cycle end do
+end timing
+\end{lstlisting}
+This little description (defined in chapter \ref{chap:timing}) defines that each instruction requires 1 cycle. This simple model allows to use cyclic behaviors, even if the complex temporal model is not yet available.

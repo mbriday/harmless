@@ -1,0 +1,6 @@
+
+model XGate:HADL:EBNF
+
+model XGatepFE:PRM:EBNF
+model XGatepFDEAMR:PRM:EBNF
+

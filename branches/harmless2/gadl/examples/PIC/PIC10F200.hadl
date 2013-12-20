@@ -1,0 +1,399 @@
+
+model PIC10F200 {
+
+default {
+  instruction := 12;
+  big endian;
+}
+
+-------------------------------------------------------------------------------
+-- Hardware : variables & interfaces
+-------------------------------------------------------------------------------
+
+-- Register file ------------------------------------------
+
+component progMem {
+  program memory {
+    address := 0..\x1FF;
+    width   := 12;
+    type    := ROM;
+  }
+}
+
+component hiddenRegs {
+  memory regs {
+    address := 0..2;
+    width   := 8;
+    type    := register;
+    register W        maps to 0
+    register TRISGPIO maps to 1
+    register OPTION   maps to 2
+  }
+}
+
+component ram {
+  memory regs {
+    address := 0..\x1F; --31
+    width   := 8;
+    type    := register;
+    
+    register INDF   maps to 0
+    register TMR0   maps to 1
+    register PCL    maps to 2 -- low byte of pc.
+    register STATUS maps to 3 -- flags
+    {
+      C     := slice{0}
+      DC    := slice{1}
+      Z     := slice{2}
+      PD    := slice{3}
+      TO    := slice{4}
+      CWUF  := slice{6}
+      GPWUF := slice{7}
+    }
+    register FSR    maps to 4;
+    register OSCCAL maps to 5;
+    register GPIO   maps to 6;
+    register CMCON0 maps to 7;
+
+    CMCON0 is read 0;           -- PIC10F200
+    --address 8..\xF is read 0; -- PIC10F200
+  }
+}
+
+component fetcher {
+  program counter u11 pc; -- only 9 bits with PIC10F200 and 10 for PIC10F202 :-/
+  u11 stack1;
+  u11 stack2;
+
+  void call(u11 newPC) {
+    -- stack2 value is lost.
+    stack2 := stack1;
+    stack1 := (u11)(pc+1);  --TODO: comportement avec la mémoire programme sur 12 bits?
+    pc     := newPC;
+  }
+
+  void ret() {
+    pc := stack1;
+    stack1 := stack2;
+    stack2 := 0; --useful??
+  }
+
+  void skipNext() {
+    pc := (u11)(pc+1);
+  }
+}
+
+------------------------------------------------------------------------------
+--Instruction set : format view
+------------------------------------------------------------------------------
+format Instruction 
+  select slice {11..10} 
+    case \b00 is byteOperationAndSystemInstruction
+    case \b01 is bitOperation                     
+    others    is litteralAndControlOperation      
+  end select
+end format
+
+format byteOperationAndSystemInstruction 
+  select slice {11..4} 
+    case \m00000-00 is byteOpWithoutFile
+    others          is byteOpWithFile   
+  end select
+end format
+
+format byteOpWithoutFile 
+  select slice {6,3..0} 
+    case \b10000 is #CLRW  
+    case \b00000 is #NOP   
+    case \b00100 is #CLRWDT
+    case \b00010 is #OPTION
+    case \b00011 is #SLEEP 
+    case \m00110 is #TRIS   -- f= 6 (may be 7 for other arch)
+  end select
+end format
+
+format byteOpWithFile #file 
+  file := slice{4..0}
+  select slice {9..5} 
+    case \b00001 is #MOVWF
+    case \b00011 is #CLRF 
+    others       is byteOpWithDirection
+  end select
+end format
+
+format byteOpWithDirection #dir
+  direction := slice{5}
+  select slice {9..6} 
+    case \b0111 is #ADDWF 
+    case \b0101 is #ANDWF  
+    case \b1001 is #COMF  
+    case \b0011 is #DECF  
+    case \b1011 is #DECFSZ
+    case \b1010 is #INCF  
+    case \b1111 is #INCFSZ
+    case \b0100 is #IORWF 
+    case \b1000 is #MOVF  
+    case \b1101 is #RLF   
+    case \b1100 is #RRF   
+    case \b0010 is #SUBWF 
+    case \b1110 is #SWAPF 
+    case \b0110 is #XORWF 
+  end select
+end format
+
+--------------- bit ops
+
+format bitOperation #bitop
+  file     := slice{4..0}
+  bitField := slice{7..5}
+  select slice {9..8} 
+    case \b00 is #BCF  
+    case \b01 is #BSF  
+    case \b10 is #BTFSC
+    case \b11 is #BTFSS
+  end select
+end format
+
+format litteralAndControlOperation 
+  select slice {11..9} 
+    case \b101 is #GOTO imm9 := signed slice{8..0}
+    others     is litteralAndControlOperationWithImm8 
+  end select
+end format
+
+format litteralAndControlOperationWithImm8 #imm8
+  imm8 := slice{7..0}
+  select slice {11..8} 
+    case \b1110 is #ANDLW
+    case \b1001 is #CALL 
+    case \b1101 is #IORLW
+    case \b1100 is #MOVLW
+    case \b1000 is #RETLW
+    case \b1111 is #XORLW
+  end select
+end format
+
+------------------------------------------------------------------------------
+--Instruction set : behavior view
+------------------------------------------------------------------------------
+behavior bitOrientedOps() #bitop 
+  field u5 file;
+  field u3 bitField;
+  u8 reg;
+  do reg := ram.regs.read8(file); end do
+  select
+    case #BCF   do reg{bitField} := 0; ram.regs.write8(file, reg);end do
+    case #BSF   do reg{bitField} := 1; ram.regs.write8(file, reg);end do
+    case #BTFSC do if reg{bitField}=0 then fetcher.skipNext(); end if;end do
+    case #BTFSS do if reg{bitField}=1 then fetcher.skipNext(); end if;end do
+  end select
+end behavior
+
+behavior instWithImm8() #imm8 
+  field u8 imm8;
+  select
+    case instWithImm8StatusUpdate(imm8)
+    case instWithImm8NoStatusUpdate(imm8)
+  end select
+end behavior
+
+behavior instWithImm8StatusUpdate(u8 imm8) 
+  select
+    case #ANDLW do W := imm8 & W;end do
+    case #IORLW do W := imm8 | W;end do
+    case #XORLW do W := imm8 ^ W;end do
+  end select
+  do STATUS.Z := (W = 0); end do
+end behavior
+
+behavior instWithImm8NoStatusUpdate(u8 imm8) 
+  select
+    case #CALL do
+           u11 newPC;
+           newPC := STATUS{6..5} cat (u1)(0) cat imm8; -- beautiful concatenation ;-)
+           fetcher.call(newPC);
+         end do
+    case #MOVLW do W := imm8;end do
+    case #RETLW do W := imm8; fetcher.ret();end do
+  end select
+end behavior
+
+behavior instructionWithFile #file 
+  field u5 file;
+  u8 fileVal;
+  do fileVal := ram.regs.read8(file); end do
+  select
+    case instWithDir(fileVal)
+    case instWithoutDir(fileVal)
+  end select
+end behavior
+
+behavior instWithDir(u8 fileVal) #dir 
+  field u1 direction;
+  u8 dest;
+  select
+    case instUpdateStatusZ(dest, fileVal);
+    case instNoUpdateStatusZ(dest, fileVal);
+  end select
+  do 
+    if direction then 
+      ram.regs.write8(fileVal,dest);
+    else
+      W := dest;
+    end if;
+  end do
+end behavior
+
+behavior instUpdateStatusZ(out u8 dest, u8 fileVal) 
+  select
+    case #ADDWF do
+           u9 temp; 
+           temp := fileVal + W; 
+           STATUS.DC := ((fileVal{3..0}+W{3..0}) > 15);
+           STATUS.C  := (temp > 255);
+           dest := (u8)(temp);
+         end do
+    case #SUBWF do
+           s9 temp; 
+           temp := (s9)((s9)(fileVal) - (s9)(W)); 
+           STATUS.DC := ((fileVal{3..0}-W{3..0}) > 15); --to test
+           STATUS.C  := (temp >= (s1)(0));                 --to test.
+           dest := (u8)(temp);
+         end do
+    case #ANDWF  do dest := fileVal & W;end do
+    case #COMF   do dest := ~fileVal;end do
+    case #DECF   do dest := (u8)(fileVal - 1);end do
+    case #DECFSZ do dest := (u8)(fileVal - 1); 
+           if dest = 0 then fetcher.skipNext(); end if;
+         end do
+    case #INCF   do dest := (u8)(fileVal + 1);end do
+    case #INCFSZ do dest := (u8)(fileVal + 1);
+           if dest = 0 then fetcher.skipNext(); end if;
+         end do
+    case #IORWF  do dest := fileVal | W;end do
+    case #MOVF   do dest := fileVal;end do
+    case #XORWF do dest := fileVal ^ W;end do
+  end select
+  do STATUS.Z := (dest = 0);end do
+end behavior
+
+behavior instNoUpdateStatusZ(out u8 dest, u8 fileVal) 
+  select
+  case #RLF    do
+         u9 temp := STATUS.C cat fileVal;
+         temp := temp rol 1;
+         STATUS.C := temp{8};
+         dest := temp{7..0};
+       end do
+  case #RRF do
+         u9 temp := STATUS.C cat fileVal;
+         temp := temp ror 1;
+         STATUS.C := temp{8};
+         dest := temp{7..0};
+       end do
+  case #SWAPF do dest{7..4} := fileVal{3..0}; dest{3..0} := fileVal{7..4};end do
+  end select
+end behavior
+
+behavior instWithoutDir(u8 fileVal) 
+  select
+    case #CLRF  do  ram.regs.write8(fileVal, 0); STATUS.Z := 1;end do
+    case #MOVWF do  ram.regs.write8(fileVal, W);end do
+  end select
+end behavior
+
+behavior gotoInst #GOTO 
+  field s9 imm9;
+  u11 newPC;
+  do 
+    newPC := STATUS{6..5} cat (u9)(imm9);  -- TODO: check behavior :-)
+    fetcher.call(newPC);
+  end do
+end behavior
+
+behavior otherInstructions 
+  select
+    case #NOP     --easy
+    case #CLRW   do W := 0; STATUS.Z := 1;end do
+    case #CLRWDT do STATUS.TO:=1; STATUS.PD:=1; end do --not implemented
+    case #TRIS   do TRISGPIO := W;end do
+    case #OPTION do W := OPTION;end do
+    case #SLEEP   --TODO
+  end select
+end behavior
+
+-------------------- syntax
+number syntax binary prefix "0b"
+number syntax octal prefix "0"
+number syntax hexadecimal prefix "0x"
+
+alternative syntax directionalInstruction #file #dir {
+  field u5 file
+  field u1 direction
+  #ADDWF  is "ADDWF"
+  #ANDWF  is "ANDWF"
+  #COMF   is "COMF"
+  #DECF   is "DECF"
+  #DECFSZ is "DECFSZ"
+  #INCF   is "INCF"
+  #INCFSZ is "INCFSZ"
+  #IORWF  is "IORWF"
+  #MOVF   is "MOVF"
+  #RLF    is "RLF"
+  #RRF    is "RRF"
+  #SUBWF  is "SUBWF"
+  #SWAPF  is "SWAPF"
+  #XORWF  is "XORWF"
+  " \d, \d", file, direction
+}
+
+alternative syntax noArg {
+  #CLRW   is "CLRW"
+  #NOP    is "NOP"
+  #CLRWDT is "CLRWDT"
+  #SLEEP  is "SLEEP"
+  #OPTION is "OPTION"
+}
+
+alternative syntax instWithFile #file {
+  field u5 file
+  #CLRF is "CLRF"
+  #MOVWF is "MOVWF"
+  " \d", file
+}
+
+aggregate syntax instWithFile3 {
+  #TRIS is "TRIS"
+  " 6" 
+}
+
+alternative syntax instWithLitteral #imm8 {
+  field u8 imm8
+  #ANDLW is "ANDLW"
+  #CALL  is "CALL"
+  #IORLW is "IORLW"
+  #MOVLW is "MOVLW"
+  #RETLW is "RETLW"
+  #XORLW is "XORLW"
+  " \x", imm8
+}
+
+aggregate syntax gotoInst #GOTO {
+  field s9 imm9
+  "GOTO \x",imm9
+}
+
+alternative syntax instBitop #bitop {
+  field u5 file
+  field u3 bitField
+  #BCF   is "BCF"
+  #BSF   is "BSF"
+  #BTFSC is "BTFSC"
+  #BTFSS is "BTFSS"
+  " \d, \d",file,bitField
+}
+
+} -- model PIC10F200
+
+-- vim:ft=hadl:ts=2:sw=2
+

@@ -1,0 +1,517 @@
+
+--
+-- TODO list
+--
+--    [DONE] generate dependency statements in behaviors
+--    [DONE] generate and unfold operation calls in behaviors
+--    [DONE] parameter passing in behaviors is transformed into dependencies
+--    [TODO] parameter passing in operations
+--
+
+module HADL2HADLi;
+create OUT:HADLi from IN:HADLd;
+
+rule TModel {
+   from src : HADLd!Model
+   to
+      dest : HADLi!Model (
+            name <- src.name,
+            architectures <- src.elements->select(p| p.oclIsKindOf(HADLd!Architecture)),
+            pipelines <- src.elements->select(p| p.oclIsKindOf(HADLd!Pipeline)),
+            components <- src.elements->select(p| p.oclIsKindOf(HADLd!Component)),
+            variables <- HADLd!LocalVariable.allInstances()->union(HADLd!Parameter.allInstances())
+         )
+}
+
+rule TArchitecture {
+   from src : HADLd!Architecture
+   to
+      dest : HADLi!Architecture (
+            name <- src.name,
+            fathers <- src.fathers,
+            ports <-
+               src.resources
+                  ->collect(r| r.ports)
+                  ->flatten()
+         )
+}
+
+rule TVariable {
+   from src : HADLd!Variable
+   to
+      dest : HADLi!Variable (
+            name <-
+               if src.oclIsKindOf(HADLd!ComponentVariable) then
+                  src.owningComponent.name
+               else if src.oclIsKindOf(HADLd!LocalVariable) then
+                  if not src.owningOperation.oclIsUndefined() then
+                     src.owningOperation.owningComponent.name + '_' +
+                     src.owningOperation.name
+                  else if not src.owningBehavior.oclIsUndefined() then
+                     src.owningBehavior.name
+                  else -- if not src.owningPipeline.oclIsUndefined() then
+                     src.owningPipeline.name
+                  endif endif
+               else if src.oclIsKindOf(HADLd!LoopVariable) then
+                  'loop' -- TODO
+               else -- if src.oclIsKindOf(HADLd!Parameter) then
+                  if not src.owningOperation.oclIsUndefined() then
+                     src.owningOperation.owningComponent.name + '_' +
+                     src.owningOperation.name
+                  else -- if not src.owningBehavior.oclIsUndefined() then
+                     src.owningBehavior.name
+                  endif
+               endif endif endif
+               + '_' + src.name,
+            isGlobal <- src.oclIsKindOf(HADLd!ComponentVariable)
+         )
+}
+
+rule TComponent {
+   from src : HADLd!Component
+   to
+      dest : HADLi!Component (
+            name <- src.name,
+            variables <- src.variables,
+            operations <- src.operations
+         )
+}
+
+helper context HADLd!Block def:
+   hasExternalDependency() : Boolean =
+      self.statements
+         ->exists(s|
+               if s.oclIsKindOf(HADLd!DependencyStatement) then
+                  if s.targetVariable.oclIsKindOf(HADLd!ComponentVariable) then
+                     s.targetVariable.isExternal
+                  else
+                     false
+                  endif or
+                  s.sourceVariables
+                     ->select(v| v.oclIsKindOf(HADLd!ComponentVariable))
+                     ->exists(v| v.isExternal)
+               else if s.oclIsKindOf(HADLd!ForStatement) then
+                  s.body.hasExternalDependency()
+               else
+                  false
+               endif endif
+            );
+
+rule TOperation {
+   from src : HADLd!Operation
+   to
+      dest : HADLi!Operation (
+            name <- src.name,
+            isExternal <- src.body.hasExternalDependency()
+         )
+}
+
+rule TPipeline {
+   from src : HADLd!Pipeline
+   to
+      dest : HADLi!Pipeline (
+            name <- src.name,
+            stages <- src.stages,
+            architecture <- src.architecture
+         )
+   do {
+      for(t in src.format.getSequences) {
+         thisModule.TInstruction(src, t);
+      }
+   }
+}
+
+rule TStage {
+   from src : HADLd!Stage
+   to
+      dest : HADLi!Stage (
+            name <- src.name,
+            portActivations <-
+               src.activations
+                  ->reject(a| a.portActivations->isEmpty())
+                  ->collect(a| a.portActivations)
+                  ->flatten()
+         )
+   do {
+      for(a in src.activations->select(a| a.portActivations->isEmpty())) {
+         for(p in a.resource.ports) {
+            thisModule.TImplicitExpandedPortActivation(src, p, a.releaseStage, a.bypassStages);
+         }
+      }
+   }
+}
+
+rule TExpandedPort {
+   from src : HADLd!Port
+   to
+      dest : HADLi!ExpandedPort (
+            name <- src.owningResource.name + '_' + src.name,
+            component <- src.owningResource.component,
+            operations <-
+               if src.operations->isEmpty() then
+                  src.owningResource.component.operations
+               else
+                  src.operations
+               endif
+         )
+}
+
+rule TExpandedPortActivation {
+   from src : HADLd!PortActivation
+   to
+      dest : HADLi!ExpandedPortActivation (
+            port <- src.port,
+            releaseStage <-
+               if src.releaseStage.oclIsUndefined() then
+                  src.owningResourceActivation.releaseStage
+               else
+                  src.releaseStage
+               endif,
+            bypassStages <-
+               if src.bypassStages->isEmpty() then
+                  src.owningResourceActivation.bypassStages
+               else
+                  src.bypassStages
+               endif
+         )
+}
+
+rule TImplicitExpandedPortActivation (owningStage : HADLd!Stage, port : HADLd!Port, releaseStage : HADLd!Stage, bypassStages : Sequence(HADLd!Stage)) {
+   to
+      dest : HADLi!ExpandedPortActivation (
+            port <- port,
+            owningStage <- owningStage,
+            releaseStage <- releaseStage,
+            bypassStages <- bypassStages
+         )
+}
+
+rule TInstruction (pipeline : HADLd!Pipeline, sequence : Sequence(OclAny)) {
+   to
+      dest : HADLi!Instruction (
+            name <- thisModule.newInstructionName(),
+            owningPipeline <- pipeline,
+            root <- root
+         ),
+      root : HADLi!Behavior (
+            name <- pipeline.format.behavior.name
+         )
+
+   do {
+      for(tree in sequence) {
+         thisModule.TBehavior(root, tree);
+      }
+
+      for(st in pipeline.body.statements) {
+         if(st.oclIsKindOf(HADLd!DependencyStatement)) {
+            thisModule.TDependencyStatement(st, root);
+         }
+         else if(st.oclIsKindOf(HADLd!ProcedureCallStatement)) {
+            if(st.call.inline) {
+               thisModule.TInlineProcedureCallStatement(st, root);
+            }
+            else {
+               thisModule.TProcedureCallStatement(st, root);
+            }
+         }
+         else { -- if(s.oclIsKindOf(HADLd!ForStatement))
+            thisModule.TForStatement(st, root);
+         }
+      }
+   }
+}
+
+rule TBehavior (owner : HADLi!Behavior, tree : TupleType(call : OclAny, children : Sequence(OclAny))) {
+   using {
+      statements : Sequence(HADLd!Statement) =
+         if tree.call.oclIsKindOf(HADLd!LeafBehaviorChoice) then
+            tree.call.body.statements
+         else
+                  if not tree.call.behavior.beforeBlock.oclIsUndefined() then
+                     tree.call.behavior.beforeBlock.statements
+                  else
+                     Sequence{}
+                  endif
+            ->union(
+                  if not tree.call.behavior.afterBlock.oclIsUndefined() then
+                     tree.call.behavior.afterBlock.statements
+                  else
+                     Sequence{}
+                  endif
+               )
+         endif;
+   }
+   to
+      dest : HADLi!Behavior (
+            name <-
+               if tree.call.oclIsKindOf(HADLd!BehaviorCall) then
+                  tree.call.behavior.name
+               else
+                  tree.call.name
+               endif,
+            owningBehavior <- owner
+         )
+   do {
+      if(tree.call.oclIsKindOf(HADLd!BehaviorCall)) {
+         for(p in tree.call.actualParameters
+                              ->select(q| q.oclIsKindOf(HADLd!DataContainerRefExpression))
+                              ->select(q| not q.dataContainer.oclIsUndefined())
+            )
+         {
+            thisModule.TActualParameter(
+                  dest,
+                  tree.call.behavior.parameters->at(
+                        tree.call.actualParameters->indexOf(p)
+                     ),
+                  p
+               );
+         }
+      }
+
+      for(t in tree.children) {
+         thisModule.TBehavior(dest, t);
+      }
+
+      for(st in statements) {
+         if(st.oclIsKindOf(HADLd!DependencyStatement)) {
+            thisModule.TDependencyStatement(st, dest);
+         }
+         else if(st.oclIsKindOf(HADLd!ProcedureCallStatement)) {
+            if(st.call.inline) {
+               thisModule.TInlineProcedureCallStatement(st, dest);
+            }
+            else {
+               thisModule.TProcedureCallStatement(st, dest);
+            }
+       }
+         else { -- if(s.oclIsKindOf(HADLd!ForStatement))
+            thisModule.TForStatement(st, dest);
+         }
+      }
+   }
+}
+
+rule TDependencyStatement ( src : HADLd!DependencyStatement, owner : OclAny ) {
+   to
+      dest : HADLi!DependencyStatement (
+            targetVariable <- src.targetVariable,
+            sourceVariables <- src.sourceVariables,
+            owningBehavior <- if owner.oclIsKindOf(HADLi!Behavior) then owner else OclUndefined endif,
+            owningOperationCall <- if owner.oclIsKindOf(HADLi!OperationCall) then owner else OclUndefined endif,
+            owningForStatement <- if owner.oclIsKindOf(HADLi!ForStatement) then owner else OclUndefined endif
+         )
+}
+
+rule TProcedureCallStatement( src : HADLd!ProcedureCallStatement, owner : OclAny ) {
+   to
+      dest : HADLi!OperationCall (
+            component <- src.call.calledOperation.owningComponent,
+            calledOperation <- src.call.calledOperation,
+            owningBehavior <- if owner.oclIsKindOf(HADLi!Behavior) then owner else OclUndefined endif,
+            owningOperationCall <- if owner.oclIsKindOf(HADLi!OperationCall) then owner else OclUndefined endif,
+            owningForStatement <- if owner.oclIsKindOf(HADLi!ForStatement) then owner else OclUndefined endif
+         )
+   do {
+      for(p in src.call.actualParameters
+                              ->select(q| q.oclIsKindOf(HADLd!DataContainerRefExpression))
+                              ->select(q| not q.dataContainer.oclIsUndefined())
+         )
+      {
+         thisModule.TActualParameter(
+               dest,
+               src.call.calledOperation.parameters->at(
+                     src.call.actualParameters->indexOf(p)
+                  ),
+               p
+            );
+      }
+
+      for(st in src.call.calledOperation.body.statements) {
+         if(st.oclIsKindOf(HADLd!DependencyStatement)) {
+            thisModule.TDependencyStatement(st, dest);
+         }
+         else if(st.oclIsKindOf(HADLd!ProcedureCallStatement)) {
+            if(st.call.inline) {
+               thisModule.TInlineProcedureCallStatement(st, dest);
+            }
+            else {
+               thisModule.TProcedureCallStatement(st, dest);
+            }
+         }
+         else { -- if(s.oclIsKindOf(HADLd!ForStatement))
+            thisModule.TForStatement(st, dest);
+         }
+      }
+   }
+}
+
+rule TInlineProcedureCallStatement (src : HADLd!ProcedureCallStatement, owner : OclAny) {
+   do {
+      for(st in src.call.calledOperation.body.statements) {
+         if(st.oclIsKindOf(HADLd!DependencyStatement)) {
+            thisModule.TDependencyStatement(st, owner);
+         }
+         else if(st.oclIsKindOf(HADLd!ProcedureCallStatement)) {
+            if(st.call.inline) {
+               thisModule.TInlineProcedureCallStatement(st, owner);
+            }
+            else {
+               thisModule.TProcedureCallStatement(st, owner);
+            }
+         }
+         else { -- if(s.oclIsKindOf(HADLd!ForStatement))
+            thisModule.TForStatement(st, owner);
+         }
+      }
+   }
+}
+
+rule TForStatement ( src : HADLd!ForStatement, owner : OclAny ) {
+   to
+      dest : HADLi!ForStatement (
+            -- TODO
+            owningBehavior <- if owner.oclIsKindOf(HADLi!Behavior) then owner else OclUndefined endif,
+            owningOperationCall <- if owner.oclIsKindOf(HADLi!OperationCall) then owner else OclUndefined endif,
+            owningForStatement <- if owner.oclIsKindOf(HADLi!ForStatement) then owner else OclUndefined endif
+         )
+
+   do {
+      for(st in src.body.statements) {
+         if(st.oclIsKindOf(HADLd!DependencyStatement)) {
+            thisModule.TDependencyStatement(st, dest);
+         }
+         else if(st.oclIsKindOf(HADLd!ProcedureCallStatement)) {
+            if(st.call.inline) {
+               thisModule.TInlineProcedureCallStatement(st, dest);
+            }
+            else {
+                 thisModule.TProcedureCallStatement(st, dest);
+            }
+         }
+         else { -- if(s.oclIsKindOf(HADLd!ForStatement))
+            thisModule.TForStatement(st, dest);
+         }
+      }
+   }
+}
+
+rule TActualParameter (owner : OclAny, param : HADLd!Parameter, ref : HADLd!DataContainerRefExpression) {
+   to
+      dest : HADLi!DependencyStatement (
+            targetVariable <-
+               if param.isOutput then
+                  ref.dataContainer
+               else
+                  param
+               endif,
+            sourceVariables <-
+               if param.isOutput then
+                  param
+               else
+                  ref.dataContainer
+               endif,
+            owningBehavior <-
+               if owner.oclIsKindOf(HADLi!Behavior) then
+                  owner
+               else
+                  OclUndefined
+               endif,
+            owningOperationCall <-
+               if owner.oclIsKindOf(HADLi!OperationCall) then
+                  owner
+               else
+                  OclUndefined
+               endif
+         )
+}
+
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+helper context HADLd!AggregateFormat def:
+   getSequences : Sequence(Sequence(OclAny)) =
+      self.getSequencesRec(1);
+
+helper context HADLd!AlternativeFormat def:
+   getSequences : Sequence(Sequence(OclAny)) =
+      -- TODO remove duplicates in called formats
+      self.choices->iterate(ch; acc : Sequence(Sequence(OclAny)) = Sequence{} |
+            acc->union(
+                  ch.getTrees->collect(t| Sequence{t})
+               )
+         );
+
+helper context HADLd!AggregateFormat def:
+   getSequencesRec(index : Integer) : Sequence(Sequence(OclAny)) =
+      if index > self.chunks->size() then
+         Sequence{Sequence{}}
+      else
+         -- Get all possible sequences following the current chunk
+         let nextSeq : Sequence(Sequence(OclAny)) =
+            self.getSequencesRec(index+1) in
+
+         -- Get all alternatives for the current chunk
+         self.chunks->at(index).getTrees
+            -- For each alternative
+            ->iterate(s; acc : Sequence(Sequence(OclAny)) = Sequence{} |
+                  acc->union(
+                        -- For each possible following sequence
+                        nextSeq->collect(ns|
+                              -- Make a resulting sequence
+                              Sequence{s}->union(ns)
+                           )
+                     )
+               )
+      endif;
+
+helper context HADLd!FormatChunk def:
+   getTrees : Sequence(TupleType(call : OclAny, children : Sequence(OclAny))) =
+      self.targetFormat.getSequences
+         ->collect(t|
+               Tuple {
+                     call = self.behaviorChunk.call,
+                     children = t
+                  }
+            );
+
+helper context HADLd!UseFormatChoice def:
+   getTrees : Sequence(TupleType(call : OclAny, children : Sequence(OclAny))) =
+      self.usedFormat.getSequences
+         ->collect(t|
+               Tuple {
+                     call =
+                        self.owningFormat.behavior.choices
+                           ->select(fgc| fgc.oclIsKindOf(HADLd!CallBehaviorChoice))
+                           ->select(fgc| fgc.call.behavior = self.usedFormat.behavior)
+                           ->asSequence()
+                           ->first()
+                           .call,
+                     children = t
+                  }
+            );
+
+helper context HADLd!MatchFormatChoice def:
+   getTrees : Sequence(TupleType(call : OclAny, children : Sequence(OclAny))) =
+      Sequence {
+            Tuple {
+                  call = self.matchedChoice,
+                  children = Sequence{}
+               }
+         };
+
+-------------------------------------------------------------------------------
+-- Instruction naming :
+-- provide and update numbered names for instructions
+-------------------------------------------------------------------------------
+
+helper def:
+   instructionCounter : Integer = 0;
+
+helper def:
+   newInstructionName() : String =
+      'i' +
+      thisModule
+         .refSetValue('instructionCounter', thisModule.instructionCounter+1)
+         .instructionCounter
+         .toString();
+

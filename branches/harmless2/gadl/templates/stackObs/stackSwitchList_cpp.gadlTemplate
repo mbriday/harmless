@@ -1,0 +1,124 @@
+%template headerC%
+#ifdef GADL_SP_CHECK_ALLOWED
+
+#include <string>
+#include <iostream>
+#include <fstream>
+using namespace std;
+
+#include "stackSwitchList.h"
+#include "stackController.h"
+#include "stackList.h"
+#include "arch.h"
+
+// T3 TRACE
+#define TASK_RUN 0
+#define TASK_TERMINATE 2
+#define TASK_ACTIVATE  3
+
+/*********************************
+ *    switchItem : functions     *
+ *********************************/
+void switchItem::printSwitch(){
+//#ifdef GADL_TALKATIVE_STACK
+	std::cout<<"Task n°"<<m_taskId;
+	if(m_switchType==TASK_RUN){
+		cout<<" --Running  ";
+	}else if(m_switchType==TASK_ACTIVATE){
+		cout<<" --Activate ";
+	}
+	cout<<" Date="<< dec << m_date<<" SP@"<< hex << m_spValue<<endl;
+//#endif // GADL_TALKATIVE_STACK
+}
+
+/*********************************
+ *  stackSwitchList : functions  *
+ *********************************/
+void stackSwitchList::printSwitchList(){
+	u32 watchdog=1<<24;						// Prevent any infinite loop
+	bool endOfList=false;					// Print end
+	switchItem *currentItem=m_firstItem;	// Current item in list
+	
+	// Welcome
+	cout<<endl;
+	cout<<"********************************"<<endl;
+	cout<<"*       TASK Switch List       *"<<endl;
+	cout<<"********************************"<<endl;
+	cout<<endl;
+	
+	// Printing loop
+	if (m_nbItems>0) {
+		while(watchdog>0 && !endOfList){
+			watchdog--;										// Decrement watchdog
+			currentItem->printSwitch();						// Print current item
+			currentItem=currentItem->getNextSwitchItem();	// Jump to next item
+			if (currentItem==NULL) {						// No more item in list
+				endOfList=true;	
+			}
+		}
+	}
+	
+	cout<<endl;
+}
+
+// Add a new event in switch list
+void stackSwitchList::addSwitch(switchItem *swIt){
+	// ADD item at the end of the list
+	m_nbItems++;							// One more switch inside
+	if(m_nbItems==1){						// First Item of list m_firstItem need to be initialized
+		swIt->setNextSwitchItem(NULL);		// The next item is empty (add at the end of the list
+		m_lastItem=swIt;
+		m_firstItem=swIt;
+	}else {								
+		swIt->setNextSwitchItem(NULL);			// The next item is empty (add at the end of the list
+		m_lastItem->setNextSwitchItem(swIt);	// The next item of the old last item is the new item... (add at the end)
+		m_lastItem=swIt;						// The new last item is the new item 
+												// We have a colorend shep at the begening and at the end... (easier to see)
+	}
+}
+
+// Write a T3 trace of context switch()
+void stackSwitchList::writeTraceToFile(string path){
+	u32 watchdog=1<<24;						// Prevent any infinite loop
+	bool endOfList=false;					// Print end
+	switchItem *currentItem=m_firstItem;	// Current item in list
+	taskStackList *taskList=m_controller->getStackList();	// Get task list to have more information
+	int maxTaskId=taskList->getNbItems();					// Get total number of task/Stack
+	int currentTaskId=0;									//
+	
+	ofstream file(path.c_str(), ios::out | ios::trunc);  // Open file in writing mode delete old file	
+	
+	// We need file to be happy
+	if(file){
+		while(watchdog>0 && !endOfList){
+			watchdog--;										// Decrement watchdog
+			
+			// Data writing
+			file<<dec<<currentItem->getDate()<<",";					// Date
+			file<<dec<<currentItem->getSwitchType()<<",";			// Type
+			currentTaskId=currentItem->getTaskId();					// Task id
+			// Translating in T3 format (...)
+			if(currentTaskId==0){		// In T3 Idle is maximum id task
+				currentTaskId=maxTaskId;
+			}else {						// In T3 task numerotation start 0 (1 here)
+				currentTaskId--;
+			}
+			file<<dec<<currentTaskId<<",";		// ID
+			file<<dec<<0<<",";					// Priority
+			file<<dec<<0<<"";					// Old status
+			file<<endl;
+			
+			currentItem=currentItem->getNextSwitchItem();	// Jump to next item
+			if (currentItem==NULL) {						// No more item in list
+				endOfList=true;	
+			}
+		}
+		file.close();
+	}else{
+		cerr << "Can't open file !" << endl;
+	}
+	
+	
+}
+
+#endif // GADL_SP_CHECK_ALLOWED

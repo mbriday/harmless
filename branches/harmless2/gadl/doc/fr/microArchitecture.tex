@@ -1,0 +1,32 @@
+%!TEX root = ./main.tex
+%!TEX encoding = UTF-8 Unicode
+\chapter{Description de la micro-architecture}
+\section{Introduction}
+La description de la micro architecture est nécessaire pour la génération d'un simulateur précis (en anglais "Cycle-Accurate Simulator" : CAS). La description d'un pipeline constitue l'élément de base de la micro-architecture dans les processeurs modernes.
+
+\lstset{language=Harmless}
+\begin{lstlisting}
+architecture Generic {
+  device gpr : GPR {
+      read is read8 | read16
+      write is write8 | write16
+      port rs : read (3);
+      port rd : write (2);
+    }
+
+  device alu : ALU {
+      port all;
+    }
+
+  device MEM : mem {
+      read is read8 | read16
+      write is write8 | write16
+      shared port fetch : read;
+      shared port loadStore : read or write;
+    }
+
+  device fetcher : Fetcher {
+      port branch : branch;
+    }
+}
+\end{lstlisting}

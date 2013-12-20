@@ -1,0 +1,32 @@
+%
+#reading binary code for the simulator.
+write to MODELNAME."/codeReader.h":
+  template codeReader_h in codeReader
+end write
+
+write to MODELNAME."/elfReader.cpp":
+  template elfReader_cpp in codeReader
+end write
+%elfReader.cpp \\\n%
+
+write to MODELNAME."/elfReader.h":
+  template elfReader_h in codeReader
+end write
+
+write to MODELNAME."/iHexReader.cpp":
+  template iHexReader_cpp in codeReader
+end write
+%iHexReader.cpp \\\n%
+
+write to MODELNAME."/iHexReader.h":
+  template iHexReader_h in codeReader
+end write
+
+write to MODELNAME."/sRecordReader.cpp":
+  template sRecordReader_cpp in codeReader
+end write
+%sRecordReader.cpp \\\n%
+
+write to MODELNAME."/sRecordReader.h":
+  template sRecordReader_h in codeReader
+end write

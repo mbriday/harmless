@@ -1,0 +1,36 @@
+-- Task switching analysis --
+>> Task List
+
+********************************
+* STACK/TASK List Informations *
+********************************
+
+Task n°4 (Task 4) : Fct@6ca8 Stack (size=256) : init@7714 -1- StackRealUse=0
+Task n°3 (Task 3) : Fct@6c78 Stack (size=256) : init@7a14 -1- StackRealUse=0
+Task n°2 (Task 2) : Fct@6c48 Stack (size=256) : init@7814 -1- StackRealUse=0
+Task n°1 (Task 1) : Fct@6be8 Stack (size=256) : init@7914 -1- StackRealUse=0
+
+>> Switch List
+
+********************************
+*       TASK Switch List       *
+********************************
+
+Task n°0 --Running   Date=1 SP@0
+Task n°1 --Activate  Date=1505 SP@7914
+Task n°1 --Running   Date=1505 SP@7914
+Task n°0 --Running   Date=1600 SP@6e10
+Task n°2 --Activate  Date=2914 SP@7814
+Task n°2 --Running   Date=2914 SP@7814
+Task n°0 --Running   Date=3002 SP@6e20
+Task n°1 --Running   Date=3461 SP@7900
+Task n°0 --Running   Date=3554 SP@6e10
+Task n°3 --Activate  Date=4897 SP@7a14
+Task n°3 --Running   Date=4897 SP@7a14
+Task n°0 --Running   Date=4985 SP@6e20
+Task n°1 --Running   Date=5444 SP@7900
+Task n°0 --Running   Date=5537 SP@6e10
+Task n°4 --Activate  Date=6907 SP@7714
+Task n°4 --Running   Date=6907 SP@7714
+Task n°0 --Running   Date=6995 SP@6e20
+Task n°1 --Running   Date=7454 SP@7900

@@ -1,0 +1,122 @@
+%!TEX root = ./main.tex
+%!TEX encoding = UTF-8 Unicode
+\chapter{Vue temporelle basique}
+\label{chap:timing}
+La vue temporelle basique sert à modéliser le temps mis par le processeur pour l'exécution de chaque instruction. Cette approche sert uniquement dans le cas d'une architecture simple, sans pipeline, dont le temps d'exécution d'une instruction ne dépend pas des instructions précédentes.
+
+
+\section{Architecture générale}
+La vue \texttt{timing} vient se rajouter aux vues \texttt{format}, \texttt{behavior} et \texttt{syntax} qui permettent de décrire le jeux d'instruction. Tout comme ces vues, on retrouve une structure arborescente lors de la description des instructions.
+
+La structure générale des nœuds de description des timing (comme les autres vues) est de la forme:
+\begin{lstlisting}
+timing <name> [etiquette]
+  <timingBody>
+end timing
+\end{lstlisting}
+
+la partie \texttt{<timingBody>} regroupe:
+\begin{itemize}
+\item \emph{étiquette};
+\item appel à un autre nœud de type timing;
+\item structure de sélection, en utilisant le mot clé \texttt{select}. Voir section \ref{sec:timingSelect};
+\item partie d'implémentation des timings, voir section \ref{sec:timingDo};
+\item partie relative à l'accès à un composant, voir section \ref{sec:timingMethodAccess}
+\end{itemize}
+
+\subsection{Structure de sélection}
+\label{sec:timingSelect}
+L'utilisation de la sélection (différentes branches de l'arbre) se fait à travers l'instruction \texttt{select}, comme pour chaque vues de la description:
+\begin{lstlisting}
+  select 
+    case <timingBody>
+    case .. 
+  end select
+\end{lstlisting}
+
+Un changement \emph{majeur} toutefois: Une instruction est représentée par un ensemble d'étiquette (i.e. la signature de l'instruction). Pour repérer une instruction dans une des 3 vues (\texttt{format}, \texttt{behavior} et \texttt{syntax}), il faut que la signature de l'instruction soit la même. l'approche est un peu différente dans la vue \texttt{timing}, car on peut utiliser uniquement un sous ensemble de la signature de l'instruction. Si plusieurs chemins conviennent, c'est celui qui a le plus d'étiquettes de l'instruction qui sera pris en compte.
+
+Soit par exemple l'instruction \texttt{i1} ayant pour signature \texttt{\#A \#B \#C} et l'instruction \texttt{i2} ayant pour signature \texttt{\#A \#D}, associée à la description:
+
+\begin{lstlisting}
+timing t1
+  #A
+  select 
+    case #D -- chemin 1
+    case      -- chemin 2
+  end select
+end timing
+\end{lstlisting}
+À l'issue de cette description, 2 chemins sont possibles, avec les étiquettes:
+\begin{itemize}
+\item chemin 1: \texttt{\#A \#D}
+\item chemin 2: \texttt{\#A}
+\end{itemize}
+La première instruction n'ayant pas l'étiquette \texttt{\#D}, et ne peut prendre que le chemin 2.
+La deuxième instruction par contre pourrait éventuellement prendre les 2 chemins, on prend alors le chemin 1, car c'est celui qui a le plus d'étiquettes.
+Si 2 chemins sont possibles pour une instruction, et qu'ils ont le même nombre d'étiquettes, alors il y a une ambiguïté et une erreur est générée.
+
+\subsection{Partie implémentation}
+\label{sec:timingDo}
+La partie implémentation de la vue \texttt{timing} se situe toujours dans un bloc \texttt{do..end do}, comme dans la vue \texttt{behavior} et les composants. Quelques instructions sont spécifiques à cette vue et sont décrites dans les sous-sections suivantes.
+
+\subsubsection{Ajout de cycle}
+Cette instruction permet d'ajouter des cycle, et donc de simuler le temps qui passe: L'utilisation est: \texttt{add <expression> cycle}:
+\begin{lstlisting}
+do
+  add 1 cycle
+end do
+\end{lstlisting}
+
+\subsubsection{Instruction conditionnelle}
+L'instruction conditionelle dans la vue \texttt{timing} est quasiment la même que dans les composants/\texttt{behavior}, excepté que la partie \texttt{elseif} n'est pas disponible:
+\texttt{if <timingExpression> then <timingImplementation> [else <timingImplementation> end if]}. Il est à noté qu'il est possible de mettre soit une expression, ou bien de tester si un saut a eu lieu, à travers le mot clé \texttt{jumpTaken}:
+
+\begin{lstlisting}
+timing jumpTiming
+  do
+    add 1 cycle
+    if jumpTaken then
+      add 1 cycle
+    end if
+  end do
+end timing
+\end{lstlisting}
+Dans cet exemple, une instruction met 1 cycle, et une instruction dans lequel un saut est réalisé met 2 cycles. Le mot clé \texttt{jumpTaken} peut être appliqué à toutes les instructions. Une instruction réalise un saut, si après son exécution, le compteur programme ne pointe pas sur l'instruction suivante: \texttt{ret}, \texttt{call}, \texttt{jmp}, \texttt{bra}, \ldots
+
+\subsubsection{Gestion des erreur}
+Il est possible de mettre une instruction d'erreur, de la même manière que décrit en \ref{sec:instError}, pour indiquer les cas qui ne devraient pas se produire.
+
+\begin{lstlisting}
+warning "message d'erreur"
+\end{lstlisting}
+
+\subsection{Accès à un composant}
+\label{sec:timingMethodAccess}
+Une partie implémentation peut être reliée à l'accès à un composant. ainsi, pour chaque accès à une méthode d'un composant, le nombre de cycle peut être mis à jour. On utilise pour cela une structure de type:
+\begin{verbatim}
+if use <componentMethod> then <timingImplementation> end if 
+\end{verbatim}
+\begin{lstlisting}
+timing test
+  if use sram.pop then
+      add 1 cycle
+  end if
+end timing
+\end{lstlisting}
+
+De la même manière lors d'un accès en lecture ou écriture sur un registre, la structure est:
+\begin{verbatim}
+if read/write <registerName> then <timingImplementation> end if
+\end{verbatim}
+\begin{lstlisting}
+timing testRead
+  if read X do
+      add 1 cycle
+  end if
+end timing
+\end{lstlisting}
+Ainsi, sur cet exemple, 1 cycle sera ajouté lors de chaque lecture sur le registre X.
+
+\emph{Attention, il y a actuellement des effets de bord. S'il y a une session de debug, et qu'on affiche les registres, des cycles seront ajoutés!!}
+

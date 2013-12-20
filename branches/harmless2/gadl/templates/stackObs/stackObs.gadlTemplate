@@ -1,0 +1,50 @@
+%
+#stackObs for simulation.
+write to MODELNAME."/stackController.cpp":
+  template stackController_cpp in stackObs
+end write
+%stackController.cpp \\\n%
+
+write to MODELNAME."/stackController.h":
+  template stackController_h in stackObs
+end write
+
+write to MODELNAME."/stackList.cpp":
+  template stackList_cpp in stackObs
+end write
+%stackList.cpp \\\n%
+
+write to MODELNAME."/stackList.h":
+  template stackList_h in stackObs
+end write
+
+write to MODELNAME."/stackObserver.cpp":
+  template stackObserver_cpp in stackObs
+end write
+%stackObserver.cpp \\\n%
+
+write to MODELNAME."/stackObserver.h":
+  template stackObserver_h in stackObs
+end write
+
+write to MODELNAME."/stackSpyAction.cpp":
+  template stackSpyAction_cpp in stackObs
+end write
+%stackSpyAction.cpp \\\n%
+
+write to MODELNAME."/stackSpyAction.h":
+  template stackSpyAction_h in stackObs
+end write
+
+write to MODELNAME."/stackSwitchList.cpp":
+  template stackSwitchList_cpp in stackObs
+end write
+%stackSwitchList.cpp \\\n%
+
+write to MODELNAME."/stackSwitchList.h":
+  template stackSwitchList_h in stackObs
+end write
+
+write to MODELNAME."/stackTypes.h":
+  template stackTypes_h in stackObs
+end write

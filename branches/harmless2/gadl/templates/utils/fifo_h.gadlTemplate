@@ -1,0 +1,105 @@
+%template headerC%
+#ifndef __FIFO_H__
+#define __FIFO_H__
+
+#include <iostream>
+
+/** class for a fifo */
+template<class TYPE>
+class fifo {
+private:
+	/* capacity. Does not change */
+	const unsigned int m_capacity;
+	/* real capacity: a power of 2. Store the mask for the circular buffer */
+	unsigned int m_mask;
+	/* circular buffer that stores information */
+	TYPE *m_buf;
+	/* read index */
+	unsigned int m_readIndex;
+	/* current size of fifo */
+	unsigned int m_size;
+	/** name of the fifo (debug). */
+	const char *m_name;
+	/** message if fifo is full */
+	void fullMsg()
+	{
+		std::cerr << "ERROR " << m_name << std::endl;
+		std::cerr << "\ttry to write a value on a full fifo" << std::endl;
+	}
+	
+public:
+	/** create a fifo. 
+	 * \param capacity max size of the fifo. Internally, it may differ 
+	 * \param name name of the fifo (for debug purpose).
+	 */
+	fifo(const char *name,const unsigned int capacity) : m_capacity(capacity),m_name(name)
+	{
+		//compute the real capacity: a power of 2 for efficiency
+		unsigned int nbBits = 0;
+		unsigned int temp = capacity;
+		while(temp != 0)
+		{
+			temp >>= 1;
+			nbBits++;
+		}
+		m_mask = (1 << nbBits) - 1;
+		/* circular buffer that stores information */
+		m_buf = new TYPE[1<<nbBits];
+		/* read index */
+		m_readIndex = 0;
+		/* current size of fifo */
+		m_size = 0;
+	}
+	/** destructor */
+	~fifo() {delete [] m_buf;}
+	/** read (and remove) a value in the fifo 
+	 * \return true if the value is correct (the fifo was not empty)
+	 **/
+	bool read(TYPE &value)
+	{
+		bool result = false;
+		if(m_size != 0) //not empty?
+		{
+			value = m_buf[m_readIndex];
+			m_readIndex = (m_readIndex + 1) & m_mask;
+			m_size--;
+			result = true;
+		}
+		return result;
+	}
+	
+	/** read (without remove) a value in the fifo 
+	 * \return true if the value is correct (the fifo was not empty)
+	 **/
+	bool readWithoutRemove(TYPE &value)
+	{
+		bool result = false;
+		if(m_size != 0) //not empty?
+		{
+			value = m_buf[m_readIndex];
+			result = true;
+		}
+		return result;
+	}
+	/** insert a new value in the fifo 
+	 *  A message is written on stderr if the fifo is already full. In that
+	 *  case, the value is not written!
+	 **/
+	void write(const TYPE val)
+	{
+		if(m_size == m_capacity) fullMsg();
+		else {
+			const unsigned int m_writeIndex = (m_readIndex + m_size) & m_mask;
+			m_buf[m_writeIndex] = val;
+			m_size ++;
+		}
+	}
+	/** returns true if the fifo is Empty */
+	bool isEmpty() {return m_size == 0;};
+	/** return the size defined in the constructor. */
+	unsigned int const capacity() {return m_capacity;};
+	/** returns the current size of the fifo */
+	unsigned int const size() {return m_size;};
+};
+
+#endif

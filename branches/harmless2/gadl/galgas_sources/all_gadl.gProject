@@ -1,0 +1,166 @@
+project all_gadl (0:8:1) -> "gadl" :
+#--- Targets
+  feature "makefile_macosx" ;
+  feature "makefile_unix" ;
+  feature "makefile_i386_linux_on_macosx" ;
+  feature "makefile_mingw_on_macosx" ;
+  feature "makefile_msys_on_win32" ;
+  #feature "SnowLeopard" ;
+  feature "MountainLion" ;
+  feature applicationBundleBase : "fr.irccyn" ;
+
+lexique "gadl_lexique.gLexique" ;
+option "gadl_options.gOption" ;
+
+semantics "gadl_semantics.gSemantics" ;
+#root file.
+syntax "gadl_syntax.gSyntax" ;
+
+#******************************************************************** 
+#'default' section. Used to give default parameters.
+#******************************************************************** 
+syntax "gadl_default_parser.gSyntax";
+semantics "gadl_semantics_default.gSemantics";
+
+#******************************************************************** 
+#  expressions used everywhere.
+#******************************************************************** 
+semantics "gadl_variable.gSemantics" ;
+
+syntax    "gadl_expression_parser.gSyntax" ;
+semantics "gadl_semantics_expression.gSemantics" ;
+semantics "gadl_semantics_expression_eval.gSemantics" ;
+semantics "gadl_semantics_expression_const.gSemantics";
+semantics "gadl_semantics_pathElement.gSemantics" ;
+
+#******************************************************************** 
+#  implementation (instructions) used everywhere.
+#******************************************************************** 
+syntax    "gadl_implementation_parser.gSyntax" ;
+semantics "gadl_semantics_implementation.gSemantics" ;
+semantics "gadl_semantics_implementation_code_generation.gSemantics" ;
+semantics "gadl_semantics_function.gSemantics" ;
+
+#******************************************************************** 
+# ISS description, using 3 views
+#********************************************************************
+##instructions 3 views
+#instruction stuff common to each view.
+semantics "gadl_semantics_instruction.gSemantics" ; 
+# detect if there is a Nop
+# detect Branch instructions.
+semantics "gadl_instruction_properties.gSemantics"; 
+
+#syntax
+syntax "gadl_instruction_syntax_parser.gSyntax" ;
+semantics "gadl_semantics_syntax.gSemantics" ;
+
+#behavior
+syntax "gadl_instruction_behavior_parser.gSyntax" ;
+semantics "gadl_semantics_behavior_data_structures.gSemantics" ;
+semantics "gadl_semantics_behavior.gSemantics" ;
+
+#format
+syntax "gadl_instruction_format_parser.gSyntax" ;
+semantics "gadl_semantics_format.gSemantics" ;
+#******************************************************************** 
+#components and memory
+#********************************************************************
+syntax "gadl_hard_component_parser.gSyntax" ;
+#data structures.
+semantics "gadl_memory.gSemantics" ;
+semantics "gadl_components.gSemantics" ;
+semantics "gadl_semantics_hard_component.gSemantics" ;
+semantics "gadl_semantics_memory.gSemantics" ;
+semantics "gadl_semantics_detect_branch.gSemantics";
+
+#******************************************************************** 
+# timing section: The timing section is used to model
+# timings of peripherals using a time-automata, associated to the 
+# behavior (defined in a component).
+# Primary goal: the memory hierarchy.
+# **
+# This part does not model the pipeline.
+#******************************************************************** 
+
+syntax "gadl_timing_parser.gSyntax";
+semantics "gadl_semantics_timingSection.gSemantics" ; #main file
+#automata generation routines (both Harmless and Uppaal)
+semantics "gadl_semantics_timingSectionAutomata.gSemantics" ; 
+#transform Harmless automata into simulation steps.
+semantics "gadl_semantics_timingSimulationStep.gSemantics" ;
+semantics "gadl_semantics_signalSection.gSemantics" ;
+
+#******************************************************************** 
+#timing approach. Pipeline and instruction classes.
+#******************************************************************** 
+syntax "gadl_hard_pipeline_parser.gSyntax" ;
+semantics "gadl_semantics_hard_pipeline.gSemantics" ;
+
+syntax "gadl_hard_arch_parser.gSyntax" ; #'architecture' section.
+#architecture. Basic data structures
+semantics "gadl_semantics_hard_arch.gSemantics";
+#routines
+semantics "gadl_semantics_architecture.gSemantics";
+#graph approach
+semantics "gadl_graph.gSemantics";
+#extract the component access graph for instructions.
+semantics "gadl_semantics_components_extraction.gSemantics" ;
+#get the instructions classes.
+semantics "gadl_semantics_instruction_classes.gSemantics" ;
+#generate config files for p2a.
+semantics "gadl_semantics_pipeline_configuration.gSemantics" ;
+#generate the automata associated to the data dependancy controller.
+semantics "gadl_semantics_data_dependency_instruction_classes.gSemantics" ;
+semantics "gadl_semantics_register_access.gSemantics" ;
+#main micro-architecture file (populate templates)
+semantics "gadl_micro_architecture.gSemantics" ;
+
+#******************************************************************** 
+# peripherals
+#******************************************************************** 
+syntax "gadl_peripherals_parser.gSyntax" ;
+semantics "gadl_semantics_peripherals_data_structures.gSemantics" ;
+semantics "gadl_semantics_peripherals.gSemantics" ;
+
+#******************************************************************** 
+# instruction timing approach for architectures without pipeline,
+# based on a number of cycle for each instruction.
+#******************************************************************** 
+syntax "gadl_instruction_cycle_parser.gSyntax" ;
+semantics "gadl_semantics_instruction_cycle.gSemantics" ;
+
+#******************************************************************** 
+# new template management, included from galgas SVN (common with goil)
+#******************************************************************** 
+semantics "template_semantics.gSemantics";
+lexique   "template_scanner.gLexique";
+syntax    "template_expression_parser.gSyntax";
+syntax    "template_parser.gSyntax";
+grammar   "template_grammar.gGrammar";
+semantics "template_invocation.gSemantics";
+semantics "template_functions.gSemantics";
+
+semantics "gadl_templates.gSemantics" ;
+semantics "gadl_template_data_preparation.gSemantics";
+
+#******************************************************************** 
+# fileWrapper addons: add binaries and templates directly
+#                     inside the gadl compiler.
+#******************************************************************** 
+semantics "gadl_filewrappers.gSemantics";
+
+#******************************************************************** 
+# include files grammar
+#******************************************************************** 
+grammar "gadl_grammar_include.gGrammar"  ;
+
+#******************************************************************** 
+# generic stuff
+#******************************************************************** 
+grammar "gadl_grammar.gGrammar" ;
+gui "gadl_cocoa.gGui" ;
+program "gadl_program.gProgram" ;
+end project ;
+
+# vim:ft=ggs:ts=2:sw=2

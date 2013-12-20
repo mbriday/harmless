@@ -1,0 +1,134 @@
+semantics gadl_components :
+  import "gadl_options.gOption" ;
+  import "gadl_semantics.gSemantics" ;
+  import "gadl_memory.gSemantics" ;
+  import "gadl_semantics_implementation.gSemantics" ;
+  import "gadl_semantics_function.gSemantics";
+  import "gadl_memory.gSemantics";
+  import "gadl_semantics_peripherals_data_structures.gSemantics";
+
+
+#----------------------------------------------------------------------------
+# components
+#----------------------------------------------------------------------------
+
+
+map @componentMap {
+  @varMap componentVar; # variables that may be used inside a component (including local and global var)
+  @instructionList componentDeclarationList;
+  @functionMap methodMap;
+  @memoryChunkMap memoryMap;
+  @memoryAliasMap memoryAliasMap;
+  @varMap localVar; # only local vars. (used for code generation: declaration of these vars).
+  @readWriteActionList readWriteActionList; #part related to peripherals
+  @cyclicPartList cyclicPartList;           #part related to peripherals
+  @TypeStructDefMap TypeStructDefList;
+  insert insertKey error message "the '%K' component is already defined in %L" ; 
+  search searchKey error message "the '%K' component is not defined" ;
+  remove removeKey error message "the '%K' component is not defined and cannot be removed." ;
+}
+
+routine getComponentMethodImplementationName
+  ??@string componentName
+  ??@string methodName
+  ??@string componentPrefix
+  !@string implementationName
+:
+  implementationName := componentPrefix . componentName . "_" . methodName;
+end routine;
+
+###########################################
+## component call expression 
+###########################################
+class @cComponentMethod extends @cExpression {
+  @lstring componentName;
+  @lstring methodName;
+  @parameterCallList param;
+  @uint outputBaseId; #id of the first temp variable for return values.
+}
+
+override reader @cComponentMethod generateCode
+  ?? @string componentPrefix #prefix used for object call.
+  ?? @string idfSuffix #used for fields in syntax and behaviors (@...)
+  ?? @codeCtx cgc
+  -> @string code
+:
+  @string implementation;
+  getComponentMethodImplementationName ![componentName string] ![methodName string] !componentPrefix ?implementation;
+  code := implementation . "(";
+  @bool first := true; #for the ',' between arguments.
+  #first, return args. The return values (except first) should be here:
+  @varTypeList typeListCopy := typeList;
+  @uint outputId := outputBaseId;
+  if [typeListCopy length] > 0 then #remove the first
+    [!?typeListCopy popFirst ?*];
+    #message "func: ".[componentName string].".".[methodName string]."\n";
+  end if;
+  foreach typeListCopy(@varType type) do
+    if not first then 
+      code .= ", ";
+    end if;
+    code .= "__tmp_".[outputId string]."__";
+    outputId := outputId + 1;
+    first := false;
+  end foreach;
+  foreach param (@cExpression expCall *) do
+    if not first then 
+      code .= ", ";
+    end if;
+    code .= [expCall generateCode !componentPrefix !idfSuffix !cgc];
+    first := false;
+  end foreach;
+  code .= ")";
+end reader;
+
+routine getComponentOutType
+  ?? @componentMap componentMap
+  ?? @lstring componentName
+  ?? @lstring methodName
+  !  @varTypeList outTypeList
+:
+  outTypeList := [@varTypeList emptyList];
+  @functionMap methodMap;
+  [componentMap searchKey !componentName ?* ?* ?methodMap ?* ?* ?* ?* ?* ?*];
+  @returnTypeList funcOutTypeList;
+  [methodMap searchKey !methodName ?* ?funcOutTypeList ?*];
+  foreach funcOutTypeList (@functionOutType funcOutType) do
+    cast funcOutType
+    when == @functionOutTypeClassic outTypeInt :
+      outTypeList += ![outTypeInt outType];
+    when == @functionOutTypeCustom :
+      error here: "Cannot get out type. It's a custom type!";
+    else error here : "internal error: cannot set out type in component method!";
+    end cast;
+  end foreach;
+end routine;
+
+###########################################
+## component call instruction
+###########################################
+
+class @cCompMethodCall extends @cInstruction{
+  @lstring componentName;
+  @lstring methodName;
+  @parameterCallList paramList;
+}
+
+function isComponentMethodValid
+  ?? @componentMap componentMap
+  ?? @lstring componentName
+  ?? @lstring methodName
+  -> @bool valid
+:
+  valid := false;
+  @functionMap methodMap [emptyMap];
+  [componentMap searchKey !componentName ?* ?* ?methodMap ?* ?* ?* ?* ?* ?*];
+  if [methodMap hasKey ![methodName string]] then
+    valid := true;
+  else error [methodName location]: "No method named :". methodName ."in component ".componentName."\n";
+  end if;
+end function;
+
+end semantics ;
+
+# vim:ft=ggs:ts=2:sw=2

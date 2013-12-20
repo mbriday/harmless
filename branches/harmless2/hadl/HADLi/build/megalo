@@ -1,0 +1,47 @@
+
+model HADLi:KM3:Ecore
+apply KM3EBNF2KM3Ecore {
+   IN=HADLi:KM3:EBNF,
+   OUT=HADLi:KM3:Ecore
+}
+
+domain HADLi:Ecore filter "hadlimodel"
+apply KM3Ecore2Ecore {
+   IN=HADLi:KM3:Ecore,
+   OUT=HADLi:Ecore
+}
+
+-----------------------------------------
+
+model HADLi:TCS:Ecore
+apply TCSEBNF2TCSEcore {
+   IN=HADLi:TCS:EBNF,
+   OUT=HADLi:TCS:Ecore
+}
+
+-----------------------------------------
+
+model HADLd2HADLi:ASM:XML
+apply ATL2ASM {
+   IN=HADLd2HADLi:ATL:EBNF,
+   OUT=HADLd2HADLi:ASM:XML
+}
+
+model HADLiPreschedule:ASM:XML
+apply ATL2ASM {
+   IN=HADLiPreschedule:ATL:EBNF,
+   OUT=HADLiPreschedule:ASM:XML
+}
+
+model HADLiSchedule:ASM:XML
+apply ATL2ASM {
+   IN=HADLiSchedule:ATL:EBNF,
+   OUT=HADLiSchedule:ASM:XML
+}
+
+model HADLiGroup:ASM:XML
+apply ATL2ASM {
+   IN=HADLiGroup:ATL:EBNF,
+   OUT=HADLiGroup:ASM:XML
+}
+

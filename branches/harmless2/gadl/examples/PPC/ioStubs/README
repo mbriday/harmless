@@ -1,0 +1,20 @@
+Using a file system inside a bare-model application, using the host operating system file system.  
+It has been tested using the newlib compiled with no syscall option
+(--disable-newlib-supplied-syscall)
+
+********************
+HOWTO TO USE IT
+********************
+* update Makefile and uncomment line:
+  #USE_IO_STUBS = 1
+* (re)compile the simulator (make python). During the make process, files ioStubs.c and ioStubs.h
+  will be copied from the simulatorSource/ path. If the example is copied in another location, you
+  will have to copy these files manually.
+
+then, to compile an application, add the file 'stub.c' from ApplicationSource/ to your project (see the example provided)
+
+********************
+EXAMPLE
+********************
+
+A simple example that read a (host) file and outputs its contents to the serial I/O is in example/ directory. 

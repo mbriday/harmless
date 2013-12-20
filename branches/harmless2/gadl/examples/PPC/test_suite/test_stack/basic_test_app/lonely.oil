@@ -1,0 +1,81 @@
+//export PATH=$PATH:/usr/local/powerpc/bin/
+//first generate Makefile with:
+//goil --generate-makefile --target=ppc/psim --templates=../../../goil/templates/ -i  lonely.oil
+OIL_VERSION = "2.5" : "test" ;
+
+IMPLEMENTATION trampoline {
+    TASK {
+        UINT32 STACKSIZE = 500 ;
+        UINT32 PRIORITY = 1 ;
+    } ;
+    ISR {
+        UINT32 STACKSIZE = 500 ;
+    } ;
+};
+
+CPU test {
+
+    OS config {
+        STATUS = EXTENDED;
+        ERRORHOOK = FALSE;
+        PRETASKHOOK = FALSE;
+        APP_SRC = "main.c";
+        APP_NAME = "app_exe";
+        TRAMPOLINE_BASE_PATH = "/Users/valere/Documents/IRCCyN/trampoline/";
+        CFLAGS  = "-g";
+        CFLAGS  = "-Wall -pedantic -Wformat -std=c99 -mpowerpc";
+        CFLAGS  = "-static -nostdlib -fno-omit-frame-pointer -U__unix__";
+        CFLAGS  = "-Wmissing-field-initializers"; 
+        ASFLAGS = "-g";
+        LDFLAGS = "-g";
+        COMPILER = "powerpc-elf-gcc";
+        ASSEMBLER = "powerpc-elf-as";
+        LINKER = "powerpc-elf-ld";
+        SYSTEM_CALL = TRUE;
+        MEMMAP = TRUE {
+          COMPILER = gcc;
+          LINKER = gnu_ld { SCRIPT = "script.ld"; };
+          MEMORY_PROTECTION = FALSE;
+        };
+    } ;
+
+    APPMODE std {
+    };
+
+    TASK startTask {
+        PRIORITY = 5;
+        AUTOSTART = TRUE {APPMODE = std;};
+        ACTIVATION = 1;
+        SCHEDULE = FULL;
+        STACKSIZE = 256;
+    };
+
+    TASK secondTask {
+        PRIORITY = 6;
+        AUTOSTART = FALSE;
+        ACTIVATION = 1;
+        SCHEDULE = FULL;
+        STACKSIZE = 256;
+    };
+
+	 TASK thirdTask {
+        PRIORITY = 7;
+        AUTOSTART = FALSE;
+        ACTIVATION = 1;
+        SCHEDULE = FULL;
+        STACKSIZE = 256;
+    };
+
+	 TASK fourthTask {
+        PRIORITY = 8;
+        AUTOSTART = FALSE;
+        ACTIVATION = 1;
+        SCHEDULE = FULL;
+        STACKSIZE = 256;
+    };
+
+        
+    COUNTER SystemCounter {
+        SOURCE = it_timer_1;
+    };
+};

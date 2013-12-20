@@ -1,0 +1,39 @@
+%template headerC%
+#ifndef __MACRO_H__
+#define __MACRO_H__
+
+/*********** Expression related macros ************/
+
+/*make a mask of 'n' bits */
+#define MASK_N_BITS(N) ((1ULL << (N))-1)
+/* rotation macro left */
+#define ROTATION_ROL1(leftOp,size,rightOp) (((leftOp) & MASK_N_BITS((size)-(rightOp))) << (rightOp))
+#define ROTATION_ROL2(leftOp,size,rightOp) (((leftOp) >> (((size)-(rightOp)))) & MASK_N_BITS(rightOp))
+#define ROTATION_ROL(leftOp,size,rightOp) (ROTATION_ROL1(leftOp,size,rightOp) | ROTATION_ROL2(leftOp,size,rightOp))
+/* rotation macro right */
+#define ROTATION_ROR1(leftOp,size,rightOp) (((leftOp) & MASK_N_BITS(rightOp)) << ((size)-(rightOp)))
+#define ROTATION_ROR2(leftOp,size,rightOp) (((leftOp) >> (rightOp)) & MASK_N_BITS((size)-(rightOp)))
+#define ROTATION_ROR(leftOp,size,rightOp) (ROTATION_ROR1(leftOp,size,rightOp) | ROTATION_ROR2(leftOp,size,rightOp))
+/* concatenation */
+#define CAT(leftOp, rightOp, size) (((leftOp) << (size)) | (rightOp))
+/* boolean Xor */
+#define BOOLEAN_XOR(a,b) (((a) && (!(b))) || ((!(a)) && (b)))
+/*used by bitfields.*/
+#define FIELD(exp,from,to) ((((MASK_N_BITS((from)-(to)+1) << (to)) & (exp)) >> (to)))
+#define FIELD_ONE_BIT(exp,bit) (((exp) >> (bit)) & 1)
+/*sign extension when casting to a signed type..*/
+#define SIGN_EXTEND(exp,fromSize,toSize) \
+	((((exp) >> (fromSize-1)) & 1) ? ((exp) | (MASK_N_BITS(toSize-fromSize) << fromSize)) : (exp))
+
+/*********** Implementation related macros ************/
+
+/*make a mask of 'n' bits */
+#define MASK_ASSIGN(from,to) (((1 << ((from)-(to)+1))-1) << to)
+/* bit field assignation */
+#define FIELD_ASSIGN(leftExp,from,to,rightExp) ((leftExp & ~MASK_ASSIGN(from,to)) | ((rightExp << to) & MASK_ASSIGN(from,to)))
+/*make a mask of 'n' bits */
+#define MASK_ASSIGN_ONE_BIT(bit) (1<<(bit))
+#define FIELD_ASSIGN_ONE_BIT(leftExp,bit,rightExp) ((leftExp & ~MASK_ASSIGN_ONE_BIT(bit)) | ((rightExp << bit) & MASK_ASSIGN_ONE_BIT(bit)))
+
+#endif
+

@@ -1,0 +1,151 @@
+%
+
+let defaultFetchDeclare := ""
+let defaultFetchParam := ""
+if HAS_USER_FETCH then
+  let defaultFetchDeclare := ", const bool defaultFetch"
+  let defaultFetchParam := ", defaultFetch"
+end if
+
+
+
+#decoder related files -> format
+write to MODELNAME."/instDecoder.h":
+  template instDecoder_h in isa
+end write
+write to MODELNAME."/instDecoder.cpp":
+  template instDecoder_cpp in isa
+end write
+%instDecoder.cpp \\\n%
+
+write to MODELNAME."/instDecoderCache.h":
+  template instDecoderCache_h in isa
+end write
+write to MODELNAME."/instDecoderCache.cpp":
+  template instDecoderCache_cpp in isa
+end write
+%instDecoderCache.cpp \\\n%
+
+# instruction constructor -> format
+let instContructorParam := emptyMap
+foreach inst in INST_CONSTRUCTOR do
+  #declaration
+  let param := "(const ".PC_C_TYPE." pc, "
+  loop chunk from 1 to inst::codeLength 
+  do
+    let param := param."const ".INST_DEFAULT_SIZE_C_STR." chunk".[chunk string]
+  between
+    let param := param.", "
+  end loop
+  let param := param.")"
+  let instContructorParam[inst::name] := param
+end foreach
+
+write to MODELNAME."/instConstruct.cpp":
+  template instConstruct_cpp in isa
+end write
+%instConstruct.cpp \\\n%
+
+let branchInstMap := emptyMap #list of inst that perform a branch.
+if exists branchInstList then
+  let branchInstMap := mapOf branchInstList by name
+end if
+
+# Data Dependancy Controller related stuff :> used to get 
+# register file access
+let DDCReagisterFileAccessTypeMap := emptyMap
+if exists DDCReagisterFileAccessType then
+  let DDCReagisterFileAccessTypeMap := mapOf DDCReagisterFileAccessType by name
+end if
+# classical registers access
+let DDCClassicRegsUsageMap := emptyMap
+if exists DDCClassicRegsUsage then
+  let DDCClassicRegsUsageMap := mapOf DDCClassicRegsUsage by name
+end if
+
+#instruction class definition -> most parts from format.
+write to MODELNAME."/instructionBase.h":
+  template instructionBase_h in isa
+end write
+write to MODELNAME."/instructionBase.cpp":
+  template instructionBase_cpp in isa
+end write
+%instructionBase.cpp \\\n%
+write to MODELNAME."/instruction.h":
+  template instruction_h in isa
+end write
+
+#timing instruction (i.e. timing associated to one instruction, independant of the u-arch)
+let timingInstMap := emptyMap
+if exists timingInstList then
+  let timingInstMap := mapOf timingInstList by name
+end if
+
+#instruction execution -> behavior
+#split file each 'nbInstMax' instructions.
+let nbInstMax := 400
+if exists instCodeList then #not defined for 'no behavior' option.
+  let instCodeListTmp := emptyList
+  let nb := 0
+  let nbFile := 1
+  foreach inst in instCodeList do
+    let instCodeListTmp += inst
+    let nb := nb + 1
+    if nb == nbInstMax then
+      #generate in a file.
+      write to MODELNAME."/instExec-".[nbFile string].".cpp":
+        template instExec_cpp in isa
+      end write
+      %instExec-%![nbFile string]%.cpp \\\n%
+      #reinit
+      let instCodeListTmp := emptyList
+      let nb := 0
+      let nbFile := nbFile+1
+    end if
+  end foreach
+  #final part.
+  write to MODELNAME."/instExec-".[nbFile string].".cpp":
+    template instExec_cpp in isa
+  end write
+  %instExec-%![nbFile string]%.cpp \\\n%
+end if #'no behavior' option.
+#instruction that do not have any behavior.
+write to MODELNAME."/instWithoutExec.cpp":
+  template instWithoutExec_cpp in isa
+end write
+%instWithoutExec.cpp \\\n%
+
+
+#instruction mnemonic -> syntax part
+#instruction execution -> behavior
+#split file each 'nbInstMax' instructions.
+if exists instMnemoList then #not defined for 'no disassemble' option.
+  let instMnemoListTmp := emptyList
+  let nb := 0
+  let nbFile := 1
+  foreach inst in instMnemoList do
+    let instMnemoListTmp += inst
+    let nb := nb + 1
+    if nb == nbInstMax then
+      #generate in a file.
+      write to MODELNAME."/instMnemo-".[nbFile string].".cpp":
+        template instMnemo_cpp in isa
+      end write
+      %instMnemo-%![nbFile string]%.cpp \\\n%
+      #reinit
+      let instMnemoListTmp := emptyList
+      let nb := 0
+      let nbFile := nbFile+1
+    end if
+  end foreach
+  #final part.
+  write to MODELNAME."/instMnemo-".[nbFile string].".cpp":
+    template instMnemo_cpp in isa
+  end write
+  %instMnemo-%![nbFile string]%.cpp \\\n%
+end if #'no disassemble' option.
+#instruction that do not have any syntax
+write to MODELNAME."/instWithoutMnemo.cpp":
+  template instWithoutMnemo_cpp in isa
+end write
+%instWithoutMnemo.cpp \\\n%

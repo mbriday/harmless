@@ -1,0 +1,52 @@
+%template headerC%
+#ifndef __I_HEX_READER_H__
+#define __I_HEX_READER_H__
+
+#include <stdio.h> //FILE
+#include "codeReader.h"
+#include "types.h"
+
+#define IHR_BUF_SIZE 256
+
+class arch;
+
+//TODO: remove old 'C' style FILE* and replace with
+// c++ streams.
+class iHexReader : public codeReader
+{
+	
+	private:
+	//to store a line
+	char m_buf[IHR_BUF_SIZE];
+	//to store the decoded line
+	u8 m_chunk[IHR_BUF_SIZE / 2];	
+	
+	bool m_eof;
+	u32 m_offset;
+	FILE *m_file;
+	
+	bool isCorrectFileFormat();
+	u8 readByte(u8 &index);
+	u8 char2hex(char c);
+
+	/** @return true if the previous read_line returned a EOF record */
+	bool eof() {return m_eof;};
+	/** read a line in Intel Hex format. 
+	  * @return the data in a u8 * tab.
+	  * it updates address and length
+	  */
+	u8 *readLine(u32 &address, u8 &length);
+	
+	public:
+	iHexReader();
+	iHexReader(const iHexReader&);
+    iHexReader &operator=(const iHexReader&);
+	virtual ~iHexReader() {};
+	/** read the file and update simulator program memory
+	 *  @return true if there is no problem.
+	 */
+	virtual bool readFile(const char * filename, arch *_arch, const bool verbose);	
+};
+
+#endif
+

@@ -1,0 +1,11 @@
+%
+
+#very simple peripherals...
+write to MODELNAME."/peripherals.h":
+  template peripherals_h in peripherals
+end write
+
+write to MODELNAME."/peripherals.cpp":
+  template peripherals_cpp in peripherals
+end write
+%peripherals.cpp \\\n%

@@ -1,0 +1,47 @@
+###############################
+# README Benchmark 23/06/2010 #
+# by Arnaud LEFRAY            #
+###############################
+
+
+This directory is usefull to calculate execution time difference 
+between Harmless sim and Qemu.
+
+
+-> How to install Qemu ?
+Go to Qemu website download page (http://wiki.qemu.org/Download).
+Get the last source release (0.12.4 when i'm writing this).
+Built it by tapping "make" in the correct directory.
+Make sure qemu exec is added to the path.
+
+
+Ok, you're ready !
+
+-> How do i use this benchmark ?
+First, open the file "benchmark".
+The only line which need to be changed is "DIRECTORIES=(dir1 dir2 dir3 dir…)".
+Modify it by the directories you want to bench (only "N°-name" directories).
+Then, execute ./benchmark, it'll write results in "resultats64.txt".
+
+-> How is it organize ?
+"N°-name" is a directory with a benchmark. It contains "sources" and "perf".
+"qemu" contains a specific directory with scripts for qemu (stop it …).
+"templates" contains original scripts.
+"instructions" contains benchmark per instructions type (add, sub …) only for Harmless sim.
+
+-> How can i create a new "N°-name" directory ?
+Mkdir his name !
+Create a dir named "sources" and add into all your code files.
+There are 3 templates : script.ld, crt0.s, Makefile_for_benchmark.
+Make sure your project contains the code written in "templates/qemu_stop_code.c".
+and don't forget to call the function to stop Qemu.
+Create "perf" file as described in templates/perf_for_benchmark.
+
+-> How can i create a new instruction test ?
+Create in "instructions" a new directory and add into your code files.
+There are 3 templates : script.ld, crt0.s, Makefile_for_instructions.
+
+-> How can i use instructions tests ?
+Just execute ./perf
+To add an other test, edit "perf" and follow existing examples.
+There is a template named perf_for_instructions.

@@ -1,0 +1,107 @@
+%!TEX root = ./main.tex
+%!TEX encoding = UTF-8 Unicode
+\chapter{GDB interface}
+\section{Introduction}
+\h{} offers three ways of acting on the simulator : two APIs (C and Python) and
+the GDB interface. The interface allows to use any tool that have been built on
+GDB : IDE integration (eclipse) and GUI like {\tt ddd} for example.
+
+When built for GDB, the simulator acts like a GDB server on which any GDB client
+(intended for your target) can connect. The simulated program can be debugged as
+any program.
+
+In order to use the GDB interface, two things are needed :
+\begin{itemize}
+	\item a modified description to include GDB specific informations.
+	\item a version of GDB compiled to target the described platform.
+\end{itemize}
+
+\section{GDB interface description}
+The GDB specific informations are gathered in a component (see section
+\ref{sec:component}). The default component must be modified to specify
+which component is the GDB component : use the {\tt debug} attribute.
+\begin{lstlisting}
+	 debug := avrgdb
+\end{lstlisting}
+
+This component must have five methods :
+\begin{lstlisting}
+  u8 read8(u32 v_addr)
+  void write8(u32 v_addr, u8 val)
+  u8 getNBRegister()
+  u32 getRegister(u8 id, out u8 sizeInBits)
+  void setRegister(u8 id, u32 value)
+\end{lstlisting}
+
+Between the client and the server, GDB uses a protocol called Remote Serial
+Protocol\footnote{\url{http://sourceware.org/gdb/current/onlinedocs/gdb_37.html\#SEC673}}.
+It specify how data and instructions are transfered between the server and the
+client. Registers are identified by a number and memories are mapped in only one
+memory space. These methods link this protocol and the description and are
+called by the code imitating the GDB server.
+
+\begin{lstlisting}
+  u8 read8(u32 v_addr)
+\end{lstlisting}
+This method has a "virtual" address as input and return the value contained at
+this address. The virtual address is used by GDB to differentiate the memories
+(RAM,ROM) which may have the same absolute address (on Harvard architecture for
+example).
+The GDB command {\tt info mem} may give the informations to write this method.
+
+\begin{lstlisting}
+  void write8(u32 v_addr, u8 val)
+\end{lstlisting}
+This method write {\tt val} at {\tt v\_addr} address. For example, in the AVR
+model, the addresses below {\tt 0x8000000} are in the RAM, and over {\tt
+0x8000000} are in the ROM.
+The GDB command {\tt info mem} may give the informations to write this method.
+
+\begin{lstlisting}
+  u8 getNBRegister()
+  u32 getRegister(u8 id, out u8 sizeInBits)
+  void setRegister(u8 id, u32 value)
+\end{lstlisting}
+
+These methods are used by the GDB server to get/modify registers value in its order.
+{\tt getNBRegister()} returns the number of register that are
+transmitted between GDB client and server.
+{\tt getRegister()} take an register number as
+input {\tt id}, returns the value of the register and set
+{\tt sizeInBits} to the value that is required by the
+client. {\tt setRegister()} sets the register
+{\tt id} to {\tt value}. For all these methods, the register number
+is the number of the register in the order defined for the protocol between
+client and server.
+
+Some informations about these numbers may be found in  GDB sources. For the PPC
+model : {\tt gdb/regformats/reg-ppc.dat} and for the AVR  model {\tt
+gdb/avr-tdep.c}. The GDB command {\tt info register} or {\tt info all-registers}
+may also give some useful informations on registers order and size. In order to
+debug the GDB server, it can be build with the {\tt DEBUG} defined, it will dump
+all the communication between client and server. For an example, look at the PPC
+or AVR model in the SVN of Harmless.
+
+\section{Short introduction to remote debugging on the simulator}
+
+First, generate the sources and compile the GDB interface, with {\tt make gdb}.
+
+Then launch the GDB server with {\tt <model\_name>\_gdb -f <executable> -p
+<port>}. The program is started and stopped before the first instruction,
+waiting for GDB orders. Then in GDB:
+\begin{verbatim}
+# Sometimes architecture must be set in GDB
+set architecture powerpc:750
+
+target remote :<port> # Connect to the server
+info register         # Display the value of common registers
+b my_function         # Add a breakpoint in my_function()
+c                     # continu the simulation
+# ... Simulation breaks at my_function()
+bt                    # Display backtrace
+print i               # Display the value of the i variable
+x 42                  # examine memory at address 42
+\end{verbatim}
+
+More information about GDB command, are available in the GDB
+manual\footnote{\url{http://sourceware.org/gdb/current/onlinedocs/gdb_4.html\#SEC14}}

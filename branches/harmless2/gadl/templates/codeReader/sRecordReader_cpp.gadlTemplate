@@ -1,0 +1,184 @@
+%template headerC%
+#include <stdio.h>
+#include <string.h>
+#include <iostream>
+#include "storage.h"
+#include "arch.h"
+#include "sRecordReader.h"
+
+using namespace std;
+sRecordReader::sRecordReader(const sRecordReader& sr)
+: m_file(sr.m_file)
+{
+}
+
+sRecordReader &sRecordReader::operator=(const sRecordReader& sr)
+{
+	m_file = sr.m_file;
+	return *this;
+}
+
+unsigned sRecordReader::char2hex(const char c)
+{
+  if (c >= '0' && c <= '9') {
+    return (unsigned) c - '0';
+  }
+  else
+  if (c >= 'A' && c <= 'F') {
+    return (unsigned) c - 'A' + 10;
+  }
+  else
+  if (c >= 'a' && c <= 'f') {	//modified
+    return (unsigned) c - 'a' + 10;
+  }
+  else {
+    return 0;
+  }
+}
+
+unsigned sRecordReader::str2hex(const char* str, unsigned len)
+{
+  unsigned result = 0L;
+  if (len  < 9) {
+    unsigned idx = 0;
+    while ((str[idx] != '\0') && (idx < len)) {
+      result <<= 4;
+      result |= char2hex(str[idx]);
+      idx++;
+    }
+  }
+  return result;
+}
+
+u8* sRecordReader::readSLineFrom(u32& addr, u32& size, char& stype)
+{
+  static char buf[SRR_BUF_SIZE];
+  static u8 chunk[SRR_BUF_SIZE / 2];
+  bool ok = (fgets(buf,SRR_BUF_SIZE,m_file) != NULL);
+  if (ok) {
+  
+    u32 len;
+    u32 add_size;
+    
+    if (strncmp(buf,"S0",2) == 0) {
+      stype = '0';
+      size = 0;
+      return chunk;
+    }
+    else
+    if (strncmp(buf,"S1",2) == 0) {
+      stype = '1';
+      addr = str2hex(buf+4,4);
+      add_size = 4;
+    }
+    else
+    if (strncmp(buf,"S2",2) == 0) {
+      stype = '2';
+      addr = str2hex(buf+4,6);
+      add_size = 6;
+    }
+    else
+    if (strncmp(buf,"S3",2) == 0) {
+      stype = '3';
+      addr = str2hex(buf+4,8);
+      add_size = 8;
+    }
+    else
+    if (strncmp(buf,"S7",2) == 0) {
+      stype = '7';
+      addr = str2hex(buf+4,8);
+      size = 0;
+      return chunk;
+    }
+    else {
+      stype = '?';
+      size = 0;
+      return chunk;
+    }
+      
+        
+    len = (str2hex(buf+2,2) - 1) * 2 - add_size;
+    
+   // printf("Longueur = \%d\\n",len);
+    
+    char* ubuf = buf + 4 + add_size;
+    size = len / 2;
+    for (unsigned int i = 0; i < len; i += 2) {
+      u8 byte = str2hex(ubuf + i, 2);
+ //     printf ("\%X = \%X\\n",addr,byte);
+ //     char c = getchar();
+      chunk[i>>1] = byte;
+    }
+	//cout << "type : " << stype << endl;
+    return chunk;
+  }
+  else {
+    return NULL;
+  }
+}
+
+bool sRecordReader::isCorrectFileFormat()
+{
+	bool result = false;
+	//check that file begins with 'S0'.
+	char buf[4];
+	if(fgets(buf,4 ,m_file))
+	{
+		result = strncmp(buf,"S0",2) == 0;
+		rewind(m_file);
+	}
+	return result;
+}
+
+bool sRecordReader::readFile(const char * filename, arch *_arch, const bool verbose)
+{
+	u32 address; 
+	u32 code_size = 0;
+	u32 size;
+	storage *chunk; 
+	char stype; // type in SRecord line
+	bool ok = true;
+	FILE* codeFile = fopen(filename, "r");
+	m_file = codeFile;
+	if(codeFile != NULL)
+	{
+		if(isCorrectFileFormat())
+		{
+			if(verbose) cout << "open SRecord code file " << filename << "..." << flush;
+
+			// skip the S0
+			if (readSLineFrom(address, size, stype)) {
+				while (u8* code = readSLineFrom(address,size,stype)) 
+				{
+					if (size > 0) 
+					{
+						for (u32 i = 0; i < size; i++) 
+						{
+							const u32 addrLink = _arch->linkerAddressTranslation(address + i);
+							chunk = _arch->getProgramChunk(addrLink);
+							if(chunk == NULL) // error, no memory!
+							{
+								ok = false;
+								cerr << "No memory chunk at address " << hex << addrLink << " to load the program file" << endl;
+							} else chunk -> put8AtAddr(addrLink, code[i]);
+							//cout << "code at " << hex << addrLink << endl;
+							code_size ++;
+						}
+					}
+				}
+			} else {
+				if (stype == '7') 
+				{
+					_arch->setProgramCounter(address);
+				}
+			}
+			//a program is loaded, the cpu exits from infinite loop.
+			if(ok && verbose) cout  << code_size << " bytes read." << endl;
+			fclose(codeFile);
+		} else {ok = false;} //file format is not Srecord.
+	} else {
+		std::cerr << "ERROR: can't open program file." << std::endl;
+		ok = false;
+	}
+	return ok;
+}

@@ -1,0 +1,136 @@
+semantics gadl_semantics_architecture:
+  import "gadl_options.gOption" ;
+  import "gadl_semantics.gSemantics" ;
+  import "gadl_semantics_hard_arch.gSemantics" ;
+  import "gadl_semantics_hard_pipeline.gSemantics" ;
+
+#This structure is deducted from the pipeline data structures. It is a sequence of simple pipelines
+#that is in an instruction path. Example:
+#  consider the pipeline (a|b),c,(d|e). One @instructionPipelinePath is a-c-d
+list @instructionPipelinePath
+{
+  @simplePipeline pipeline;
+}
+
+#This structure collects ALL the sequential simple pipelines that may be taken by instructions.
+#  consider the pipeline (a|b),c,(d|e). The @instructionPipelinePathList contains 4 items
+#  a-c-d, a-c-e, b-c-d, b-c-e.
+list @instructionPipelinePathList
+{
+  @instructionPipelinePath instructionPath;
+}
+
+#This map stores all sequential pipelines for all machines. 
+map @instructionPipelinePathListForMachine
+{
+  @instructionPipelinePathList ippList;
+  insert insertKey error message "[internal error] the '%K' ipplist is already defined in %L" ; 
+  search searchKey error message "[internal error] the '%K' ipplist is not defined in map" ;
+}
+
+#debug purpose. Just give the pipeline string: a-c-d
+# OK CHECKED.
+routine getInstructionPipelinePathString
+  ?? @instructionPipelinePath ipp
+  !  @string str
+:
+  str := "";
+  foreach ipp (@simplePipeline sp) do
+    str .= [[sp mPipelineName] string];
+    if [[sp mPipelineAlias] string] != "" then
+      str .= "(".[[sp mPipelineAlias] string].")";
+    end if;
+  between
+    str .= "-";
+  end foreach;
+end routine;
+
+#this routine get ALL the sequential simple pipelines that may be taken by instructions from 
+#a pipeline expression. (recursive routine).
+# the 'node' is the root of the pipelineExpression (found in the machineMap)
+# the instructionPipelinePathList is should have one element at the beginning (an empty instructionPipelinePath)
+# It is then populated in the routine.
+# OK CHECKED.
+routine getInstructionPipelinePath
+  ?? @pipelineExpression node
+  ?! @instructionPipelinePathList instructionPipelinePathList
+:
+  cast node
+  when == @simplePipeline sp :
+    #This is a simple pipeline. Add it to ALL items of the instructionPipelinePathList.
+    @instructionPipelinePathList ippl [emptyList];
+    foreach instructionPipelinePathList (@instructionPipelinePath instructionPath) do
+      @instructionPipelinePath newInstructionPath := instructionPath;
+      newInstructionPath += !sp;
+      ippl += !newInstructionPath;
+    end foreach;
+    instructionPipelinePathList := ippl;
+  when == @pipelineSequence ps :
+    #sequence, propagation to the left and right nodes.
+    getInstructionPipelinePath ![ps mLeftOperand]  !?instructionPipelinePathList;
+    getInstructionPipelinePath ![ps mRightOperand] !?instructionPipelinePathList;
+  when == @pipelineParallel pp :
+    #parallel. Duplicate the list.
+    @instructionPipelinePathList ipplRight := instructionPipelinePathList;
+    getInstructionPipelinePath ![pp mLeftOperand]  !?instructionPipelinePathList;
+    getInstructionPipelinePath ![pp mRightOperand] !?ipplRight;
+    foreach ipplRight (@instructionPipelinePath instructionPath) do
+      instructionPipelinePathList += !instructionPath;
+    end foreach;
+  else
+    error here: "internal error: Cannot handle pipeline data type.";
+  end cast;
+end routine;
+
+
+
+#This routine checks that instructions can map on the pipeline model:
+#first, we have to get instruction flow inside sequential pipelines.
+#  consider the pipeline (a|b),c,(d|e), the different paths are
+#  a-c-d, a-c-e, b-c-d, b-c-e.
+#second, we have to get, for each instruction, the ordered list of components methods used.
+#third, we have to map all these instructions onto 1 of the pipeline path.
+routine extractPipelinePaths
+  ?? @machineMap machine
+  !  @instructionPipelinePathListForMachine ippListMap
+:
+  ippListMap := [@instructionPipelinePathListForMachine emptyMap];
+  foreach machine(@lstring machineName @pipelineExpression pipelineExpression) do
+    #first, get instruction pipeline paths.
+    @string ioChaine := "";
+    [pipelineExpression parcours !?ioChaine];
+    if [option .verbose_output value] then
+      message "machine '".machineName."' have the pipeline ".ioChaine."\n";
+    end if;
+    @instructionPipelinePathList instructionPipelinePathList [emptyList];
+    @instructionPipelinePath ipp [emptyList];
+    instructionPipelinePathList += !ipp;
+    getInstructionPipelinePath !pipelineExpression !?instructionPipelinePathList;
+    if [option .verbose_output value] then
+      message "instruction paths are\n";
+      foreach instructionPipelinePathList (@instructionPipelinePath instructionPath) do
+        @string str;
+        getInstructionPipelinePathString !instructionPath ?str;
+        message "\t".str."\n";
+      end foreach;
+    end if;
+    [!?ippListMap insertKey !machineName !instructionPipelinePathList];
+  end foreach;
+end routine;
+
+function isDevicePortShared
+  ?? @architectureMap architectureMap
+  ?? @lstring archName
+  ?? @lstring deviceName
+  ?? @lstring portName
+  -> @bool isShared
+:
+  @deviceMap deviceMap;
+  @portMap portMap;
+  [architectureMap searchKey !archName ?deviceMap ?*];
+  [deviceMap searchKey !deviceName ?* ?portMap ?* ?*];
+  [portMap searchKey !portName ?isShared ?*];
+end function;
+
+end semantics;
+# vim:ft=ggs:ts=2:sw=2

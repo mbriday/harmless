@@ -1,0 +1,232 @@
+%template headerC%
+#ifndef __%!MODELNAME%_TYPE_H__
+#define __%!MODELNAME%_TYPE_H__
+
+#include <ostream>
+
+typedef unsigned long long u64;
+typedef unsigned int       u32;
+typedef unsigned short     u16;
+typedef unsigned char      u8;
+
+typedef signed long long   s64;
+typedef signed int         s32;
+typedef signed short       s16;
+typedef signed char        s8;
+typedef unsigned int hash_length;
+
+#ifndef HOST64
+
+class u128 {
+	u64 m_high;
+	u64 m_low;
+	public:
+		//constructor
+		u128(const u64 & high, const u64 & low) : m_high(high), m_low(low) {};
+		u128(const u64 & low) : m_high(0), m_low(low) {};
+		//empty constructor
+		u128() : m_high(0), m_low(0) {};
+		//copy constructor
+		u128 &operator=(const u128 &from) {
+			m_low = from.m_low;
+			m_high = from.m_high;
+			return *this;
+		};
+		//copy constructor
+		u128 &operator=(const u64 &from) {
+			m_low = from;
+			m_high = 0;
+			return *this;
+		};
+		//equality
+		bool operator==(const u128 &other) const{
+			return (other.m_low == m_low && other.m_high == m_high);
+		};
+		bool operator==(const u64 &other) const{
+			return (other == m_low && m_high == 0);
+		};
+		bool operator==(const u32 &other) const{
+			return (other == m_low && m_high == 0);
+		};
+		
+		//non-equality
+		bool operator!=(const u128 &other) const{
+			return !(*this == other);
+		};
+		bool operator!=(const u64 &other) const{
+			return !(*this == other);
+		};
+		bool operator!=(const u32 &other) const{
+			return !(*this == other);
+		};
+		
+		//comparison
+		bool operator<(const u128 &v2) const;
+		bool operator<(const u64 &v2) const;
+		bool operator>(const u128 &v2) const;
+		bool operator>(const u64 &v2) const;
+		bool operator>=(const u128 &v2) const;
+		bool operator>=(const u64 &v2) const;
+		inline friend bool operator>=(const u64 &v1, const u128 &v2) {return v2.operator<(v1);};
+
+		//addition
+		u128 operator+(const u128 &v2) const;
+		u128 operator+(const u64 &v2) const;
+		friend inline u128 operator+(const u64 &v1, const u128 &v2) {u128 result = v2; return result.operator+(v1);};
+		
+		//+=
+		u128 &operator+=(const u128& v2);
+		u128 &operator+=(const u64& v2);
+		//-=
+		u128 &operator-=(const u128& v2);
+		u128 &operator-=(const u64& v2);
+		
+		//++
+		u128 &operator++(void);
+		//--
+		u128 &operator--(void);
+		
+		//&
+		u128 operator&(const u128 &v2) const;
+		u128 operator&(const u64 &v2) const;
+		u128 operator&(const u32 &v2) const;
+		friend inline u128 operator&(const u64 &v1, const u128 &v2) {u128 result = v2; return result.operator&(v1);};
+		
+		//|
+		u128 operator|(const u128 &v2) const;
+		u128 operator|(const u64 &v2) const;
+		u128 operator|(const u32 &v2) const;
+		friend inline u128 operator|(const u64 &v1, const u128 &v2) {u128 result = v2; return result.operator&(v1);};
+
+		//shift
+		u128 operator<<(const u32 & val) const;
+		u128 operator<<(const u64 & val) const;
+	   friend inline u128 operator<<(const u64 &v1, const u128 &v2) {u128 result = v1; return result.operator<<(v2.m_low);};
+		u128 operator>>(const u32 & val) const;
+		u128 operator>>(const u64 & val) const;
+		friend inline u128 operator>>(const u64 &v1, const u128 &v2) {u128 result = v1; return result.operator>>(v2.m_low);};
+		
+		//print
+		friend std::ostream& operator<<(std::ostream& out, const u128& val);
+		//substraction
+		u128 operator-(const u128 &v2) const;
+		u128 operator-(const u64 &v2) const;
+		friend inline u128 operator-(const u64 v1, const u128 &v2) {u128 result = v2; return result.operator-(v1);};
+		
+		//multiplication
+		u128 operator*(const u128 &v2) const;
+		u128 operator*(const u64 &v2) const;
+		friend inline u128 operator*(const u64 v1, const u128 &v2) {u128 result = v2; return result.operator*(v1);};
+		
+		//division
+		u128 operator/(const u128 &v2) const;
+		u128 operator/(const u64 &v2) const;
+		friend inline u128 operator/(const u64 v1, const u128 &v2) {u128 result = v2; return result.operator/(v1);};
+		
+		//cast
+		operator u64() const;
+};
+
+class s128 {
+	s64 m_high;
+	s64 m_low;
+	public:
+		//constructor
+		s128(const s64 & high, const s64 & low) : m_high(high), m_low(low) {};
+		s128(const s64 & low) : m_high(0), m_low(low) {};
+		//empty constructor
+		s128() : m_high(), m_low() {};
+		//copy constructor
+		s128 &operator=(const s128 &from) {
+			m_low = from.m_low;
+			m_high = from.m_high;
+			return *this;
+		}
+		//copy constructor
+		s128 &operator=(const s64 &from) {
+			m_low = from;
+			m_high = 0;
+			return *this;
+		}
+		//equality
+		bool operator==(const s128 &other) const{
+			return (other.m_low == m_low && other.m_high == m_high);
+		}
+		bool operator==(const s64 &other) const{
+			return (other == m_low && m_high == 0);
+		}
+		//non-equality
+		bool operator!=(const s128 &other) const{
+			return !(*this == other);
+		}
+		bool operator!=(const s64 &other) const{
+			return !(*this == other);
+		}
+		//comparison
+		bool operator<(const s128 &v2) const;
+		bool operator<(const s64 &v2) const;
+		bool operator>(const s128 &v2) const;
+		bool operator>(const s64 &v2) const;
+		bool operator>=(const s128 &v2) const;
+		bool operator>=(const s64 &v2) const;
+		inline friend bool operator>=(const s64 v1, const s128 &v2) {return v2.operator<(v1);};
+
+		//addition
+		s128 operator+(const s128 &v2) const;
+		s128 operator+(const s64 &v2) const;
+		friend inline s128 operator+(const s64 &v1, const s128 &v2) {s128 result = v2; return result.operator+(v1);};
+		//+=
+		s128 &operator+=(const s128& v2);
+		s128 &operator+=(const s64& v2);
+		//-=
+		s128 &operator-=(const s128& v2);
+		s128 &operator-=(const s64& v2);
+		
+		//++
+		s128 &operator++();
+		//--
+		s128 &operator--();
+		
+		//&
+		s128 operator&(const s128 &v2) const;
+		s128 operator&(const s64 &v2) const;
+		s128 operator&(const s32 &v2) const;
+		friend inline s128 operator&(const s64 &v1, const s128 &v2) {s128 result = v2; return result.operator&(v1);};
+		
+		//|
+		s128 operator|(const s128 &v2) const;
+		s128 operator|(const s64 &v2) const;
+		s128 operator|(const s32 &v2) const;
+		friend inline s128 operator|(const s64 &v1, const s128 &v2) {s128 result = v2; return result.operator&(v1);};
+
+		//shift
+		s128 operator<<(const u32 & val) const;
+		s128 operator<<(const u64 & val) const;
+	   s128 operator>>(const u32 & val) const;
+		s128 operator>>(const u64 & val) const;
+		
+		//print
+		friend std::ostream& operator<<(std::ostream& out, const s128& val);
+		//substraction
+		s128 operator-(const s128 &v2) const;
+		s128 operator-(const s64 &v2) const;
+		friend inline s128 operator-(const s64 v1, const s128 &v2) {s128 result = v2; return result.operator-(v1);};
+		
+		//multiplication
+		s128 operator*(const s128 &v2) const;
+		s128 operator*(const s64 &v2) const;
+		friend inline s128 operator*(const s64 v1, const s128 &v2) {s128 result = v2; return result.operator*(v1);};
+		
+		//division
+		s128 operator/(const s128 &v2) const;
+		s128 operator/(const s64 &v2) const;
+		friend inline s128 operator/(const s64 v1, const s128 &v2) {s128 result = v2; return result.operator/(v1);};
+};
+
+void test(); //TODO move in the tested object?
+#else //host is 64 bit compliant.
+	typedef __uint128_t u128;
+	typedef __int128_t s128;
+#endif //host64
+#endif
+

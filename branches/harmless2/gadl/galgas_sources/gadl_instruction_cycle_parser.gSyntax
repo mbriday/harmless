@@ -1,0 +1,301 @@
+syntax gadl_instruction_cycle_parser ("gadl_lexique.gLexique") :
+  import "gadl_options.gOption" ;
+  import "gadl_semantics.gSemantics" ; #variables: varMap
+  import "gadl_semantics_instruction_cycle.gSemantics" ;
+  import "gadl_semantics_expression.gSemantics" ;
+  import "gadl_semantics_implementation.gSemantics" ; #@cAddCycleInst
+  import "gadl_components.gSemantics"; #componentMap
+
+#expression related rules
+nonterminal  <expression> 
+  ?? @varMap varMap
+  !  @cExpression outExp 
+  ?? @componentMap componentMap
+  ?? @uint tmpId
+  ?? @expressionContext expContext
+;
+
+nonterminal  <componentMethodCall> 
+  !  @lstring methodName 
+  !  @parameterCallList param 
+  ?? @varMap varMap
+  ?? @componentMap componentMap
+  ?? @lstring componentName
+  !  @bool isBitRegisterAccess
+  ?? @bool checkParameters
+  ?? @expressionContext expContext
+;
+
+#implementation part.
+nonterminal  <declaration>  
+  ?! @varMap varMap 
+  ?! @instructionList instList 
+  ?? @componentMap componentMap
+  ?? @lstring currentComponent
+  ?? @string prefix
+  ?! @uint tmpId
+  ?? @expressionContext expContext
+;
+
+nonterminal <errorHandling>
+  ?? @varMap varMap 
+  ?! @instructionList instList
+  ?? @componentMap componentMap
+;
+
+rule <instCycleBody>
+  ?! @instCycleChunkList chunkList
+  ?! @uint internalInstCycleId
+  ?? @componentMap componentMap
+  ?! @instCycleMap instCycleMap
+:
+  repeat
+  while
+    @lstring ref;
+    $reference$ ?ref;
+    @refInstCycle refT := [@refInstCycle new !ref];
+    chunkList += !refT;
+  while
+    @varMap varMap [emptyMap];
+    @instructionList instList;
+    <instCycleDoSection> !varMap !componentMap ?instList;
+    @instCycleImplementation impl := [@instCycleImplementation new ! instList];
+    chunkList += !impl;
+  while
+    @instCycleMethodOrRegAccess instCycleMethodOrRegAccess;
+    @instructionList instList [emptyList];
+    <instCycleMethodAccess> ?instCycleMethodOrRegAccess !componentMap;
+    chunkList += ! instCycleMethodOrRegAccess;
+  while
+    @idfInstCycle idfSelectInstCycle;
+    <selectInstCycle> !?internalInstCycleId !componentMap !?instCycleMap ? idfSelectInstCycle;
+    chunkList += ! idfSelectInstCycle;
+  while
+    @idfInstCycle idfInstCycle;
+    <anotherInstCycleCall> ? idfInstCycle;
+    chunkList += !idfInstCycle;
+  end repeat;
+end rule;
+
+rule  <selectInstCycle>
+  ?! @uint internalInstCycleId
+  ?? @componentMap componentMap
+  ?! @instCycleMap instCycleMap
+  !  @idfInstCycle idfSelectInstCycle
+:
+  $select$;
+  @lstring selectName := [@lstring new !"select_instCycle_".[internalInstCycleId string] !here];
+  internalInstCycleId := internalInstCycleId + 1;
+  @instCycleChunkList selectChunkList [emptyList];
+  repeat
+  while
+    $case$;
+      #inside a 'case' is a new aggregate.
+      @lstring caseAggregateName := [@lstring new !"instCycle_case_".[internalInstCycleId string] !here];
+      internalInstCycleId := internalInstCycleId + 1;
+      @instCycleChunkList caseChunkList [emptyList];
+      <instCycleBody> !?caseChunkList !?internalInstCycleId !componentMap !?instCycleMap;   
+      #create the "aggregate"
+      @aggInstCycle agg := [@aggInstCycle new !caseChunkList];
+      [!?instCycleMap insertKey !caseAggregateName ! agg];
+      #update the alternative to call the new alternative syntax.
+      @lstring postRefName := [@lstring new !"" !here]; #no post ref name (@...).
+      @idfInstCycle idfInstCycle := [@idfInstCycle new !caseAggregateName !postRefName];
+      selectChunkList += !idfInstCycle;
+  end repeat;
+  @altInstCycle selectT := [@altInstCycle new !selectChunkList];
+  [!?instCycleMap insertKey !selectName !selectT];
+  $end$; $select$;
+  @lstring postRefName := [@lstring new !"" !here]; #no post ref name (@...).
+  idfSelectInstCycle := [@idfInstCycle new !selectName !postRefName];
+end rule;
+
+rule  <anotherInstCycleCall>
+  !  @idfInstCycle idfInstCycle
+:
+  @lstring postRefName;
+  @lstring idf;
+  $idf$ ? idf;
+  select
+    #no post ref name.
+    postRefName := [@lstring new !"" !here];
+  or
+    $postReference$ ? postRefName;
+  end select;
+  idfInstCycle := [@idfInstCycle new !idf !postRefName];
+end rule;
+
+#This rule is used to add cycles for one instruction.
+rule  <addCycles>
+  ?? @varMap varMap 
+  ?! @instructionList instList 
+  ?? @componentMap componentMap
+:
+  $add$;
+  @cExpression exp;
+  @varType outType;
+  <expression>  !varMap ?exp !componentMap !0 ![@expressionContext instCycle];
+  checkOneExpressionOutType !exp ?outType;
+  @cAddCycleInst inst := [@cAddCycleInst new !here !exp];
+  instList += !inst;
+  $cycle$;
+end rule;
+
+rule <instCycleDoSection>
+  ?? @varMap varMap
+  ?? @componentMap componentMap
+  !  @instructionList instList 
+:
+    $do$; 
+    @varMap instCycleVarMap := [@varMap mapWithMapToOverride !varMap];
+    instList := [@instructionList emptyList];
+    select
+      or
+      <instCycleImplementation> !?instCycleVarMap !?instList !componentMap;
+    end select;
+    $end$;
+    $do$; 
+end rule;
+
+rule <instCycleImplementation> 
+  ?! @varMap varMap 
+  ?! @instructionList instList
+  ?? @componentMap componentMap
+:
+  @uint tmpId := 0; #used to get unique tmp variable.
+  #declaration before implementation.
+  repeat
+  while
+    @string prefix := ""; #local var. No prefix.
+    #should not be used : instCycle defined outside components
+    @lstring currentComponent := [@lstring new !"compInInstCycle" !here];
+    <declaration> !?varMap !?instList !componentMap !currentComponent !prefix !?tmpId ![@expressionContext instCycle];
+  end repeat;
+  <instCycleImplementationWithoutDeclaration> !? varMap !? instList !componentMap;
+end rule;
+
+rule <instCycleImplementationWithoutDeclaration> 
+  ?! @varMap varMap 
+  ?! @instructionList instList
+  ?? @componentMap componentMap
+:
+  #declaration before implementation.
+  repeat
+    select
+      <instCycleIfBloc> !varMap !?instList !componentMap;
+    or
+      <addCycles> !varMap !?instList !componentMap;
+    or
+      <errorHandling> !varMap !?instList !componentMap;
+    end select;
+  while
+  end repeat;  
+end rule;
+
+rule <instCycleMethodAccess>
+  !  @instCycleMethodOrRegAccess instCycleMethodOrRegAccess
+  ?? @componentMap componentMap
+: #should be updated for registers (read and write accesses).
+  $if$;
+  @varMap instCycleMethodVarMap [emptyMap] ;
+  select
+    @lstring methodName;
+    @lstring componentName;
+    $use$;
+    $idf$ ?componentName ; 
+    $.$; 
+    <componentMethodCall> ?methodName ?* !instCycleMethodVarMap !componentMap !componentName ?* !false ![@expressionContext instCycle];
+    @instructionList WhenInstructionList := [@instructionList emptyList];
+    $then$;
+    <instCycleImplementation> !?instCycleMethodVarMap !?WhenInstructionList !componentMap;
+    instCycleMethodOrRegAccess := [@instCycleMethodAccess new !WhenInstructionList !componentName !methodName];
+  or
+    @lstring regName;
+    @bool read;
+    select
+      $read$;
+      read := true;
+    or
+      $write$;
+      read := false;
+    end select;
+    $idf$ ?regName ; 
+    @instructionList WhenInstructionList := [@instructionList emptyList];
+    $then$;
+    <instCycleImplementation> !?instCycleMethodVarMap !?WhenInstructionList !componentMap;
+    instCycleMethodOrRegAccess := [@instCycleRegAccess new !WhenInstructionList !read !regName];
+  end select;
+  $end$; 
+  $if$;
+
+end rule;
+
+rule <instCycleIfExpression>
+  ?? @varMap varMap 
+  !  @cExpression exp
+  !  @varType outType
+  ?? @componentMap componentMap
+:
+  select
+    <expression> !varMap ?exp !componentMap !0 ![@expressionContext instCycle];
+    checkOneExpressionOutType !exp ?outType;
+  or
+    $jumpTaken$;
+    outType := [@varType new ![@varKind unsigned] !1 !here]; #u1 <=> bool
+    exp := [@cExpDummy new !getTypeListFrom[!outType] !"jumpTaken()"];
+  end select;
+end rule;
+
+# if block, with elseif and else blocks.
+rule <instCycleIfBloc>
+  ?? @varMap varMap 
+  ?! @instructionList instList
+  ?? @componentMap componentMap
+:
+  $if$;
+  @cExpression expIf;
+  @varType outTypeIf;
+  <instCycleIfExpression>  !varMap ?expIf ?outTypeIf !componentMap;
+  checkBool !outTypeIf !here;
+  $then$;
+  @varMap ifVarMap := [@varMap mapWithMapToOverride !varMap] ;
+  @instructionList IfInstructionList := [@instructionList emptyList];
+  <instCycleImplementation> !?ifVarMap !?IfInstructionList !componentMap;
+  #@cIfBlock instIfBlock := [@cIfBlock new !expIf !instIfBlockList !0];
+  #instList += !instIfBlock;
+  @instructionList elseInstructionList [emptyList];
+  select
+    #no else.
+  or
+    $else$;
+    @varMap elseVarMap := [@varMap mapWithMapToOverride !varMap] ;
+    <instCycleImplementation> !?elseVarMap !?elseInstructionList !componentMap;
+#  or
+#    $elseif$;
+#    @cInstruction instElse;
+#    <instCycleImplementation> !varMap !componentMap !currentComponent ?instElse;
+#    elseInstructionList += !instElse;
+  end select;
+  @cInstruction inst := [@cIfBlock new !here !expIf !IfInstructionList !elseInstructionList];
+  instList += !inst;
+  $end$; $if$;
+end rule;
+
+rule  <instCycle>
+  ?! @uint internalInstCycleId
+  ?? @componentMap componentMap
+  ?! @instCycleMap instCycleMap
+  
+:
+  $cycle$;
+  @lstring instCycleName;
+  $idf$ ?instCycleName;
+  @instCycleChunkList chunkList [emptyList];
+  <instCycleBody> !?chunkList !?internalInstCycleId !componentMap !?instCycleMap;
+  @aggInstCycle agg := [@aggInstCycle new ! chunkList];
+  [!?instCycleMap insertKey !instCycleName ! agg];
+  $end$; $cycle$;
+end rule;
+
+end syntax ;
+# vim:ft=ggs:ts=2:sw=2

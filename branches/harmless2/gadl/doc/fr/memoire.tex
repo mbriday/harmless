@@ -1,0 +1,348 @@
+%!TEX root = ./main.tex
+%!TEX encoding = UTF-8 Unicode
+\chapter{Description fonctionnelle des éléments de mémorisation.}
+\label{sec:mem_program}
+
+La description des éléments de mémorisation est nécessaire pour la génération d'un simulateur de jeu d'instruction, mais aussi d'un simulateur précis au cycle. Dans cette dernière approche, il sera de plus nécessaire de rajouter des informations relatives au comportement temporel de la mémoire.
+
+Dans cette version, la hiérarchie mémoire n'est pas modélisée (système de cache). En effet, son comportement est normalement transparent d'un point de vue fonctionnel, bien qu'il y ait la possibilité de gérer quelquefois les caches (cache locking, scratch pad, \ldots).
+
+\section{Généralités}
+\subsection{Organisation}
+La mémoire est définie à l'intérieur d'un composant (voir section \ref{sec:component}). Ceci présente un double avantage:
+\begin{itemize}
+\item il est possible de rajouter des méthodes dans le composant, afin de simplifier l'accès à la mémoire (rajout de méthodes \texttt{push/pop} pour modéliser une pile, modélisation de mémoire paginée, \ldots
+\item il est aussi possible de permettre l'accès à plusieurs zones de mémoire de manière transparente. Par exemple, une zone de mémoire RAM (largeur 16 bits) et une EEPROM (largeur 8 bits) dans le même espace d'adressage.
+\end{itemize}
+
+Une zone de mémoire est déclarée en utilisant le mot clé \texttt{memory}. Certains paramètres permettent de définir la zone mémoire. 
+
+\subsubsection{Plage d'adresse}
+La plage d'adresse est définie de la manière suivante: \texttt{address := startAddr..endAddr}, où \texttt{startAddr} et \texttt{endAddr} sont des valeurs numériques. La zone de mémoire est alors définie sur la zone d'adresse qui commence à \texttt{startAddr} \emph{inclus}, et va jusqu'à \texttt{endAddr} \emph{exclus}. Il est à noter qu'il est possible d'utiliser les suffixes \texttt{kb} et \texttt{mb} au valeurs numériques (voir section
+\ref{sec:nombres}):
+\begin{lstlisting}
+    address := 0..128kb  
+\end{lstlisting}
+
+\subsubsection{Largeur du bus mémoire}
+La largeur d'accès est définie par le mot clé \texttt{width}. Elle permet de définir la largeur maximale d'un accès en mémoire. L'accès reste possible pour les puissances de 2 inférieures. Par exemple:
+\begin{lstlisting}
+    width := 20  
+\end{lstlisting}
+L'accès sera possible sur 20 bits, mais aussi sur 16 bits et 8 bits.
+
+\subsubsection{Type de mémoire}
+Le type de mémoire est actuellement \texttt{RAM}, \texttt{ROM}, ou \texttt{register}. Dans le cas de la ROM, il n'est pas possible de faire des accès en écriture, mais il reste possible de mettre le code programme au démarrage, voir la section \ref{sec:memProgramme}. Exemple:
+\begin{lstlisting}
+    type := RAM
+\end{lstlisting}
+
+Il n'y a actuellement pas de différence entre les types \texttt{RAM} et \texttt{register}.
+
+\subsubsection{Décalage}
+Il est possible de faire un décalage des adresses pour une utilisation simplifiée, à l'aide du mot clé \texttt{stride}. Soit par exemple une zone de 16 registres généraux sur un processeur 16 bits. Ils peuvent être défini de la manière suivante:
+\begin{lstlisting}
+    memory GPR {
+      width   := 16    -- get 16 bits / access
+      address := 0..31 -- 32 octets : 16 registres de 16 bits
+      stride  := 2 
+      type    := register 
+    }
+\end{lstlisting}
+Ainsi dans cet exemple, l'accès en '5' permettra une lecture dans la mémoire à l'adresse 10 qui contient réellement le contenu du registre GPR 5.
+Le stride doit forcément être une puissance de 2. Dans le cas contraire, une erreur est générée.
+
+\subsection{Sous blocs mémoire}
+À l'intérieur d'une zone mémoire, il est possible de définir un sous bloc qui va avoir des caractéristiques différentes. Par défaut, un sous-bloc \emph{hérite} des paramètres du bloc dans lequel il est inséré. 
+
+D'autre part, et il est possible de mapper le sous-bloc à l'intérieur du bloc principal.
+Par exemple:
+\begin{lstlisting}
+  memory ram {
+    width   := 16  -- get 16 bits / access
+    address := \x0..\x10FF 
+    type    := RAM 
+   
+    sfr { -- can be accessed by IN/OUT instructions.
+      address := 0..\x3F 
+      type    := register 
+    } maps to \x20 
+  }
+\end{lstlisting}
+Cet exemple tiré de la description de l'AVR met en évidence:
+\begin{itemize}
+\item la plage mémoire de \texttt{0} à \texttt{0x10FF} est définie comme de la RAM,
+\item la plage mémoire de \texttt{0x20} à \texttt{0x20+0x3F} est \emph{redéfinie} comme étant de type \texttt{register}.
+\item un accès à l'adresse \texttt{0x30} de la zone \emph{ram} correspond à la même place qu'un accès à l'adresse \texttt{0x10} (à cause de l'offset de \texttt{0x20}) d'un \emph{sfr}.
+\end{itemize}
+Ce dernier point est le plus important, car lors de la description du jeu d'instruction, il ne sera pas nécessaire de faire de décalage dans la \emph{ram} lorsqu'on fera un accès à un registre de type \emph{sfr}.
+
+D'une manière plus générale, un sous-bloc est défini de la manière suivante:
+ \begin{lstlisting}
+    sousBloc { 
+      <...>
+    } maps to <expression> 
+  }
+\end{lstlisting}
+Ceci permet notamment l'utilisation de sous-blocs dont la position n'est pas constante. Par exemple, dans l'infineon C166, les registres généraux sont définis par rapport au registre \texttt{CP} (pour \texttt{Context Pointer}), on peut alors définir une tel zone de la manière suivante:
+ \begin{lstlisting}
+   memory internalRam {
+    address    := \x1000..\x3FFF;
+    type    := RAM;
+    width   := 16;
+
+    GPR {   -- definition relative a CP (Context Pointer)
+      type    := register;
+      address := 0..31; -- 16 registres
+      stride  := 1
+    } maps to CP
+  }
+}
+\end{lstlisting}
+On considère ici que le registre CP est déclaré, voir section \ref{sec:defReg}
+Dans ce dernier cas, un accès au GPR 3 sera identique à un accès à la mémoire CP + 3*2 (car il y a un stride de 1).
+
+\emph{Note:} En l'absence du \texttt{maps to <expression>}, le sous-bloc est mappé à l'adresse 0.
+\subsection{Mémoire programme}
+\label{sec:memProgramme}
+Plusieurs zones mémoires sont définies, et celle-ci peuvent avoir des plages d'utilisation qui se recouvrent. C'est par exemple le cas sur une architecture Harvard où les mémoire d'instruction et de données sont séparées. Un banc de registres est aussi vu comme une zone de mémoire (qui commence généralement à l'adresse 0).
+Ainsi, toutes les zones mémoire qui peuvent être initialisée avec du code programme sont précédée du mot clé \texttt{program}. Il ne doit pas y avoir de recouvrement de ces zones:
+
+\begin{lstlisting}
+program memory flash {
+  width   := 16  -- get 16 bits / access
+  address := 0..128kb  -- 128k
+  type    := ROM
+}
+memory ram {
+  width   := 16  -- get 16 bits / access
+  address := \x0..\x10FF 
+  type    := RAM 
+}  
+\end{lstlisting}
+Dans cet exemple, le programme pourra être mis dans la mémoire \emph{flash}. Ceci lève l'ambiguïté car la \emph{ram} est mappée sur la même zone mémoire (architecture harvard).
+
+\subsection{Accès dans les composants}
+Lors de la définition d'une zone mémoire, un certain nombre de fonctions d'accès sont générées automatiquement. Soit par exemple l'architecture typique suivante, avec 2 zones mémoire \texttt{mem} et \texttt{mem2} qui sont définies dans un composant (c'est obligatoire), avec \texttt{mem} qui comporte un sous bloc \texttt{subMem}:
+\begin{lstlisting}
+component comp
+  memory mem {
+    width   := 16  -- get 16 bits / access
+    address := 0..128kb  
+    type    := RAM
+    
+    subMem {
+      address := 0..32
+      type := register
+    } -- pas de 'maps to', donc par defaut mapping en 0.
+  }
+  memory mem2 {
+    width   := 16  -- get 16 bits / access
+    address := 256kb..512kb  
+    type    := flash
+  }
+}
+\end{lstlisting}
+Il ne doit pas y avoir de recouvrement entre les zones mémoire qui sont définies dans un composant.
+
+Comme largeur de bus est de 16 bits, les accès pourront se faire sur 8 ou 16 bits (soit la taille spécifiée, ainsi que les puissances de 2 inférieures). Les méthodes d'accès générées automatiquement sont alors en lecture:
+\begin{itemize}
+\item \texttt{u16 comp.read16(u32 address)} Renvoie la valeur d'un élément dans le composant, sur 16 bits. Suivant l'adresse, une valeur de la zone mémoire \texttt{mem} ou \texttt{mem2} sera renvoyée. Si l'adresse est invalide (ne correspond pas à une zone mémoire), la valeur 0 est renvoyée;
+\item \texttt{u8  comp.read8(u32 address)} Renvoie la valeur d'un élément dans le composant, sur 8 bits, de la même manière que la méthode précédente;
+\item \texttt{u16  comp.mem.read16(u32 address)} Renvoie la valeur d'un élément dans l'élément mémoire \texttt{mem} du composant \texttt{comp}, sur 16 bits;
+\item \texttt{u8  comp.mem.read8(u32 address)} Renvoie la valeur d'un élément dans l'élément mémoire \texttt{mem} du composant \texttt{comp}, sur 8 bits;
+\item \texttt{u16  comp.mem.subMem.read16(u32 address)} Renvoie la valeur d'un élément dans le sous élément mémoire \texttt{subMem} du composant \texttt{comp}, sur 16 bits;
+\item \texttt{u8  comp.mem.subMem.read8(u32 address)} Renvoie la valeur d'un élément dans le sous élément mémoire \texttt{subMem} du composant \texttt{comp}, sur 8 bits;
+\end{itemize}
+Les fonctions d'écritures sont fournies sur le même principe:
+\begin{itemize}
+\item \texttt{void  comp.write8(u32 address, u8 val)} Écrit la valeur \texttt{val} à l'adresse \texttt{address} de l'élément mémoire \texttt{mem} ou \texttt{mem2} suivant l'adresse. En cas d'adresse invalide, une erreur sera générée (si les options de compilations sont correctement positionnées, voir \ref{sec:cflags});
+\item \texttt{void  comp.write16(u32 address, u16 val)} idem sur 16 bits;
+\item \texttt{void  comp.mem.write8(u32 address, u8 val)} suivant le même principe que pour la lecture;
+\item \texttt{void  comp.mem.write16(u32 address, u16 val)} suivant le même principe que pour la lecture;
+\item \texttt{void  comp.mem.subMem.write8(u32 address, u8 val)} suivant le même principe que pour la lecture;
+\item \texttt{void  comp.mem.subMem.write16(u32 address, u16 val)} suivant le même principe que pour la lecture;
+\end{itemize}
+
+\section{les registres}
+\label{sec:defReg}
+Les registres sont utilisées à de nombreux endroits dans la description, que ce soit dans les composants, la mémoire, et même la vue comportementale de la description.
+
+C'est pourquoi les registres sont dans une certaine mesure une entorse à l'encapsulation qui est présentée dans les composants: 
+
+\emph{Un registre, qu'il soit définit dans un composant ou dans une zone mémoire est accessible de manière globale dans toute la description.}
+
+\subsection{Définition dans un composant}
+Dans un composant, il est déclaré en utilisant le mot clé \texttt{register}:
+\begin{lstlisting}
+register u8 SP
+\end{lstlisting}
+Cet exemple défini un registre nommé SP (de 8 bits) qui est accessible dans tous les composants, en utilisant directement son nom, dans une zone d'implémentation:
+\begin{lstlisting}
+  SP := SP+1
+\end{lstlisting}
+On peut définir un registre en nommant des champs de bits:
+\begin{lstlisting}
+  register u16 T01CON {
+    T0I := slice{2..0}  -- 3 bits
+    T0M := slice{3}     -- 1 bit
+    T0R := slice{6}     -- 1 bit
+    T1I := slice{10..8} -- 3 bits
+    T1M := slice{11}    -- 1 bit
+    T1R := slice{14}    -- 1 bit
+  }
+\end{lstlisting}
+L'accès à un champ de bit se fait alors de la manière suivante:
+\begin{lstlisting}
+  T01CON.T0R := 1;
+\end{lstlisting}
+
+\subsection{Définition dans un bloc mémoire}
+\subsubsection{Cas général}
+Un registre défini dans une zone mémoire est mappé en mémoire, il est donc nécessaire de préciser en quelle adresse il est mappé:
+\begin{lstlisting}
+component sram {
+  memory ram {
+    width   := 16  -- get 16 bits / access
+    address := \x0..\x10FF 
+    type    := RAM 
+
+    register u8  SPH  maps to \x5e  -- stack (high byte)
+    register u8  SPL  maps to \x5d  -- stack (low byte)
+    register u16 SP   maps to \x5d  -- stack (16 bits)
+    ...
+  }
+}
+\end{lstlisting}
+Si la taille du registre n'est pas spécifiée, c'est la largeur de bus qui est utilisée (en non signé).
+
+Ainsi, dans les 2 lignes suivantes... sont identiques:
+\begin{lstlisting}
+  SP := SP+1
+  sram.ram.write16(\x5d, sram.ram.read16(\x5d)+1)
+\end{lstlisting}
+
+\subsubsection{Accès à un champ de bits}
+Comme pour les registres définis dans un composant, il est possible de définir des accès à des champs de bit:
+\begin{lstlisting}
+    register u8  CCR  maps to \x5f {
+      C := slice{0} -- carry flag
+      Z := slice{1} -- zero flag
+      N := slice{2} -- neg flag
+      V := slice{3} -- overflow flag
+      S := slice{4} -- sign bit
+      H := slice{5} -- half carry flag
+      T := slice{6} -- Bit copy storage
+      I := slice{7} -- global interrupt flag
+    } 
+\end{lstlisting}
+
+\subsubsection{Registre constant}
+Il est courant d'avoir un processeur qui contient certains registres constant (cas du registre \texttt{PVR} du PowerPC par exemple).
+\begin{lstlisting}
+    register u32 PVR maps to 0 is read \x00800200;
+\end{lstlisting}
+
+\subsection{Le compteur programme}
+Le compteur programme est un registre un peu spécifique dans \harmless. En effet, lors du décodage, le compteur programme est incrémenté de manière implicite dans le décodeur. Ainsi, il est nécessaire pour \harmless\ de connaître ce registre. Il est déclaré en utilisant \texttt{program counter} à la place de \texttt{register}:
+\begin{lstlisting}
+  program counter u32 PC
+\end{lstlisting}
+
+Attention, il \emph{doit} y avoir \emph{un et seulement un} compteur programme déclaré dans la description (si on compile la partie \emph{behavior}).
+
+\subsection{Initialisation}
+L'initialisation des registres peut être réalisée:
+\begin{itemize}
+\item dans la fonction d'initialisation des composants (voir section \ref{sec:initComponent}), pour les registres qui sont définis dans les composants
+\item directement pour les registres qui sont mappés en mémoire (bien qu'il soit aussi possible de les initialiser dans les composants.
+\end{itemize}
+Pour les registres qui sont mappé en mémoire, il est possible de les initialiser avec la syntaxe suivante (dans un élement \texttt{memory}):
+\begin{lstlisting}
+    register u16 X maps to \x1a := \xa5a5
+\end{lstlisting}
+
+Un registre non initialisé explicitement est fixé à 0. Toutefois, cette valeur peut être mise à jour dans une méthode \texttt{reset} dans un des composants.
+
+\section{Exemples}
+\subsection{Accès à une zone de pile}
+il est possible dans un composant de mettre des méthodes en plus d'une zone mémoire. Ceci peut notamment servir à enrichir l'accès à la mémoire. Soit l'exemple d'une zone de pile:
+\begin{lstlisting}
+component sram {
+  memory ram {
+    width   := 16  -- get 16 bits / access
+    address := \x0..\x10FF 
+    type    := RAM 
+
+    register u8  SPH  maps to \x5e  -- stack (high byte)
+    register u8  SPL  maps to \x5d  -- stack (low byte)
+    register u16 SP   maps to \x5d  -- stack (16 bits)
+    ...
+  }
+  void push(u8 val) {     -- post decrement
+    sram.write8(SP, val) 
+    SP := SP-1 
+  }
+
+  u8 pop() {
+    u8 result 
+    SP := (u16)(SP+1) 
+    result := sram.read8(SP) 
+    return result 
+  }
+}
+\end{lstlisting}
+Dans cet exemple, l'ajout de méthodes relatives à l'accès mémoire présente tout son intérêt.
+
+\subsection{Mémoire paginée}
+Dans le cas de la mémoire paginée, l'adresse réelle est connue en faisant une opération entre la valeur de l'adresse passée en paramètre, et la valeur d'un registre. Soit l'exemple partiel suivant inspiré de l'espace d'adressage du MC9S12XDP512 (HCS12X avec 512 kb de flash).
+\begin{lstlisting}
+component Mem {
+  memory registers {
+    width := 16;
+    address := \x0..\x7FF; -- 2 kb of registers
+    type := register;
+
+    register u16 GPAGE maps to \x10; -- Global page index
+    register u8  RPAGE maps to \x16; -- RAM page index
+    register u8  EPAGE maps to \x17; -- EEPROM Page index
+    register u8  PPAGE maps to \x30; -- Program page index
+  }
+  program memory windowedEeprom {
+    width := 16;
+    address := \x13_F000..\x13_FFFF; -- 4kb
+    type := ROM;
+  }
+  program memory nonWindowedEeprom {
+    width := 16;
+    address := \x0C00..\x0FFF; -- 1kb
+    type := ROM;
+  }
+  program memory windowedFlash {
+    width := 16;
+    address := \x78_0000..\x7F_FFFF; -- 512 kb of flash.
+    type := ROM;
+  }
+  program memory secondUnpagedflash { --including interrupt vectors.
+    width := 16;
+    address := \xC000..\xFFFF; -- 16 kb of flash.
+    type := ROM;
+  }
+  ...
+  u8 memRead8(u16 addr)
+  {
+    -- description from MC9S12XDP512 Data Sheet, p.31
+    u8 val;
+    if     addr < \x0800 then val := Mem.registers.read8(addr);
+    elseif addr < \x0c00 then val := Mem.windowedEeprom.read8((EPAGE cat addr{9..0}) | \x100000);
+    elseif addr < \x1000 then val := Mem.nonWindowedEeprom.read8(addr)
+    elseif addr < \xC000 then val := Mem.windowedFlash.read8((PPAGE{7..0} cat addr{13..0}) | \x400000);
+    elseif addr < \xFFFF then val := Mem.secondUnpagedflash.read8(addr);
+    end if;
+    return val;
+  }
+  ...
+}
+\end{lstlisting}
+Le même type de méthode que memRead8 doit être fait pour les accès sur 16 bits, ainsi que les accès en écritures.
+

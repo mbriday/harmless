@@ -1,0 +1,15 @@
+#!/bin/bash
+
+echo "BITCNTS"
+echo $'\n'
+
+# Execute qemu
+echo "Qemu simulation ..."
+time qemu-system-arm -M versatilepb -m 128M -nographic -kernel sources/bitcnts_modifie.bin | ../qemu/perf_qemu
+
+# Execute harmless
+echo $'\n'
+echo 'Harmless simulation ...'
+time ../../../arm_opt/arm_opt sources/bitcnts_modifie.elf 1000000000 65544
+
+echo $'\n'

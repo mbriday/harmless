@@ -1,0 +1,16 @@
+#!/bin/bash
+
+echo "TEST NAME"
+echo $'\n'
+
+# Execute qemu
+echo "Qemu simulation ..."
+time qemu-system-arm -M versatilepb -m 128M -nographic -kernel sources/bitcnts_modifie.bin | ../qemu/perf_qemu
+
+# Execute harmless
+echo $'\n'
+echo 'Harmless simulation ...'
+#time ../../../arm_opt/arm_opt sources/execname.elf max_exec_instr breakpoint_address_int
+time ../../../arm_opt/arm_opt sources/execname.elf 1000000000 65544
+
+echo $'\n'

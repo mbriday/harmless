@@ -1,0 +1,94 @@
+# CALLED FROM trace_sim_gdb.sh. Don't call it directly
+# This is the GDB script that generate the output of simulavr that will be compared
+# with the output of Harmless.
+# simulavr should be configured as gdbserver, listening on port 3239:
+# -> simulavr --port 3239 --gdbserver -d atmega128
+#
+target remote localhost:3239
+load
+
+# set startup values
+set $r0 = 0
+set $r1 = 0
+set $r2 = 0
+set $r3 = 0
+set $r4 = 0
+set $r5 = 0
+set $r6 = 0
+set $r7 = 0
+set $r8 = 0
+set $r9 = 0
+set $r10 = 0
+set $r11 = 0
+set $r12 = 0
+set $r13 = 0
+set $r14 = 0
+set $r15 = 0
+set $r16 = 0
+set $r17 = 0
+set $r18 = 0
+set $r19 = 0
+set $r20 = 0
+set $r21 = 0
+set $r22 = 0
+set $r23 = 0
+set $r24 = 0
+set $r25 = 0
+set $r26 = 0
+set $r27 = 0
+set $r28 = 0
+set $r29 = 0
+set $r30 = 0
+set $r31 = 0
+set $SREG = 0
+set $sp = 0
+
+define print_state
+	printf "#%04x,", $pc
+	printf "%02x,", $r0
+	printf "%02x,", $r1
+	printf "%02x,", $r2
+	printf "%02x,", $r3
+	printf "%02x,", $r4
+	printf "%02x,", $r5
+	printf "%02x,", $r6
+	printf "%02x,", $r7
+	printf "%02x,", $r8
+	printf "%02x,", $r9
+	printf "%02x,", $r10
+	printf "%02x,", $r11
+	printf "%02x,", $r12
+	printf "%02x,", $r13
+	printf "%02x,", $r14
+	printf "%02x,", $r15
+	printf "%02x,", $r16
+	printf "%02x,", $r17
+	printf "%02x,", $r18
+	printf "%02x,", $r19
+	printf "%02x,", $r20
+	printf "%02x,", $r21
+	printf "%02x,", $r22
+	printf "%02x,", $r23
+	printf "%02x,", $r24
+	printf "%02x,", $r25
+	printf "%02x,", $r26
+	printf "%02x,", $r27
+	printf "%02x,", $r28
+	printf "%02x,", $r29
+	printf "%02x,", $r30
+	printf "%02x,", $r31
+	printf "%02x,", $SREG
+	printf "%08x", $sp
+	printf "\n"
+end
+
+# Main loop
+print_state
+while($i != 0)
+# step an instruction
+	si
+# Show the state
+	print_state
+	set $i = $i - 1
+end
+

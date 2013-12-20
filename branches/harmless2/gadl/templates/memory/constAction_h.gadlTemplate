@@ -1,0 +1,16 @@
+%template headerC%
+#ifndef __CONST_ACTION_H__
+#define __CONST_ACTION_H__
+#include "action.h"
+
+class constAction : public readAction
+{
+	private:
+	u8 m_const;
+	u32 m_address;
+	public:
+	constAction(const u32 address, const u8 val);
+    bool trigger(storage *, spyInfo *s);
+};
+
+#endif

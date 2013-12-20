@@ -1,0 +1,31 @@
+#!/bin/bash
+#######################################################
+#
+# Script which lauches "perf" in specific directories
+# To compare execution time between qemu and arm_opt
+#
+#######################################################
+
+DIRECTORIES=(1-basicmath 2-bitcount 3-qsort)
+#0-test 4-susan
+
+# Do not modify !
+
+#clean resultats
+if [ -e resultats64.txt ] 
+then
+	rm resultats64.txt
+fi
+
+# exec ./perf for each directory specified 
+for d in ${DIRECTORIES[*]}
+do
+	echo 'benching' $d '…' $'\n'
+	cd $d;./perf &> ../tmp;cat ../tmp >> ../resultats64.txt;cd ..
+done
+
+#clean tmp
+if [ -e tmp ] 
+then
+	rm tmp
+fi

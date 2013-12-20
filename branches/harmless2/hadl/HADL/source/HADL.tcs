@@ -1,0 +1,794 @@
+
+syntax HADL (k=4){
+
+   primitiveTemplate identifier for String default using NAME:
+      value = "%token%";
+
+   primitiveTemplate stringSymbol for String using STRING:
+      value = "%token%",
+      serializer="'\'' + %value%.toCString() + '\''";
+
+   primitiveTemplate integerSymbol for Integer default using INT:
+      value = "Integer.valueOf(%token%)";
+      
+   primitiveTemplate floatSymbol for Double default using FLOAT:
+      value = "Double.valueOf(%token%)";
+
+   primitiveTemplate booleanSymbol for Boolean default using BOOLEAN:
+      value = "Boolean.valueOf(%token%)";
+
+   --------------------------------------------------------
+   -- Top level
+   --------------------------------------------------------
+
+   template Model main context
+      :  "model" name "{" [
+            "default" "{" [
+               "instructions" "{" instructionSize "}"
+               "data" "{" dataSize "}"
+            ] "}"
+            
+            elements
+         ] "}"
+      ;
+   
+   template ModelElement abstract;
+
+   --------------------------------------------------------
+   -- Typed elements
+   --------------------------------------------------------
+
+   function typeName(TypedElement)
+      :  (isSigned? "s" : "u") "'" size
+      ;
+
+   function arrayDefinition(Variable)
+      :  (isDefined(arraySize)? "[" arraySize "]")
+      ;
+
+   --------------------------------------------------------
+   -- Variables
+   --------------------------------------------------------
+
+   template ComponentVariable addToContext
+      :  (isExternal? "external") "var" $typeName name $arrayDefinition
+      ;
+
+   template Parameter addToContext
+      :  ( isOutput ? "out" ) $typeName name $arrayDefinition
+      ;
+
+   template Attribute addToContext
+      :  "field" $typeName name
+      ;
+
+   template LocalVariable addToContext
+      :  "var" $typeName name $arrayDefinition
+      ;
+
+   template LoopVariable addToContext
+      :  $typeName name
+      ;
+
+   --------------------------------------------------------
+   -- Components and operations
+   --------------------------------------------------------
+
+   template Component context addToContext
+      :  "component" name "{" [
+            variables
+            operations
+         ] "}"
+      ;
+      
+   template Operation context addToContext
+      :  (isFunction? $typeName : "void")
+         name "(" parameters{separator=","} ")"
+         "{" [
+            localVariables
+            body
+         ] "}"
+      ;
+
+   --------------------------------------------------------
+   -- Architectures
+   --------------------------------------------------------
+
+   template Architecture context addToContext
+      :  "architecture" name
+         (isDefined(fathers)?
+            "extends" fathers{refersTo=name, separator=",", importContext}
+         )
+         "{" [
+            resources
+         ] "}"
+      ;
+      
+   template Resource context addToContext
+      :  "resource" name ":" component{refersTo=name} "{" [
+            ports
+         ] "}"
+      ;
+
+   template Port addToContext
+      :  "port" name
+         (isDefined(operations)? ":" operations{refersTo=name, separator=",", lookIn=owningResource.component})
+         ";"
+      ;
+
+   --------------------------------------------------------
+   -- Pipelines
+   --------------------------------------------------------
+
+   template Pipeline context addToContext
+      :  "pipeline" name "maps" "to" architecture{refersTo=name, importContext} "{" [
+            "init" "{" [ init ] "}"
+            "run" expression "as" behavior{refersTo=name}
+            stages
+         ] "}"
+      ;
+
+   template Stage addToContext
+      :  "stage" name "{" [
+            activations
+         ] "}"
+      ;
+   
+   template ResourceActivation
+      :  resource{refersTo=name}
+         ('priority' = 0 ? : "priority" 'priority')
+         (isReusable? "reusable")
+         (isDefined(releaseStage)? "release" "in" "<" releaseStage{refersTo=name} ">")
+         (isDefined(bypassStages)? "bypass" "in" "<" bypassStages{refersTo=name, separator=","} ">")
+         (isDefined(portActivations)? ":" portActivations{separator=","})
+         ";"
+      ;
+      
+   template PortActivation
+      :  port{refersTo=name, lookIn=owningResourceActivation.resource}
+         (isDefined(releaseStage)? "release" "in" "<" releaseStage{refersTo=name} ">")
+         (isDefined(bypassStages)? "bypass" "in" "<" bypassStages{refersTo=name, separator=","} ">")
+      ;
+
+   --------------------------------------------------------
+   -- Instruction behaviors
+   --------------------------------------------------------
+
+   template Behavior abstract addToContext;
+
+   function behaviorSignature(Behavior)
+      :  "behavior" name
+         ( isDefined(parameters)?
+            "(" parameters{separator=","} ")"
+         )
+      ;
+
+   -- Non-determinism in situations when
+   --    - there is no chunk
+   --    - there is a single "do" block
+   template AggregateBehavior context
+      :  "aggregate" $behaviorSignature "{" [
+            attributes
+            localVariables
+            ( isDefined(beforeBlock)? "do" "{" [ beforeBlock ] "}" )
+            chunks
+            ( isDefined(afterBlock)? "do" "{" [ afterBlock ] "}" )
+         ] "}"
+      ;
+
+   template AlternativeBehavior context
+      :  "alternative" $behaviorSignature "{" [
+            attributes
+            localVariables
+            ( isDefined(beforeBlock)? "do" "{" [ beforeBlock ] "}" )
+            choices
+            ( isDefined(afterBlock)? "do" "{" [ afterBlock ] "}" )
+         ] "}"
+      ;
+
+   --------------------------------------------------------
+   -- Instruction behaviors : chunks and choices
+   --------------------------------------------------------
+
+   template BehaviorChunk addToContext
+      :  call
+         ( isDefined(condition)?
+            "when" condition
+         )
+         (isDefined(label)? "@" label)
+      ;
+
+   template BehaviorChoice abstract;
+
+   template LeafBehaviorChoice addToContext
+      :  "#" name
+         (isDefined(body)?
+            "{" [
+               body
+            ] "}"
+         )
+      ;
+
+   template CallBehaviorChoice
+      :  call
+      ;
+
+   --------------------------------------------------------
+   -- Instruction behaviors : calls
+   --------------------------------------------------------
+
+   template BehaviorCall
+      :  behavior{refersTo=name} "(" actualParameters{separator=","} ")"
+      ;
+
+   --------------------------------------------------------
+   -- Imperative constructs
+   --------------------------------------------------------
+
+   template Block
+      :  statements
+      ;
+
+   template Statement abstract;
+
+   template AssignmentStatement
+      :  target ":=" 'source' ";"
+      ;
+
+   template ProcedureCallStatement
+      :  call ";"
+      ;
+
+   template OperationCall
+      :  (isDefined(component)?
+               component{refersTo=name} "." (inline? "$") calledOperation{refersTo=name, lookIn=component}
+            :  "self" "." (inline? "$") calledOperation{refersTo=name}
+         )
+         "(" actualParameters{separator=","} ")"
+      ;
+      
+   template IfStatement
+      :  "if" ifClauses{separator="elseif"}
+         (isDefined(elseClause)?
+            "else" [
+               elseClause
+            ]
+         )
+         "end" "if" ";"
+      ;
+
+   template IfClause
+      :  condition "then" [
+            thenClause
+         ]
+      ;
+
+   template ForStatement context
+      :  "for" counter
+         "in" range
+         "loop" [
+            body
+         ] "end" "loop" ";"
+      ;
+
+   template ReturnStatement
+      :  "return" (isDefined(expression)? expression) ";"
+      ;
+
+   --------------------------------------------------------
+   -- Expressions
+   --------------------------------------------------------
+
+   template Expression abstract operatored;
+
+   template FunctionCallExpression
+      :  call
+      ;
+
+   template DataContainerRefExpression
+      :  dataContainer{refersTo=name}
+         ( isDefined(index)?
+            "[" index (extend? "!extend") "]" :
+            ( extend? "dummyextend" )
+         )
+         ( isDefined(range)? range )
+      ;
+
+   operatorTemplate OperatorExpression
+      (
+         operators = unaryPlusOp unaryMinusOp
+                     addOp subOp mulOp divOp
+                     ltOp leqOp gtOp geqOp eqOp neqOp
+                     booleanNotOp booleanAndOp booleanOrOp booleanXorOp
+                     binaryNotOp binaryAndOp binaryOrOp binaryXorOp
+                     asrOp lslOp lsrOp rolOp rorOp
+                     modOp remOp absOp powOp,
+         source = 'source',
+         storeOpTo = operator,
+         storeRightTo = arguments
+      );
+
+   template IntegerLiteralExpression
+      :  'value'
+      ;
+      
+   template BooleanLiteralExpression
+      :  'value'
+      ;
+      
+   template BasedLiteralExpression
+      :  base 'value'{as=stringSymbol}
+      ;
+
+   enumerationTemplate BaseSpecifier
+      :  #binary = "\\\\b",
+         #octal = "\\\\o",
+         #decimal = "\\\\d",
+         #hexadecimal = "\\\\x"
+      ;
+      
+   template Range
+      :  "{"
+         slices{separator=","}
+         ( shiftAmount = 0 ?
+               ( right and shift and arithmetic ? "!extend" )
+            :  ( shift ?
+                     ( right ?
+                           ( arithmetic ? "!asr" : "!lsr" )
+                        :  ( arithmetic ? "!asl" : "!lsl")
+                     )
+                  :  ( right ?
+                           ( arithmetic ? "dummyaror" : "!ror" )
+                        :  ( arithmetic ? "dummyarol" : "!rol" )
+                     )
+               )
+               shiftAmount
+         )
+         "}"
+      ;
+
+   template Slice
+      :  first
+         ( isDefined(last)? ".." last )
+         ( isDefined(step)? ":" step )
+      ;
+
+   --------------------------------------------------------
+   -- Behavior paths
+   --------------------------------------------------------
+
+   template Path
+      :  elements{separator="->"}
+         (isDefined(range)? "is" "slice" range "=" 'value')
+      ;
+
+   template PathElement
+      :  behavior{refersTo=name}
+         (isDefined(behaviorChunk)? "@" behaviorChunk{refersTo=label, lookIn=behavior})
+      ;
+
+   --------------------------------------------------------
+   -- Instruction formats
+   --------------------------------------------------------
+
+   template Format abstract;
+
+   template AttributeFormat abstract;
+
+   template FieldAttributeFormat
+      :  attribute{refersTo=name} "=" "slice" range
+      ;
+
+   template LiteralAttributeFormat
+      :  attribute{refersTo=name} "=" 'value'
+      ;
+
+   template AggregateFormat context
+      :  "aggregate" "format" behavior{refersTo=name, importContext}
+         (isDefined(paths)? "context" paths{separator=","})
+         "{" [
+            attributeFormats
+         ] "}"
+      ;
+
+   template AlternativeFormat context
+      :  "alternative" "format" behavior{refersTo=name, importContext} "match" "slice" range
+         (isDefined(paths)? "context" paths{separator=","})
+         "{" [
+            attributeFormats
+            choices
+         ] "}"
+      ;
+
+   template FormatChoice abstract;
+
+   function formatChoiceSuffix(FormatChoice)
+      :  "is" literals{separator="|"}
+      ;
+
+   template LeafFormatChoice
+      :  "#" behaviorChoice{refersTo=name} $formatChoiceSuffix
+      ;
+
+   template CallFormatChoice
+      :  behavior{refersTo=name} "(" ")" $formatChoiceSuffix 
+      ;
+
+   --------------------------------------------------------
+   -- Instruction syntax
+   --------------------------------------------------------
+
+   template NumberSyntax
+      :  "number" "syntax" base
+         (isDefined(prefix)? "prefix" prefix{as=stringSymbol})
+         (isDefined(suffix)? "suffix" suffix{as=stringSymbol})
+      ;
+
+   template Syntax abstract;
+
+   template AttributeSyntax
+      :  attribute{refersTo=name} "=" expression
+      ;
+
+   function syntaxSignature(Syntax)
+      :  "syntax" behavior{refersTo=name, importContext}
+         ( isDefined(parameters)? "(" parameters{separator=","} ")" )
+         ( isDefined(paths)? "context" paths{separator=","} )
+      ;
+
+   template AggregateSyntax context
+      :  "aggregate" $syntaxSignature "{" [
+            attributeSyntaxes
+            "echo" echo
+         ] "}"
+      ;
+
+   template AlternativeSyntax context
+      :  "alternative" $syntaxSignature "{" [
+            attributeSyntaxes
+            (isDefined(before)? "echo" before)
+            choices
+            (isDefined(after)? "echo" after)
+         ] "}"
+      ;
+
+   template SyntaxParameter addToContext
+      :  name
+      ;
+
+   template SyntaxChoice
+      :  "#" behaviorChoice{refersTo=name} "is" expression
+      ;
+
+   --------------------------------------------------------
+   -- Syntax expressions
+   --------------------------------------------------------
+   
+   template SyntaxExpression abstract;
+
+   template SyntaxCall
+      :  behavior{refersTo=name}
+         (isDefined(behaviorChunk)? "@" behaviorChunk{refersTo=label})
+         "(" actualParameters{separator=","} ")"
+      ;
+
+   template DataContainerRefSyntaxExpression
+      :  dataContainer{refersTo=name}
+      ;
+
+   template StringLiteralSyntaxExpression
+      :  'value'{as=stringSymbol}
+      ;
+
+   template DecisionSyntaxExpression
+      :  "?" expressionWhenTrue (isDefined(expressionWhenFalse)? ":" expressionWhenFalse) "?"
+      ;
+      
+   template ImplicitValueSyntaxExpression
+      :  defaultBase
+      ;
+
+   template ComputedSyntaxExpression
+      :  "{" defaultBase ":" expression "}"
+      ;
+
+   template ListSyntaxExpression
+      :  "{" prefix{as=stringSymbol} base 'separator'{as=stringSymbol} "..." "}"
+      ;
+
+   template ConcatenationSyntaxExpression
+      :  "<<" expressions ">>"
+      ;
+      
+   ------------------------------------------------------------------------------------
+
+   keywords {
+      abs = "abs";
+      mod = "mod";
+      rem = "rem";
+
+      asr = "asr";
+      lsl = "lsl";
+      lsr = "lsr";
+      ror = "ror";
+      rol = "rol";
+   }
+
+   symbols {
+      quote = "'";
+      lcurly = "{";
+      rcurly = "}";
+      lsquare = "[";
+      rsquare = "]";
+      lparen = "(";
+      rparen = ")";
+      colon = ":";
+      comma = ",";
+      semi = ";";
+      at = "@";
+      sharp = "#";
+      percent = "%";
+      qmark = "?";
+      excl = "!";
+      assign = ":=";
+      dollar = "$";
+      rarrow = "->";
+
+      star = "*";
+      star2 = "**";
+      slash = "/";
+      minus = "-";
+      plus = "+";
+      leq = "<=";
+      lt = "<";
+      geq = ">=";
+      gt = ">";
+      eq = "=";
+      ne = "!=";
+
+      lt2 = "<<";
+      gt2 = ">>";
+
+      dot = ".";
+      dot2 = "..";
+      dot3 = "...";
+      pipe = "|";
+      dec = "\\\\d";
+      bin = "\\\\b";
+      oct = "\\\\o";
+      hex = "\\\\x";
+
+      tilde = "~";
+      amp = "&";
+      amp2 = "&&";
+      circ = "^";
+      circ2 = "^^";
+      pipe2 = "||";
+
+      excllsl = "!lsl";
+      excllsr = "!lsr";
+      exclasl = "!asl";
+      exclasr = "!asr";
+      exclrol = "!rol";
+      exclror = "!ror";
+      exclext = "!extend";
+   }
+
+   operators {
+      priority 0 {
+         booleanNotOp = excl, 1;
+         binaryNotOp = tilde, 1;
+         unaryPlusOp = plus, 1;
+         unaryMinusOp = minus, 1;
+
+         absOp = abs, 1;
+         powOp = star2, 2;
+      }
+
+      priority 1 {
+         mulOp = star, 2;
+         divOp = slash, 2;
+         modOp = mod, 2;
+         remOp = rem, 2;
+      }
+
+      priority 2 {
+         addOp = plus, 2;
+         subOp = minus, 2;
+      }
+
+      priority 3 {
+         asrOp = asr, 2;
+         lslOp = lsl, 2;
+         lsrOp = lsr, 2;
+         rolOp = rol, 2;
+         rorOp = ror, 2;
+      }
+
+      priority 4 {
+         leqOp = leq, 2;
+         ltOp = lt, 2;
+         geqOp = geq, 2;
+         gtOp = gt, 2;
+      }
+      
+      priority 5 {
+         eqOp = eq, 2;
+         neqOp = ne, 2;
+      }
+
+      priority 6 {
+         binaryAndOp = amp, 2;
+      }
+
+      priority 7 {
+         binaryXorOp = circ, 2;
+      }
+
+      priority 8 {
+         binaryOrOp = pipe, 2;
+      }
+
+      priority 9 {
+         booleanAndOp = amp2, 2;
+      }
+
+      priority 10 {
+         booleanXorOp = circ2, 2;
+      }
+
+      priority 11 {
+         booleanOrOp = pipe2, 2;
+      }
+   }
+
+   ------------------------------------------------------------------------------------
+
+   lexer = "
+      class HADLLexer extends Lexer;
+
+      options {
+         k = 4;
+         charVocabulary = '\\0' .. '\\u00FF';
+         testLiterals = false;
+      }
+      
+      {
+      
+         protected Token makeToken(int t) {
+            org.atl.engine.injectors.ebnf.LocationToken ret = null;
+
+            tokenObjectClass = org.atl.engine.injectors.ebnf.LocationToken.class;
+            ret = (org.atl.engine.injectors.ebnf.LocationToken)super.makeToken(t);
+            ret.setEndLine(getLine());
+            ret.setEndColumn(getColumn());
+      
+            return ret;
+         }
+
+      }
+      
+      
+      protected
+      NL
+         :  (   '\\r' '\\n'
+            |   '\\n' '\\r'   //Improbable
+            |   '\\r'
+            |   '\\n'
+            )
+         {newline();}
+         ;
+
+      WS
+         :  (   ' '
+            |   '\\t'
+            |   NL
+            )
+         { $setType(Token.SKIP); }
+         ;
+
+      COMMENT
+         :  \"--\"
+            (~(   '\\r'
+            |   '\\n'
+            ))*
+            ({LA(1) != EOF_CHAR}? NL)?
+         { $setType(Token.SKIP); }
+         ;
+
+      protected
+      DIGIT
+         :  '0'..'9'
+         ;
+
+      protected
+      ALPHA
+         :  'a'..'z'
+            |   'A'..'Z'
+            |   '_'
+            //For Unicode compatibility (from 0000 to 00ff)
+            |   '\\u00C0' .. '\\u00D6'
+            |   '\\u00D8' .. '\\u00F6'
+            |   '\\u00F8' .. '\\u00FF'
+         ;
+
+      protected
+      SNAME
+      options {
+         testLiterals = true;
+      }
+         :   (ALPHA) (ALPHA | DIGIT)*
+         ;
+
+      NAME
+         :  (   s:SNAME {if(s.getType() != SNAME) $setType(s.getType());}
+            |   '`'! SNAME '`'!
+            )
+         {
+            if($getText.equals(\"true\")) $setType(BOOLEAN);
+            if($getText.equals(\"false\")) $setType(BOOLEAN);
+         }
+         ;
+
+      INT
+         :  (DIGIT)+
+            (('.' DIGIT)=> '.' (DIGIT)+ {$setType(FLOAT);})?
+         ;
+
+      protected
+      ESC
+         :  '\\\\'!
+            (   'n' {$setText(\"\\n\");}
+            |   'r' {$setText(\"\\r\");}
+            |   't' {$setText(\"\\t\");}
+            |   'b' {$setText(\"\\b\");}
+            |   'f' {$setText(\"\\f\");}
+            |   '\"' {$setText(\"\\\"\");}
+            |   '\\'' {$setText(\"\\'\");}
+            |   '\\\\' {$setText(\"\\\\\");}
+            |   (
+                  ('0'..'3')
+                  (
+                     options {
+                        warnWhenFollowAmbig = false;
+                     }
+                  :   ('0'..'7')
+                     (
+                        options {
+                           warnWhenFollowAmbig = false;
+                        }
+                     :   '0'..'7'
+                     )?
+                  )?
+               |   ('4'..'7')
+                  (
+                     options {
+                        warnWhenFollowAmbig = false;
+                     }
+                  :   ('0'..'7')
+                  )?
+               )
+                  {
+                     String s = $getText;
+                     int i;
+                     int ret = 0;
+                     String ans;
+                     for (i=0; i<s.length(); ++i)
+                        ret = ret*8 + s.charAt(i) - '0';
+                     ans = String.valueOf((char) ret);
+                     $setText(ans);
+                  }
+            )
+         ;
+
+      STRING
+         :  '\"'!
+            (   ESC
+            |   '\\n' {newline();}
+            |   ~('\\\\'|'\"'|'\\n')
+            )*
+            '\"'!
+         ;
+   ";
+}
+

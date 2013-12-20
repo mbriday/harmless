@@ -1,0 +1,40 @@
+%template headerC%
+/* based on Jean-luc Bechennec's H8-300 simulator */
+
+#ifndef __SRECORD_READER_H__
+#define __SRECORD_READER_H__
+
+#include <stdio.h>
+#include "codeReader.h"
+#include "types.h"
+
+class arch;
+
+#define SRR_BUF_SIZE 256
+
+//TODO: remove old 'C' style FILE* and replace with
+// c++ streams.
+class sRecordReader : public codeReader
+{
+	FILE *m_file;
+	
+	bool isCorrectFileFormat();
+
+	//TODO: add these methods in utils.h
+	unsigned char2hex(const char c);
+
+	unsigned str2hex(const char* str, unsigned len);
+
+	//bool loadFromSFile(const char* fileName, uint8* mem, uint32& fAddr);
+	u8* readSLineFrom(u32& addr, u32& size, char& stype);
+	
+	public:
+	sRecordReader() : m_file(NULL) {};
+	sRecordReader(const sRecordReader&);
+	sRecordReader &operator=(const sRecordReader& sr);
+	virtual ~sRecordReader() {};
+	virtual bool readFile(const char * filename, arch *_arch, const bool verbose);	
+
+};
+
+#endif

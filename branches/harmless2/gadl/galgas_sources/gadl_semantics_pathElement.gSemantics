@@ -1,0 +1,661 @@
+semantics gadl_semantics_pathElement:
+  import "gadl_options.gOption" ;
+  import "gadl_variable.gSemantics" ;
+  import "gadl_semantics.gSemantics";
+  import "gadl_semantics_function.gSemantics"; 
+ import "gadl_components.gSemantics" ;
+
+
+#########################
+###### pathElement 
+#########################
+abstract class @pathElement {
+}
+
+abstract reader  @pathElement hasChild -> @bool v;
+abstract modifier @pathElement setChild ?@pathElement c;
+abstract modifier @pathElement setFather ?@pathElement c;
+abstract reader @pathElement getChild ->@pathElement c;
+abstract reader @pathElement getFather ->@pathElement c;
+abstract reader @pathElement getParam ->@parameterCallList param;
+
+
+reader @pathElement isParameterCall ->@bool ipc: ipc := false; end reader;
+reader @pathElement isNodeIdf ->@bool ipc: ipc := false; end reader;
+reader @pathElement isTabElement ->@bool ipc: ipc := false; end reader;
+reader @pathElement getIdf ->@lstring idfr: idfr := [@lstring new !"0" !here]; end reader;
+reader @pathElement string -> @string msg :
+ msg := " abstract ";
+end reader ;
+
+#########################
+###### nodeChild<-pathElement
+#########################
+
+class @nodeChild extends @pathElement{
+ @pathElement child;
+ @pathElement father;
+}
+#########################
+override reader @nodeChild hasChild ->@bool v:
+  v := true;
+end reader;
+#########################
+override modifier @nodeChild setChild ?@pathElement c :
+  child := c;
+end modifier;
+#########################
+override modifier @nodeChild setFather ?@pathElement c :
+ father := c;
+end modifier;
+#########################
+override reader @nodeChild getChild ->@pathElement c :
+  c :=  child ;
+end reader;
+#########################
+override reader @nodeChild getFather ->@pathElement c :
+  c :=  father ;
+end reader;
+#########################
+override reader @nodeChild getParam ->@parameterCallList param :
+ param := [@parameterCallList emptyList];
+end reader;
+#########################
+override reader @nodeChild string -> @string msg :
+  msg := " Noeud";
+end reader ;
+#########################
+###### LEAF == NULL
+###### nullchild <-pathElement
+#########################
+class @nullChild extends @pathElement{
+}
+#########################
+override reader @nullChild hasChild ->@bool v:
+  v := false;
+end reader;
+#########################
+override modifier @nullChild setFather ?@pathElement unused c :
+end modifier;
+#########################
+override modifier @nullChild setChild ?@pathElement unused c :
+end modifier;
+#########################
+override reader @nullChild getChild -> @pathElement c :
+  c :=  [@nullChild new ] ;
+end reader;
+#########################
+override reader @nullChild getFather -> @pathElement c :
+  c :=  [@nullChild new ] ;
+end reader;
+#########################
+override reader @nullChild string -> @string msg :
+ msg := "Empty Leaf";
+end reader ;
+#########################
+override reader  @nullChild getParam ->@parameterCallList param :
+ param := [@parameterCallList emptyList];
+end reader;
+#########################
+###### Racine  <-nodeChild
+#########################
+class @rootChild extends @nodeChild{
+   
+}
+override reader @rootChild string -> @string msg :
+  msg := "root";
+end reader ;
+
+
+#########################
+# tabular
+#########################
+class @tabElement extends @nodeChild{
+  @lstring idf;
+  @cExpression expTab;
+}
+#########################
+override reader @tabElement string -> @string msg :
+ msg := [idf string] ;
+end reader ;
+#########################
+reader @tabElement getSize -> @string msg :
+  msg := [expTab generateCode !"" !"" ![@codeCtx C]];
+end reader ;
+#########################
+override reader @tabElement getIdf ->@lstring idfr: idfr := idf; end reader;
+#########################
+override reader @tabElement isTabElement ->@bool ipc: ipc := true; end reader;
+#########################
+# tabular with function id
+#########################
+class @tabElementParameterCall extends @tabElement{
+  @parameterCallList param;
+}
+#########################
+override reader @tabElementParameterCall string -> @string msg :
+  msg := "tabElementParameterCall : ".[idf string];
+end reader ;
+#########################
+# call Function
+#########################
+class @parameterCallElement extends @nodeChild{
+  @lstring funcName;
+  @parameterCallList param;
+}
+#########################
+override reader @parameterCallElement isParameterCall ->@bool ipc: ipc := true; end reader;
+#########################
+override reader @parameterCallElement string -> @string msg :
+  msg := "parameterCallElement : ".[funcName string];
+end reader ;
+#########################
+override reader @parameterCallElement getIdf ->@lstring idfr: idfr := funcName; end reader;
+#########################
+override reader @parameterCallElement getParam ->@parameterCallList param2 :
+ param2 := param;
+end reader;
+#########################
+# idf
+#########################
+class @nodeIdf extends @nodeChild{
+  @lstring idf;
+}
+#########################
+override reader @nodeIdf string -> @string msg :
+  msg := "nodeIdf (".[idf string].")";
+end reader ;
+#########################
+override reader @nodeIdf isNodeIdf ->@bool ipc: ipc := true; end reader;
+#########################
+override reader @nodeIdf getIdf ->@lstring idfr: idfr := idf; end reader;
+#########################
+# Other ....
+#########################
+class @unKnown extends @nodeChild{
+}
+#########################
+override reader @unKnown string -> @string msg :
+   msg := "unKnown";
+end reader ;
+#########################
+###### routine  
+#########################
+#basic types are:
+# struct member        : struct.member                           -- TODO
+# simple var (or reg)  : idf                                      -> @cIdf
+# register slice       : CR.CR0                                   -> @cIdf (with abstractVar:@registerVarSlice)
+# component call       : component.method(args)                   -> @cComponentMethod
+# memory access        : component.memory.readxx(args)            -> @cComponentMethod with method=memory_readxx
+# memory access        : component.memory.memChunk.readxx(args)   -> @cComponentMethod with method=memory_memChunk_readxx
+# tabular access       : tab[<exp>]                              -- TODO
+# component call Tab   : component.method(args)[<exp>]           -- TODO
+#########################
+list @TPathList {
+  @lstring name ;
+  @cExpression expression;
+}
+#########################
+#########################
+routine evalPath
+#########################
+  ?? @componentMap componentMap
+  ?? @varMap varMap
+  ? @pathElement node
+  ?? @lstring  currentComponent
+  ?? @uint tmpId
+  !@cExpression outExp
+:
+  @TPathList pathList:= [@TPathList emptyList];
+  @pathElement pere;
+  pere := [@nullChild new ];
+  @varType outType := [@varType new ![@varKind unsigned] !8 !here];
+  outExp := [@cIntConst new !getTypeListFrom[!outType] !1L !false] ;
+  @bool test := false;
+  evalPathrec !componentMap !varMap!node !pere !currentComponent !tmpId !?outExp !?pathList !?test;
+end routine;
+
+routine asFunction 
+  ?? @componentMap componentMap
+  ?? @lstring componentName
+  ?? @lstring methodName
+   ! @bool res
+: 
+  if [componentMap hasKey ![componentName string] ] then 
+    @functionMap methodMap; 
+    [componentMap searchKey !componentName ?* ?* ?methodMap ?* ?* ?* ?* ?* ?*];
+    res := [methodMap hasKey ![methodName  string]];
+  else 
+    res := false;
+  end if; 
+end routine;
+
+#########################
+routine evalPathrec
+#########################
+ ?? @componentMap componentMap  
+ ?? @varMap varMap
+ ?  @pathElement node
+ ?  @pathElement unused pere
+ ?? @lstring  currentComponent
+ ?? @uint tmpId
+ ?! @cExpression outExp
+ ?! @TPathList pathList
+ ?! @bool isNewType
+: 
+  node := [node getChild];
+  @bool test := [node hasChild];
+  @uint cpt :=1;
+  loop 100:
+  while test == true do
+    if [node isTabElement] then 
+      cast node
+      when  == @tabElement  Tab :
+        if [varMap hasKey ![Tab string]] then 
+          @abstractVar var;
+          [varMap searchKey ![Tab getIdf]  ?var];
+          @varTypeList typeList ;
+          typeList := [@varTypeList emptyList];
+          typeList += ![var type];
+           
+          @varKind knd := [[var type] kind];
+          if cpt == 1 & knd  != [@varKind type] then
+            outExp := [@cTabIndice new !typeList !var ![Tab getSize] ![Tab expTab] ![[Tab getIdf] string] ];
+            # Voir traitement tab[i].V .... 
+          elsif cpt == 1 & knd  == [@varKind type] then
+            #message "this ".[[node getIdf]  string];
+            @varTypeList outTypeList := [@varTypeList emptyList];
+            # log var;
+            outTypeList += ![var type];
+            @cExpressionList Liste := [@cExpressionList emptyList];
+            @cTypeExtend outExptmp := [@cTypeExtend  new !outTypeList !var ![currentComponent string]."_".[[node  getIdf]string] !Liste];      
+            @cExpression expnew :=[@cTypeTagTab new  !getTypeListFrom[! [var type]]![[node getIdf]  string]  ![Tab expTab]];
+            [!?outExptmp addListe !expnew] ;
+            outExp := outExptmp ;      
+            isNewType:= true;
+          else 
+            error here:"TO DEFINE";
+          end if;  
+        elsif isNewType &  cpt > 1 then
+          #Check member
+          cast outExp
+          when == @cTypeExtend Exp :
+            @string nameType;
+            @lstring ComponentName;
+            getLastNameOfTypeTag !Exp ?nameType ?ComponentName;
+            @TypeStructDefMap TypeStructDefList := [@TypeStructDefMap emptyMap];     
+            [componentMap searchKey !ComponentName ?* ?* ?* ?* ?* ?* ?* ?* ?TypeStructDefList];
+            @TypeDef TypeDef := [TypeStructDefList TypeDefForKey !nameType];
+            @varTypeStructDefMap varTypeStructDefMap := [TypeDef  varTypeStructDefMap];
+            @bool isMember := [varTypeStructDefMap hasKey ![[Tab getIdf] string]  ] ;
+            if not isMember then 
+              error here :"Tab" .[[Tab getIdf] string] ." unknown in " .nameType;
+            end if ;
+            @varType member := [varTypeStructDefMap typeForKey ![[node getIdf] string] ] ;
+            @varTypeList outTypeList ;
+            outTypeList := [@varTypeList emptyList];
+            outTypeList += !member;
+                
+            @cTypeExtend CopyExp := Exp ;
+            @cExpression expAdd :=[@cTypeTabMember new  !outTypeList ![[node getIdf]  string] ![Tab expTab]];
+            [!?CopyExp addListe !expAdd] ;
+            [!?CopyExp setTypeReturn !member];
+            outExp := CopyExp;
+          end cast;
+        else 
+          error here : "Tab ".[[Tab getIdf] string]." unknown";
+        end if;
+      end cast;
+    #Test function call 
+    elsif [node isParameterCall] then 
+      if cpt == 1 then  # method_call() component in currentComponent  
+        # NEw rule functon need component NAME before           
+        error here:"The component name of the function".[node getIdf]." is required : <component>.".[node getIdf];  
+      elsif cpt == 2 then  # component.Call() or currentComponent.memory.call()
+        @bool res ;
+        @bool res2 ;
+        asFunction !componentMap ![[node getFather] getIdf] ![node getIdf] ?res;
+        @lstring memoryCall := [@lstring new  ![[[node getFather] getIdf] string]."_".[[node getIdf] string] ! here];
+        asFunction !componentMap !currentComponent !memoryCall ?res2;
+        if res then 
+          @varTypeList outTypeList;
+          getComponentOutType !componentMap ![[node getFather] getIdf] ![node getIdf] ?outTypeList;
+          outExp := [@cComponentMethod new !outTypeList ![[node getFather] getIdf]  ![node getIdf] ![node getParam] !tmpId];
+        elsif res2 then
+          @varTypeList outTypeList;
+          getComponentOutType !componentMap !currentComponent !memoryCall ?outTypeList;
+          outExp := [@cComponentMethod new !outTypeList !currentComponent  !memoryCall ![node getParam] !tmpId];
+        else 
+          error here:"Function ".[node getIdf]." is unknown in ".[currentComponent string]." or ".[[[node getFather] getIdf] string];
+        end if;
+      elsif cpt == 3 then #component.memory.call() or  currentComponent.memory.memchunk.call()
+        @bool res ;
+        @bool res2 ;
+        @lstring memoryCall := [@lstring new  ![[[node getFather] getIdf] string]."_".[[node getIdf] string] ! here];
+        asFunction !componentMap ![[[node getFather] getFather]getIdf] !memoryCall ?res;
+        @lstring memchunckCall := [@lstring new  ![[[[node getFather] getFather] getIdf] string]."_".[[[node getFather] getIdf] string]."_".[[node getIdf] string] ! here];
+        asFunction !componentMap !currentComponent !memchunckCall ?res2;      
+        if res then
+          @varTypeList outTypeList;
+          getComponentOutType !componentMap ![[[node getFather] getFather]getIdf] !memoryCall ?outTypeList;
+          outExp := [@cComponentMethod new !outTypeList ![[[node getFather] getFather]getIdf]  !memoryCall ![node getParam] !tmpId];
+        elsif res2 then 
+          @varTypeList outTypeList;
+          getComponentOutType !componentMap !currentComponent !memchunckCall ?outTypeList;
+          outExp := [@cComponentMethod new !outTypeList !currentComponent  !memchunckCall ![node getParam] !tmpId];
+        else 
+          error here:"Function ".[node getIdf]." is unknown in ".[currentComponent string]." or ".[[[[node getFather] getFather] getIdf] string]."  ".[[[node getFather]  getIdf] string]."  ".[res description]." ".[res2 description];
+        end if;
+      elsif cpt == 4 then #component.memory.memchunk.call()
+        @bool res ;
+        @lstring memchunckCall := [@lstring new  ![[[[node getFather] getFather] getIdf] string]."_".[[[node getFather] getIdf] string]."_".[[node getIdf] string] ! here];
+        asFunction !componentMap ![[[[node getFather]getFather] getFather] getIdf]  !memchunckCall ?res;
+        if res then 
+          @varTypeList outTypeList;
+          getComponentOutType !componentMap ![[[[node getFather]getFather] getFather]getIdf] !memchunckCall ?outTypeList;
+          outExp := [@cComponentMethod new !outTypeList ![[[[node getFather] getFather] getFather]getIdf]  !memchunckCall ![node getParam] !tmpId];
+        else 
+          error here:"Function ".memchunckCall." is unknown in ".[[[[[node getFather]getFather] getFather] getIdf] string];
+        end if;
+        ############
+      end if;  
+    # END Function call parameter call 
+    ############
+    #IDF NODE 
+    ############
+    elsif [node isNodeIdf] then  
+      @bool isVar ;
+      @bool asChild;
+      @bool isComponent;
+      @bool isAccessName;
+      @bool isAccessName2;
+      
+      # message "\n -->".[cpt string]." ".currentComponent." ".node."  "  ;
+      isComponent :=  [componentMap hasKey  ![[node getIdf] string]];
+      isVar := [varMap hasKey ![[node getIdf] string]];
+      asChild := [[node getChild] hasChild];
+      @lstring AccessName := [@lstring new ![[[node getFather] getIdf] string]."_".[[node getIdf] string] !here];
+      @lstring AccessName2 := [@lstring new ![currentComponent string]."_".[[node getIdf] string] !here];    
+    
+      isAccessName := [varMap hasKey ![AccessName string]];
+      isAccessName2 := [varMap hasKey ![AccessName2 string]];
+      
+      #Test Type 
+      if isVar then
+        @abstractVar var;
+        [varMap searchKey ![node  getIdf] ?var];
+        @varKind knd := [[var type] kind];
+        if knd  == [@varKind type] then   
+          @varTypeList outTypeList;
+          outTypeList := [@varTypeList emptyList];
+          outTypeList += ![var type];
+          @cExpressionList Liste := [@cExpressionList emptyList];   
+          @cExpression tmpExp := [@cTypeExtend  new !outTypeList !var ![currentComponent string]."_".[[node  getIdf]string] !Liste];
+          if not  isNewType then
+            cast tmpExp
+            when == @cTypeExtend Exp :
+              @cTypeExtend CopyExp := Exp ;            
+              @cExpression expnew :=[@cTypeTag new  !getTypeListFrom[! [var type]]![[node getIdf]  string] ];
+              [!?CopyExp addListe !expnew] ;
+              outExp := CopyExp ;
+            end cast; 
+          end if;
+          isNewType := true;
+        end if;
+      end if;
+      #End test Type
+      if isNewType then
+        if cpt > 1 then 
+          #check if idf is member 
+          #change type return            
+          cast outExp
+          when == @cTypeExtend typeExp :
+            @string nameType;
+            @lstring ComponentName;
+            getLastNameOfTypeTag !typeExp ?nameType ?ComponentName;
+            #message nameType." -- ".ComponentName;
+            @TypeStructDefMap TypeStructDefList := [@TypeStructDefMap emptyMap];
+            [componentMap searchKey !ComponentName ?* ?* ?* ?* ?* ?* ?* ?* ?TypeStructDefList];
+            @bool asType;
+            asType := [TypeStructDefList hasKey !nameType];
+            if asType then 
+              @TypeDef TypeDef := [TypeStructDefList TypeDefForKey !nameType];
+              # check if idf is member 
+              @varTypeStructDefMap varTypeStructDefMap := [TypeDef  varTypeStructDefMap];
+              @bool isMember := [varTypeStructDefMap hasKey ![[node getIdf] string] ] ;
+              if isMember then 
+                @varType member := [varTypeStructDefMap typeForKey ![[node getIdf] string] ] ;
+                @cTypeExtend CopyExp := typeExp ;
+                [!?CopyExp setTypeReturn !member];
+                @varTypeList outTypeList;
+                outTypeList := [@varTypeList emptyList];
+                outTypeList += !member;
+                @varKind kind := [member kind];
+                # ici test du type du membre si type alors on ajoute cTypeTag ...
+                if kind != [@varKind type] then 
+                  @cExpression expAdd :=[@cTypeMember new  !outTypeList ![[node getIdf]  string] ];
+                  [!?CopyExp addListe !expAdd] ;
+                  outExp := CopyExp;
+                else 
+                  @varTypeList typeList ;
+                  typeList := [@varTypeList emptyList];
+                  typeList += !member;
+                  @cExpression expAdd :=[@cTypeTag new  ! typeList  ![[node getIdf]  string] ];
+                  [!?CopyExp addListe !expAdd] ;
+                  outExp := CopyExp;
+                end if ;
+              else
+                error here :[[node getIdf] string]." is not member for Type ".nameType." in ".[ComponentName string];
+              end if;                    
+            else 
+              error here : "Type ".nameType."not found in ".[ComponentName string];
+            end if;
+          end cast;
+        end if; 
+      elsif isVar & not asChild & not isNewType & cpt == 1 then 
+        #message "\n IS var \n ";
+        @abstractVar var;
+        [varMap searchKey ![node  getIdf] ?var];
+        #log var;
+        outExp :=[@cIdf new  !getTypeListFrom[! [var type]]![node getIdf]  !var];
+        test := false;
+      
+      elsif isComponent & not asChild then 
+        error here : "Component alone is not allowed ";
+      elsif isAccessName  then
+        # message "\n IS acces \n ";
+        @abstractVar var;
+        [varMap searchKey !AccessName  ?var];
+
+        outExp := [@cIdf new !getTypeListFrom[! [var type]]  !AccessName  !var]; 
+        pathList += ![node getIdf] !outExp ; 
+        test := false;
+      elsif isAccessName2  then
+        #  message "\n IS acces 2\n ";
+        @abstractVar var;
+        [varMap searchKey !AccessName  ?var];
+    
+        outExp := [@cIdf new !getTypeListFrom[! [var type]]  !AccessName2  !var]; 
+        pathList += ![node getIdf] !outExp ; 
+        test := false;
+      elsif not asChild then 
+        error here : "Identifier unknown. This is neither a component name nor a variable :".[[node getIdf] string]." <----";
+      else 
+        # error here : "Idf unknow no compement no var";
+      end if;
+     # END IDF node 
+    else   
+      # message " ".node."ERROR \n";   
+    end if ;
+    #Change child 
+    if test then
+      test  := [[node getChild] hasChild];
+      @pathElement child ;
+      child := [node getChild];
+      [!?child setFather !node];
+      node := child;
+      cpt := cpt +1;
+    end if;
+  end loop; 
+end routine;
+#########################
+routine evalPathrecOld
+#########################
+  ?? @componentMap componentMap  
+  ?? @varMap varMap
+  ? @pathElement node
+  ? @pathElement pere
+  ?? @lstring  currentComponent
+   ?? @uint tmpId
+  ?!@cExpression outExp
+  ?!@TPathList pathList
+  ?!@bool isNewType
+:
+  @pathElement child ;
+  child := [@nullChild new ];
+  if [node hasChild] then
+    if [node isTabElement] then 
+      cast node
+      when  == @tabElement  Tab :
+        if [varMap hasKey ![Tab string]] then 
+          @abstractVar var;
+          [varMap searchKey ![Tab getIdf]  ?var];
+          @varTypeList typeList ;
+          typeList := [@varTypeList emptyList];
+          outExp := [@cTabIndice new !typeList !var ![Tab getSize] ![Tab expTab] ![[Tab getIdf] string] ];
+        else 
+          if isNewType then 
+            @cExpression tmpExp;
+            @varTypeList typeList := [ @varTypeList emptyList];
+            @varType type := [@varType new ![@varKind type] !1 !here];
+            @classicVar vartmp := [@classicVar new !type !false !"" !""];
+            tmpExp := [@cTabIndice new !typeList  !vartmp ![Tab getSize] ![Tab expTab] ![[Tab getIdf] string] ];
+            cast outExp
+            when == @cTypeExtend Exp :
+              @cTypeExtend CopyExp := Exp ;
+              @cExpressionList outTypeList := [Exp  Liste];
+              [!?CopyExp addListe !tmpExp] ;
+              outExp := CopyExp ;
+            end cast;
+          else 
+            error here: "Tab var not found";
+          end if;
+        end if ;
+      end cast;
+    end if ;
+    if [node isParameterCall] then
+      if [[pere getIdf] string] != "0" then
+        if [componentMap hasKey ![[pere getIdf] string] ]  then
+          @varTypeList outTypeList;
+          getComponentOutType !componentMap ![pere getIdf] ![node getIdf] ?outTypeList;
+          outExp := [@cComponentMethod new !outTypeList ![pere getIdf]  ![node getIdf] ![node getParam] !tmpId];
+        else
+        if [componentMap hasKey ![[[pere getFather]getIdf] string] ]  then
+          @varTypeList outTypeList;
+          @string methode := [[pere getIdf] string]."_".[[node getIdf] string];
+          @lstring lmethode := [@lstring new !methode  !here];
+          getComponentOutType !componentMap ![[pere getFather]getIdf]   !lmethode ?outTypeList;
+          outExp := [@cComponentMethod new !outTypeList ![[pere getFather]getIdf]  !lmethode ![node getParam] !tmpId];
+        else # 3 level
+          @pathElement grandpere := [pere getFather];
+          #message " --- ".grandpere;
+          if  [componentMap hasKey ![[[grandpere getFather]getIdf] string] ]  then
+            #message " --- ".[grandpere getFather];
+            @varTypeList outTypeList;
+            @string methode := [[grandpere getIdf] string]."_".[[pere getIdf] string]."_".[[node getIdf] string];
+            @lstring lmethode := [@lstring new !methode  !here];
+            getComponentOutType !componentMap ![[grandpere getFather]getIdf]   !lmethode ?outTypeList;
+            outExp := [@cComponentMethod new !outTypeList ![[grandpere getFather]getIdf]  !lmethode ![node getParam] !tmpId];
+          end if ;
+        end if;
+      end if;
+      else # Component Call
+        if [componentMap hasKey  ![currentComponent string] ] then 
+          @varTypeList outTypeList;
+          getComponentOutType !componentMap !currentComponent ![node getIdf] ?outTypeList;
+        end if;  
+      end if;
+    end if;
+    #### Leaf is IDF
+    if [node isNodeIdf] then
+      @bool v := [varMap hasKey ![[node getIdf] string]];
+      if v then  
+        @abstractVar var;
+        [varMap searchKey ![node  getIdf] ?var];
+        @varKind knd := [[var type] kind];
+        if knd  == [@varKind type] then 
+          @varTypeList outTypeList;
+          outTypeList := [@varTypeList emptyList];
+          outTypeList += ![var type];
+          @cExpressionList Liste := [@cExpressionList emptyList];
+          #Type dans type ????
+          isNewType := true;
+        end if;
+      end if;
+      if isNewType then 
+        message "new Type 2".[[node  getIdf]string]  ;
+        # EVALUATE node 
+        #is Typedef declaration?       
+        if [varMap hasKey ![ [node  getIdf] string]]  then 
+          @abstractVar var;
+          [varMap searchKey ![node  getIdf] ?var];
+          @varKind knd := [[var type] kind];
+          if knd  == [@varKind type] then
+            cast outExp
+            when == @cTypeExtend Exp :
+              @cTypeExtend CopyExp := Exp ;
+              message "new Type 3\n";
+              @cExpressionList outTypeList := [Exp  Liste];
+              @cExpression expnew :=[@cIdf new  !getTypeListFrom[! [var type]]![node getIdf]  !var];
+              [!?CopyExp addListe !expnew] ;
+              outExp := CopyExp ;
+            end cast;
+          end if; 
+        else 
+          cast outExp
+          when == @cTypeExtend Exp :
+            @cTypeExtend CopyExp := Exp ;
+            message "new Type 4\n";
+            @cExpressionList outTypeList := [Exp  Liste];
+            @varTypeList varlist := [@varTypeList emptyList ];
+            @cExpression expnew :=[@cTypeTag new     !varlist ![[node  getIdf] string] ];
+            [!?CopyExp addListe !expnew] ;
+            outExp := CopyExp ;
+          end cast;
+        end if;
+      # new type # 
+      else
+        if v then 
+          @abstractVar var;
+          [varMap searchKey ![node getIdf] ?var];
+          outExp := [@cIdf new !getTypeListFrom[![var type]]  ![node getIdf] !var];
+          pathList += ![node getIdf] !outExp ;
+        elsif [pathList length]> 0  then 
+          @uint size := [pathList length]-1;
+          # node is IDF but is not in varMAP
+          # that a component or a bitacces 
+          # build function name is pred_var_name "_" this_name
+          @lstring pred := [pathList nameAtIndex !size];
+          @lstring AccessName := [@lstring new ![pred string]."_".[[node getIdf] string] !here];    
+          @bool isVar := [varMap hasKey ![AccessName string ]];
+        if not isVar then 
+                             error here : " Error bitAcces ".[AccessName string ] ;
+           # end if;
+          else 
+            @abstractVar var;
+            [varMap searchKey !AccessName  ?var];
+            outExp := [@cIdf new !getTypeListFrom[! [var type]]  !AccessName  !var]; 
+            pathList += ![node getIdf] !outExp ;      
+          end if;
+       end if;   
+      end if;
+      
+    end if;
+    child := [node getChild];
+    [!?child setFather !node];
+    evalPathrec !componentMap !varMap !child !node !currentComponent  !tmpId !?outExp !?pathList !?isNewType;
+  end if;
+end routine;
+#########################
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

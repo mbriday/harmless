@@ -1,0 +1,144 @@
+semantics gadl_semantics_signalSection:
+  import "gadl_options.gOption" ;
+  import "gadl_semantics_hard_arch.gSemantics" ; #@signalConnectionList
+  import "gadl_semantics_timingSection.gSemantics"; #@timingMap
+
+routine signalCheckPart
+  ?? @architectureMap archMap
+  ?? @timingMap timingMap
+:
+  #stores signals to check that they are used only once: key is "device_signame".
+  @boolMap signalsInUseList [emptyMap]; 
+  @bool errorDetected := false;
+  foreach archMap (@lstring archName @deviceMap deviceMap @signalConnectPart signalConnectPart) do
+    @signalConnectionList signalConnectionList := [signalConnectPart signalConnectionList];
+    @sharedPortActivationList sharedPortActivationList := [signalConnectPart sharedPortActivationList];    
+    checkSharedPortActivation !sharedPortActivationList !timingMap !deviceMap;
+    foreach signalConnectionList (@lstring devNameSrc @lstring devNameDst @lstring sigNameSrc @lstring sigNameDst @bool noDst) while not errorDetected
+    do
+      basicSignalCheck !deviceMap !timingMap !devNameSrc !sigNameSrc !true !?signalsInUseList !?errorDetected;
+      if not noDst then
+        basicSignalCheck !deviceMap !timingMap !devNameDst !sigNameDst !false !?signalsInUseList !?errorDetected;
+      end if;
+    end foreach;
+    #second iteration (signalsInUseList should be filled).
+    foreach signalConnectionList (@lstring devNameSrc @lstring devNameDst @lstring sigNameSrc @lstring sigNameDst @bool noDst) while not errorDetected do
+      if not noDst then
+        secondBasicCheck !deviceMap !timingMap !devNameDst !signalsInUseList !?errorDetected;
+      end if;
+    end foreach;
+  end foreach;
+end routine;
+
+
+#check that:
+# * all 'in' signals (wait for ...) for devices are defined (else the automata will fall into a deadlock!)
+# * all 'out' signals (emit) for devices are defined (else the automata will fall into a deadlock!)
+routine secondBasicCheck
+  ?? @deviceMap deviceMap
+  ?? @timingMap timingMap
+  ?? @lstring devName
+  ?? @boolMap signalsInUseList
+  ?! @bool errorDetected
+:
+  @lstring compName;
+  [deviceMap searchKey !devName ?compName ?* ?* ?*];
+  @boolMap SignalIn;
+  @boolMap SignalOut;
+  [timingMap searchKey !compName ?* ?SignalIn ?SignalOut ?* ?*];
+  foreach SignalIn (@lstring sig) do
+    @string key := [devName string]."_".[sig string];
+    if not [signalsInUseList hasKey !key] then
+      errorDetected := true;
+      error devName: "Signal ".[sig string]." is not connected (device ".[devName string]."), related".
+            " to timing ".[compName string].". The resulting timing may wait for that signal indefinitely.";
+    end if;
+  end foreach;
+  foreach SignalOut (@lstring sig) do
+    @string key := [devName string]."_".[sig string];
+    if not [signalsInUseList hasKey !key] then
+      errorDetected := true;
+      error devName: "Signal ".[sig string]." is not connected (device ".[devName string]."), related".
+            " to timing ".[compName string].". The resulting timing may wait for that signal indefinitely.";
+    end if;    
+  end foreach;
+end routine;
+
+#basic check for either src or dst signals.
+#check that:
+# * device is defined
+# * there is a timing related to the device's component
+# * there is a signal (check either in emit or receive list)
+# * a signal is only used once.
+routine basicSignalCheck
+  ?? @deviceMap deviceMap
+  ?? @timingMap timingMap
+  ?? @lstring devName
+  ?? @lstring sigName
+  ?? @bool isEmit #true if signal is emitted (src), false if received (dst)
+  ?! @boolMap signalsInUseList
+  ?! @bool errorDetected  
+:
+  #check that device is defined,..
+  #and get back related component names.
+  @lstring compName;
+  [deviceMap searchKey !devName ?compName ?* ?* ?*];
+  #These component names are also timing names.
+  if not [timingMap hasKey ![compName string]] then 
+    errorDetected := true;
+    error sigName : "The component ".[compName string].
+          " is defined, but it should be associated to a 'timing'".
+          "section with the same name to use signals";
+  else
+    @boolMap SignalIn;
+    @boolMap SignalOut;
+    @boolMap signalInUse;
+    [timingMap searchKey !compName ?* ?SignalIn ?SignalOut ?* ?*];
+    if isEmit then signalInUse := SignalOut;
+    else signalInUse := SignalIn; end if;
+    #check that signal is defined for that device
+    if not [signalInUse hasKey ![sigName string]] then
+      errorDetected := true;
+      error sigName : "The signal is not defined in the 'timing' ".[compName string];
+      message "Available signals for that device are:\n";
+      foreach signalInUse (@lstring sig) do
+        message "\tsignal: ".[sig string]."\n";
+      end foreach;
+    else
+      #check that device/signal is only defined once as src or dst.
+      @string key := [devName string]."_".[sigName string];
+      if [signalsInUseList hasKey !key] then
+        errorDetected := true;
+        error sigName: "The signal should be used only once.";
+      else
+        [!?signalsInUseList insertKey ![@lstring new !key ![sigName location]]];
+      end if;
+    end if;
+  end if;
+end routine;
+
+#basic check:
+# device and ports have been checked during parsing (<sharedPortConnection>)
+# the port is shared (checked during parsing).
+# One should check that:
+# * timing is defined;
+# * timing has the "on activation" flag;
+routine checkSharedPortActivation
+  ?? @sharedPortActivationList sharedPortActivationList
+  ?? @timingMap timingMap
+  ?? @deviceMap deviceMap
+:
+  foreach sharedPortActivationList(@lstring deviceSrc @lstring portSrc @lstring deviceName) do
+    @lstring componentName;
+    [deviceMap searchKey !deviceName ?componentName ?* ?* ?*];
+    @bool externalActivation;
+    [timingMap searchKey !componentName ?* ?* ?* ?* ?externalActivation];
+    if not externalActivation then
+      error componentName: "The timing is connected to a shared port. It should be declared \"on activation\" in the timing definition";
+    end if;
+  end foreach;
+end routine;
+
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

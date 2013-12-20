@@ -1,0 +1,107 @@
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+external_ram     0x0000000081000000 0x0000000000100000
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+LOAD /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+
+.text           0x0000000081000000       0x88
+ *(.init)
+                0x0000000081000000                . = ALIGN (0x4)
+ *(.text)
+ .text          0x0000000081000000       0x50 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+                0x0000000081000000                main
+ .text          0x0000000081000050       0x38 build/crt0.o
+                0x0000000081000054                _entryPoint
+                0x000000008100007c                shouldNotHappen
+                0x0000000081000088                . = ALIGN (0x4)
+ *(.rodata)
+                0x0000000081000088                . = ALIGN (0x4)
+ *(.rodata*)
+                0x0000000081000088                . = ALIGN (0x4)
+ *(.glue_7t)
+ .glue_7t       0x0000000000000000        0x0 linker stubs
+                0x0000000081000088                . = ALIGN (0x4)
+ *(.glue_7)
+ .glue_7        0x0000000000000000        0x0 linker stubs
+                0x0000000081000088                . = ALIGN (0x4)
+                0x0000000081000088                etext = .
+
+.vfp11_veneer   0x0000000081000088        0x0
+ .vfp11_veneer  0x0000000000000000        0x0 linker stubs
+
+.v4_bx          0x0000000081000088        0x0
+ .v4_bx         0x0000000000000000        0x0 linker stubs
+
+.iplt           0x0000000081000088        0x0
+ .iplt          0x0000000000000000        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+
+.rel.dyn        0x0000000081000088        0x0
+ .rel.iplt      0x0000000000000000        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+
+.data           0x0000000081000088        0x0
+                0x0000000081000088                __data_start = .
+ *(.data)
+ .data          0x0000000081000088        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+ .data          0x0000000081000088        0x0 build/crt0.o
+                0x0000000081000088                . = ALIGN (0x4)
+                0x0000000081000088                edata = .
+                0x0000000081000088                _edata = .
+                0x0000000081000088                __data_end = .
+
+.igot.plt       0x0000000081000088        0x0
+ .igot.plt      0x0000000000000000        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+
+.bss            0x0000000081000088        0x4
+                0x0000000081000088                __bss_start__ = .
+ *(.bss)
+ .bss           0x0000000081000088        0x4 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+                0x0000000081000088                a
+ .bss           0x000000008100008c        0x0 build/crt0.o
+ *(COMMON)
+                0x000000008100008c                . = ALIGN (0x4)
+                0x000000008100008c                __bss_end__ = .
+                0x000000008100008c                end = .
+                0x00000000810ffffc                _init_sp = 0x810ffffc
+LOAD build/crt0.o
+LOAD /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a
+LOAD /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a
+LOAD /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a
+OUTPUT(build/test0.elf elf32-littlearm)
+
+.debug_info     0x0000000000000000       0x67
+ .debug_info    0x0000000000000000       0x67 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+
+.debug_abbrev   0x0000000000000000       0x59
+ .debug_abbrev  0x0000000000000000       0x59 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+
+.debug_loc      0x0000000000000000       0x2c
+ .debug_loc     0x0000000000000000       0x2c /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+
+.debug_aranges  0x0000000000000000       0x20
+ .debug_aranges
+                0x0000000000000000       0x20 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+
+.debug_line     0x0000000000000000       0x55
+ .debug_line    0x0000000000000000       0x55 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+
+.debug_str      0x0000000000000000       0x69
+ .debug_str     0x0000000000000000       0x69 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+
+.comment        0x0000000000000000       0x11
+ .comment       0x0000000000000000       0x11 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+                                         0x12 (size before relaxing)
+
+.ARM.attributes
+                0x0000000000000000       0x2e
+ .ARM.attributes
+                0x0000000000000000       0x30 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o
+ .ARM.attributes
+                0x0000000000000030       0x14 build/crt0.o
+
+.debug_frame    0x0000000000000000       0x28
+ .debug_frame   0x0000000000000000       0x28 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccjY5Lg3.o

@@ -1,0 +1,244 @@
+syntax gadl_instruction_syntax_parser ("gadl_lexique.gLexique") :
+
+import "gadl_options.gOption" ;
+import "gadl_semantics.gSemantics" ;
+import "gadl_semantics_syntax.gSemantics" ;
+
+nonterminal  <typeDeclaration> 
+  ! @varType type
+  ?? @componentMap componentMap
+  ?? @lstring componentName
+;
+
+nonterminal  <expression> 
+  ?? @varMap varMap
+  !  @cExpression outExp 
+  ?? @componentMap componentMap
+  ?? @uint tmpId
+  ?? @expressionContext expContext
+;
+
+rule <printNumberType>
+  ?! @printNumberTypeMap typeMap
+:
+  $number$;
+  $syntax$;
+  @lstring key;
+  @lstring printType;
+  @string base;
+  select
+    $decimal$;
+    base := "d";
+  or
+    $hexadecimal$;
+    base := "x";
+  or
+    $octal$;
+    base := "o";
+  or
+    $binary$;
+    base := "b";
+  end select;
+  select
+    $prefix$;
+    $caracterStr$ ?printType;
+    key := [@lstring new !base."_p" !here];
+  or
+    $suffix$;
+    $caracterStr$ ?printType;
+    key := [@lstring new !base."_s" !here];
+  end select;
+  [!?typeMap insertKey !key !printType];
+end rule;
+
+rule <ifOrInstruction>
+  ?! @varMap fieldMap
+  ! @syntaxChunkList chunkList 
+:
+  chunkList := [@syntaxChunkList emptyList] ;
+  repeat 
+  while
+    @printInst print;
+    <syntaxString> ?print !fieldMap;
+    @printChunk pChunk := [@printChunk new !print]; #TODO class printIfchunk
+    chunkList += !pChunk;
+  while 
+    <ifBlocSyntax> !?fieldMap !?chunkList;
+  end repeat;
+end rule;
+
+rule <ifBlocSyntax> 
+  ?! @varMap fieldMap
+  ?! @syntaxChunkList chunkList
+:
+  @ifElsifList elsifList [emptyList];
+  $if$;
+  repeat
+    @cExpression expIf;
+    @varType outTypeIf;
+    @componentMap compMap [emptyMap];
+    <expression>  !fieldMap ?expIf !compMap !0 ![@expressionContext syntaxView];
+    checkOneExpressionOutType !expIf ?outTypeIf;
+    checkBool !outTypeIf !here;
+    $then$;
+    @syntaxChunkList scl [emptyList] ;
+    <ifOrInstruction> !?fieldMap ?scl;
+    elsifList += !expIf !scl ;
+  while
+    $elseif$;
+  end repeat;
+  @syntaxChunkList elseList [emptyList] ;
+  select 
+  or
+    $else$;
+    <ifOrInstruction> !?fieldMap  ?elseList;
+  end select;
+  @syntaxChunk sc := [@ifChunk new !elsifList !elseList] ;
+  chunkList += !sc ;
+  $end$; $if$;
+end rule;
+
+rule <fieldDeclaration>
+  ?! @varMap fieldMap
+:
+  $field$; 
+  @varType type;
+  @componentMap componentMap  := [@componentMap emptyMap];
+  @TypeStructDefMap TypeList [emptyMap];
+  @lstring compName := [@lstring new !"ComponentNameNotDefined" !here];
+  <typeDeclaration> ?type !componentMap  !compName;
+  @lstring idf;
+  $idf$ ?idf;
+  @classicVar var := [@classicVar new !type !true !"" !""]; #a field is constant.
+  [!?fieldMap insertKey !idf !var]; 
+end rule;
+
+rule <syntaxString>
+  !  @printInst print
+  ?? @varMap fieldMap
+:
+  @lstring registerNameOrImmValue;
+  $caracterStr$ ?registerNameOrImmValue;
+  @syntaxArgsList args [emptyList];
+  repeat
+  while
+    $,$; 
+    #@lstring idfNum;
+    #$idf$ ?idfNum;
+    @varType outype;
+    @cExpression exp;
+    @componentMap compMap [emptyMap];
+    <expression> !fieldMap ?exp !compMap !0 ![@expressionContext syntaxView];
+    checkOneExpressionOutType !exp ?outype;
+    args += !exp !outype;
+  end repeat;
+  print := [@printInst new !registerNameOrImmValue !args];
+end rule;
+
+rule <callSyntax>
+  !  @idfOrRefSyntaxIsIdf idfSyntax
+:
+  @lstring postRefName;
+  @lstring idf;
+  $idf$ ? idf;
+  select
+    #no post ref name.
+    postRefName := [@lstring new !"" !here];
+  or
+    $postReference$ ? postRefName;
+  end select;
+  idfSyntax := [@idfOrRefSyntaxIsIdf new !idf !postRefName];
+end rule;
+
+rule <syntax> #aggregate
+  ?! @syntaxMap syntaxMap
+  ?! @varMap fieldMap 
+  ?! @uint internalSyntaxId
+:
+  $syntax$;
+  @lstring syntaxName;
+  $idf$ ?syntaxName;
+  @syntaxChunkList chunkList := [@syntaxChunkList emptyList];
+  fieldMap := [@varMap emptyMap];
+  repeat
+    while
+      <syntaxBody> !?syntaxMap !?chunkList !?fieldMap !?internalSyntaxId;
+  end repeat;
+  @aggSyntax agg := [@aggSyntax new !chunkList !fieldMap];
+  [!?syntaxMap insertKey !syntaxName !agg];
+  $end$; $syntax$;
+end rule;
+
+rule <syntaxBody>
+  ?! @syntaxMap syntaxMap
+  ?! @syntaxChunkList chunkList
+  ?! @varMap fieldMap
+  ?! @uint internalSyntaxId
+:
+  select 
+    @lstring ref;
+    $reference$ ?ref;
+    @idfOrRefSyntaxIsRefDeclaration isLabel := [@idfOrRefSyntaxIsRefDeclaration new !ref];
+    chunkList += !isLabel;
+  or
+    <fieldDeclaration> !?fieldMap;
+  or
+    <ifBlocSyntax> !?fieldMap !?chunkList;
+  or
+    @idfOrRefSyntaxIsIdf fName;
+    <callSyntax> ?fName;
+    chunkList += !fName;
+  or
+    @printInst print;
+    <syntaxString> ?print !fieldMap;
+    @printChunk pChunk := [@printChunk new !print];
+    chunkList += !pChunk;
+  or
+    <selectSyntax> !?syntaxMap !fieldMap !?chunkList !?internalSyntaxId;
+  end select;
+end rule;
+
+rule <selectSyntax>
+  ?! @syntaxMap syntaxMap
+  ?? @varMap fieldMap 
+  ?! @syntaxChunkList chunkList
+  ?! @uint internalSyntaxId
+:
+  $select$;
+  @lstring selectName := [@lstring new !"select_syntax_".[internalSyntaxId string] !here];
+  internalSyntaxId := internalSyntaxId + 1;
+  @syntaxChunkList selectChunkList [emptyList];
+  @varMap selectFieldMap := fieldMap; #inherits variables.
+  repeat
+    while
+      $case$;
+      #inside a 'case' is a new aggregate.
+      @lstring caseAggregateName := [@lstring new !"syntax_case_".[internalSyntaxId string] !here];
+      internalSyntaxId := internalSyntaxId + 1;
+      @syntaxChunkList selectCaseChunkList [emptyList];
+      @varMap selectCaseFieldMap := selectFieldMap; #inherits variables.
+      repeat
+        while
+          <syntaxBody> !?syntaxMap !?selectCaseChunkList !?selectCaseFieldMap !?internalSyntaxId;
+      end repeat;
+      #create the 'aggregate' syntax structure
+      @aggSyntax agg := [@aggSyntax new !selectCaseChunkList !selectCaseFieldMap];
+      [!?syntaxMap insertKey !caseAggregateName ! agg];
+      #update the alternative to call the new alternative syntax.
+      @lstring postRefName := [@lstring new !"" !here]; #no post ref name (@...).
+      @idfOrRefSyntaxIsIdf idfSyntax := [@idfOrRefSyntaxIsIdf new !caseAggregateName !postRefName];
+      selectChunkList += !idfSyntax;
+  end repeat;
+  $end$; $select$;
+  #create the alternative syntax structure
+  @altSyntax alt := [@altSyntax new !selectChunkList !selectFieldMap];
+  [!?syntaxMap insertKey !selectName !alt];
+  #update the aggregate to call the new alternative syntax.
+  @lstring postRefName := [@lstring new !"" !here]; #no post ref name (@...).
+  @idfOrRefSyntaxIsIdf idfSyntax := [@idfOrRefSyntaxIsIdf new !selectName !postRefName];
+  chunkList += !idfSyntax;
+end rule;
+
+end syntax ;
+
+# vim:ft=ggs:ts=2:sw=2

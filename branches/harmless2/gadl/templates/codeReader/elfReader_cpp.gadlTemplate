@@ -1,0 +1,352 @@
+%template headerC%
+#include "elfReader.h"
+
+#ifdef USE_LIBELF
+#include <gelf.h>
+#include <libelf.h>
+#include <string>
+#include <iostream>
+using namespace std;
+
+#include "arch.h"
+
+virtualToPhysicalAddr::virtualToPhysicalAddr(const u32 v_addr, const u32 p_addr, const u32 size)
+: m_v_addr(v_addr), m_p_addr(p_addr), m_size(size)
+{
+}
+
+bool const virtualToPhysicalAddr::getPhysicalAddr(const u32 v_addr, u32 &p_addr)
+{
+	bool matching=isMatching(v_addr);
+	if(matching) p_addr = (v_addr-m_v_addr)+m_p_addr;
+	return matching;	
+}
+
+elfReader::~elfReader()
+{
+	const unsigned int nbSeg = m_programSegmentVector.size();
+	for(unsigned int i = 0;i<nbSeg; i++)
+		delete (m_programSegmentVector[i]);
+	const unsigned int nbCodeSec = m_codeSectionVector.size();
+	for(unsigned int i = 0;i<nbCodeSec; i++)
+		delete (m_codeSectionVector[i]);
+}
+
+elfReader::elfReader()
+{
+	m_usingPhysicalAddr = true;
+	m_elfFile = NULL;
+}
+
+bool elfReader::initElfReader(FILE* codeFile, const bool verbose, const char * filename)
+{
+	//init elf lib
+	if (elf_version(EV_CURRENT) == EV_NONE) {
+		if(verbose) cerr << "Can't init elf library." << endl;
+		return false;
+	}
+	
+	//read file.
+	if ((m_elfFile = elf_begin(fileno(codeFile), ELF_C_READ, NULL)) == NULL) {
+		if(verbose) cerr << "reading elf: elf_begin failed: " << filename << endl;
+		return false;
+	}
+	//is it an elf file. If this is not the case, it just returns.
+	//the simulator will try another file format.
+	if (elf_kind(m_elfFile) != ELF_K_ELF) {
+		elf_end(m_elfFile);
+		return false;
+	}	
+	return true;
+}
+
+bool elfReader::readProgramHeaders()
+{
+	GElf_Phdr programHeader;
+	size_t nbProgramHeaders;
+	unsigned int i;
+	//get nb of program headers
+	if (elf_getphnum(m_elfFile, &nbProgramHeaders) == 0) {
+                cerr << "reading elf: cannot get numbers of program headers" << endl;
+		return false;
+	}
+	for (i = 0; i < nbProgramHeaders; i++) {
+		if (gelf_getphdr(m_elfFile, i, &programHeader) == &programHeader) {
+			//ok. Get current program header.
+			if(programHeader.p_type == PT_LOAD)
+			{
+				m_programSegmentVector.push_back(new virtualToPhysicalAddr (programHeader.p_vaddr, programHeader.p_paddr, programHeader.p_memsz));
+			}
+		} else return false;
+	}
+	//check if physical addresses are used: i.e. one physical address is different from 0
+	//if not, the virtual address is understood as a physical address.
+	const unsigned int nbSeg = m_programSegmentVector.size();
+	m_usingPhysicalAddr = false;
+	for(unsigned int i = 0;i<nbSeg; i++)
+	{
+		m_usingPhysicalAddr |= (m_programSegmentVector[i]->getPhysicalAddrBase() != 0);
+	}
+	return true;
+}
+
+unsigned int elfReader::getProgramCounter()
+{
+	Elf32_Ehdr *Ehdr=elf32_getehdr(m_elfFile);
+	Elf32_Addr pc = Ehdr->e_entry;
+	return (unsigned int)(pc);
+}
+
+bool elfReader::readFile(const char * filename, arch *_arch, const bool verbose)
+{
+	bool ok = true;
+	FILE* codeFile = fopen(filename, "r");
+	if(codeFile != NULL)
+	{
+		Elf_Scn *section = NULL;
+		if(initElfReader(codeFile, verbose, filename))
+		{
+			/*section header string index (to get section names).*/
+			size_t sectionHeaderStringIndex = 0; 
+			//get the section string index (to get section names)
+			if (elf_getshstrndx(m_elfFile, &sectionHeaderStringIndex) == 0) {
+				if(verbose) cerr << "reading elf: no section string index." << endl;
+				//return false;
+			}
+		
+			//get program header
+			readProgramHeaders();
+			//for each section
+			if(verbose) cout << "load ";
+			while ((section = elf_nextscn(m_elfFile, section)) != NULL) 
+			{
+				//get section header
+				GElf_Shdr sectionHeader;
+				if (gelf_getshdr(section, &sectionHeader) != &sectionHeader) {
+					if(verbose) cerr << "reading elf: cannot get section header" << endl;
+					return false;
+				}
+			
+				//get section name
+				const char *name = elf_strptr(m_elfFile, sectionHeaderStringIndex, sectionHeader.sh_name);
+
+				Elf_Data *data = elf_getdata (section, NULL);
+
+				ok = ok && manageBinaryCode(data, &sectionHeader, verbose, name, _arch);
+				manageSymbols(data, &sectionHeader, verbose, name);
+			}
+			if(verbose) cout << (ok ? "ok" : "failed") << endl;
+			elf_end(m_elfFile);
+		} else {ok = false;} /* not a valid elf file (can't init) */
+		fclose(codeFile);
+	} else 
+	{
+		cerr << "ERROR: can't open program file." << endl;
+		ok = false;
+	}
+
+	return ok;
+}
+
+bool elfReader::manageBinaryCode(Elf_Data *data, GElf_Shdr *sectionHeader, const bool verbose, const char *name, arch *_arch)
+{
+	bool ok = true;
+	//check if section contains executable code and load it in simulator
+	if(data &&                                       //there is a data
+	   (sectionHeader->sh_type == SHT_PROGBITS) &&   
+	   //executable code (no s//write (data), exec (code), alloc (rom) -> no debugymbol)
+	   (sectionHeader->sh_flags & (SHF_WRITE | SHF_EXECINSTR | SHF_ALLOC))) 
+	{
+		if(verbose) cout << endl << "\t" << sectionHeader->sh_size << " bytes from section " << name << "...";
+		const unsigned int v_addr_start = sectionHeader->sh_addr;
+		ok = loadIntoSimulator(v_addr_start, data, _arch);
+		if(ok) m_codeSectionVector.push_back(new codeSection(v_addr_start, data->d_size));
+	}
+	return ok;
+}
+
+#include <iomanip> //setioflags (setw)
+
+bool elfReader::loadIntoSimulator(unsigned int v_addr_start,Elf_Data * data, arch *_arch)
+{
+	bool ok = true;
+	const size_t size = data->d_size;
+	const off_t offset = v_addr_start+data->d_off;
+	unsigned char *buffer = (unsigned char *) data->d_buf;
+	for(unsigned int i=0; i < size; i++)
+	{
+		bool found;
+		unsigned int addr = getPhysicalAddress(offset+i, found);
+		//cout << "write " << hex << setw(2) << (int)buffer[i] << " at 0x" << (int)addr << " (virtual: 0x" << offset+i << ")" << endl;
+		if(!found) {
+			ok = false;
+			cerr << "Cannot retrieve physical address from virtual: 0x" << hex << offset+i << "." << endl;
+		} else {
+			unsigned int _addr = _arch->linkerAddressTranslation(addr);
+			storage *chunk = _arch->getProgramChunk(_addr);
+			if(chunk == NULL) // error, no memory!
+			{
+				ok = false;
+				cerr << "No memory chunk at address 0x" << hex << _addr << " to load the program file. Virtual address is (0x" << offset+i << ")" << endl;
+			} else chunk -> put8AtAddr(_addr, buffer[i]);
+		}
+	}
+	return ok;
+}
+
+u32 elfReader::getPhysicalAddress(const u32 v_addr, bool &found)
+{
+	u32 result = v_addr;
+	if(m_usingPhysicalAddr)
+	{
+		const unsigned int nbSeg = m_programSegmentVector.size();
+		unsigned int i = 0;
+		found = false;
+		while(i < nbSeg && !found)
+		{
+			found = m_programSegmentVector[i++]->getPhysicalAddr(v_addr, result);
+		}
+	} else { //using virtual address as the physical address.
+		found = true;
+	}
+	return result;
+}
+
+void elfReader::manageSymbols(Elf_Data *data, GElf_Shdr *sectionHeader, const bool verbose, const char *name)
+{
+	unsigned int nbSymInMap = 0;
+	if(data &&                                //there is a data
+	  (sectionHeader->sh_type == SHT_SYMTAB))  // symbol
+	{ 
+		//debug symbol
+		size_t nsym = data->d_size / sizeof (Elf32_Sym);
+		for (size_t cnt = 0; cnt < nsym; ++cnt) {
+		GElf_Sym sym;
+		if(gelf_getsym (data, cnt, &sym))
+		{
+				string symbol_name_str = elf_strptr (m_elfFile, sectionHeader->sh_link, sym.st_name);
+				symbolEntry entry;
+				entry.address = sym.st_value; //Elf32_Addr == u32
+				entry.size = sym.st_size;     //Elf32_Word == u32
+				//STT_NOTYPE, STT_OBJECT, STT_FUNC, STT_SECTION, STT_FILE, ..
+				//-> use only Func and object at this date.
+				unsigned char type = ELF32_ST_TYPE(sym.st_info); 
+				switch(type) {
+					case STT_OBJECT: m_symbolObjectMap[symbol_name_str] = entry; nbSymInMap++; break;
+					case STT_FUNC:   m_symbolFuncMap[symbol_name_str] = entry; nbSymInMap++;  break;
+					case STT_NOTYPE: if(symbol_name_str != "" && symbol_name_str[0] != '$') { //hack :-/
+						m_symbolFuncMap[symbol_name_str] = entry; nbSymInMap++;  break;
+					}
+//					default: cout << "symbol (type " << (int)type << ")not used : " << symbol_name_str << endl;
+//							 cout << "\t->size " << (int)entry.size << endl;
+//							 cout << "\t->address " << hex << entry.address << endl;
+
+				}
+			}
+		}
+		if(verbose) cout << endl << "\t" << nbSymInMap << " symbols from section " << name << "...";
+	}
+}
+
+
+bool elfReader::getSymbolObjectAddress(const char *symbolName, u32 &v_addr, u32 &size)
+{
+	bool found;
+	string symbolNameStr = symbolName;
+	map<string, symbolEntry>::iterator it = m_symbolObjectMap.find(symbolNameStr);
+	if(it == m_symbolObjectMap.end()) found = false;
+	else {
+		found = true;
+		symbolEntry entry = (*it).second;
+		v_addr = entry.address;
+		size = entry.size;
+	}
+	return found;
+}
+
+bool elfReader::getFunctionName(const char *symbolName, u32 &v_addr)
+{
+	bool found;
+	string symbolNameStr = symbolName;
+	map<string, symbolEntry>::iterator it = m_symbolFuncMap.find(symbolNameStr);
+	if(it == m_symbolFuncMap.end()) found = false;
+	else {
+		found = true;
+		symbolEntry entry = (*it).second;
+		v_addr = entry.address;
+	}
+	return found;
+}
+
+void elfReader::dumpObjects()
+{
+	std::map<std::string, symbolEntry>::iterator it = m_symbolObjectMap.begin();
+	std::map<std::string, symbolEntry>::const_iterator itEnd = m_symbolObjectMap.end();
+	while(it != itEnd)
+	{
+		string name = (*it).first;
+		symbolEntry entry = (*it).second;
+		cout << "0x" << setw(8) << hex << entry.address << " ";
+		cout << "0x" << setw(4) << dec << entry.size << " ";
+ 		cout << name << endl;
+		it++;
+	}
+}
+void elfReader::dumpFunctions()
+{
+	std::map<std::string, symbolEntry>::iterator it = m_symbolFuncMap.begin();
+	std::map<std::string, symbolEntry>::const_iterator itEnd = m_symbolFuncMap.end();
+	while(it != itEnd)
+	{
+		string name = (*it).first;
+		symbolEntry entry = (*it).second;
+		cout << "0x" << setw(8) << hex << entry.address << " ";
+		cout << setw(6) << dec << entry.size << " ";
+ 		cout << name << endl;
+		it++;
+	}
+}
+
+std::string elfReader::whichFunctionAtAddress(const u32 v_addr)
+{
+	bool found = false;
+	string result = "";
+	//first search functions that are associated with a size.
+	//if not found, search with functions without any size provided 
+	//(code was probably written directly in assembly). 
+	string resultNoSize = ""; //associated with no size.
+	u32 addressNoSize = 0;
+	std::map<std::string, symbolEntry>::iterator it = m_symbolFuncMap.begin();
+	std::map<std::string, symbolEntry>::const_iterator itEnd = m_symbolFuncMap.end();
+	while(it != itEnd && !found)
+	{
+		symbolEntry entry = (*it).second;
+		const u32 start = entry.address;
+		if(entry.size == 0)
+		{
+			if(v_addr >= start) //may be ok
+			{
+				//get the nearest symbol (i.e. the one with the highest addr)
+				if(addressNoSize < start)
+				{
+					addressNoSize = start;
+					resultNoSize = (*it).first;
+				}
+			}
+		} else {
+			const u32 end = start+entry.size;
+			if(v_addr >= start && v_addr < end) 
+			{
+				found = true; //end of loop.
+				result = (*it).first;
+			}
+		}
+		it++;
+	}
+	if(found) return result;
+	else return resultNoSize;
+}
+
+
+#endif //USE_LIBELF
+

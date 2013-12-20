@@ -1,0 +1,77 @@
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+*default*        0x00000000         0xffffffff
+
+Linker script and memory map
+
+                0x00010000                . = 0x10000
+
+.text           0x00010000      0x154
+ startup.o()
+ .text          0x00010000       0x10 startup.o
+                0x00010000                _Reset
+ .data          0x00010010        0x0 startup.o
+ .bss           0x00010010        0x0 startup.o
+ .debug_line    0x00010010       0x39 startup.o
+ .debug_info    0x00010049       0x69 startup.o
+ .debug_abbrev  0x000100b2       0x14 startup.o
+ *fill*         0x000100c6        0x2 00
+ .debug_aranges
+                0x000100c8       0x20 startup.o
+ .glue_7        0x000100e8        0x0 startup.o
+ .glue_7t       0x000100e8        0x0 startup.o
+ *(.text)
+ .text          0x000100e8       0x6c test.o
+                0x000100e8                print_uart0
+                0x00010138                c_entry
+
+.glue_7         0x00010154        0x0
+ .glue_7        0x00010154        0x0 test.o
+
+.glue_7t        0x00010154        0x0
+ .glue_7t       0x00010154        0x0 test.o
+
+.data           0x00010154        0x8
+ *(.data)
+ .data          0x00010154        0x0 test.o
+ *(.rodata)
+ .rodata        0x00010154        0x8 test.o
+                0x00010154                UART0DR
+
+.bss            0x0001015c        0x0
+ *(.bss)
+ .bss           0x0001015c        0x0 test.o
+                0x0001115c                . = (. + 0x1000)
+                0x0001115c                stack_top = .
+LOAD test.o
+LOAD startup.o
+OUTPUT(test.elf elf32-littlearm)
+
+.debug_abbrev   0x00000000       0x80
+ .debug_abbrev  0x00000000       0x80 test.o
+
+.debug_info     0x00000000       0xf5
+ .debug_info    0x00000000       0xf5 test.o
+
+.debug_line     0x00000000       0x3e
+ .debug_line    0x00000000       0x3e test.o
+
+.debug_frame    0x00000000       0x50
+ .debug_frame   0x00000000       0x50 test.o
+
+.debug_loc      0x00000000       0x54
+ .debug_loc     0x00000000       0x54 test.o
+
+.debug_pubnames
+                0x00000000       0x3a
+ .debug_pubnames
+                0x00000000       0x3a test.o
+
+.debug_aranges  0x00000000       0x20
+ .debug_aranges
+                0x00000000       0x20 test.o
+
+.comment        0x00000000       0x12
+ .comment       0x00000000       0x12 test.o

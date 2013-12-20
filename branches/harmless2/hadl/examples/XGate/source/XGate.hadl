@@ -1,0 +1,700 @@
+
+-------------------------------------------------------------------------------
+-- Constraints :
+--    - if statements contain no operation calls
+--    - single assignment of local variables
+-------------------------------------------------------------------------------
+
+model XGate {
+
+default {
+  instructions{16}
+  data{16}
+}
+
+-------------------------------------------------------------------------------
+-- Hardware : variables & interfaces
+-------------------------------------------------------------------------------
+
+-- Register file ------------------------------------------
+
+component Registers {
+
+  var u'16 gpr[8]
+
+  u'16 getValue(u'3 index, u'1 high, u'1 low) {
+    var u'8 msb
+    if index = 0 then
+      return 0;
+    else
+      if high then
+        msb := gpr[index]{15..8};
+      else
+        msb := 0;
+      end if;
+      if low then
+        return (msb lsl 8) | gpr[index]{7..0};
+      else
+        return msb;
+      end if;
+    end if;
+  }
+
+  void setValue(u'3 index, u'1 high, u'1 low, u'16 value) {
+    if index != 0 then
+      if high && low then
+        gpr[index] := value;
+      elseif high then
+        gpr[index]{15..8} := value;
+      else
+        gpr[index]{7..0} := value;
+      end if;
+    end if;
+  }
+}
+
+-- Status register ----------------------------------------
+
+component StatusRegister {
+
+  var u'4 ccr
+
+  u'1 getNFlag() {
+    return ccr{3};
+  }
+
+  void setNFlag(u'1 flag) {
+    ccr{3} := flag;
+  }
+  
+  u'1 getZFlag() {
+    return ccr{2};
+  }
+
+  void setZFlag(u'1 flag) {
+    ccr{2} := flag;
+  }
+  
+  u'1 getVFlag() {
+    return ccr{1};
+  }
+
+  void setVFlag(u'1 flag) {
+    ccr{1} := flag;
+  }
+  
+  u'1 getCFlag() {
+    return ccr{0};
+  }
+
+  void setCFlag(u'1 flag) {
+    ccr{0} := flag;
+  }
+}
+
+-- ALU ----------------------------------------------------
+
+component ALU {
+
+  -- Addition operation --
+
+  s'16 addOp(s'16 a, s'16 b) {
+    return a + b;
+  }
+
+  s'16 addOpUpdateCcr(s'16 a, s'16 b) {
+    var s'16 result
+    result := a + b;
+    StatusRegister.setNFlag(result < 0);
+    StatusRegister.setZFlag(result = 0);
+    StatusRegister.setCFlag( (a{15} | b{15}) & ~ result{15} | a{15} & b{15} );
+    StatusRegister.setVFlag( a{15} & b{15} & ~ result{15} | ~ a{15} & ~ b{15} & result{15} );
+    return result;
+  }
+
+  s'16 addOpWithCarry(s'16 a, s'16 b) {
+    return a + b + StatusRegister.getCFlag();
+  }
+
+  s'16 addOpWithCarryUpdateCcr(s'16 a, s'16 b) {
+    var s'16 result
+    result := a + b + StatusRegister.getCFlag();
+    StatusRegister.setNFlag(result < 0);
+    StatusRegister.setZFlag(result = 0);
+    StatusRegister.setCFlag( (a{15} | b{15}) & ~ result{15} | a{15} & b{15} );
+    StatusRegister.setVFlag( a{15} & b{15} & ~ result{15} | ~ a{15} & ~ b{15} & result{15} );
+    return result;
+  }
+
+  -- Subtration operation --
+
+  s'16 subOp(s'16 a, s'16 b) {
+    return a - b;
+  }
+
+  s'16 subOpUpdateCcr(s'16 a, s'16 b) {
+    var s'16 result
+    result := a - b;
+    StatusRegister.setNFlag(result < 0);
+    StatusRegister.setZFlag(result = 0);
+    StatusRegister.setCFlag( (~ a{15} | b{15}) & result{15} | ~ a{15} & b{15} );
+    StatusRegister.setVFlag( a{15} & ~ b{15} & ~ result{15} | ~ a{15} & b{15} & result{15} );
+    return result;
+  }
+
+  s'16 subOpWithCarry(s'16 a, s'16 b) {
+    return a - b - StatusRegister.getCFlag();
+  }
+
+  s'16 subOpWithCarryUpdateCcr(s'16 a, s'16 b) {
+    var s'16 result
+    result := a - b - StatusRegister.getCFlag();
+    StatusRegister.setNFlag(result < 0);
+    StatusRegister.setZFlag(result = 0);
+    StatusRegister.setCFlag( (~ a{15} | b{15}) & result{15} | ~ a{15} & b{15} );
+    StatusRegister.setVFlag( a{15} & ~ b{15} & ~ result{15} | ~ a{15} & b{15} & result{15} );
+    return result;
+  }
+
+  -- Logical | operation --
+
+  s'16 orOp(s'16 a, s'16 b) {
+    return a | b;
+  }
+
+  s'16 orOpUpdateCcr(s'16 a, s'16 b) {
+    var s'16 result
+    result := a | b;
+    StatusRegister.setNFlag(result < 0);
+    StatusRegister.setZFlag(result = 0);
+    StatusRegister.setVFlag(0);
+    return result;
+  }
+}
+
+-- Memory -------------------------------------------------
+
+component Memory {
+
+  external var u'8 mem[65536]
+
+  u'16 getValue(u'16 address, u'1 word) {
+    -- TODO check alignment
+    if word then
+      return (mem[address] lsl 8) | mem[address+1];
+    else
+      return mem[address];
+    end if;
+  }
+
+  void setValue(u'16 address, u'1 word, u'16 value) {
+    -- TODO check alignment
+    if word then
+      mem[address] := value{15..8};
+      mem[address+1] := value{7..0};
+    else
+      mem[address] := value{7..0};
+    end if;
+  }
+}
+
+-- Fetch unit ---------------------------------------------
+
+component Fetcher {
+
+  var u'16 pc
+
+  void reset() {
+    pc := 0;
+  }
+
+  u'16 next() {
+    var u'16 instr
+    instr := Memory.getValue(pc, 1);
+    pc := pc + 2;
+    return instr;
+  }
+
+  void branch(s'16 offset) {
+    pc := pc + offset;
+  }
+}
+
+-------------------------------------------------------------------------------
+-- Hardware : architectures
+-------------------------------------------------------------------------------
+
+architecture Generic {
+  resource regs : Registers {
+      port rs1 : getValue;
+      port rs2 : getValue;
+      port rs3 : getValue;
+      port rd1 : setValue;
+      port rd2 : setValue;
+    }
+
+  resource ccr : StatusRegister {
+      port c_r : getCFlag;
+      port c_w : setCFlag;
+      port n_r : getNFlag;
+      port n_w : setNFlag;
+      port v_r : getVFlag;
+      port v_w : setVFlag;
+      port z_r : getZFlag;
+      port z_w : setZFlag;
+    }
+
+  resource alu : ALU {
+      port all;
+    }
+
+  resource memory : Memory {
+      port fetch : getValue;
+      port loadStore;
+    }
+
+  resource fetcher : Fetcher {
+      port next : next;
+      port branch : branch;
+    }
+}
+
+-------------------------------------------------------------------------------
+-- Hardware : pipelines
+-------------------------------------------------------------------------------
+
+pipeline pFE maps to Generic {
+  
+  init {
+      Fetcher.reset();
+    }
+
+  run Fetcher.next() as Instruction
+
+  stage Fetch {
+      fetcher : next;
+      memory : fetch;
+    }
+
+  stage Execute {
+      fetcher : branch;
+      alu;
+      ccr;
+      regs;
+      memory : loadStore;
+    }
+}
+
+pipeline pFDEAMR maps to Generic {
+  
+  init {
+      Fetcher.reset();
+    }
+
+  run Fetcher.next() as Instruction
+
+  stage Fetch {
+      fetcher : next;
+      memory : fetch;
+    }
+
+  stage Decode {
+      fetcher : branch;
+      regs : rs1, rs2, rs3;
+      ccr : c_r, n_r, z_r, v_r;
+    }
+
+  stage Execute1 {
+      alu release in <Execute2>;
+    }
+
+  stage Execute2 {
+    }
+
+  stage Memory {
+      memory : loadStore;
+    }
+
+  stage Register {
+      regs bypass in <Execute2, Memory> : rd1, rd2;
+      ccr : c_w, n_w, z_w, v_w;
+    }
+}
+
+-------------------------------------------------------------------------------
+-- Instruction set : semantic view
+-------------------------------------------------------------------------------
+
+alternative behavior Instruction {
+  RegisterRegisterInstruction()
+  ImmediateDataInstruction()
+  MemoryInstruction()
+  BranchInstruction()
+}
+
+aggregate behavior GprRead(out u'16 value, u'1 high, u'1 low) {
+  field u'3 regIndex
+  do {
+    value := Registers.getValue(regIndex, high, low);
+  }
+}
+
+aggregate behavior GprWrite(u'16 value, u'1 high, u'1 low) {
+  field u'3 regIndex
+  do {
+    Registers.setValue(regIndex, high, low, value);
+  }
+}
+
+aggregate behavior ImmediateData(out u'16 value) {
+  field u'16 immValue
+  do {
+    value := immValue;
+  }
+}
+
+aggregate behavior RegisterRegisterInstruction {
+  var u'16 valueOfRs1
+  var u'16 valueOfRs2
+  var u'16 valueOfRd
+  
+  GprRead(valueOfRs1, 1, 1) @rs1
+  GprRead(valueOfRs2, 1, 1) @rs2
+  RegisterRegisterOperation(valueOfRd, valueOfRs1, valueOfRs2)
+  GprWrite(valueOfRd, 1, 1)
+}
+
+alternative behavior RegisterRegisterOperation(out u'16 valueOfRd, u'16 valueOfRs1, u'16 valueOfRs2) {
+  #OR { valueOfRd := ALU.orOpUpdateCcr(valueOfRs1, valueOfRs2); }
+  #SUB { valueOfRd := ALU.subOpUpdateCcr(valueOfRs1, valueOfRs2); }
+  #SBC { valueOfRd := ALU.subOpWithCarryUpdateCcr(valueOfRs1, valueOfRs2); }
+  #ADD { valueOfRd := ALU.addOpUpdateCcr(valueOfRs1, valueOfRs2); }
+  #ADC { valueOfRd := ALU.addOpWithCarryUpdateCcr(valueOfRs1, valueOfRs2); }
+}
+
+aggregate behavior ImmediateDataInstruction {
+  field u'1 high
+  field u'3 rd
+  var u'16 valueOfImm
+  
+  ImmediateData(valueOfImm)
+  ImmediateDataOperation(valueOfImm, high, rd)
+}
+
+alternative behavior ImmediateDataOperation(u'16 valueOfImm, u'1 high, u'3 rdIndex) {
+  var u'16 valueOfRd
+  var u'16 effectiveImm
+  #ADD {
+    valueOfRd := Registers.getValue(rdIndex, 1, 1);
+    if high then
+      effectiveImm := valueOfImm lsl 8;
+    else
+      effectiveImm := valueOfImm;
+    end if;
+    Registers.setValue(rdIndex, 1, 1, ALU.addOpUpdateCcr(valueOfRd, effectiveImm));
+  }
+  #LD { Registers.setValue(rdIndex, high, !high, valueOfImm); }
+}
+
+aggregate behavior MemoryInstruction {
+  field u'1 word
+  var u'16 valueOfRb
+  var u'16 offset
+  
+  GprRead(valueOfRb, 1, 1)
+  MemoryAddressingMode(offset, word)
+  MemoryTransfer(ALU.addOp(offset, valueOfRb), word)
+}
+
+alternative behavior MemoryAddressingMode(out u'16 offset, u'1 word) {
+  ImmediateData(offset)
+  IndexedAddressingMode(offset, word)
+}
+
+alternative behavior IndexedAddressingMode(out u'16 offset, u'1 word) {
+  field u'3 regIndex
+  var u'1 inc
+  do {
+    if word then
+      inc := 2;
+    else
+      inc := 1;
+    end if;
+  }
+  #PLAIN {
+      offset := Registers.getValue(regIndex, 1, 1);
+    }
+  #POST_INCREMENT {
+      offset := Registers.getValue(regIndex, 1, 1);
+      Registers.setValue(regIndex, 1, 1, offset + inc);
+    }
+  #PRE_DECREMENT {
+      offset := Registers.getValue(regIndex, 1, 1) - inc;
+      Registers.setValue(regIndex, 1, 1, offset);
+    }
+}
+
+alternative behavior MemoryTransfer(u'16 address, u'1 word) {
+  StoreOperation(address, word)
+  LoadOperation(address, word)
+}
+
+aggregate behavior StoreOperation(u'16 address, u'1 word) {
+  var u'16 valueOfRs
+  
+  GprRead(valueOfRs, word, 1)
+  do {
+    Memory.setValue(address, word, valueOfRs);
+  }
+}
+
+aggregate behavior LoadOperation(u'16 address, u'1 word) {
+  var u'16 valueOfRd
+  do {
+    valueOfRd := Memory.getValue(address, word);
+  }
+  GprWrite(valueOfRd, word, 1)
+}
+
+alternative behavior BranchInstruction {
+  ConditionalBranchOperation()
+  BranchOperation()
+}
+
+aggregate behavior ConditionalBranchOperation {
+  var u'1 conditionIsTrue
+  Condition(conditionIsTrue)
+  BranchOperation() when conditionIsTrue
+}
+
+alternative behavior Condition(out u'1 conditionIsTrue) {
+  #CC { conditionIsTrue := ! StatusRegister.getCFlag(); }
+  #CS { conditionIsTrue := StatusRegister.getCFlag(); }
+  #NE { conditionIsTrue := ! StatusRegister.getZFlag(); }
+  #EQ { conditionIsTrue := StatusRegister.getZFlag(); }
+  #PL { conditionIsTrue := ! StatusRegister.getNFlag(); }
+  #MI { conditionIsTrue := StatusRegister.getNFlag(); }
+  #VC { conditionIsTrue := ! StatusRegister.getVFlag(); }
+  #VS { conditionIsTrue := StatusRegister.getVFlag(); }
+  #HI { conditionIsTrue := ! (StatusRegister.getZFlag() || StatusRegister.getVFlag()); }
+  #LS { conditionIsTrue := StatusRegister.getZFlag() || StatusRegister.getVFlag(); }
+  #GE { conditionIsTrue := ! (StatusRegister.getNFlag() ^ StatusRegister.getVFlag()); } -- TODO ^^
+  #LT { conditionIsTrue := StatusRegister.getNFlag() ^ StatusRegister.getVFlag(); } -- TODO ^^
+  #GT { conditionIsTrue := ! (StatusRegister.getZFlag() || (StatusRegister.getNFlag() ^ StatusRegister.getVFlag())); } -- TODO ^^
+  #LE { conditionIsTrue := StatusRegister.getZFlag() || (StatusRegister.getNFlag() ^ StatusRegister.getVFlag()); } -- TODO ^^
+}
+
+aggregate behavior BranchOperation {
+  var u'16 valueOfImm
+  
+  ImmediateData(valueOfImm)
+  do {
+    Fetcher.branch(valueOfImm);
+  }
+}
+
+-------------------------------------------------------------------------------
+-- Instruction encoding
+-------------------------------------------------------------------------------
+
+alternative format Instruction match slice{15..11,1..0} {
+  RegisterRegisterInstruction() is \b"0001---"
+  ImmediateDataInstruction()    is \b"1------"
+  -- BitFieldInstruction()         is \b"011--11" -- TODO
+  MemoryInstruction()           is \b"01-----"
+  BranchInstruction()           is \b"001----"
+}
+
+aggregate format GprWrite {
+  regIndex = slice{10..8}
+}
+
+aggregate format GprRead context StoreOperation {
+  regIndex = slice{10..8}
+}
+
+aggregate format GprRead context RegisterRegisterInstruction@rs1, MemoryInstruction {
+  regIndex = slice{7..5}
+}
+
+aggregate format GprRead context RegisterRegisterInstruction@rs2 {
+  regIndex = slice{4..2}
+}
+
+alternative format RegisterRegisterOperation match slice{11, 1..0} {
+  #OR  is \b"010"
+  #SUB is \b"100"
+  #SBC is \b"101"
+  #ADD is \b"110"
+  #ADC is \b"111"
+}
+
+aggregate format ImmediateDataInstruction {
+  high = slice{11}
+  rd   = slice{10..8}
+}
+
+aggregate format ImmediateData context ImmediateDataInstruction {
+  immValue = slice{7..0}
+}
+
+alternative format ImmediateDataOperation match slice{14..12} {
+  #ADD is \b"110"
+  #LD  is \b"111"
+}
+
+aggregate format MemoryInstruction {
+  word = slice{11}
+}
+
+alternative format MemoryAddressingMode match slice{13} {
+  ImmediateData()         is \b"0"
+  IndexedAddressingMode() is \b"1"
+}
+
+aggregate format ImmediateData context MemoryAddressingMode {
+  immValue = slice{4..0} --TODO !extend ??
+}
+
+alternative format IndexedAddressingMode match slice{1..0} {
+  regIndex = slice{4..2}
+  #PLAIN          is \b"00"
+  #POST_INCREMENT is \b"01"
+  #PRE_DECREMENT  is \b"10"
+}
+
+alternative format MemoryTransfer match slice{12} {
+  StoreOperation() is \b"1"
+  LoadOperation()  is \b"0"
+}
+
+alternative format BranchInstruction match slice{12..10} {
+  BranchOperation()             is \b"111"
+  ConditionalBranchOperation()  is \b"---"
+}
+
+alternative format Condition match slice{12..9} {
+  #CC is \b"0000" 
+  #CS is \b"0001"
+  #NE is \b"0010"
+  #EQ is \b"0011"
+  #PL is \b"0100"
+  #MI is \b"0101"
+  #VC is \b"0110"
+  #VS is \b"0111"
+  #HI is \b"1000"
+  #LS is \b"1001"
+  #GE is \b"1010"
+  #LT is \b"1011"
+  #GT is \b"1100"
+  #LE is \b"1101"
+}
+
+aggregate format ImmediateData context ConditionalBranchOperation->BranchOperation {
+  immValue = slice{8..0 !asl 1}
+}
+
+aggregate format ImmediateData context BranchInstruction->BranchOperation {
+  immValue = slice{9..0 !asl 1}
+}
+
+-------------------------------------------------------------------------------
+-- Alternative representation of syntax
+-------------------------------------------------------------------------------
+
+number syntax \b prefix "0b"
+number syntax \o prefix "0"
+number syntax \x prefix "0x"
+
+aggregate syntax GprRead {
+  regIndex = << "R" \d >>
+  echo regIndex
+}
+
+aggregate syntax GprWrite {
+  regIndex = << "R" \d >>
+  echo regIndex
+}
+
+aggregate syntax RegisterRegisterInstruction {
+  echo << RegisterRegisterOperation() " " GprWrite() "," GprRead@rs1() "," GprRead@rs2() >>
+}
+
+alternative syntax RegisterRegisterOperation {
+  #OR  is "OR"
+  #SUB is "SUB"
+  #SBC is "SBC"
+  #ADD is "ADD"
+  #ADC is "ADC"
+}
+
+aggregate syntax ImmediateDataInstruction {
+  high = ?"H":"L"?
+  rd   = << "R" \d >>
+  
+  echo << ImmediateDataOperation() high " " rd "," ImmediateData() >>
+}
+
+aggregate syntax ImmediateData {
+  immValue = << "#" \x >>
+  echo immValue
+}
+
+alternative syntax ImmediateDataOperation {
+  #ADD is "ADD"
+  #LD  is "LD"
+}
+
+aggregate syntax MemoryInstruction {
+  word = ?"W":"B"?
+  echo << MemoryTransfer(word) "," "(" GprRead() "," MemoryAddressingMode() ")" >>
+}
+
+alternative syntax IndexedAddressingMode {
+  regIndex = << "R" \d >>
+  #PLAIN          is regIndex
+  #POST_INCREMENT is << regIndex "+" >>
+  #PRE_DECREMENT  is << "-" regIndex >>
+}
+
+aggregate syntax StoreOperation(word) {
+  echo << "ST" word " " GprRead() >>
+}
+
+aggregate syntax LoadOperation(word) {
+  echo << "LD" word " " GprWrite() >>
+}
+
+aggregate syntax ConditionalBranchOperation {
+  echo BranchOperation(Condition())
+}
+
+alternative syntax Condition {
+  #CC is "CC" 
+  #CS is "CS" 
+  #NE is "NE" 
+  #EQ is "EQ" 
+  #PL is "PL" 
+  #MI is "MI" 
+  #VC is "VC" 
+  #VS is "VS" 
+  #HI is "HI" 
+  #LS is "LS" 
+  #GE is "GE" 
+  #LT is "LT" 
+  #GT is "GT" 
+  #LE is "LE" 
+}
+
+aggregate syntax BranchOperation(cc) context ConditionalBranchOperation {
+  echo << "B" cc " " ImmediateData() >>
+}
+
+aggregate syntax BranchOperation context BranchInstruction {
+  echo << "BRA" " " ImmediateData() >>
+}
+
+} -- model XGate
+
+-- vim:ft=hadl:ts=2:sw=2
+

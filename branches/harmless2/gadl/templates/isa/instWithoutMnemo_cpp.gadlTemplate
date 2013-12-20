@@ -1,0 +1,20 @@
+%template headerC%
+#include "instruction.h" //first for precompiled headers
+#include <stdio.h>
+#include "macro.h"
+#include "utils.h"
+
+//instructions with a format... but no syntax defined
+%
+let instWithMnemoMap := emptyMap
+if exists instMnemoList then #no 'no disassemble' option.
+  let instWithMnemoMap := mapOf instMnemoList by name
+end if
+foreach inst in INST_CONSTRUCTOR do
+  if not exists instWithMnemoMap[inst::name] then
+    #no syntax part -> add a default one.
+    %const char* const %!inst::name%::mnemo(){\n%
+    %\treturn "no syntax for %!inst::name%";\n%
+    %}\n%
+  end if
+end foreach

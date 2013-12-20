@@ -1,0 +1,36 @@
+%
+if exists instData then
+  foreach inst in instData do
+    % name: % !inst::instID %\n%
+    % size: % !inst::codeLength %\n%
+    % seq : %
+    foreach seq in inst::formatSeq do
+      !seq::node
+    between %\n -> %
+    end foreach
+
+    %\n tag : %
+    foreach item in inst::instSignature do
+      %#% !item::tag
+    between % - %
+    end foreach
+  
+    %\n bin : % 
+    foreach binPart in inst::formatBin do
+      !binPart::bin
+    between % | %
+    end foreach
+  
+    foreach field in inst::formatField 
+    before %\n format field : %
+    do
+      !field::name %(% !field::type %)%
+    between %, %
+    end foreach
+  between
+  %
+  ---------------------------------------------
+  %
+  end foreach
+end if
+%

@@ -1,0 +1,233 @@
+
+module HADLiSchedule;
+create OUT:HADLiOUT from IN:HADLiIN;
+
+-- Pipeline transformation : create instruction groups
+rule TPipeline { 
+   from src : HADLiIN!Pipeline 
+   to dest : HADLiOUT!Pipeline (
+         name <- src.name,
+         architecture <- src.architecture,
+         stages <- src.stages,
+         instructions <- src.instructions
+      )
+   do {
+      for(s in src.getGroupedInstructions()) {
+         thisModule.TGroup(src, s);
+      }
+   }
+}
+
+-- Generation of an instruction group
+rule TGroup (owner : HADLiIN!Pipeline, instructions : Sequence(HADLiIN!Instruction)) {
+   to
+      dest : HADLiOUT!Group (
+            name <- thisModule.newName(),
+            owningPipeline <- owner,
+            instructions <- instructions,
+            signature <- instructions->first().getSignature->asSet()
+         )
+}
+
+-------------------------------------------------------------------------------
+-- Group naming :
+-- provide and update numbered names for groups
+-------------------------------------------------------------------------------
+
+helper def:
+   counter : Integer = 0;
+
+helper def:
+   newName() : String =
+      'g' + thisModule.refSetValue('counter', thisModule.counter+1).counter.toString();
+
+-------------------------------------------------------------------------------
+-- Grouping helpers
+-------------------------------------------------------------------------------
+
+helper context HADLiIN!Pipeline def:
+   getGroupedInstructions() : Sequence(Sequence(HADLiIN!Instruction)) =
+      thisModule.getGroupedInstructions(self.instructions);
+
+helper def:
+   getGroupedInstructions(ungrouped : Sequence(HADLiIN!Instruction)) : Sequence(Sequence(HADLiIN!Instruction)) =
+      if ungrouped->isEmpty() then
+         Sequence {}
+      else
+         let head : HADLiIN!Instruction = ungrouped->asSequence()->first() in
+         let tail : Sequence(HADLiIN!Instruction) = ungrouped->asSequence()->subSequence(2, ungrouped->size()) in
+         let selected : Sequence(HADLiIN!Instruction) = head.selectGroupedInstructions(tail) in
+         Sequence {
+            Sequence {head}->union(selected)
+         }
+         ->union(
+               thisModule.getGroupedInstructions(tail->asSet() - selected->asSet())
+            )
+      endif;
+
+helper context HADLiIN!Instruction def:
+   selectGroupedInstructions(others : Sequence(HADLiIN!Instruction)) : Sequence(HADLiIN!Instruction) =
+      others->select(i| thisModule.sameSignature(self.getSignature, i.getSignature));
+
+-------------------------------------------------------------------------------
+-- Instruction signature extraction
+-------------------------------------------------------------------------------
+
+helper context HADLiIN!Instruction def:
+   getSignature : Sequence(HADLiIN!Reservation) =
+      self.root.getSignature()
+         ->iterate(r; acc : Sequence(HADLiIN!Reservation) = Sequence{} |
+               if acc->exists(q| q.stage = r.stage and q.port = r.port) then
+                  acc
+               else
+                  acc->including(r)
+               endif
+            );
+
+helper context HADLiIN!Behavior def:
+   getSignature() : Sequence(HADLiIN!Reservation) =
+      self.statements
+         ->collect(c| c.getSignature())
+         ->union(self.chunks->collect(c| c.getSignature()))
+         ->flatten();
+
+helper context HADLiIN!ForStatement def:
+   getSignature() : Sequence(HADLiIN!Reservation) =
+      self.body
+         ->collect(c| c.getSignature())
+         ->flatten();
+
+helper context HADLiIN!OperationCall def:
+   getSignature() : Sequence(HADLiIN!Reservation) =
+      if self.calledOperation.isExternal or
+         not self.reservations->asSequence()->first().releaseStage.oclIsUndefined()
+      then
+         Sequence{self.reservations->asSequence()->first()}
+      else
+         Sequence{}
+      endif
+         ->union(self.reservations->select(r| r.port.name = 'datadep'))
+         ->union(self.body->collect(c| c.getSignature()))
+         ->flatten();
+
+helper def:
+   sameSignature(a : Sequence(HADLiIN!Reservation), b : Sequence(HADLiIN!Reservation)) : Boolean =
+      if a->isEmpty() or b->isEmpty() then
+         a->isEmpty() and b->isEmpty()
+      else
+         let fa : HADLiIN!Reservation = a->asSequence()->first() in
+         thisModule.sameSignature(
+               a->reject(r| fa.stage = r.stage and fa.port = r.port),
+               b->reject(r| fa.stage = r.stage and fa.port = r.port)
+            )
+      endif;
+
+--------------------------------------------------------------------------------
+-- Straightforward copy rules
+--------------------------------------------------------------------------------
+
+rule TModel {
+   from src : HADLiIN!Model
+   to dest : HADLiOUT!Model (
+         name <- src.name,
+         architectures <- src.architectures,
+         pipelines <- src.pipelines,
+         components <- src.components
+      )
+}
+
+rule TArchitecture {
+   from src : HADLiIN!Architecture
+   to dest : HADLiOUT!Architecture (
+            name <- src.name,
+            fathers <- src.fathers,
+            ports <- src.ports
+      )
+}
+
+rule TComponent { 
+   from src : HADLiIN!Component 
+   to dest : HADLiOUT!Component (
+         name <- src.name,
+         operations <- src.operations
+      )
+}
+
+rule TOperation { 
+   from src : HADLiIN!Operation 
+   to dest : HADLiOUT!Operation (
+         name <- src.name,
+         isExternal <- src.isExternal
+      )
+}
+
+rule TStage { 
+   from src : HADLiIN!Stage 
+   to dest : HADLiOUT!Stage (
+         name <- src.name,
+         portActivations <- src.portActivations
+      )
+}
+
+rule TExpandedPort { 
+   from src : HADLiIN!ExpandedPort 
+   to dest : HADLiOUT!ExpandedPort (
+         name <- src.name,
+         component <- src.component,
+         operations <- src.operations
+      )
+}
+          
+rule TExpandedPortActivation {
+   from src : HADLiIN!ExpandedPortActivation
+   to dest : HADLiOUT!ExpandedPortActivation (
+         port <- src.port,
+         releaseStage <- src.releaseStage,
+         bypassStages <- src.bypassStages
+      )
+}
+
+rule TInstruction { 
+   from src : HADLiIN!Instruction 
+   to dest : HADLiOUT!Instruction (
+         name <- src.name,
+         root <- src.root
+      )
+}
+
+rule TBehavior { 
+   from src : HADLiIN!Behavior 
+   to dest : HADLiOUT!Behavior (
+         name <- src.name,
+         statements <- src.statements,
+         chunks <- src.chunks
+      )
+}
+          
+rule TForStatement { 
+   from src : HADLiIN!ForStatement 
+   to dest : HADLiOUT!ForStatement (
+         body <- src.body
+      )
+}
+
+rule TOperationCall { 
+   from src : HADLiIN!OperationCall
+   to dest : HADLiOUT!OperationCall (
+         component <- src.component,
+         calledOperation <- src.calledOperation,
+         body <- src.body,
+         reservations <- src.reservations
+      )
+}
+
+rule TReservation {
+   from src : HADLiIN!Reservation
+   to dest : HADLiOUT!Reservation (
+         stage <- src.stage,
+         port <- src.port,
+         releaseStage <- src.releaseStage,
+         bypassStages <- src.bypassStages
+      )
+}
+

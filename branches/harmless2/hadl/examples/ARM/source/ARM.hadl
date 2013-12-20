@@ -1,0 +1,1054 @@
+
+model ARM {
+
+default {
+  instructions{32}
+  data{32}
+}
+
+-------------------------------------------------------------------------------
+-- Resources
+-------------------------------------------------------------------------------
+
+-- CPSR ---------------------------------------------------
+
+component StatusRegister {
+
+  var u'32 cpsr
+
+  u'1 getNFlag() {
+    return cpsr{31};
+  }
+
+  void setNFlag(u'1 flag) {
+    cpsr{31} := flag;
+  }
+  
+  u'1 getZFlag() {
+    return cpsr{30};
+  }
+
+  void setZFlag(u'1 flag) {
+    cpsr{30} := flag;
+  }
+  
+  u'1 getCFlag() {
+    return cpsr{29};
+  }
+
+  void setCFlag(u'1 flag) {
+    cpsr{29} := flag;
+  }
+  
+  u'1 getVFlag() {
+    return cpsr{28};
+  }
+  
+  void setVFlag(u'1 flag) {
+    cpsr{28} := flag;
+  }
+}
+
+-- GPR ----------------------------------------------------
+
+component Registers {
+  
+  var u'32 gpr[16]
+
+  u'32 getValue(u'4 index) {
+    if index = 15 then
+      -- When read in the execute stage of an instruction,
+      -- PC has already been incremented by the fetch operation
+      return gpr[index] + 4;
+    else
+      return gpr[index];
+    end if;
+  }
+
+  u'32 getPC() {
+    return gpr[15];
+  }
+
+  void setValue(u'4 index, u'32 value) {
+    gpr[index] := value;
+  }
+}
+
+-- Memory -------------------------------------------------
+
+component Memory {
+  
+  external var u'8 memory[1000000000] --FIXME: value should be 4294967296
+
+  u'8 getByte(u'32 address, u'1 ext) {
+    if ext then
+      return memory[address !extend];
+    else
+      return memory[address];
+    end if;
+  }
+
+  u'16 getHalfWord(u'32 address, u'1 ext) {
+    -- TODO check alignment
+    if ext then
+      return memory[address] | memory[address+1 !extend] lsl 8;
+    else
+      return memory[address] | memory[address+1] lsl 8;
+    end if;
+  }
+
+  u'32 getWord(u'32 address) {
+    -- TODO check alignment
+    return memory[address] | memory[address+1] lsl 8 | memory[address+2] lsl 16 | memory[address+3] lsl 24;
+  }
+
+  void setByte(u'32 address, u'8 value) {
+    memory[address] := value{7..0};
+  }
+
+  void setHalfWord(u'32 address, u'16 value) {
+    memory[address]   := value{7..0};
+    memory[address+1] := value{15..8};
+  }
+
+  void setWord(u'32 address, u'32 value) {
+    memory[address]   := value{7..0};
+    memory[address+1] := value{15..8};
+    memory[address+2] := value{23..16};
+    memory[address+3] := value{31..24};
+  }
+}
+
+-- Arithmetic and logic unit ------------------------------
+
+component ALU {
+  
+  void updateCpsrWithResult(s'32 r) {
+    StatusRegister.setNFlag(r < 0);
+    StatusRegister.setZFlag(r = 0);
+  }
+
+  void clearCpsrCV() {
+    StatusRegister.setCFlag(0);
+    StatusRegister.setVFlag(0);
+  }
+
+  s'32 movOp(s'32 a) {
+    return a;
+  }
+
+  s'32 movOpUpdateCpsr(s'32 a) {
+    self.$updateCpsrWithResult(a);
+    self.$clearCpsrCV();
+    return a;
+  }
+
+  s'32 notOp(s'32 a) {
+    return ~a;
+  }
+
+  s'32 notOpUpdateCpsr(s'32 a) {
+    var s'32 result
+    result := ~a;
+    self.$updateCpsrWithResult(result);
+    self.$clearCpsrCV();
+    return result;
+  }
+
+  s'32 andOp(s'32 a, s'32 b) {
+    return a & b;
+  }
+
+  s'32 andOpUpdateCpsr(s'32 a, s'32 b) {
+    var s'32 result
+    result := a & b;
+    self.$updateCpsrWithResult(result);
+    self.$clearCpsrCV();
+    return result;
+  }
+
+  s'32 orOp(s'32 a, s'32 b) {
+    return a | b;
+  }
+
+  s'32 orOpUpdateCpsr(s'32 a, s'32 b) {
+    var s'32 result
+    result := a | b;
+    self.$updateCpsrWithResult(result);
+    self.$clearCpsrCV();
+    return result;
+  }
+
+  s'32 eorOp(s'32 a, s'32 b) {
+    return a ^ b;
+  }
+
+  s'32 eorOpUpdateCpsr(s'32 a, s'32 b) {
+    var s'32 result
+    result := a ^ b;
+    self.$updateCpsrWithResult(result);
+    self.$clearCpsrCV();
+    return result;
+  }
+
+  s'32 bicOp(s'32 a, s'32 b) {
+    return a & ~b;
+  }
+
+  s'32 bicOpUpdateCpsr(s'32 a, s'32 b) {
+    var s'32 result
+    result := a & ~b;
+    self.$updateCpsrWithResult(result);
+    self.$clearCpsrCV();
+    return result;
+  }
+
+  s'32 subOp(s'32 a, s'32 b) {
+    return a - b;
+  }
+
+  s'32 subOpUpdateCpsr(s'32 a, s'32 b) {
+    var s'32 result
+    result := a - b;
+    self.$updateCpsrWithResult(result);
+    StatusRegister.setCFlag( (a{31} | ~ b{31}) & ~ result{31} | a{31} & ~ b{31} );
+    StatusRegister.setVFlag( a{31} & ~ b{31} & ~ result{31} | ~ a{31} & b{31} & result{31} );
+    return result;
+  }
+
+  s'32 subOpWithCarry(s'32 a, s'32 b) {
+    return a - b + StatusRegister.getCFlag() - 1;
+  }
+
+  s'32 subOpWithCarryUpdateCpsr(s'32 a, s'32 b) {
+    var s'32 result
+    result := a - b + StatusRegister.getCFlag() - 1;
+    self.$updateCpsrWithResult(result);
+    StatusRegister.setCFlag( (a{31} | ~ b{31}) & ~ result{31} | a{31} & ~ b{31} );
+    StatusRegister.setVFlag( a{31} & ~ b{31} & ~ result{31} | ~ a{31} & b{31} & result{31} );
+    return result;
+  }
+
+  s'32 addOp(s'32 a, s'32 b) {
+    return a + b;
+  }
+
+  s'32 addOpWithCarry(s'32 a, s'32 b) {
+    return a + b + StatusRegister.getCFlag();
+  }
+
+  s'32 addOpUpdateCpsr(s'32 a, s'32 b) {
+    var s'32 result
+    result := a + b;
+    self.$updateCpsrWithResult(result);
+    StatusRegister.setCFlag( (a{31} | b{31}) & ~ result{31} | a{31} & b{31} );
+    StatusRegister.setVFlag( a{31} & b{31} & ~ result{31} | ~ a{31} & ~ b{31} & result{31} );
+    return result;
+  }
+
+  s'32 addOpWithCarryUpdateCpsr(s'32 a, s'32 b) {
+    var s'32 result
+    result := a + b + StatusRegister.getCFlag();
+    self.$updateCpsrWithResult(result);
+    StatusRegister.setCFlag( (a{31} | b{31}) & ~ result{31} | a{31} & b{31} );
+    StatusRegister.setVFlag( a{31} & b{31} & ~ result{31} | ~ a{31} & ~ b{31} & result{31} );
+    return result;
+  }
+}
+
+-- Shifter ------------------------------------------------
+
+component Shifter {
+  
+  u'32 lslOp(u'32 a, s'32 b) {
+    return a lsl b;
+  }
+
+  u'32 lsrOp(u'32 a, s'32 b) {
+    -- return a lsr b; -- TODO lsr is currently not supported by the C generator
+    return a{31..b};
+  }
+
+  u'32 asrOp(u'32 a, s'32 b) {
+    return a asr b;
+  }
+
+  u'32 rorOp(u'32 a, s'32 b) {
+    -- return a ror b; -- TODO ror is currently not supported by the C generator
+    return a{31..b} |(a lsl (32-b));
+  }
+
+  u'32 rrxOp(u'32 a) {
+    -- TODO implement this operator (possible conflict with arithmetic operations that modify the carry bit ?)
+  }
+}
+
+-- Fetch unit ---------------------------------------------
+
+component Fetcher {
+  
+  void reset() {
+    Registers.setValue(15, 0);
+  }
+
+  u'32 next() {
+    var u'32 pc
+    pc := Registers.getPC();
+    Registers.setValue(15, pc+4);
+    return Memory.getWord(pc);
+  }
+}
+
+-------------------------------------------------------------------------------
+-- Architectures
+-------------------------------------------------------------------------------
+
+architecture ARMGeneric {
+  resource gpr : Registers {
+      port rn : getValue;
+      port rm : getValue;
+      port rs : getValue;
+      port rd : setValue;
+      port pc_r : getPC;
+      port pc_w : setValue;
+    }
+    
+  resource cpsr : StatusRegister {
+      port c_r : getCFlag;
+      port c_w : setCFlag;
+      port n_r : getNFlag;
+      port n_w : setNFlag;
+      port v_r : getVFlag;
+      port v_w : setVFlag;
+      port z_r : getZFlag;
+      port z_w : setZFlag;
+    }
+    
+  resource alu : ALU {
+      port all;
+    }
+    
+  resource shifter : Shifter {
+      port all;
+    }
+    
+  resource fetcher : Fetcher {
+      port all;
+    }
+}
+
+architecture ARM7 extends ARMGeneric {
+  resource memory : Memory {
+      port all;
+    }
+}
+
+architecture ARM9 extends ARMGeneric {
+  resource memory : Memory {
+      port icache : getWord;
+      port dcache;
+    }
+}
+
+-------------------------------------------------------------------------------
+-- Pipelines
+-------------------------------------------------------------------------------
+
+pipeline pFDE maps to ARM7 {
+  
+  init {
+    Fetcher.reset();
+  }
+  
+  run Fetcher.next() as Instruction
+  
+  stage Fetch {
+    fetcher;
+    memory;
+    gpr : pc_r, pc_w;
+  }
+  
+  stage Decode {
+  }
+  
+  stage Execute {
+    gpr : rn, rm, rs, rd;
+    cpsr;
+    shifter;
+    alu;
+  }
+
+  stage Memory {
+    memory reusable;
+    gpr reusable : rn, rd;
+  }
+}
+
+--pipeline pFDEMR maps to ARM9 {
+--  
+--  init {
+--    Fetcher.reset();
+--  }
+--
+--  run Fetcher.next() as Instruction
+--
+--  stage Fetch {
+--    fetcher;
+--    memory : icache;
+--    gpr : pc_r, pc_w;
+--  }
+--  
+--  stage Decode {
+--    gpr : rn, rm, rs;
+--  }
+--
+--  stage Execute {
+--    shifter;
+--    alu;
+--    cpsr;
+--  }
+--
+--  stage Memory {
+--    memory : dcache;
+--  }
+--
+--  stage Register {
+--    gpr reusable : rn,                              -- STM
+--                   rd bypass in <Execute, Memory>;  -- LDR/LDM
+--    memory reusable : dcache;                       -- read: LDM, write: STM
+--  }
+--}
+
+-------------------------------------------------------------------------------
+-- Instruction set : semantic view
+-------------------------------------------------------------------------------
+
+aggregate behavior Instruction {
+  var u'1 condIsTrue
+  Condition(condIsTrue)
+  InstructionKind() when condIsTrue
+}
+
+alternative behavior Condition(out u'1 result) {
+  #EQ { result := StatusRegister.getZFlag(); }
+  #NE { result := ! StatusRegister.getZFlag(); }
+  #CS { result := StatusRegister.getCFlag(); }
+  #CC { result := ! StatusRegister.getCFlag(); }
+  #MI { result := StatusRegister.getNFlag(); }
+  #PL { result := ! StatusRegister.getNFlag(); }
+  #VS { result := StatusRegister.getVFlag(); }
+  #VC { result := ! StatusRegister.getVFlag(); }
+  #HI { result := StatusRegister.getCFlag() && ! StatusRegister.getZFlag(); }
+  #LS { result := ! StatusRegister.getCFlag() || StatusRegister.getZFlag(); }
+  #GE { result := StatusRegister.getNFlag() = StatusRegister.getVFlag(); }
+  #LT { result := StatusRegister.getNFlag() != StatusRegister.getVFlag(); }
+  #GT { result := ! StatusRegister.getZFlag() && StatusRegister.getNFlag() = StatusRegister.getVFlag(); }
+  #LE { result := StatusRegister.getZFlag() || StatusRegister.getNFlag() != StatusRegister.getVFlag(); }
+  #AL { result := true; }
+  #NV { result := false; }
+}
+
+alternative behavior InstructionKind {
+  DataProcessingInstruction()
+  LoadStoreInstruction()
+  LoadStoreMultipleInstruction()
+  BranchInstruction()
+}
+
+aggregate behavior DataProcessingInstruction {
+  var s'32 valueOfRn
+  var s'32 valueOfOperand2
+  GprRead(valueOfRn)
+  FlexibleOperand2(valueOfOperand2)
+  DataProcessingOperation(valueOfRn, valueOfOperand2)
+}
+
+aggregate behavior GprRead(out u'32 result) {
+  field u'4 reg
+  do {
+    result := Registers.getValue(reg);
+  }
+}
+
+alternative behavior DataProcessingOperation(s'32 a, s'32 b) {
+  CalculationOperation(a, b)
+  ComparisonOperation(a, b)
+}
+  
+alternative behavior CalculationOperation(s'32 a, s'32 b) {
+  field u'4 rd
+  var s'32 result
+
+  #AND  { result := ALU.andOp(a, b); }
+  #ANDS { result := ALU.andOpUpdateCpsr(a, b); }
+  #EOR  { result := ALU.eorOp(a, b); }
+  #EORS { result := ALU.eorOpUpdateCpsr(a, b); }
+  #SUB  { result := ALU.subOp(a, b); }
+  #SUBS { result := ALU.subOpUpdateCpsr(a, b); }
+  #RSB  { result := ALU.subOp(b, a); }
+  #RSBS { result := ALU.subOpUpdateCpsr(b, a); }
+  #ADD  { result := ALU.addOp(a, b); }
+  #ADDS { result := ALU.addOpUpdateCpsr(a, b); }
+  #ADC  { result := ALU.addOpWithCarry(a, b); }
+  #ADCS { result := ALU.addOpWithCarryUpdateCpsr(a, b); }
+  #SBC  { result := ALU.subOpWithCarry(a, b); }
+  #SBCS { result := ALU.subOpWithCarryUpdateCpsr(a, b); }
+  #RSC  { result := ALU.subOpWithCarry(b, a); }
+  #RSCS { result := ALU.subOpWithCarryUpdateCpsr(b, a); }
+  #ORR  { result := ALU.orOp(a, b); }
+  #ORRS { result := ALU.orOpUpdateCpsr(a, b); }
+  #MOV  { result := ALU.movOp(b); }
+  #MOVS { result := ALU.movOpUpdateCpsr(b); }
+  #BIC  { result := ALU.bicOp(a, b); }
+  #BICS { result := ALU.bicOpUpdateCpsr(a, b); }
+  #MVN  { result := ALU.notOp(b); }
+  #MVNS { result := ALU.notOpUpdateCpsr(b); }
+  
+  do {
+    Registers.setValue(rd, result);
+  }
+}
+
+alternative behavior ComparisonOperation(s'32 a, s'32 b) {
+  #TST { ALU.andOpUpdateCpsr(a, b); }
+  #TEQ { ALU.eorOpUpdateCpsr(a, b); }
+  #CMP { ALU.subOpUpdateCpsr(a, b); }
+  #CMN { ALU.addOpUpdateCpsr(a, b); }
+}
+
+alternative behavior FlexibleOperand2(out s'32 result) {
+  Immediate(result)
+  RotatedImmediate(result)
+  GprRead(result)
+  ShiftedRegister(result)
+}
+
+aggregate behavior Immediate(out s'32 result) {
+  field u'32 val
+  do {
+    result := val;
+  }
+}
+
+aggregate behavior RotatedImmediate(out s'32 result) {
+  field u'5 rot
+  field s'32 val
+  do {
+    result := Shifter.rorOp(val, rot);
+  }
+}
+
+aggregate behavior ShiftedRegister(out s'32 result) {
+  var s'32 valueOfRm
+  GprRead(valueOfRm)
+  ShiftSpecification(valueOfRm, result)
+}
+
+alternative behavior ShiftSpecification(s'32 value, out s'32 result) {
+  #RRX { result := Shifter.rrxOp(value); }
+  ShiftOperation(value, result)
+}
+
+aggregate behavior ShiftOperation(s'32 value, out s'32 result) {
+  var s'32 amount
+  ShiftAmount(amount)
+  ShiftOperationKind(value, amount, result)
+}
+
+alternative behavior ShiftAmount(out s'32 result)  {
+  Immediate(result)
+  GprRead(result)
+}
+
+alternative behavior ShiftOperationKind(s'32 value, s'32 amount, out s'32 result) {
+  #LSL { result := Shifter.lslOp(value, amount); }
+  #LSR { result := Shifter.lsrOp(value, amount); }
+  #ASR { result := Shifter.asrOp(value, amount); }
+  #ROR { result := Shifter.rorOp(value, amount); }
+}
+
+aggregate behavior LoadStoreInstruction {
+  field u'4 rn
+  field u'4 rd
+  var s'32 offset
+  var u'32 base
+  var u'32 calculatedAddress
+  var u'32 effectiveAddress
+
+  LoadStoreOffset(offset)
+  LoadStoreAddressCalculation(rn, offset, base, calculatedAddress)
+  LoadStoreAddressingMode(rn, base, calculatedAddress, effectiveAddress)
+  LoadStoreTransfer(effectiveAddress, rd)
+}
+
+alternative behavior LoadStoreOffset(out s'32 result) {
+  Immediate(result)
+  ShiftedRegister(result)
+  GprRead(result)
+}
+
+alternative behavior LoadStoreAddressCalculation(u'4 rn, s'32 offset, out u'32 base, out u'32 result) {
+  do {
+    base := Registers.getValue(rn);
+  }
+  #UP   { result := ALU.addOp(base, offset); }
+  #DOWN { result := ALU.subOp(base, offset); }
+}
+
+alternative behavior LoadStoreAddressingMode(u'4 rn, u'32 base, u'32 address, out u'32 result) {
+  #PREINDEXED  { result := address; }
+  #AUTOINDEXED { Registers.setValue(rn, address); result := address; }
+  #POSTINDEXED { Registers.setValue(rn, address); result := base; }
+}
+
+alternative behavior LoadStoreTransfer(u'32 addr, u'4 rd) {
+  #LDR   { Registers.setValue(rd, Memory.getWord(addr)); }
+  #LDRH  { Registers.setValue(rd, Memory.getHalfWord(addr, false)); }
+  #LDRSH { Registers.setValue(rd, Memory.getHalfWord(addr, true)); }
+  #LDRB  { Registers.setValue(rd, Memory.getByte(addr, false)); }
+  #LDRSB { Registers.setValue(rd, Memory.getByte(addr, true)); }
+  #STR   { Memory.setWord(addr, Registers.getValue(rd)); }
+  #STRH  { Memory.setHalfWord(addr, Registers.getValue(rd)); }
+  #STRB  { Memory.setByte(addr, Registers.getValue(rd)); }
+}
+
+aggregate behavior LoadStoreMultipleInstruction {
+  field u'1 sr
+  field u'4 rn
+  field u'16 rl
+  var u'32 finalAddress
+  LoadStoreMultipleTransfer(rn, rl, sr, finalAddress)
+  LoadStoreMultipleWriteBack(rn, finalAddress)
+}
+
+alternative behavior LoadStoreMultipleTransfer(u'4 rn, u'16 regList, u'1 sr, out u'32 finalAddress) {
+  -- TODO sr is currently unused
+  -- TODO remove inc ; compute first and last from syntax and format
+  field u'1 inc
+  field u'1 bfore
+  var u'32 currentAddress
+  var u'32 nextAddress
+  var u'32 effectiveAddress
+  var u'4 first
+  var u'4 last
+
+  do {
+    currentAddress := Registers.getValue(rn);
+    if inc then
+      first := 0;
+      last := 15;
+    else
+      first := 15;
+      last := 0;
+    end if;
+  }
+  
+  #LOAD {
+    for u'4 index in {first..last} loop
+      if regList{index} then
+        if inc then
+          nextAddress := currentAddress + 4;
+        else
+          nextAddress := currentAddress - 4;
+        end if;
+        if bfore then
+          effectiveAddress := nextAddress;
+        else
+          effectiveAddress := currentAddress;
+        end if;
+        Registers.setValue(index, Memory.getWord(effectiveAddress));
+        currentAddress := nextAddress;
+      end if;
+    end loop;
+  }
+
+  #STORE {
+    for u'4 index in {first..last} loop
+      if regList{index} then
+        if inc then
+          nextAddress := currentAddress + 4;
+        else
+          nextAddress := currentAddress - 4;
+        end if;
+        if bfore then
+          effectiveAddress := nextAddress;
+        else
+          effectiveAddress := currentAddress;
+        end if;
+        Memory.setWord(effectiveAddress, Registers.getValue(index));
+        currentAddress := nextAddress;
+      end if;
+    end loop;
+  }
+}
+
+alternative behavior LoadStoreMultipleWriteBack(u'4 rn, u'32 addr) {
+  #WRITE_BACK    { Registers.setValue(rn, addr); }
+  #NO_WRITE_BACK {}
+}
+
+alternative behavior BranchInstruction {
+  field s'24 offset
+
+  #B  {}
+  #BL { Registers.setValue(14, Registers.getValue(15)); }
+
+  do {
+    Registers.setValue(15, ALU.addOp(Registers.getValue(15), offset));
+  }
+}
+
+-------------------------------------------------------------------------------
+-- Instruction set : coding (new format definition)
+-------------------------------------------------------------------------------
+
+alternative format Condition match slice{31..28} {
+  #EQ is \b"0000"
+  #NE is \b"0001"
+  #CS is \b"0010"
+  #CC is \b"0011"
+  #MI is \b"0100"
+  #PL is \b"0101"
+  #VS is \b"0110"
+  #VC is \b"0111"
+  #HI is \b"1000"
+  #LS is \b"1001"
+  #GE is \b"1010"
+  #LT is \b"1011"
+  #GT is \b"1100"
+  #LE is \b"1101"
+  #AL is \b"1110"
+  #NV is \b"1111"
+}
+
+alternative format InstructionKind match slice{27..25,7,4} {
+  LoadStoreInstruction()         is \b"00011"  -- TODO single choice with "|" operator
+  LoadStoreInstruction()         is \b"01---"
+--  LoadStoreInstruction()         is \b"00011" | \b"01---"
+  DataProcessingInstruction()    is \b"00---"
+  LoadStoreMultipleInstruction() is \b"100--"
+  BranchInstruction()            is \b"101--"
+}
+
+alternative format FlexibleOperand2 match slice{25} {
+  RotatedImmediate() is \b"1"
+  ShiftedRegister()  is \b"0"
+}
+
+alternative format DataProcessingOperation match slice{24..21} {
+  CalculationOperation() is \b"0---"  -- TODO single choice with "|" operator
+  CalculationOperation() is \b"11--"
+--  CalculationOperation() is \b"0---" | \b"11--"
+  ComparisonOperation()  is \b"10--"
+}
+
+alternative format CalculationOperation match slice{24..20} {
+  rd = slice{15..12}
+  #AND  is \b"00000"
+  #ANDS is \b"00001"
+  #EOR  is \b"00010"
+  #EORS is \b"00011"
+  #SUB  is \b"00100"
+  #SUBS is \b"00101"
+  #RSB  is \b"00110"
+  #RSBS is \b"00111"
+  #ADD  is \b"01000"
+  #ADDS is \b"01001"
+  #ADC  is \b"01010"
+  #ADCS is \b"01011"
+  #SBC  is \b"01100"
+  #SBCS is \b"01101"
+  #RSC  is \b"01110"
+  #RSCS is \b"01111"
+  #ORR  is \b"11000"
+  #ORRS is \b"11001"
+  #MOV  is \b"11010"
+  #MOVS is \b"11011"
+  #BIC  is \b"11100"
+  #BICS is \b"11101"
+  #MVN  is \b"11110"
+  #MVNS is \b"11111"
+}
+
+alternative format ComparisonOperation match slice{24..21} {
+  #TST is \b"1000"
+  #TEQ is \b"1001"
+  #CMP is \b"1010"
+  #CMN is \b"1011"
+}
+
+aggregate format GprRead context DataProcessingInstruction {
+  reg = slice{19..16}
+}
+
+aggregate format GprRead context ShiftedRegister, LoadStoreOffset {
+  reg = slice{3..0}
+}
+
+aggregate format GprRead context ShiftAmount {
+  reg = slice{11..8}
+}
+
+aggregate format RotatedImmediate {
+  rot = slice{11..8 !lsl 2}
+  val = slice{7..0}
+}
+
+alternative format ShiftSpecification match slice{11..4} {
+  #RRX             is \b"00000110"
+  ShiftOperation() is \b"--------"
+}
+
+alternative format ShiftAmount match slice{7..4} {
+  Immediate() is \b"---0"
+  GprRead()   is \b"0--1"
+}
+
+alternative format ShiftOperationKind match slice{6..5} {
+  #LSL is \b"00"
+  #LSR is \b"01"
+  #ASR is \b"10"
+  #ROR is \b"11"
+}
+
+aggregate format Immediate context ShiftAmount {
+  val = slice{11..7}
+}
+  
+aggregate format LoadStoreInstruction {
+  rn = slice{19..16}
+  rd = slice{15..12}
+}
+
+alternative format LoadStoreOffset match slice{26,25,22,11..8,4} {
+  Immediate()       is \b"10------" | \b"0-1-----"
+  ShiftedRegister() is \b"11-----0"
+  GprRead()         is \b"0-00000-"
+}
+
+alternative format LoadStoreAddressCalculation match slice{23} {
+  #UP   is \b"1"
+  #DOWN is \b"0"
+}
+
+aggregate format Immediate context LoadStoreOffset is slice{26} = \b"1" {
+  val = slice{11..0 !extend}
+}
+
+aggregate format Immediate context LoadStoreOffset is slice{26} = \b"0" {
+  val = slice{11..8,3..0 !extend}
+}
+
+alternative format LoadStoreAddressingMode match slice{24,21} {
+  #POSTINDEXED  is \b"0-"
+  #PREINDEXED   is \b"10"
+  #AUTOINDEXED  is \b"11"
+}
+
+alternative format LoadStoreTransfer match slice{26,22,20,6,5} {
+  #STR   is \b"100--"
+  #LDR   is \b"101--"
+  #STRB  is \b"110--"
+  #LDRB  is \b"111--"
+  #LDRSB is \b"0-110"
+  #STRH  is \b"0-001"
+  #LDRH  is \b"0-101"
+  #LDRSH is \b"0-111"
+}
+
+aggregate format LoadStoreMultipleInstruction {
+  sr = slice{22}
+  rn = slice{19..16}
+  rl = slice{15..0}
+}
+
+alternative format LoadStoreMultipleTransfer match slice{20} {
+  inc = slice{24}
+  bfore = slice{23}
+  #LOAD   is \b"1"
+  #STORE  is \b"0"
+}
+
+alternative format LoadStoreMultipleWriteBack match slice{21} {
+  #WRITE_BACK    is \b"1"
+  #NO_WRITE_BACK is \b"0"
+}
+
+alternative format BranchInstruction match slice{24} {
+  offset = slice{23..0 !asl 2}
+  #B  is \b"0"
+  #BL is \b"1"
+}
+
+-------------------------------------------------------------------------------
+-- Instruction set : syntax (new syntax definition)
+-------------------------------------------------------------------------------
+
+number syntax \b prefix "0b"
+number syntax \x prefix "0x"
+number syntax \o prefix "0"
+
+aggregate syntax Instruction {
+  echo InstructionKind(Condition())
+}
+
+alternative syntax Condition {
+  #EQ is "EQ"
+  #NE is "NE" 
+  #CS is "CS" 
+  #CC is "CC" 
+  #MI is "MI" 
+  #PL is "PL" 
+  #VS is "VS" 
+  #VC is "VC" 
+  #HI is "HI" 
+  #LS is "LS" 
+  #GE is "GE" 
+  #LT is "LT" 
+  #GT is "GT" 
+  #LE is "LE" 
+  #AL is "" 
+  #NV is "NV" 
+}
+
+aggregate syntax DataProcessingInstruction(cond) {
+  echo << DataProcessingOperation(cond, GprRead()) "," FlexibleOperand2() >>
+}
+
+aggregate syntax GprRead {
+  reg = << "R" \d >>
+  echo reg
+}
+
+alternative syntax CalculationOperation(cond, rn) {
+  rd = << "R" \d >>
+  #AND  is << "AND" cond " " rd ", " rn >>
+  #ANDS is << "AND" cond "S" " " rd ", " rn >>
+  #EOR  is << "EOR" cond " " rd ", " rn >>
+  #EORS is << "EOR" cond "S" " " rd ", " rn >>
+  #SUB  is << "SUB" cond " " rd ", " rn >>
+  #SUBS is << "SUB" cond "S" " " rd ", " rn >>
+  #RSB  is << "RSB" cond " " rd ", " rn >>
+  #RSBS is << "RSB" cond "S" " " rd ", " rn >>
+  #ADD  is << "ADD" cond " " rd ", " rn >>
+  #ADDS is << "ADD" cond "S" " " rd ", " rn >>
+  #ADC  is << "ADC" cond " " rd ", " rn >>
+  #ADCS is << "ADC" cond "S" " " rd ", " rn >>
+  #SBC  is << "SBC" cond " " rd ", " rn >>
+  #SBCS is << "SBC" cond "S" " " rd ", " rn >>
+  #RSC  is << "RSC" cond " " rd ", " rn >>
+  #RSCS is << "RSC" cond "S" " " rd ", " rn >>
+  #ORR  is << "ORR" cond " " rd ", " rn >>
+  #ORRS is << "ORR" cond "S" " " rd ", " rn >>
+  #BIC  is << "BIC" cond " " rd ", " rn >>
+  #BICS is << "BIC" cond "S" " " rd ", " rn >>
+  #MOV  is << "MOV" cond " " rd >>
+  #MOVS is << "MOV" cond "S" " " rd >>
+  #MVN  is << "MVN" cond " " rd >>
+  #MVNS is << "MVN" cond "S" " " rd >>
+}
+
+alternative syntax ComparisonOperation(cond, rn) {
+  #TST is "TST"
+  #TEQ is "TEQ"
+  #CMP is "CMP"
+  #CMN is "CMN"
+  echo << cond " " rn >>
+}
+
+aggregate syntax Immediate context FlexibleOperand2, ShiftAmount {
+  val = << "#" \x >>
+  echo val
+}
+
+aggregate syntax RotatedImmediate {
+  echo << "#" {\x: val{31..rot} | (val lsl (32-rot))} >> -- TODO operator ROR is not implemented in C generator
+  --echo {\x: val ror rot}                               -- TODO this expression is not reversible
+}
+
+aggregate syntax ShiftedRegister context FlexibleOperand2 {
+  echo << GprRead() " " ShiftSpecification() >>
+}
+
+alternative syntax ShiftSpecification {
+  #RRX is "RRX"
+}
+
+aggregate syntax ShiftOperation {
+  echo << ShiftOperationKind() " " ShiftAmount() >>
+}
+
+alternative syntax ShiftOperationKind {
+  #LSL is "LSL"
+  #LSR is "LSR"
+  #ASR is "ASR"
+  #ROR is "ROR"
+}
+
+aggregate syntax LoadStoreInstruction(cond) {
+  rn = << "R" \d >>
+  rd = << "R" \d >>
+  echo << LoadStoreTransfer(cond) " " rd "," LoadStoreAddressingMode(rn, LoadStoreOffset(LoadStoreAddressCalculation()))>>
+}
+
+alternative syntax LoadStoreAddressCalculation {
+  #UP is "+"
+  #DOWN is "-"
+}
+
+alternative syntax LoadStoreTransfer(cond) {
+  #LDR   is << "LDR" cond >>
+  #LDRH  is << "LDR" cond "H" >>
+  #LDRSH is << "LDR" cond "SH" >>
+  #LDRB  is << "LDR" cond "B" >>
+  #LDRSB is << "LDR" cond "SB" >>
+  #STR   is << "STR" cond >>
+  #STRH  is << "STR" cond "H" >>
+  #STRB  is << "STR" cond "B" >>
+}
+
+aggregate syntax Immediate(up) context LoadStoreOffset {
+  val = << "#" up \x >>
+  echo val
+}
+
+aggregate syntax ShiftedRegister(up) context LoadStoreOffset {
+  echo << up GprRead() " " ShiftSpecification() >>
+}
+
+alternative syntax LoadStoreAddressingMode(rn, ofs) {
+  #PREINDEXED  is << "[" rn "," ofs "]" >>
+  #AUTOINDEXED is << "[" rn "," ofs "]" "!" >>
+  #POSTINDEXED is << "[" rn "]" "," ofs >>
+}
+
+aggregate syntax LoadStoreMultipleInstruction(cond) {
+  rn = << "R" \d >>
+  sr = ?"^"?
+  rl = << "{" {"r" \d "," ...} "}" >>
+  echo << LoadStoreMultipleTransfer(cond) " " rn LoadStoreMultipleWriteBack() "," rl sr >>
+}
+
+alternative syntax LoadStoreMultipleTransfer(cond){
+  inc = ?"I":"D"?
+  bfore = ?"B":"A"?
+  #LOAD  is << "LDM" cond inc bfore >>
+  #STORE is << "STM" cond inc bfore >>
+}
+
+alternative syntax LoadStoreMultipleWriteBack {
+  #WRITE_BACK    is "!"
+  #NO_WRITE_BACK is ""
+}
+
+alternative syntax BranchInstruction(cond) {
+  offset = << "#" {\x: offset + 8} >>
+  #B  is "B"
+  #BL is "BL"
+  echo << cond " " offset >>
+}
+
+} -- model
+
+-- vim:ft=hadl:ts=2:sw=2
+

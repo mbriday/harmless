@@ -1,0 +1,47 @@
+
+model HADLd:KM3:Ecore
+apply KM3EBNF2KM3Ecore {
+   IN=HADLd:KM3:EBNF,
+   OUT=HADLd:KM3:Ecore
+}
+
+domain HADLd:Ecore filter "hadldmodel"
+apply KM3Ecore2Ecore {
+   IN=HADLd:KM3:Ecore,
+   OUT=HADLd:Ecore
+}
+
+-----------------------------------------
+
+model HADLd:TCS:Ecore
+apply TCSEBNF2TCSEcore {
+   IN=HADLd:TCS:EBNF,
+   OUT=HADLd:TCS:Ecore
+}
+
+-----------------------------------------
+
+model HADL2HADLd:ASM:XML
+apply ATL2ASM {
+   IN=HADL2HADLd:ATL:EBNF,
+   OUT=HADL2HADLd:ASM:XML
+}
+
+model HADLdDep:ASM:XML
+apply ATL2ASM {
+   IN=HADLdDep:ATL:EBNF,
+   OUT=HADLdDep:ASM:XML
+}
+
+model HADLdMerge:ASM:XML
+apply ATL2ASM {
+   IN=HADLdMerge:ATL:EBNF,
+   OUT=HADLdMerge:ASM:XML
+}
+
+model HADLdReduce:ASM:XML
+apply ATL2ASM {
+   IN=HADLdReduce:ATL:EBNF,
+   OUT=HADLdReduce:ASM:XML
+}
+

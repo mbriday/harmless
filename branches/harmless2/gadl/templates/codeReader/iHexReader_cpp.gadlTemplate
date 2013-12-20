@@ -1,0 +1,165 @@
+%template headerC%
+#include <string.h>
+#include "iHexReader.h"
+#include "arch.h"
+
+#include <iostream>
+using namespace std;
+
+iHexReader &iHexReader::operator=(const iHexReader& ih)
+{
+	m_file = ih.m_file;
+	m_offset = ih.m_offset;
+	m_eof = ih.m_eof;
+	for(int i = 0; i < IHR_BUF_SIZE/2; i++) m_chunk[i] = ih.m_chunk[i];
+	for(int i = 0; i < IHR_BUF_SIZE; i++)   m_buf[i] = ih.m_buf[i];
+	return *this;
+}
+
+iHexReader::iHexReader(const iHexReader &ih) :
+m_eof(ih.m_eof),
+m_offset(ih.m_offset),
+m_file(ih.m_file)
+{
+	for(int i = 0; i < IHR_BUF_SIZE/2; i++) m_chunk[i] = ih.m_chunk[i];
+	for(int i = 0; i < IHR_BUF_SIZE; i++)   m_buf[i] = ih.m_buf[i];
+}
+u8 iHexReader::char2hex(const char c)
+{
+  if (c >= '0' && c <= '9') return (unsigned) c - '0';
+  if (c >= 'A' && c <= 'F') return (unsigned) c - 'A' + 10;
+  if (c >= 'a' && c <= 'f') return (unsigned) c - 'a' + 10;
+  else return 0;
+}
+
+u8 iHexReader::readByte(u8 &index)
+{
+	if(m_buf[index] != '\0' && m_buf[index + 1] != '\0')
+	{
+		u8 high = char2hex(m_buf[index++]);
+		u8 low  = char2hex(m_buf[index++]);
+		return (high << 4) | low;
+	}
+	else return 0;
+}
+
+iHexReader::iHexReader() :
+m_eof(false),
+m_offset(0),
+m_file(NULL)
+{
+}
+
+u8 *iHexReader::readLine(u32 &address, u8 &length)
+{
+	bool ok = (fgets(m_buf,IHR_BUF_SIZE,m_file) != NULL);
+	u8 i = 1;	//iterator	(get out first ':')
+	if(ok)
+	{
+		//first byte : length (Hex)
+		length = readByte(i);
+		//2nd and 3rd byte : address
+		address = 0;
+		address = readByte(i) << 8;
+		address |= readByte(i);
+		address += m_offset;
+		u8 type = readByte(i);
+		//4th byte : type code
+		switch(type)
+		{
+			case 0: //data record
+				for(int j = 0; j < length; j++)
+				{
+					m_chunk[j] = readByte(i);
+				}
+				break;
+			case 1: //end of m_file record
+				m_eof = true;
+				break;
+			case 2: //8086 segment address record
+				for(int j = 0; j < length; j++)
+				{
+					m_chunk[j] = readByte(i);
+				}
+				m_offset  = (u16)(m_chunk[0] << 8);
+				m_offset |= (u16)(m_chunk[1] & 0x00FF);
+				m_offset <<= 4; //m_offset in "paragraph" of 16 bytes
+				//cout << "m_offset : " << hex << m_offset << endl;
+				if(length > 2) cerr << "segment too long! not implemented" << endl;
+				break;
+			case 4: //extended linear address record
+				for(int j = 0; j < length; j++)
+				{
+					m_chunk[j] = readByte(i);
+				}
+				m_offset  = (u16)(m_chunk[0] << 8);
+				m_offset |= (u16)(m_chunk[1] & 0x00FF);
+				m_offset = m_offset << 16;
+				if(length > 2) cerr << "segment too long! not implemented" << endl;
+				break;
+			default: cerr << "got an error in hex file" << endl;
+		}
+		//CRC.. not verified..
+		return m_chunk;
+	} else return NULL;
+}
+
+bool iHexReader::isCorrectFileFormat()
+{
+	bool result = false;
+	//check that file begins with ':'.
+	char buf[2];
+	if(fgets(buf,2 ,m_file))
+	{
+		result = strncmp(buf,":",1) == 0;
+		rewind(m_file);
+	}
+	return result;
+}
+
+bool iHexReader::readFile(const char * filename, arch *_arch, const bool verbose)
+{
+	u32 address;
+	u8 length;
+	u8 *code; 
+	u32 code_size = 0;
+	storage *chunk;
+	bool ok = true;
+	FILE* codeFile = fopen(filename, "r");
+	m_file = codeFile;
+	if(codeFile != NULL)
+	{
+		if(isCorrectFileFormat())
+		{
+			if(verbose) cout << "open Intel code file " << filename << "..." << flush;
+			
+			//read a line, address is the base address, 
+			//length, the nb of bytes that are read.
+			//data is in "code" tabular.
+			code = readLine(address, length);
+			while(!eof() && ok)
+			{
+				for(int i = 0; i < length && ok; i++)
+				{
+					//cout << "read code : " << hex << address+i << endl; 
+					chunk = _arch->getProgramChunk(address + i);
+					if(chunk == NULL) // error, no memory!
+					{
+						ok = false;
+						cerr << "No memory chunk at address 0x" << hex << address+i << " to load the program file" << endl;
+					} else chunk -> put8AtAddr(_arch->linkerAddressTranslation(address + i), code[i]);
+					code_size++;
+				}
+				code = readLine(address, length);
+			} 
+			//a program is loaded, the cpu exits from infinite loop.
+			if(ok && verbose) cout  << code_size << " bytes read." << endl;
+			fclose(codeFile);
+		} else {ok = false;} //file format is not Hex.
+	} else {
+		std::cerr << "ERROR: can't open program file." << std::endl;
+		ok = false;
+	}
+	return ok;
+}
+

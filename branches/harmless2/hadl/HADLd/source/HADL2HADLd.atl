@@ -1,0 +1,777 @@
+--
+-- HADL description analysis
+--
+-- Preconditions
+--
+--    - Single variable assignment in operations and behaviors blocks.
+--      Statement ordering should not be relevant : only data dependencies
+--    - No return statement in procedures
+--
+-- TODO list :
+--
+--    [DONE] Eliminate syntax elements
+--    [DONE] Eliminate decoding details, keeping only format hierarchy
+--    [DONE] Create intermediate 'result' variable for each function call
+--    [DONE] Transform each function into a procedure
+--    [DONE] Transform each function call into a procedure call
+--    [DONE] Transform each return statement into an assignment statement
+--    [DONE] Create intermediate 'arg' variable for each actual parameter of an operation call
+--    [DONE] Create an assignment statement for each actual parameter of an operation call
+--    [DONE] Create a variable ref expression for each actual parameter of an operation call
+--    [DONE] Replace GlobalVariable with ComponentVariable
+--
+
+module HADL2HADLd;
+create OUT:HADLd from IN:HADL;
+
+-- Create a copy of the source model
+--    - rejecting all syntax definitions
+rule TModel { 
+   from src : HADL!Model 
+   to dest : HADLd!Model (
+         name <- src.name,
+         elements <-
+            src.elements
+               ->reject(e|
+                     e.oclIsKindOf(HADL!NumberSyntax) or
+                     e.oclIsKindOf(HADL!Syntax)
+                  ),
+         dataSize <- src.dataSize,
+         instructionSize <- src.instructionSize
+      )
+}
+
+-- Procedures are kept "as is"
+rule TProcedureOperation { 
+   from src : HADL!Operation ( not src.isFunction )
+   to dest : HADLd!Operation (
+         name <- src.name,
+         parameters <- src.parameters,
+         localVariables <- src.localVariables,
+         body <- src.body
+      )
+}
+
+-- Functions : create a procedure with an additional 'return' parameter
+rule TFunctionOperation { 
+   from src : HADL!Operation ( src.isFunction )
+   to 
+      dest : HADLd!Operation (
+            name <- src.name,
+            parameters <- src.parameters->including(ret),
+            localVariables <- src.localVariables,
+            body <- src.body
+         ),
+      ret : HADLd!Parameter (
+            name <- '_return_',
+            isOutput <- true
+         )
+}
+
+-- Pipeline : create a body block
+rule TPipeline { 
+   from src : HADL!Pipeline 
+   to
+      dest : HADLd!Pipeline (
+            name <- src.name,
+            architecture <- src.architecture,
+            init <- src.init,
+            expression <- src.expression,
+            body <- body,
+            format <- src.format,
+            stages <- src.stages
+         ),
+      body : HADLd!Block (
+         )
+}
+
+-- Aggregate behavior : reject attributes
+rule TAggregateBehavior { 
+   from src : HADL!AggregateBehavior 
+   to dest : HADLd!AggregateBehavior (
+         name <- src.name,
+         parameters <- src.parameters,
+         localVariables <- src.localVariables,
+         beforeBlock <- src.beforeBlock,
+         afterBlock <- src.afterBlock,
+         chunks <- src.chunks
+      )
+}
+
+-- Alternative behavior : reject attributes
+rule TAlternativeBehavior { 
+   from src : HADL!AlternativeBehavior 
+   to dest : HADLd!AlternativeBehavior (
+         name <- src.name,
+         parameters <- src.parameters,
+         localVariables <- src.localVariables,
+         beforeBlock <- src.beforeBlock,
+         afterBlock <- src.afterBlock,
+         choices <- src.choices
+      )
+}
+
+-- Parameters : exclude syntax parameters
+rule TParameter { 
+   from src : HADL!Parameter ( src.owningSyntax.oclIsUndefined() )
+   to dest : HADLd!Parameter (
+         name <- src.name,
+         isArray <- src.isArray,
+         size <- src.size,
+         isOutput <- src.isOutput
+      )
+}
+   
+-- Transform an operation call
+--    - For each argument, create a reference to an intermediate variable
+rule TOperationCall { 
+   from src : HADL!OperationCall (
+         if src.owningFunctionCallExpression.oclIsUndefined() then
+            true
+         else
+            src.owningFunctionCallExpression.owningElement.oclIsUndefined()
+         endif
+      )
+   to dest : HADLd!OperationCall (
+         inline <- src.inline,
+         component <- src.component,
+         calledOperation <- src.calledOperation,
+         actualParameters <-
+            src.actualParameters
+               ->collect(p| thisModule.TActualParameter(p))
+      )
+}
+
+-- Transform an actual parameter of an operation call
+--    - For each argument, create a reference to an intermediate variable
+--    - For each argument, create an assignment to an intermediate variable
+lazy rule TActualParameter {
+   from src : HADL!Expression
+   using {
+         owningElement : OclAny = src.getOwningElement();
+      }
+   to
+      dest : HADLd!DataContainerRefExpression (
+            dataContainer <- var,
+            extend <- false
+         ),
+      var : HADLd!LocalVariable (
+            name <- thisModule.newArgumentVariableName(),
+            owningOperation <-
+               if owningElement.oclIsKindOf(HADL!Operation) then
+                  owningElement
+               else
+                  OclUndefined
+               endif,
+            owningBehavior <-
+               if owningElement.oclIsKindOf(HADL!Behavior) then
+                  owningElement
+               else
+                  OclUndefined
+               endif
+         ),
+      stmt : HADLd!AssignmentStatement (
+            target <-
+               if src.owningOperationCall.calledOperation.parameters
+                     ->at(src.owningOperationCall.actualParameters->indexOf(src))
+                     .isOutput
+               then
+                  src
+               else
+                  ref
+               endif,
+            source <-
+               if src.owningOperationCall.calledOperation.parameters
+                     ->at(src.owningOperationCall.actualParameters->indexOf(src))
+                     .isOutput
+               then
+                  ref
+               else
+                  src
+               endif,
+            owningBlock <-
+               let blk : OclAny = src.getOwningBlock() in
+               if blk.oclIsKindOf(HADL!Block) then
+                  blk
+               else if blk.oclIsKindOf(HADL!Behavior) then
+                  if not blk.beforeBlock.oclIsUndefined() then
+                     -- blk is a behavior with a before block
+                     blk.beforeBlock
+                  else
+                     -- blk is a behavior without a before block
+                     thisModule.TBeforeBlock(blk)
+                  endif
+               else -- if blk.oclIsUndefined(HADL!Pipeline) then
+                  thisModule.resolveTemp(blk, 'body')
+               endif endif
+         ),
+      ref : HADLd!DataContainerRefExpression (
+            dataContainer <- var,
+            extend <- false
+         )
+}
+
+unique lazy rule TBeforeBlock {
+   from src : HADL!Behavior
+   to
+      dest : HADLd!Block (
+            owningBehaviorBefore <- src
+         )
+}
+
+-- Return in a procedure : kept as is
+rule TProcedureReturnStatement { 
+   from src : HADL!ReturnStatement ( not src.getOwningElement().isFunction )
+   to dest : HADLd!ReturnStatement (
+         expression <- src.expression
+      )
+}
+   
+-- Return in a function :
+--    - create an assignment statement
+rule TFunctionReturnStatement { 
+   from src : HADL!ReturnStatement ( src.getOwningElement().isFunction )
+   to
+      dest : HADLd!AssignmentStatement (
+            target <- target,
+            source <- src.expression
+         ),
+      target : HADLd!DataContainerRefExpression (
+            dataContainer <- thisModule.resolveTemp(src.getOwningElement(), 'ret'),
+            extend <- false
+         )
+}
+   
+-- Function call
+--    - straightforward copy of the function call
+--    - creation of an intermediate variable to hold the return value
+rule TFunctionCallExpression { 
+   from src : HADL!FunctionCallExpression
+   to
+      dest : HADLd!DataContainerRefExpression (
+            dataContainer <- var,
+            extend <- false
+         ),
+      var : HADLd!LocalVariable (
+            name <- thisModule.newReturnVariableName(),
+            owningOperation <-
+               if src.owningElement.oclIsKindOf(HADL!Operation) then
+                  src.owningElement
+               else
+                  OclUndefined
+               endif,
+            owningBehavior <-
+               if src.owningElement.oclIsKindOf(HADL!Behavior) then
+                  src.owningElement
+               else
+                  OclUndefined
+               endif,
+            owningPipeline <-
+               if src.owningElement.oclIsKindOf(HADL!Pipeline) then
+                  src.owningElement
+               else
+                  OclUndefined
+               endif
+         ),
+      stmt : HADLd!ProcedureCallStatement (
+            call <- call,
+            owningBlock <-
+               let blk : OclAny = src.getOwningBlock() in
+               if blk.oclIsKindOf(HADL!Block) then
+                  blk
+               else if blk.oclIsKindOf(HADL!Behavior) then
+                  if not blk.beforeBlock.oclIsUndefined() then
+                     -- blk is a behavior with a before block
+                     blk.beforeBlock
+                  else
+                     -- blk is a behavior without a before block
+                     thisModule.TBeforeBlock(blk)
+                  endif
+               else -- if blk.oclIsUndefined(HADL!Pipeline) then
+                  thisModule.resolveTemp(blk, 'body')
+               endif endif
+         ),
+      call : HADLd!OperationCall (
+            inline <- src.call.inline,
+            component <- src.call.component,
+            calledOperation <- src.call.calledOperation,
+            actualParameters <-
+               src.call.actualParameters
+                  ->collect(p| thisModule.TActualParameter(p))
+                  ->including(ret)
+         ),
+      ret : HADLd!DataContainerRefExpression (
+            dataContainer <- var,
+            extend <- false
+         )
+}
+
+-- Create a copy of the source format chunk, rejecting attribute formats
+rule TAggregateFormat { 
+   from src : HADL!AggregateFormat 
+   to dest : HADLd!AggregateFormat (
+         name <- src.name,
+         behavior <- src.behavior,
+         chunks <- src.chunks
+      )
+}
+
+-- Create a copy of the source format
+--    - omitting range
+--    - omitting attribute formats
+rule TAlternativeFormat { 
+   from src : HADL!AlternativeFormat 
+   to dest : HADLd!AlternativeFormat (
+         name <- src.name,
+         behavior <- src.behavior,
+         choices <- src.choices
+      )
+}
+
+-- Create a copy of the source format choice
+--    - omitting literals
+rule TMatchFormatChoice { 
+   from src : HADL!MatchFormatChoice 
+   to dest : HADLd!MatchFormatChoice (
+         matchedChoice <- src.matchedChoice
+      )
+}
+
+-- Create a copy of the source format choice
+--    - omitting literals
+rule TUseFormatChoice { 
+   from src : HADL!UseFormatChoice
+   to dest : HADLd!UseFormatChoice (
+         usedFormat <- src.usedFormat
+      )
+}
+
+-------------------------------------------------------------------------------
+-- Creation of intermediate variables for each function call
+-------------------------------------------------------------------------------
+
+-- Counter for variable naming
+helper def: returnVariableCounter : Integer = 0;
+
+-- Return a new variable name
+helper def:
+   newReturnVariableName() : String =
+      '_return_' +
+      thisModule
+         .refSetValue('returnVariableCounter', thisModule.returnVariableCounter + 1)
+         .returnVariableCounter
+         .toString() +
+      '_';
+
+-------------------------------------------------------------------------------
+-- Creation of intermediate variables for each argument of an operation call
+-------------------------------------------------------------------------------
+
+-- Counter for variable naming
+helper def: argumentVariableCounter : Integer = 0;
+
+-- Return a new variable name
+helper def:
+   newArgumentVariableName() : String =
+      '_arg_' +
+      thisModule
+         .refSetValue('argumentVariableCounter', thisModule.argumentVariableCounter + 1)
+         .argumentVariableCounter
+         .toString() +
+      '_';
+
+-------------------------------------------------------------------------------
+-- Return the operation or behavior in which an expression or statement is found
+-------------------------------------------------------------------------------
+
+helper context HADL!FunctionCallExpression def:
+   owningElement : OclAny =
+      self.getOwningElement();
+
+helper context HADL!Expression def:
+   getOwningElement() : OclAny =
+      if not self.owningSliceFirst.oclIsUndefined() then
+         self.owningSliceFirst.owningRange.getOwningElement()
+      else if not self.owningSliceLast.oclIsUndefined() then
+         self.owningSliceLast.owningRange.getOwningElement()
+      else if not self.owningSliceStep.oclIsUndefined() then
+         self.owningSliceStep.owningRange.getOwningElement()
+      else if not self.owningOperatorExpressionSource.oclIsUndefined() then
+         self.owningOperatorExpressionSource.getOwningElement()
+      else if not self.owningOperatorExpressionArguments.oclIsUndefined() then
+         self.owningOperatorExpressionArguments.getOwningElement()
+      else if not self.owningDataContainerRefExpression.oclIsUndefined() then
+         self.owningDataContainerRefExpression.getOwningElement()
+      else if not self.owningReturnStatement.oclIsUndefined() then
+         self.owningReturnStatement.getOwningElement()
+      else if not self.owningIfClause.oclIsUndefined() then
+         self.owningIfClause.owningIfStatement.getOwningElement()
+      else if not self.owningAssignmentStatementSource.oclIsUndefined() then
+         self.owningAssignmentStatementSource.getOwningElement()
+      else if not self.owningBehaviorChunk.oclIsUndefined() then
+         self.owningBehaviorChunk.owningBehavior
+      else if not self.owningBehaviorCallActual.oclIsUndefined() then
+         self.owningBehaviorCallActual.getOwningElement()
+      else if not self.owningOperationCall.oclIsUndefined() then
+         self.owningOperationCall.getOwningElement()
+      else if not self.owningPipeline.oclIsUndefined() then
+         self.owningPipeline
+      else -- if not self.owningAssignmentStatementTarget.oclIsUndefined() then
+         -- self if a DataContainerRefExpression
+         self.owningAssignmentStatementTarget.getOwningElement()
+      endif endif endif endif endif endif endif endif endif endif endif endif endif;
+      
+helper context HADL!Range def:
+   getOwningElement() : OclAny =
+      if not self.owningForStatement.oclIsUndefined() then
+         self.owningForStatement.getOwningElement()
+      else -- if not self.owningDataContainerRefExpression.oclIsUndefined() then
+         self.owningDataContainerRefExpression.getOwningElement()
+      endif;
+
+helper context HADL!BehaviorCall def:
+   getOwningElement() : OclAny =
+      if not self.owningChoice.oclIsUndefined() then
+         self.owningChoice.owningBehavior
+      else -- if not self.owningChunk.oclIsUndefined() then
+         self.owningChunk.owningBehavior
+      endif;
+
+helper context HADL!Statement def:
+   getOwningElement() : OclAny =
+      self.owningBlock.getOwningElement();
+
+helper context HADL!Block def:
+   getOwningElement() : OclAny =
+      if not self.owningOperation.oclIsUndefined() then
+         self.owningOperation
+      else if not self.owningPipeline.oclIsUndefined() then
+         self.owningPipeline
+      else if not self.owningBehaviorBefore.oclIsUndefined() then
+         self.owningBehaviorBefore
+      else if not self.owningBehaviorAfter.oclIsUndefined() then
+         self.owningBehaviorAfter
+      else if not self.owningChoice.oclIsUndefined() then
+         self.owningChoice.owningBehavior
+      else if not self.owningIfStatementElse.oclIsUndefined() then
+         self.owningIfStatementElse.getOwningElement()
+      else if not self.owningIfClauseThen.oclIsUndefined() then
+         self.owningIfClauseThen.owningIfStatement.getOwningElement()
+      else -- if not self.owningForStatement.oclIsUndefined() then
+         self.owningForStatement.getOwningElement()
+      endif endif endif endif endif endif endif;
+
+helper context HADL!OperationCall def:
+   getOwningElement() : OclAny =
+      if not self.owningProcedureCallStatement.oclIsUndefined() then
+         self.owningProcedureCallStatement.getOwningElement()
+      else -- if not self.owningFunctionCallExpression.oclIsUndefined() then
+         self.owningFunctionCallExpression.getOwningElement()
+      endif;
+
+-------------------------------------------------------------------------------
+-- Return the block in which an expression or statement is found
+-------------------------------------------------------------------------------
+
+helper context HADL!Expression def:
+   getOwningBlock() : OclAny =
+      if not self.owningSliceFirst.oclIsUndefined() then
+         self.owningSliceFirst.owningRange.getOwningBlock()
+      else if not self.owningSliceLast.oclIsUndefined() then
+         self.owningSliceLast.owningRange.getOwningBlock()
+      else if not self.owningSliceStep.oclIsUndefined() then
+         self.owningSliceStep.owningRange.getOwningBlock()
+      else if not self.owningOperatorExpressionSource.oclIsUndefined() then
+         self.owningOperatorExpressionSource.getOwningBlock()
+      else if not self.owningOperatorExpressionArguments.oclIsUndefined() then
+         self.owningOperatorExpressionArguments.getOwningBlock()
+      else if not self.owningDataContainerRefExpression.oclIsUndefined() then
+         self.owningDataContainerRefExpression.getOwningBlock()
+      else if not self.owningReturnStatement.oclIsUndefined() then
+         self.owningReturnStatement.owningBlock
+      else if not self.owningIfClause.oclIsUndefined() then
+         self.owningIfClause.owningIfStatement.owningBlock
+      else if not self.owningAssignmentStatementSource.oclIsUndefined() then
+         self.owningAssignmentStatementSource.owningBlock
+      else if not self.owningBehaviorChunk.oclIsUndefined() then
+         self.owningBehaviorChunk.owningBehavior -- CHECK
+      else if not self.owningBehaviorCallActual.oclIsUndefined() then
+         self.owningBehaviorCallActual.getOwningBlock()
+      else if not self.owningOperationCall.oclIsUndefined() then
+         self.owningOperationCall.getOwningBlock()
+      else if not self.owningPipeline.oclIsUndefined() then
+         self.owningPipeline
+      else -- if not self.owningAssignmentStatementTarget.oclIsUndefined() then
+         -- self if a VariableRefExpression
+         self.owningAssignmentStatementTarget.owningBlock
+      endif endif endif endif endif endif endif endif endif endif endif endif endif;
+      
+helper context HADL!Range def:
+   getOwningBlock() : OclAny =
+      if not self.owningForStatement.oclIsUndefined() then
+         self.owningForStatement.owningBlock
+      else -- if not self.owningDataContainerRefExpression.oclIsUndefined() then
+         self.owningDataContainerRefExpression.getOwningBlock()
+      endif;
+
+helper context HADL!BehaviorCall def:
+   getOwningBlock() : OclAny =
+      if not self.owningChoice.oclIsUndefined() then
+         self.owningChoice.owningBehavior
+      else -- if not self.owningChunk.oclIsUndefined() then
+         self.owningChunk.owningBehavior
+      endif;
+
+helper context HADL!OperationCall def:
+   getOwningBlock() : OclAny =
+      if not self.owningProcedureCallStatement.oclIsUndefined() then
+         self.owningProcedureCallStatement.owningBlock
+      else -- if not self.owningFunctionCallExpression.oclIsUndefined() then
+         self.owningFunctionCallExpression.getOwningBlock()
+      endif;
+
+-------------------------------------------------------------------------------
+-- Straightforward copy rules
+-------------------------------------------------------------------------------
+
+rule TComponent { 
+   from src : HADL!Component 
+   to dest : HADLd!Component (
+         name <- src.name,
+         variables <- src.variables,
+         operations <- src.operations
+      )
+}
+
+rule TArchitecture { 
+   from src : HADL!Architecture 
+   to dest : HADLd!Architecture (
+         name <- src.name,
+         fathers <- src.fathers,
+         resources <- src.resources
+      )
+}
+
+rule TResource { 
+   from src : HADL!Resource 
+   to dest : HADLd!Resource (
+         name <- src.name,
+         component <- src.component,
+         ports <- src.ports
+      )
+}
+   
+rule TPort { 
+   from src : HADL!Port 
+   to dest : HADLd!Port (
+         name <- src.name,
+         operations <- src.operations
+      )
+}
+   
+rule TStage { 
+   from src : HADL!Stage 
+   to dest : HADLd!Stage (
+         name <- src.name,
+         activations <- src.activations
+      )
+}
+   
+rule TResourceActivation { 
+   from src : HADL!ResourceActivation 
+   to dest : HADLd!ResourceActivation (
+         resource <- src.resource,
+         portActivations <- src.portActivations,
+         releaseStage <- src.releaseStage,
+         bypassStages <- src.bypassStages,
+         priority <- src.priority,
+         isReusable <- src.isReusable
+      )
+}
+   
+rule TPortActivation {
+   from src : HADL!PortActivation
+   to dest : HADLd!PortActivation (
+         port <- src.port,
+         releaseStage <- src.releaseStage,
+         bypassStages <- src.bypassStages
+      )
+}
+
+rule TBehaviorChunk { 
+   from src : HADL!BehaviorChunk 
+   to dest : HADLd!BehaviorChunk (
+         name <- src.name,
+         call <- src.call,
+         condition <- src.condition
+      )
+}
+
+rule TLeafBehaviorChoice { 
+   from src : HADL!LeafBehaviorChoice 
+   to dest : HADLd!LeafBehaviorChoice (
+         name <- src.name,
+         body <- src.body
+      )
+}
+
+rule TCallBehaviorChoice { 
+   from src : HADL!CallBehaviorChoice 
+   to dest : HADLd!CallBehaviorChoice (
+         call <- src.call
+      )
+}
+   
+rule TBehaviorCall { 
+   from src : HADL!BehaviorCall 
+   to dest : HADLd!BehaviorCall (
+         behavior <- src.behavior,
+         actualParameters <- src.actualParameters
+      )
+}
+   
+rule TComponentVariable { 
+   from src : HADL!ComponentVariable
+   to dest : HADLd!ComponentVariable (
+         name <- src.name,
+         isArray <- src.isArray,
+         size <- src.size,
+         isExternal <- src.isExternal
+      )
+}
+
+rule TLocalVariable { 
+   from src : HADL!LocalVariable 
+   to dest : HADLd!LocalVariable (
+         name <- src.name,
+         isArray <- src.isArray,
+         size <- src.size
+      )
+}
+
+rule TLoopVariable { 
+   from src : HADL!LoopVariable
+   to dest : HADLd!LoopVariable (
+         name <- src.name,
+         isArray <- src.isArray,
+         size <- src.size
+      )
+}
+
+rule TBlock { 
+   from src : HADL!Block 
+   to dest : HADLd!Block (
+         statements <- src.statements
+      )
+}
+
+rule TAssignmentStatement { 
+   from src : HADL!AssignmentStatement
+   to dest : HADLd!AssignmentStatement (
+         target <- src.target,
+         source <- src.source
+      )
+}
+
+rule TProcedureCallStatement { 
+   from src : HADL!ProcedureCallStatement 
+   to dest : HADLd!ProcedureCallStatement (
+         call <- src.call
+      )
+}
+   
+rule TIfStatement { 
+   from src : HADL!IfStatement 
+   to dest : HADLd!IfStatement (
+         ifClauses <- src.ifClauses,
+         elseClause <- src.elseClause
+      )
+}
+
+rule TIfClause { 
+   from src : HADL!IfClause 
+   to dest : HADLd!IfClause (
+         condition <- src.condition,
+         thenClause <- src.thenClause
+      )
+}
+
+rule TForStatement { 
+   from src : HADL!ForStatement 
+   to dest : HADLd!ForStatement (
+         counter <- src.counter,
+         range <- src.range,
+         body <- src.body
+      )
+}
+   
+rule TDataContainerRefExpression { 
+   from src : HADL!DataContainerRefExpression
+   to dest : HADLd!DataContainerRefExpression (
+         dataContainer <- src.dataContainer,
+         index <- src.index,
+         range <- src.range,
+         extend <- src.extend
+      )
+}
+
+rule TOperatorExpression { 
+   from src : HADL!OperatorExpression
+   to dest : HADLd!OperatorExpression (
+         operator <- src.operator,
+         source <- src.source,
+         arguments <- src.arguments
+      )
+}
+
+rule TIntegerLiteralExpression { 
+   from src : HADL!IntegerLiteralExpression
+   to dest : HADLd!IntegerLiteralExpression (
+         value <- src.value
+      )
+}
+
+rule TBooleanLiteralExpression { 
+   from src : HADL!BooleanLiteralExpression 
+   to dest : HADLd!BooleanLiteralExpression (
+         value <- src.value
+      )
+}
+
+rule TBasedLiteralExpression { 
+   from src : HADL!BasedLiteralExpression
+   to dest : HADLd!BasedLiteralExpression (
+         base <- src.base,
+         value <- src.value
+      )
+}
+
+rule TRange { 
+   from src : HADL!Range
+   to dest : HADLd!Range (
+         slices <- src.slices,
+         shiftAmount <- src.shiftAmount,
+         right <- src.right,
+         shift <- src.shift,
+         arithmetic <- src.arithmetic
+      )
+}
+
+rule TSlice { 
+   from src : HADL!Slice
+   to dest : HADLd!Slice (
+         first <- src.first,
+         last <- src.last,
+         step <- src.step
+      )
+}
+
+rule TFormatChunk { 
+   from src : HADL!FormatChunk 
+   to dest : HADLd!FormatChunk (
+         behaviorChunk <- src.behaviorChunk,
+         targetFormat <- src.targetFormat
+      )
+}
+   
+

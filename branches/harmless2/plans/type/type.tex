@@ -1,0 +1,169 @@
+%!TEX encoding = UTF-8 Unicode
+\documentclass[11pt]{article}
+\usepackage{geometry} % see geometry.pdf on how to lay out the page. There's lots.
+%\usepackage[frenchb]{babel}	%francais
+\usepackage[utf8]{inputenc}	%francais
+\geometry{a4paper} 
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{tabularx}
+\usepackage{hyperref}
+% \geometry{landscape} % rotated page geometry
+%\loadcssfile{../common/style.css}
+
+\newcommand{\cad}{c'est-à-dire~}
+\newcommand{\bs}{\textbackslash}
+\newcommand{\harmless}{Harmless}
+\newcommand{\h}{Harmless}
+\newcommand{\gadl}{Gadl}
+\newcommand{\blocdo}{bloc {\tt do \ldots\ end do}}
+\newcommand{\Blocdo}{Bloc {\tt do \ldots\ end do}}
+\newcommand{\blocsdo}{blocs {\tt do \ldots\ end do}}
+
+
+% See the ``Article customise'' template for come common customisations
+
+\title{Les types structurés dans Harmless. \\ Document de travail}
+\author{M. Briday, R. Urunuela}
+%\date{} % delete this line to display the current date
+
+
+%TODO: Rajouter les mots clés aussi dans le chapitre elements de base du langage situé
+% \ref{keywords}
+\lstdefinelanguage{Harmless} 
+{morekeywords={model,include,port,device,architecture,write,shared,behavior,format,select,error,warning,component,void,every,memory,width,address,type,typedef,RAM,ROM,register,stride,read,program,counter,pipeline,stae,init,run,as,machine,BTB,FIFO,bypass,release,in,maps,to,stall,default,instruction,fetch,debug,big,little,endian,except,do,out,when,on,field,nop,slice,case,is,others,signed,or,syntax,switch,number,octal,decimal,hexadecimal,binary,suffix,prefix,timing,decode,size,jumpTaken,add,cycle,use,return,print,if,then,elseif,else,loop,while,end,true,false,ror,rol,cat,interrupt}, 
+sensitive=true, 
+morecomment=[l]{--}, 
+morestring=[b]"
+}
+
+\lstset{
+  basicstyle=\small,
+  stringstyle=\ttfamily, % typewriter type for strings
+  showstringspaces=true %space in strings
+  commentstyle=\ttfamily,
+ % commentstyle=\itshape\color{vert},
+  identifierstyle=\ttfamily\bfseries,
+  keywordstyle=\ttfamily\bfseries\underbar,
+  numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt, %line numbers
+  breaklines=true,
+  frame=lines, %bottom and top lines
+  language=Harmless,
+  defaultdialect=Harmless,
+}
+
+%%% BEGIN DOCUMENT
+\begin{document}
+\maketitle
+\tableofcontents
+\maketitle
+\section{les types}
+Déclaration locale, portée globale, cad: \\
+Soit la définition:
+\begin{lstlisting}
+component ICacheARM920T
+{
+  typedef cacheLine {
+    u24  tag
+    u1   valid
+  }
+  ...
+}
+\end{lstlisting}
+
+on a définit un type 'ICacheARM920T.cacheLine' qui est utilisable partout, et il peut être défini comme 'cacheLine' uniquement dans le composant 'ICacheARM920T'.
+
+\section{Déclaration}
+\subsection{Description du type}
+Ca commence par le mot clé \texttt{typedef}, du coup, il n'y a pas de problème de parsing (LL1) car c'est un nouveau mot clé.
+\begin{lstlisting}
+typedef ...
+\end{lstlisting}
+
+Les structures internes dans Galgas évoluent en:
+
+\texttt{@varType} est dérivée en \texttt{@varTypeStruct}. Actuellement:
+\begin{verbatim}
+class @varType {
+    @varKind kind  ;
+    @uint size  ; #size in bits.
+    @location location  ;
+}
+\end{verbatim}
+\begin{itemize}
+\item kind est mis à jour: une nouvelle entrée \texttt{type}
+\item size n'est pas utilisée -- pas de @varClassicType pour le moment.
+\item location est utilisé.
+\end{itemize}
+
+la map \texttt{@varTypeMap} permet pour chaque membre (la clé) de trouver le \texttt{@varType} associé.
+\begin{verbatim}
+map @varTypeMap
+{
+  @varType type;
+}
+\end{verbatim}
+
+\begin{verbatim}
+map @varTypeStructDefMap  { -- intégré dans le composant.
+	@varTypeList members
+}
+\end{verbatim}
+
+\begin{verbatim}
+class @varTabType extends @varType {
+  @varType type -> du coup, pour un type classique, on a une redondance d'info: faudra faire attention à la cohérence!
+  @uint tabSize;
+}
+\end{verbatim}
+
+Ok pour la partie sémantique. Partie syntaxique facile. 
+Avec ça, on doit déjà être capable de générer la déclaration du type en C++, sous la forme d'une structure.
+
+\subsection{Création d'une instance d'une structure.}
+
+Ca commence par \texttt{$type$} et on mets le tout dans la règle <typeDeclaration>, pour éviter la restriction de la grammaire LL1. Exemple:
+\begin{lstlisting}
+type cacheSegment[8] cacheBuffer
+\end{lstlisting}
+
+on récupère au niveau sémantique dans galgas:
+
+\begin{verbatim}
+class @varTypeStruct extends @varType {
+        @lstring componentName #potentiellement vide.
+	@lstring name
+}
+\end{verbatim}
+
+le champ \texttt{name} permet d'aller chercher ensuite les informations dans la map (de déclaration, varTypeStructDefMap) et de retrouver les champs.
+
+À partir de là, on est capable de faire une vérification de la cohérence de l'appel. On doit pouvoir générer le code permettant la création d'une variable structurée.
+
+\section{Utilisation}
+l'utilisation se fait dans les parties d'implémentation de Harmless, et va donc impacter sur la règle \texttt{<pathName>} et la structure de donnée sous-jacente \texttt{@pathElement}.
+
+\subsection{Affectation simple}
+L'affectation simple ressemble à:
+\begin{lstlisting}
+cacheBuffer[seg].victimPointer := 0
+\end{lstlisting}
+Dans ce cas, l'expression à gauche est un \texttt{@cIdf}. Actuellement, un  \texttt{@cIdf} enregistre un \texttt{idf} et un \texttt{var} de type \texttt{abstractVar}. Il faut aussi rajouter le \texttt{@pathElt}.
+
+\subsection{Affectation du type entier}
+L'affectation d'une structure ressemble à:
+\begin{lstlisting}
+cacheBuffer[seg].line[line] := {0, 0} -- tag et valid.
+\end{lstlisting}
+Étant donné que le type renvoyé était défini comme:
+\begin{lstlisting}
+  typedef cacheLine {
+    u24  tag
+    u1   valid
+  }
+\end{lstlisting}
+Il faut faire la vérification du bon nombre d'arguments, et l'affectation de chaque élément.
+Cette étape doit être un peu plus complexe, car l'expression de gauche renvoie une structure, et non pas un \texttt{@cIdf}. La fonction serait appréciable. Voir si c'est jouable en un temps raisonnable.
+
+\end{document}  

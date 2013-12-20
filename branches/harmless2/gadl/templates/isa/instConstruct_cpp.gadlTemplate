@@ -1,0 +1,22 @@
+%template headerC%
+#include "instruction.h"
+
+#include <iostream>
+using namespace std;
+
+#include "macro.h"
+
+%!MODELNAME%_instruction::%!MODELNAME%_instruction(const %!PC_C_TYPE% instructionPointer) : m_pc(instructionPointer)
+{
+	m_user = 1;
+}
+
+%foreach inst in INST_CONSTRUCTOR do
+  #declaration
+  !inst::name%::%!inst::name
+  !instContructorParam[inst::name]% : %!MODELNAME%_instruction(pc) %
+  #constructor body.
+  %{\n%!inst::INST_CONSTRUCTOR_BODY%}\n%
+between % \n%
+end foreach
+%

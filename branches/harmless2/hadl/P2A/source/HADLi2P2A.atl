@@ -1,0 +1,120 @@
+
+module HADLi2P2A;
+create OUT:P2A from IN:HADLi, P:PRM;
+
+helper def:
+   pipelineName : String = thisModule.getParameterValue('pipelineName');
+
+helper def:
+   thePipeline : HADLi!Pipeline = HADLi!Pipeline.allInstances()->select(p| p.name = thisModule.pipelineName)->asSequence()->first();
+
+rule TConfigurationFile {
+   from src : HADLi!Model
+   to
+      dest : P2A!ConfigurationFile (
+            version <- 4,
+            statements <-
+               Sequence{thisModule.thePipeline}
+               ->union(thisModule.thePipeline.stages)
+               ->union(thisModule.thePipeline.architecture.ports->select(p| p.isUsedInGroup()))
+               ->union(thisModule.thePipeline.groups)
+         )
+}
+
+rule TPipeline {
+   from src : HADLi!Pipeline ( src = thisModule.thePipeline )
+   to
+      dest : P2A!Pipeline (
+            name <- src.name,
+            stages <- src.stages,
+            resources <- src.architecture.ports,
+            instructionClasses <- src.groups
+         )
+}
+
+rule TStage {
+   from src : HADLi!Stage ( src.owningPipeline = thisModule.thePipeline )
+   to
+      dest : P2A!Stage (
+            name <- src.name
+         )
+}
+
+rule TResource {
+   from src : HADLi!ExpandedPort ( src.isUsedInGroup() )
+   to
+      dest : P2A!Resource (
+            name <- src.name,
+            isExternal <- src.name = 'datadep' or src.operations->exists(o| o.isExternal),
+            priority <- 0, -- TODO this should change in the future
+            parallelism <- 1 -- TODO this should change in the future
+         )
+}
+
+rule TInstructionClass {
+   from src : HADLi!Group ( src.owningPipeline = thisModule.thePipeline )
+   to
+      dest : P2A!InstructionClass (
+            name <- src.name,
+            resourceUsages <-
+                        src.signature
+                           ->collect(a| thisModule.TDependency(a))
+                  ->union(
+                        src.signature
+                           ->reject(a| a.releaseStage.oclIsUndefined())
+                           ->collect(a|
+                                 Sequence {
+                                       thisModule.TGetResource(a),
+                                       thisModule.TReleaseResource(a)
+                                    }
+                              )
+                     )
+                  ->flatten()
+         )
+}
+
+lazy rule TDependency {
+   from src : HADLi!ExpandedPortActivation
+   to
+      dest : P2A!Dependency (
+            resource <- src.port,
+            stage <- src.owningStage,
+            configurationFile <- src.owningStage.owningPipeline.owningModel
+         )
+}
+
+lazy rule TGetResource {
+   from src : HADLi!ExpandedPortActivation
+   to
+      dest : P2A!GetResource (
+            resource <- src.port,
+            stage <- src.owningStage,
+            configurationFile <- src.owningStage.owningPipeline.owningModel
+         )
+}
+
+lazy rule TReleaseResource {
+   from src : HADLi!ExpandedPortActivation
+   to
+      dest : P2A!ReleaseResource (
+            resource <- src.port,
+            stage <- src.releaseStage,
+            configurationFile <- src.owningStage.owningPipeline.owningModel
+         )
+}
+
+helper context HADLi!ExpandedPort def:
+   isUsedInGroup() : Boolean =
+      thisModule.thePipeline.architecture.hasPort(self) and
+      thisModule.thePipeline.groups->exists(g|
+            g.signature->exists(a| a.port = self)
+         );
+
+helper context HADLi!Architecture def:
+   hasPort(port : HADLi!ExpandedPort) : Boolean =
+      if port.owningArchitecture = self then
+         true
+      else
+         self.fathers->exists(a| a.hasPort(port))
+      endif;
+

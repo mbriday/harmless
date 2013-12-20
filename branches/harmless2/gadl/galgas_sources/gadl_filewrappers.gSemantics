@@ -1,0 +1,84 @@
+semantics gadl_filewrappers:
+  import "gadl_options.gOption" ;
+
+local filewrapper a2cppFileWrapper in "../../a2cpp/" {
+  #text extensions
+}{
+  #binary extensions
+  ""
+}{
+  #static templates (resolved at compile time).
+}
+
+local filewrapper p2aFileWrapper in "../../p2a/" {
+  #text extensions
+}{
+  #binary extensions
+  ""
+}{
+  #static templates (resolved at compile time).
+}
+
+local filewrapper libelfFileWrapper in "../../libelf/" {
+  "h"#text extensions
+}{
+  #binary extensions
+  "a"
+}{
+  #static templates (resolved at compile time).
+}
+
+#template file wrapper.. can be used in other files.
+filewrapper templateFileWrapper in "../templates" {
+  "gadlTemplate"#text extensions
+}{
+  #binary extensions
+}{
+  #static templates (resolved at compile time).
+}
+
+
+routine addBinary
+  ?? @filewrapper fw
+  ?? @lstring modelName
+  ?? @string fileName
+:
+  const @data fileContents := [fw binaryFileContentsAtPath !fileName] ;
+  const @string directory := [modelName string]."/bin";
+  [directory makeDirectory];
+  [fileContents writeToExecutableFile !directory."/".fileName];
+end routine;
+
+routine addStaticLibrary
+  ?? @filewrapper fw
+  ?? @lstring modelName
+  ?? @string libName
+:
+  #first generate dirs.
+  foreach [fw allDirectoryPathes] do
+    const @string dir := [modelName string].mValue;
+    [dir makeDirectory] ;
+  end foreach ;
+  #second, the static lib (bin)
+  @string binaryLibName := libName.".a";
+  const @data fileContents := [fw binaryFileContentsAtPath !"lib/".binaryLibName];
+  const @string libDir := [modelName string]."/lib";
+  [libDir makeDirectory];
+  [fileContents writeToFileWhenDifferentContents !libDir."/".binaryLibName ?*];
+  #then the include dir (and subdirs)
+  foreach [fw allTextFilePathes] do
+    const @string contents := [fw textFileContentsAtPath !mValue] ;
+    [contents writeToFileWhenDifferentContents ![modelName string].mValue ?*] ;
+  end foreach ;
+end routine;
+
+routine addFileWrappers
+  ?? @lstring modelName
+:
+  addBinary        ![filewrapper a2cppFileWrapper]  !modelName !"a2cpp";
+  addBinary        ![filewrapper p2aFileWrapper]    !modelName !"p2a";
+  addStaticLibrary ![filewrapper libelfFileWrapper] !modelName !"libelf";
+end routine;
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

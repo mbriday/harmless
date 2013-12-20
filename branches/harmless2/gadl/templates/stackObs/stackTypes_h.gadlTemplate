@@ -1,0 +1,7 @@
+%template headerC%
+typedef u32 type_prgaddr;
+typedef u16 type_sp;
+
+
+#define TASK_UNKNOWN 0
+

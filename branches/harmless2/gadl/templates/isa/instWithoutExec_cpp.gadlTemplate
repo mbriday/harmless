@@ -1,0 +1,34 @@
+%template headerC%
+#include "instruction.h" //first for precompiled headers
+#include <iostream>
+#include "macro.h"
+#include "arch.h"
+#include "utils.h"
+
+using namespace std;
+
+void %!MODELNAME%_instruction::release() {
+	m_user --;
+	SEGFAULTIF(m_user < 0);
+	if(!m_user) delete this;
+}
+
+void %!MODELNAME%_instructionStall::execute(arch *_arch){}
+
+// instructions without any behavior...
+
+%
+let instWithCodeMap := emptyMap
+if exists instCodeList then #no 'no behavior' option.
+  let instWithCodeMap := mapOf instCodeList by name
+end if
+
+foreach inst in INST_CONSTRUCTOR do
+  if not exists instWithCodeMap[inst::name] then
+    #no behavior -> add a default one.
+    %void %!inst::name%::execute(arch *_arch){\n%
+    %\tcerr << "instruction %!inst::name% have no behavior defined" << endl;\n%
+    %}\n%
+  end if
+end foreach
+

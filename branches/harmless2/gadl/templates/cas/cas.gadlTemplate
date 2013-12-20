@@ -1,0 +1,24 @@
+%
+#files related to Cycle Accurate Simulation only.
+
+#log related to instruction components usage.
+if useCAS then
+  write to MODELNAME."/instDDCLock.cpp":
+    template instDDCLock_cpp in cas
+  end write
+  %instDDCLock.cpp \\\n%
+
+  write to MODELNAME."/instDDCRequired.cpp":
+    template instDDCRequired_cpp in cas
+  end write
+  %instDDCRequired.cpp \\\n%
+
+  write to MODELNAME."/pipelineTraceDebug.h":
+    template pipelineTraceDebug_h in cas
+  end write
+
+  write to MODELNAME."/pipelineTraceDebug.cpp":
+    template pipelineTraceDebug_cpp in cas
+  end write
+  #source not added to Makefile, as it is compiled in only if necessary.
+end if

@@ -1,0 +1,104 @@
+syntax gadl_peripherals_parser ("gadl_lexique.gLexique") :
+
+  import "gadl_semantics.gSemantics" ;
+  import "gadl_components.gSemantics" ;
+  import "gadl_semantics_peripherals.gSemantics" ;
+  import "gadl_semantics_implementation.gSemantics" ; #test
+  import "gadl_semantics_expression_const.gSemantics" ;
+
+#implementation related rules
+nonterminal  <implementation> 
+  ?! @varMap varMap 
+  ?! @instructionList instList 
+  ?? @componentMap componentMap
+  ?? @lstring currentComponent
+  ?? @expressionContext expContext
+  ?? @returnTypeList returnList
+;
+
+#expression related rules
+nonterminal  <expression>
+  ?? @varMap varMap
+  !  @cExpression outExp
+  ?? @componentMap componentMap
+  ?? @uint tmpId
+  ?? @expressionContext expContext
+;
+
+rule <actionOnReadOrWrite>
+  ?! @varMap globalVarMap 
+  ?! @readWriteActionList readWriteActionList
+:
+  $when$;
+  @bool accessType;
+  select
+    $read$;
+    accessType := true;
+  or
+    $write$;
+    accessType := false;
+  end select;
+  $on$;
+  @lstring regName;
+  $idf$ ? regName;
+  @abstractVar abstractVar;
+  [globalVarMap searchKey !regName ?abstractVar]; #check if regname is defined.
+  cast abstractVar
+  when >= @registerVar :
+    #ok. This is a register.
+  else
+    error here: "an action can be triggered only with a register";
+  end cast;
+  $do$;
+  @instructionList instList [emptyList];
+  @componentMap componentMap [emptyMap];
+  @lstring currentComponent := [@lstring new !"" !here];
+  @returnTypeList returnList [emptyList]; #no return allowed.
+  <implementation> !?globalVarMap !?instList !componentMap !currentComponent ![@expressionContext component] !returnList;
+  readWriteActionList += !accessType !regName !instList;
+  $end$; $when$;
+end rule;
+
+rule <cyclicPart>
+  ?! @varMap globalVarMap
+  ?? @lstring currentComponent
+  ?! @uint nbCyclicParts #id used to identify "foreach" sections.
+  ?! @cyclicPartList cyclicPartList
+:
+  @componentMap componentMap [emptyMap];
+  $every$;
+  @cExpression cycleExp;
+  <expression> !globalVarMap ?cycleExp !componentMap !0 ![@expressionContext component];
+  @varType outType;
+  checkOneExpressionOutType !cycleExp ?outType;
+  if [outType kind] != [@varKind unsigned] then
+    error here: "the number of cycle should an unsigned value";
+  end if;
+  @bool constant;
+  [cycleExp isConst ?constant];
+  if not constant then
+    error here: "At this date, the number of cycles should be a constant value.";
+  end if;
+  $cycle$;
+  @cExpression conditionExp;
+  select
+    @varType outType := [@varType new ![@varKind unsigned] !1 !here]; #u1
+    conditionExp := [@cIntConst new !getTypeListFrom[!outType] !1L !false]; #true.
+  or
+    $if$;
+    <expression> !globalVarMap ?conditionExp !componentMap !0 ![@expressionContext component];
+    @varType outTypeIf;
+    checkOneExpressionOutType !conditionExp ?outTypeIf;
+    checkBool !outTypeIf !here;
+  end select;
+  $do$;
+  @instructionList instList [emptyList];
+  @returnTypeList returnList [emptyList]; #no return allowed.
+  <implementation> !?globalVarMap !?instList !componentMap !currentComponent ![@expressionContext component] !returnList;
+  $end$; $every$;
+  cyclicPartList += !cycleExp !conditionExp !instList !nbCyclicParts;
+  nbCyclicParts := nbCyclicParts + 1;
+end rule;
+
+end syntax;
+# vim:ft=ggs:ts=2:sw=2
