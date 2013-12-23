@@ -1,0 +1,883 @@
+%template headerC%
+#include <iostream>
+#include <iomanip> //setioflags (setw)
+#include "core.h"
+#include "instructionBase.h"
+#include "instDecoder.h"
+#include "macro.h"
+#include "breakpointAction.h"
+#include "utils.h"
+#include "fifo.h"
+
+#ifdef GADL_SP_CHECK_ALLOWED
+	#include "stackController.h"
+#endif // GADL_SP_CHECK_ALLOWED
+
+#include <sstream> //stringstream
+
+#include "iHexReader.h"
+#include "sRecordReader.h"
+#ifdef USE_LIBELF
+	#include "elfReader.h"
+#endif
+#ifdef GADL_WITH_PIPELINE_TRACE
+	#include "pipelineTraceDebug.h"
+#endif
+%
+if exists timingList then
+%//timing part
+#include "timingSignal.h"
+%
+  foreach timingPart in timingList
+  do 
+    %#include "timing_%!timingPart::name%.h"\n%
+  end foreach
+end if
+
+if useCAS then
+  foreach pipeline in pipelineList do
+    %#include "%!pipeline::name%.h"\n%
+   end foreach
+ end if
+%
+
+using namespace std;
+
+void core::decoderStats()
+{
+	m_decoder->decoderStats();
+}
+
+core::core()
+{
+	m_reader = NULL;
+	m_nbCycles = 0;
+	m_nbInst = 0;
+	//m_context = new context();
+	m_decoder = new %!MODELNAME%_instDecoder();
+    //m_executionMode = core::ISS;
+	m_executionMode = core::CAS;
+	#ifdef GADL_WITH_PIPELINE_TRACE
+		m_pipelineTrace = NULL;
+	#endif
+%	
+  foreach memInCore in memInCoreList do
+    let storageName := memInCore::name."_memChunk"
+    %	%!storageName% = new % 
+    if memInCore::type == 0 then %roStorage% #ROM
+    else %rwStorage%
+    end if
+    %("%!storageName%", % #name
+    !memInCore::size%, %!memInCore::baseAddress%);\n%
+  end foreach
+%
+	m_lastBreakpointAddr = 0;
+%if exists useCounters then
+%		//init counters of component method and registers accesses.\n%
+  foreach counter in counterMap do
+    %	%!KEY% = 0;\n%
+  end foreach
+end if
+
+let firstPipeline := ""
+ if useCAS then
+ foreach pipeline in pipelineList 
+ before
+ %	//pipeline model init\n%
+ do
+ let pipelineBufferSize := 1 << nbBitsToCodeUnsigned([pipeline::stageList length] - 1)
+  %	m_nextInstruction_%!pipeline::name% = NULL;
+	m_pipeline%!pipeline::name% = new %!pipeline::name%();
+	m_pipeline%!pipeline::name%->init(this);
+	m_instInPipe_%!pipeline::name% = 0;
+
+	%!MODELNAME%_instruction *stall = new %!MODELNAME%_instructionStall(); //stall used 1
+	for(unsigned int i=0;i<%!pipelineBufferSize%; i++)
+	{
+		if(i != 0) stall->retain();
+		m_instructionsInPipeline_%!pipeline::name%[i] = stall;
+	}\n%
+ end foreach
+ let firstPipeline := [pipelineList first]
+%
+	//DDC related part.
+	m_DDCInstRequireStage = 0;
+	m_DDCInstLockStage = 0;
+	m_DDCregsInUse = 0;
+	m_DDCCurrentReadRegs = 0;
+%let maxSize := 0
+ foreach pipeline in pipelineList do
+   let maxSize := maxSize+[pipeline::stageList length]
+ end foreach%
+	m_fifoDDC = new fifo<u64>("DDC lock registers",%!maxSize%);
+% end if #useCAS
+let pipelineBufferSize := 1 #TODO: update handling of pipelineBufferSize
+let firstPipelinebufferMask := 1
+if useCAS then
+  let pipelineBufferSize := 1 << nbBitsToCodeUnsigned([firstPipeline::stageList length] - 1)
+  let firstPipelinebufferMask := pipelineBufferSize - 1
+%
+
+	//*******  Data Cache (TODO partially hand coded..) ***** 
+	for(unsigned int i=0;i<%!pipelineBufferSize%; i++)
+	{
+		//(4 is hand-coded: This should be the max number of access in one cycle.
+		m_fifoMemAccessTab[i] = new fifo<u32>("mem access fifo",4);
+	}
+	m_memStage = 0; //instruction in MEM stage.
+%end if #useCAS.
+%	// STACK Spying
+	#ifdef	GADL_SP_CHECK_ALLOWED
+		m_stackController=new stackSpyController(this);
+	#endif
+%
+#create automata.
+if exists timingList then
+  foreach timing in deviceToTimingMap do
+  %\tm_timing%!KEY% = new timing%!timing%(SIGNAL_WAIT_%!KEY%_OFFSET,\n\t\tSIGNAL_EMIT_%!KEY%_OFFSET);\n%
+  end foreach
+end if
+%	reset();
+}
+
+void core::reset()
+{
+	m_nbCycles = 0;
+	m_nbInst = 0;
+	m_%!idfStruct::PC_NAME% = 0;
+	//TODO: no init of constant register.
+
+	m_stopSimu = 0;
+	//TODO: faire une fonction de reset -> le constructeur des periph.
+
+%if exists timingList then
+  #reinit automata.
+  foreach timing in deviceToTimingMap do
+    %\tm_timing%!KEY%->init();\n%
+  end foreach
+  if [timingList length] > 0 then
+    %	for(unsigned int i = 0;i < NB_SIGNAL_EMIT;i++) m_pendingSignalEmitTab[i]=NULL;
+    	for(unsigned int i = 0;i < NB_SIGNAL_WAIT;i++) m_pendingSignalWaitTab[i]=NULL;
+    	m_timingListRoot = NULL;
+    	m_timingNextWakeUp = 0xFFFFFFFFFFFFFFFFULL; //max u64 value.
+%
+  end if
+  let timingMap := mapOf timingList by name
+  foreach timing in deviceToTimingMap do
+    if not timingMap[timing]::onActivation then
+      %\tm_timing%!KEY%->run(this); //start automata (not related to a shared port)\n%
+    end if
+  end foreach
+end if  
+%}
+
+void core::removeAllBreakpoints()
+{
+	map<u32, breakpointAction *>::iterator it = m_breakpointActionMap.begin();
+	const map<u32, breakpointAction *>::const_iterator itEnd = m_breakpointActionMap.end();
+	while(it != itEnd)
+	{
+		u32 addr = (*it).first;
+		breakpointAction *ba = (*it).second;
+		removeExecuteActionAtAddress(addr, ba);
+		delete ba;
+		it++;
+	}
+	m_breakpointActionMap.clear();
+}
+
+void core::removeBreakpoint(const unsigned int addr)
+{
+	map<u32, breakpointAction *>::iterator it = m_breakpointActionMap.find(addr);
+	if(it != m_breakpointActionMap.end())
+	{
+		breakpointAction *ba = (*it).second;
+		removeExecuteActionAtAddress(addr, ba);
+		m_breakpointActionMap.erase(it);
+		delete ba;
+	} else cerr << "no breakpoint defined at address 0x" << hex << addr << endl;
+}
+
+void core::removeExecuteActionAtAddress(const u32 addr, executeAction *ea)
+{
+	if(!m_decoder->removeExecuteActionAtAddress(addr,ea))
+		cerr << "error: the execute action cannot be removed at address 0x" << hex << addr << endl;
+}
+
+void core::addExecuteActionAtAddress(const u32 addr, executeAction *ea)
+{
+	m_decoder->addExecuteActionAtAddress(addr, ea);
+}
+
+void core::addBreakpoint(const unsigned int addr)
+{
+		map<u32, breakpointAction *>::iterator it = m_breakpointActionMap.find(addr);
+		if(it == m_breakpointActionMap.end())
+		{
+			breakpointAction *ba = new breakpointAction(addr);
+			addExecuteActionAtAddress(addr, ba);
+			m_breakpointActionMap[addr] = ba;
+		} else cerr << "There is already a breakpoint defined at address 0x" << hex << addr << endl;
+}
+
+void core::removeBreakpoint(const char *symbolName)
+{
+	u32 v_addr;
+	if(getFunctionName(symbolName, v_addr))
+	{
+		bool found = false;
+		u32 p_addr = getPhysicalAddress(v_addr, found);
+		if(!found) cerr << "symbol " << symbolName << " have a virtual address (0x" <<
+			hex << v_addr << "), but no physical address.";
+		removeBreakpoint(p_addr);
+	} else cerr << "no symbol found for " << symbolName << endl;
+}
+
+void core::addBreakpoint(const char *symbolName)
+{
+	u32 v_addr;
+	if(getFunctionName(symbolName, v_addr))
+	{
+		bool found = false;
+		u32 p_addr = getPhysicalAddress(v_addr, found);
+		if(!found) cerr << "symbol " << symbolName << " have a virtual address (0x" <<
+			hex << v_addr << "), but no physical address.";
+		addBreakpoint(p_addr);
+	} else cerr << "no symbol found for " << symbolName << endl;
+}
+
+storage * core::getProgramChunk(const unsigned int address)
+{
+% foreach mem in idfStruct::memSpaceList do
+    if mem::isProgram then
+      %\treturn get_%!mem::name%_chunk(address);\n%
+    end if
+  end foreach
+%}
+
+void core::setExecutionMode(const executionMode mode)
+{
+	if(m_nbCycles)
+	{
+		std::cerr << "switch ISS <-> CAS mode not yet implemented dynamically!" << std::endl;
+		std::cerr << "Warning : change is not taken into account!" << std::endl;
+	} else m_executionMode = mode;
+}
+
+int core::execInst(const unsigned int nb)
+{
+	m_stopSimu = 0;
+%if useCAS then
+%	if(m_executionMode == core::ISS) return emuInst(nb);
+	else { //CAS simulation.
+		if(!m_nextInstruction_%!firstPipeline::name%) //first time
+		{
+			m_nextInstruction_%!firstPipeline::name% = m_decoder->decode(this, m_PC );
+			const unsigned int instIndex = m_instInPipe_%!firstPipeline::name% & %![firstPipelinebufferMask hexString]%; //range 0 -> %!firstPipelinebufferMask%.
+			m_instructionsInPipeline_%!firstPipeline::name%[instIndex]->release();
+			m_instructionsInPipeline_%!firstPipeline::name%[instIndex] = m_nextInstruction_%!firstPipeline::name%;
+			m_instInPipe_%!firstPipeline::name%++;
+		}
+	//and prepare the next.
+		for(unsigned int i = 0; i < nb && !m_stopSimu; i++)
+		{
+			while(!execOneCycle() && !m_stopSimu);
+		}
+	}
+	return m_stopSimu;
+%else #no CAS
+%	return emuInst(nb);
+%end if
+%}
+
+//hash_length const core::getInstructionDdClassCode() {return 0;}
+void core::runUntil(const unsigned int addr, const unsigned int max)
+{
+		unsigned int _max = getNBInstructions()+max;
+		while(programCounter() != addr && getNBInstructions() < _max) execInst(1);
+}
+
+%if useCAS
+  then foreach pipeline in pipelineList do 
+%unsigned int core::getNextInstructionCodeIn_%!pipeline::name%()
+{
+	return m_nextInstruction_%!pipeline::name%->instClass();
+}
+% end foreach 
+%
+
+unsigned int core::getExternalResourcesState_%!firstPipeline::name%()
+{
+	//0 <-> resource is FREE
+	//1 <-> resource is TAKEN (not available)
+	//From external resources defined in the .config file
+	//first external resource is lowest significant bit.
+	unsigned int result = 0;
+%if exists archList then
+  foreach arch in archList do
+    foreach spl in arch::sharedPortActivationList do
+      %\tresult |= (!(m_timing%!spl::timing%->isInit())) << EXT_RES_%![spl::device uppercaseString]%_%![spl::port uppercaseString]%;\n%
+    end foreach
+  end foreach
+ end if
+%	return result | (testDDCLock() << EXT_RES_DDCRES);
+}
+
+bool core::execOneCycle()
+{
+	#ifdef GADL_CYCLIC_ENABLE
+		if(m_nextCyclicWakeUpDate <= m_nbCycles) manageCyclicPart();
+	#endif
+%if [timingList length] > 0 then
+%	if(m_timingNextWakeUp <= m_nbCycles) manageTiming();
+%end if
+%	const unsigned int notification = m_pipeline%!firstPipeline::name% -> execOneState(getExternalResourcesState_%!firstPipeline::name%(),m_nextInstruction_%!firstPipeline::name%->instClass());
+	bool instExecuted = false;
+	//we have to deal with notifications.
+	//TODO: hard coded at this date
+	if(notification & ENTER_FETCH_MASK) //fetch
+	{
+		m_nextInstruction_%!firstPipeline::name%->execute(this);						//execute
+		m_nextInstruction_%!firstPipeline::name% = m_decoder->decode(this, m_PC ); //and prepare the next.
+% #temporary.. It should not be here!!!
+if exists archList then
+  foreach arch in archList do
+    foreach spl in arch::sharedPortActivationList do
+      if spl::port == "fetch" then #special case for the fetch -> inst cache.
+        %\t\tm_timing%!spl::timing%->run(this); //tmp\n%
+      end if
+    end foreach
+  end foreach
+ end if
+%
+		//update the tab of instructions.
+		const unsigned int instIndex = m_instInPipe_%!firstPipeline::name% & %![firstPipelinebufferMask hexString]%; //range 0 -> %!firstPipelinebufferMask%.
+		m_instructionsInPipeline_%!firstPipeline::name%[instIndex]->release();
+		m_instructionsInPipeline_%!firstPipeline::name%[instIndex] = m_nextInstruction_%!firstPipeline::name%;
+		m_instInPipe_%!firstPipeline::name%++;
+	}
+%
+if exists archList then
+  foreach arch in archList do
+    foreach spl in arch::sharedPortActivationList do
+      if spl::port == "loadStore" then #special case for the load store: HAND CODED!
+%    //TODO: Hand coded.
+	if(notification & ENTER_MEM_MASK) //enter in mem stage
+	{
+		const unsigned int indexInstMem = m_memStage  & 0x7;
+		fifo<u32> *fifo=m_fifoMemAccessTab[indexInstMem];
+		u32 val;
+		//TODO: optimize: copy a fifo...
+		while(fifo->read(val))
+			m_timing%!spl::timing%->insertInDataCacheFifo(val);
+		//ok. Now run the mem access, only if the cache is free.
+		if(m_timing%!spl::timing%->isInit())
+			m_timing%!spl::timing%->run(this);
+		m_memStage++;
+	}
+%      end if
+    end foreach
+  end foreach
+ end if
+%
+	#ifdef GADL_WITH_PIPELINE_TRACE
+	if(m_pipelineTrace)
+		m_pipelineTrace->pipelineTrace(notification, getNBCycles(), m_instructionsInPipeline_%!firstPipeline::name%, m_instInPipe_%!firstPipeline::name%);
+	#endif
+	DDCManagement(notification);
+	if(notification & EXITS_REGISTER_MASK) //nbInst
+	{
+		m_nbInst++;
+		instExecuted = true;
+	}
+	m_nbCycles++;
+	return instExecuted;
+}
+
+//TODO: handles only 1 pipeline!!
+%if [pipelineList length] > 1 then
+  error here: "cannot handle DDC for more than 1 pipeline."
+end if%
+void core::DDCManagement(const unsigned int notification)
+{
+	//DDC related code.
+	if(notification & ENTER_%!DDC_LOCK_STAGE%_MASK) //instruction enters in stage after the READ -> lock
+	{
+		//lock phase.
+
+		const unsigned int indexDDCLock = m_DDCInstLockStage & %![firstPipelinebufferMask hexString]%;
+		%!MODELNAME%_instruction *DDCLockInst = m_instructionsInPipeline_%!firstPipeline::name%[indexDDCLock];
+		//lock registers
+		u64 lock = 0;
+		DDCLockInst->lockDDCWriteRegs(lock);
+		m_fifoDDC->write(lock);
+		//if(m_DDCregsInUse & lock) cout << "*** WAW detected!!! Not taken into account." << endl;
+		m_DDCregsInUse |= lock;
+		//RAZ condition.
+		m_DDCCurrentReadRegs = 0;
+		m_DDCInstLockStage++;
+	}
+	if(notification & ENTER_%!DDC_READ_STAGE%_MASK) //instruction enters in stage where is done the READ -> request
+	{
+		const unsigned int indexDDCReq = m_DDCInstRequireStage & %![firstPipelinebufferMask hexString]%;
+		%!MODELNAME%_instruction *DDCReqInst = m_instructionsInPipeline_%!firstPipeline::name%[indexDDCReq];
+		//on fait le DDC sur toutes les instructions.
+		//sinon, il faut une autre notification pour savoir si le DDC s'applique.
+		DDCReqInst->getDDCReadRegs(m_DDCCurrentReadRegs);
+		m_DDCInstRequireStage ++;
+	}
+	if(notification & ENTER_%!DDC_UNLOCK_STAGE%_MASK) //instruction enters in stage where is done the WRITE -> unlock
+	{
+		//unlock registers
+		u64 unlock;
+		m_fifoDDC->read(unlock);
+		m_DDCregsInUse = m_DDCregsInUse & ~unlock; //no WAW taken into account.
+	}
+}
+
+void core::debugDDCRegField()
+{
+	cout << "registers in use (lock): " << debug64(m_DDCregsInUse) << endl;
+	cout << "registers required:      " << debug64(m_DDCCurrentReadRegs) << endl;
+}
+%else #useCAS
+%
+bool core::execOneCycle() {
+  //Instruction Set Simulation only (no micro-architecture)
+  return emuInst(1);
+}
+%end if #useCAS
+%
+u32 core::linkerAddressTranslation(u32 addr)
+{
+	return %
+if progReadComponentName != "" then
+  !progReadComponentName%_%!progReadMethodName%(addr)%
+else
+  %addr%
+end if
+%;
+}
+
+void core::printRegs()
+{
+%foreach reg in idfStruct::varList do
+  if reg::varClassId == 0 #program counter
+   | reg::varClassId == 1 #GPR
+   | reg::varClassId == 2 #SFR
+   | reg::varClassId == 3 then #reg fields.
+    let name := reg::name
+    let size := reg::size / 4 #4 bits for each hex.
+    if reg::size mod 4 != 0 then
+      let size := size + 1
+    end if
+    %\n\tcout << %
+    if reg::varClassId == 3 then %"\t" <<% end if
+    %"%!name% = " << hex << setw(%!size%) << setfill('0') << (u64)%!name%()%
+    %\n\t     << " - " << dec << (u64)%!name%() << endl;%
+  end if
+ end foreach
+%
+}
+
+int core::emuInst(const unsigned int nb)
+{
+	m_stopSimu = 0;
+	unsigned int i = 0;
+	%!MODELNAME%_instruction* currentInstruction = NULL; 
+	
+	#ifdef GADL_SP_CHECK_ALLOWED
+	u32 pcOld=0;			// CALL detection (compare PC before and after inst. exec.)
+	u32 spOld=0;			// Recquired to have right SP when SPProcess()
+	#endif // #ifdef GADL_SP_CHECK_ALLOWED
+
+	while(i < nb && !m_stopSimu)
+	{
+		#ifdef GADL_CYCLIC_ENABLE
+		if(m_nextCyclicWakeUpDate <= m_nbCycles) manageCyclicPart();
+		#endif
+
+		currentInstruction = m_decoder->decode(this, m_PC );
+
+		// CALL DETECTION : More generic way to detect call type inst.
+		#ifdef GADL_SP_CHECK_ALLOWED
+		pcOld=programCounter();
+		spOld=SP();
+		#endif // #ifdef GADL_SP_CHECK_ALLOWED
+			
+		currentInstruction->execute(this);
+
+		// CALL DETECTION : New way of detecting CALL Inst
+		#ifdef GADL_SP_CHECK_ALLOWED
+		if (currentInstruction->hasID_SP_Check() && (pcOld!=programCounter())) {		// Call type instuction detected
+			m_stackController->setPcOld(pcOld);			// Recquired in order to correctly place actions
+			m_stackController->setSpOld(spOld);			// 
+			m_stackController->processSP_CHECK();	// Processing
+		}
+		#endif // #ifdef GADL_SP_CHECK_ALLOWED
+			
+		currentInstruction->release();
+		i++;
+	}
+	m_nbInst+=i;
+	return m_stopSimu;
+}
+
+/*void core::debug(const bool _enable)
+{
+	m_pipeline->debug(_enable);
+}*/
+
+void core::stopSimu(int reason)
+{
+	if(reason)	m_stopSimu = reason;
+	else m_stopSimu = 1; 
+}
+
+std::string core::disassemble(const unsigned int pcStart, const int nbBytes, bool verbose)
+{
+	stringstream result;
+	%!idfStruct::PC_C_TYPE% tempPC = (%!idfStruct::PC_C_TYPE%)pcStart;
+	const %!idfStruct::PC_C_TYPE% pcEnd = tempPC + (%!idfStruct::PC_C_TYPE%)nbBytes;
+	while(tempPC < pcEnd)
+	{
+		const %!idfStruct::PC_C_TYPE% pcOld = tempPC;
+		if(verbose) {
+			result << std::hex << "0x" << tempPC << " :";
+		}
+		/* the decoder does not modify the processor state (default fetch)*/
+		%!MODELNAME%_instruction *inst = m_decoder->decode(this,tempPC%
+       if HAS_USER_FETCH then %, true% end if%);
+		if(verbose) {
+			const int max = inst->size() / %!INST_SIZE_IN_BYTES%;
+			for(int i = 0; i < max; i++)
+			{
+				unsigned int realAddr = getFetchAddress(pcOld+i);
+				storage *sto=getProgramChunk(realAddr);
+				result << hex << setfill('0') << setw(%!INST_SIZE_IN_BYTES% << 1) 
+                       << (int)(sto->get%!INST_SIZE_IN_BITS%AtAddr(realAddr)) << " : ";
+			}
+		}
+		result << inst->mnemo();
+		inst->release();
+	}
+	return result.str();
+}
+
+u32 core::getPhysicalAddress(const u32 v_addr, bool &found)
+{
+	if(m_reader) return linkerAddressTranslation(m_reader->getPhysicalAddress(v_addr, found));
+	else 
+	{
+		found = false;
+		return v_addr;
+	}
+}
+
+bool core::getFunctionName(const char *symbolName, u32 &v_addr)
+{
+	if(m_reader) return m_reader->getFunctionName(symbolName, v_addr);
+	else return false;
+}
+
+bool core::getSymbolObjectAddress(const char *symbolName, u32 &v_addr, u32 &size)
+{
+	if(m_reader) return m_reader->getSymbolObjectAddress(symbolName, v_addr, size);
+	else return false;
+}
+
+/** read an Intel .H86, a Freescale Srecord file or an elf file */
+bool core::readCodeFile(const char *filename, const bool verbose)
+{	
+
+	#ifdef USE_LIBELF
+		if(!m_reader)
+		{
+			//Try an elf file format (only if LGPL'd libelf library is installed). 
+			m_reader = new elfReader();
+			bool ok = m_reader -> readFile(filename,this,verbose);
+			if(ok) setProgramCounter(m_reader -> getProgramCounter());
+			else {delete m_reader; m_reader = NULL;}
+		}
+	#endif
+	if(!m_reader)
+	{
+		//try an Intel .H86 format
+		m_reader = new iHexReader();
+		bool ok = m_reader -> readFile(filename,this,verbose);
+		if(!ok) {delete m_reader; m_reader = NULL;}
+	}
+	if(!m_reader)
+	{
+		//then try a Motorola SRecord format
+		m_reader = new sRecordReader();
+		bool ok = m_reader -> readFile(filename,this,verbose);
+		if(!ok) {delete m_reader; m_reader = NULL;}
+	}
+	//nothing? -> can't read the file.
+	if(!m_reader) {
+		std::cerr << "ERROR: can't read program file. It should be an Intel format"
+		          << "(.h86, .hex), a Motorola (.sr, .s19) format";
+		#ifdef USE_LIBELF
+			std::cerr << " or an elf file." << std::endl;
+		#else
+			std::cerr << ". You can add Elf support if you install the LibElf"
+			          << " elf library, available at http://www.mr511.de/software/english.html" 
+					  << " (free software, licence is LGPL). Then you have to recompile the "
+					  << " generated simulator using : make LIBELF=1."  << std::endl;
+		#endif
+	}
+	return (m_reader!=NULL);
+}
+#ifdef USE_IO_STUBS
+	#include "ioStubs.h"
+#endif
+bool core::addIOStub(executeAction *act, string funcName)
+{
+	bool result = false;
+#ifdef USE_IO_STUBS
+	u32 v_addr;
+	if(getFunctionName(funcName.c_str(), v_addr))
+	{
+		bool found = false;
+		u32 p_addr = getPhysicalAddress(v_addr, found);
+		if(!found) 
+		{
+			cerr << "internal error: symbol " << funcName << " have a virtual address (0x" <<
+			hex << v_addr << "), but no physical address.";
+		} else {
+			//ok, insert action.
+			//cerr << "insert execute action for " << funcName << " at 0x" << hex << p_addr << endl;
+			addExecuteActionAtAddress(p_addr, act);
+			result = true;
+		}
+	} else {
+		//cannot find symbol of funcName
+	}
+#endif
+	return result;
+}
+
+bool core::useIOStubs()
+{
+#ifdef USE_IO_STUBS 
+	if(!m_reader)
+	{
+		cerr << "you should first load a file, before using io stubs." << endl;
+		return false;
+	 } else {
+		//program loaded.
+		//try with "open":
+		ioStubOpen *iso = new ioStubOpen();
+		bool openOk = addIOStub(iso, iso->functionName());
+		//try with "read":
+		ioStubRead *isr = new ioStubRead(iso);
+		bool readOk = addIOStub(isr, isr->functionName());
+		//try with "write"
+		ioStubWrite *isw = new ioStubWrite(iso);
+		bool writeOk = addIOStub(isw, isw->functionName());
+		//try with "write on stdout"
+		ioStubPrintStdout *isps = new ioStubPrintStdout();
+		bool writeStdOk = addIOStub(isps, isps->functionName());
+		if(!openOk && (readOk || writeOk)) 
+			cerr << "I/O stub error: no 'open' function, but a 'read' or 'write' function!!" << endl; 
+		return (readOk || readOk || writeOk || writeStdOk); //at least one stub OK.
+		//if(!readOk) delete isr;
+	 }
+#else //USE_IO_STUBS
+  cerr << "file I/O stubs not compiled in. Make sure that USE_IO_STUBS is set to 1"
+       << " in Makefile and hand written stubs (ioStubs.cpp and ioStubs.h) are added"
+	   << "to the project (in example/<core>/ioStubs/simulatorSource." <<endl;
+	return false; 
+#endif
+}
+
+std::string core::getInstructionStaticInfo(unsigned int &p_addr)
+{
+	if(m_decoder)
+	{
+		%!MODELNAME%_instruction *inst = m_decoder->decode(this, p_addr);
+		if(inst) return inst->getStaticInfo();
+	}
+	return string("error");
+}
+
+void core::dumpObjects()
+{
+	if(m_reader) m_reader->dumpObjects();
+}
+
+void core::dumpFunctions()
+{
+	if(m_reader) m_reader->dumpFunctions();
+}
+
+std::string core::whichFunctionAtAddress(const u32 v_addr)
+{
+	if(m_reader) return m_reader->whichFunctionAtAddress(v_addr);
+	else return string("");
+}
+
+
+void core::doNotExececuteNextInstructions(const u32 val) {
+	for(unsigned int i = 0; i < val;i++)
+	{
+		//decode the instruction, and update the PC.
+		%!MODELNAME%_instruction* next; 
+		next= m_decoder->decode(this, m_%!idfStruct::PC_NAME%);
+		next->release();
+	}
+}
+
+void core::usePipelineTrace()
+{
+%if useCAS then
+%	#ifdef GADL_WITH_PIPELINE_TRACE
+		m_pipelineTrace = new pipelineTraceDebug(%![firstPipeline::stageList length]%);
+	#else
+		cerr << "The 'usePipelineTrace' method requires to compile the simulator with the flag "
+		     << "GADL_WITH_PIPELINE_TRACE. See the Makefile." << endl;
+	#endif
+%else
+%	cerr << "The 'usePipelineTrace' method requires to compile a Cycle Accurate Simulator, "
+	     << "but no valid micro-architecture is defined in description." << endl;
+%end if%
+}
+
+void core::outputPipelineTrace(const std::string filename)
+{
+	#ifdef GADL_WITH_PIPELINE_TRACE
+		if(m_pipelineTrace)
+			m_pipelineTrace->outputPipelineTrace(filename, this);
+		else
+			cerr << "The 'outputPipelineTrace' method requires to call first the "
+		         << "'usePipelineTrace' at the beginning of the simulation." << endl;
+	#else
+		cerr << "The 'outputPipelineTrace' method requires to compile the simulator with the flag "
+		     << "GADL_WITH_PIPELINE_TRACE. See the Makefile." << endl;
+	#endif
+}
+%if exists timingList then 
+%
+bool core::timingSynchroEmit(timingBase *emitAutomata,unsigned int sigEmitId, const bool broadcast)
+{
+	const unsigned int sigWaitId = signalLinksTo[sigEmitId];
+	#ifdef DEBUG_TIMING
+		cout << "synchro emit " << emitAutomata->toString();
+		if(broadcast) cout << " broadcast";
+		cout << " (sig " << sigEmitId << " -> " << sigWaitId << ") :";
+	#endif
+	if(sigWaitId==0) // the '*' in the description => not connected
+	{
+		#ifdef DEBUG_TIMING
+			cout << "(signal not connected)" << endl;
+		#endif
+		return true; //calling automata can resume
+	} else {
+		timingBase *waitingAutomata = m_pendingSignalWaitTab[sigWaitId];
+		if(waitingAutomata) //an automata is waiting
+		{
+			#ifdef DEBUG_TIMING
+				if(broadcast) cout << "broadcast received by ";
+				else cout << "rendezvous with ";
+				cout << waitingAutomata->toString() << endl;
+			#endif
+			m_pendingSignalWaitTab[sigWaitId] = NULL; //reset signal
+			waitingAutomata->run(this);
+			return true; //calling automata can resume
+		} else { 
+			if(broadcast) {
+				//Broadcast received by nobody.
+				#ifdef DEBUG_TIMING
+					cout << "broadcast signal received by nobody" << endl;
+				#endif
+				return true; //can resume.
+			} else {
+				//no automata is waiting: no rendez-vous. Should wait.
+				#ifdef DEBUG_TIMING
+					cout << "have to wait" << endl;
+				#endif
+				m_pendingSignalEmitTab[sigEmitId] = emitAutomata;
+				return false; //calling automata should stop
+			}
+		}
+	}
+};
+
+bool core::timingSynchroWait(timingBase *waitingAutomata,unsigned int sigWaitId)
+{
+	const unsigned int sigEmitId = signalLinksFrom[sigWaitId];
+	#ifdef DEBUG_TIMING
+		cout << "synchro wait " << waitingAutomata->toString();
+		cout << " (sig " << sigEmitId << " -> " << sigWaitId << ") :";
+	#endif
+	timingBase *emittingAutomata = m_pendingSignalEmitTab[sigEmitId];
+	if(emittingAutomata) //an automata is waiting
+	{
+		#ifdef DEBUG_TIMING
+			cout << "rendezvous with " << waitingAutomata->toString() << endl;
+		#endif
+		m_pendingSignalEmitTab[sigEmitId] = NULL; //reset signal
+		emittingAutomata->run(this);
+		return true; //calling automata can resume
+	} else { //no automata is waiting: no rendez-vous. Should wait.
+		#ifdef DEBUG_TIMING
+			cout << "have to wait" << endl;
+		#endif
+		m_pendingSignalWaitTab[sigWaitId] = waitingAutomata;
+		return false; //calling automata should stop
+	}
+};
+
+void core::timingWaitForCycles(timingBase *automata,const u64 nbCycles)
+{
+	const u64 wakeUpDate = m_nbCycles + nbCycles;
+	#ifdef DEBUG_TIMING
+		cout << "automata " << automata->toString() << " will wake up at " << wakeUpDate << endl;
+	#endif
+	automata->setNextWakeUpDate(wakeUpDate);
+	//insert in single linked list (and adjust m_timingNextWakeUp if required)
+	timingBase *currentNode = m_timingListRoot;
+	timingBase *previousNode = NULL;
+
+	while(currentNode && (currentNode->nextWakeUpDate())<wakeUpDate)
+	{
+		previousNode = currentNode;
+		currentNode = currentNode->next();
+	}
+	automata->setNext(currentNode); //may be NULL
+	if(previousNode)
+	{
+		//not at the beginning
+		previousNode->setNext(automata); //linked list.
+	} else {
+		//at the beginning
+		m_timingListRoot = automata;
+		m_timingNextWakeUp = wakeUpDate;
+	}
+}
+
+void core::manageTiming()
+{
+	//this function is called when m_timingNextWakeUp <= m_nbCycles
+	while(m_timingNextWakeUp <= m_nbCycles)
+	{
+		timingBase *currentNode = m_timingListRoot;
+		if(currentNode)
+		{
+			//remove the node.
+			m_timingListRoot = currentNode->next();
+			//run
+			#ifdef DEBUG_TIMING
+				cout << "wake up automata " << currentNode->toString() << " : " << m_nbCycles << endl;
+			#endif
+			currentNode->run(this);
+			//re-init m_timingNextWakeUp
+			if(m_timingListRoot)
+				m_timingNextWakeUp = m_timingListRoot->nextWakeUpDate();
+			else
+				m_timingNextWakeUp = 0xFFFFFFFFFFFFFFFFULL; //max u64 value.
+		}
+	}
+}
+%end if #exists timing
