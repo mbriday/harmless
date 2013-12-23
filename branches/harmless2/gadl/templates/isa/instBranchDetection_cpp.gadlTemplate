@@ -1,0 +1,13 @@
+%template headerC%
+
+#include "core.h"
+#include "instruction.h"
+
+%foreach inst in branchTargetStaticDetect do
+  if not inst::unknown & inst::unconditionnal then
+  %void %!inst::name%::detectBranch(core *_core){\n%
+  !inst::code
+  %}\n\n%
+  end if
+end foreach
+
