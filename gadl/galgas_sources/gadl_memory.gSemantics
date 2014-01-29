@@ -41,7 +41,7 @@ class @memoryMapping
 
 map @ASTmemoryParamMap
 {
-  @uint64 width;
+  @uint width;
   @ASTExpression ASTexpSize;
   @memType access;
   @memoryMapping memoryMapping;
@@ -51,7 +51,7 @@ map @ASTmemoryParamMap
 
 map @memoryParamMap
 {
-  @uint64 width;
+  @uint width;
   @uint expSize;
   @memType access;
   @memoryMapping memoryMapping;
@@ -227,7 +227,7 @@ method @memoryParamMap setInTemplate
     @TfieldMap memParamTplBody [emptyMap];
     addLStringValue !?memParamTplBody !"name" !lkey;
 
-    addUnsignedValue !?memParamTplBody !lstringWith[!"width"]   !width;
+    addUnsignedValue !?memParamTplBody !lstringWith[!"width"]   ![width uint64];
     addUnsignedValue !?memParamTplBody !lstringWith[!"size"] ![expSize uint64];
     addUnsignedValue !?memParamTplBody !lstringWith[!"type"]  ![[access id] uint64];
 
@@ -240,15 +240,17 @@ method @memoryParamMap setInTemplate
 end method;
 
 reader @memoryParamMap memSpaceWithRegisterBank
-  -> @boolMap memSpaceWithRegister
+  ?? @memSpaceMap memSpaceMap
+  -> @intMap memSpaceWithRegister
 :
-  memSpaceWithRegister := [@boolMap emptyMap];
+  memSpaceWithRegister := [@intMap emptyMap];
   foreach selfcopy do
     if access == [@memType GPR] then
       #mathing.
       @lstring memSpace := [memoryMapping memSpaceName];
       if not [memSpaceWithRegister hasKey ![memSpace string]] then
-        [!?memSpaceWithRegister insertKey !memSpace];
+        [memSpaceMap searchKey !memSpace ?* ?* ?* ?@uint stride];
+        [!?memSpaceWithRegister insertKey !memSpace !stride];
       end if;
     end if;
   end foreach;

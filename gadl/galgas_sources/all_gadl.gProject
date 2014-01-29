@@ -70,7 +70,6 @@ project all_gadl (0:8:1) -> "gadl" :
 #******************************************************
 # ISS description, using 3 views
 #******************************************************
-
   #format
   syntax    "gadl_instruction_format_parser.gSyntax" ;
   semantics "gadl_semantics_format.gSemantics" ;
@@ -89,7 +88,6 @@ project all_gadl (0:8:1) -> "gadl" :
 #******************************************************
   syntax    "gadl_components_parser.gSyntax" ;
   semantics "gadl_components.gSemantics" ;
-
 
 #******************************************************************** 
 #timing approach. Pipeline and instruction classes.
@@ -115,7 +113,7 @@ semantics "gadl_semantics_pipeline_configuration.gSemantics" ;
 semantics "gadl_semantics_data_dependency_instruction_classes.gSemantics" ;
 semantics "gadl_semantics_register_access.gSemantics" ;
 ##main micro-architecture file (populate templates)
-#semantics "gadl_micro_architecture.gSemantics" ;
+semantics "gadl_micro_architecture.gSemantics" ;
 
 #####################################################################
 # new template management, included from galgas SVN (common with goil)

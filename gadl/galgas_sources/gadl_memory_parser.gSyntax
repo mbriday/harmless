@@ -29,9 +29,7 @@ rule <memorySpace>
     $unumber$ ?strideL;
     stride := [[strideL uint64] uint];
   end select;
-
   #possible accessors.
-
   [!?ASTmemSpaceMap insertKey !memSpaceName !width !isProgram !stride];
 end rule;
 
@@ -42,7 +40,7 @@ rule <memoryChunk>
 :
   #value initialized because Galgas can't verify that
   #they will have a parameter.
-  @uint64 width := 0L;
+  @uint width := 0;
   @ASTExpression expSize := [@ASTIntConst new !here !1L !false ![@varKind unsigned]]; #dummy value
   @memType access := [@memType rom];
   @bool widthDefined := false;
@@ -59,7 +57,7 @@ rule <memoryChunk>
     select
       $width$; $:=$;
       $unumber$ ?@luint64 lwidth;
-      width := [lwidth uint64];
+      width := [[lwidth uint64] uint];
       widthDefined := true;
     or
       $size$; $:=$;

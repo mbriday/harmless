@@ -5,9 +5,10 @@ semantics gadl_core :
   import "gadl_varIdfStruct.gSemantics";
   import "gadl_templates.gSemantics" ;
   import "gadl_semantics_templateExport.gSemantics" ;
+  import "gadl_micro_architecture.gSemantics" ;
 
   #TODO TMP
-  import "gadl_semantics_data_dependency_instruction_classes.gSemantics" ;
+  #import "gadl_semantics_data_dependency_instruction_classes.gSemantics" ;
 
   
 routine coreSemantic
@@ -16,6 +17,9 @@ routine coreSemantic
   ?? @ASTmemoryParamMap ASTmemChunk
   ?? @stringlist unused memChunkOrder 
   ?? @ASTmemSpaceMap ASTmemSpaceMap
+  ?? @architectureMap unused archMap
+  ?? @pipelineMap unused pipelineMap
+  ?? @machineMap unused machineMap
 :
   @TfieldMap templateStruct := [@TfieldMap emptyMap];
   [!?templateStruct initTemplate !coreName];
@@ -59,9 +63,11 @@ routine coreSemantic
   addFileWrappers !coreName;
   
   #TMP:
-  @boolMap memSpaceWithRegister := [memChunk memSpaceWithRegisterBank];
-  @DDCRegisterAccessMap DDCRegisterAccessMap := getRegistersInInstructions[!idfStruct !isa->decodedBehaviorMap !memSpaceWithRegister];
+  @intMap memSpaceWithRegister := [memChunk memSpaceWithRegisterBank !memSpaceMap];
+  #@DDCRegisterAccessMap DDCRegisterAccessMap := getRegistersInInstructions[!idfStruct !isa->decodedBehaviorMap !memSpaceWithRegister];
   
+  microArchPartTest !idfStruct !isa->decodedBehaviorMap !memSpaceWithRegister !memChunk !?templateStruct;
+
 end routine;
 
 end semantics ;

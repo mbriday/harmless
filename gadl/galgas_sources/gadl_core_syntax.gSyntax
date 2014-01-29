@@ -11,6 +11,19 @@ nonterminal <memoryChunk>
   ?! @stringlist memChunkOrder
 ;
 nonterminal <memorySpace> ?! @ASTmemSpaceMap ASTmemSpaceMap;
+nonterminal  <architecture> ?! @architectureMap archMap;
+#pipeline
+nonterminal  <pipeline> 
+  ?? @architectureMap architectureMap
+  ?! @pipelineMap pipelineMap
+;
+
+#assembly of global pipeline
+nonterminal <machine>
+  ?! @machineMap machineMap
+  ?? @pipelineMap pipelineMap
+;
+
 
 rule <importIsa>
   ?!@lstringMap importIsaMap
@@ -44,20 +57,33 @@ rule <core> :
   [importIsaMap searchKey !isaNameInCore ?@lstring isaFileName];
   grammar gadl_isa_grammar in isaFileName ??@ASTIsa ASTIsa;
   ${$;
-    <coreBody> !?ASTmemChunk !?memChunkOrder;
+    <coreBody> !?ASTmemChunk !?memChunkOrder ?@architectureMap archMap ?@pipelineMap pipelineMap ?@machineMap machineMap;
   $}$;
   #Ok. Parsing done. Now apply semantic.
 
-  coreSemantic !coreName !ASTIsa !ASTmemChunk !memChunkOrder !ASTmemSpaceMap;
+  coreSemantic !coreName !ASTIsa !ASTmemChunk !memChunkOrder !ASTmemSpaceMap !archMap !pipelineMap !machineMap;
 end rule ;
 
 rule <coreBody>
   ?! @ASTmemoryParamMap ASTmemChunk
   ?! @stringlist memChunkOrder
+  !  @architectureMap archMap
+  !  @pipelineMap pipelineMap
+  !  @machineMap machineMap
 :
+  archMap := [@architectureMap emptyMap];
+  pipelineMap := [@pipelineMap emptyMap];
+  machineMap := [@machineMap emptyMap];
+  
   repeat
   while
     <memoryChunk> !?ASTmemChunk !?memChunkOrder;
+  while
+    <architecture> !?archMap;
+  while
+    <pipeline> !archMap !?pipelineMap;
+  while
+    <machine> !?machineMap !pipelineMap;  
   end repeat;
 end rule;
 
