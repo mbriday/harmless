@@ -8,6 +8,7 @@ semantics gadl_micro_architecture :
   import "gadl_semantics_instruction_classes.gSemantics";
   import "gadl_semantics_pipeline_configuration.gSemantics";
   import "gadl_semantics_data_dependency_instruction_classes.gSemantics";
+  import "gadl_varIdfStruct.gSemantics";
 
 #populate the templates with micro-architecture data structures.
 routine microArchPipelineTemplate
@@ -84,58 +85,81 @@ routine microArchTemplate
   addListValue !?templateStruct !lstringWith[!"archList"] !archListTpl;  
 end routine;
 
-routine microArchPart
-  ?? @instructionListMap instListMap
-  ?? @defaultSection defaultValues
-  ?? @lstring modelName
-  ?? @instructionImplementationMap impMap
-  ?? @varMap globalVarMap
-  ?? @componentMap componentMap
-  ?? @machineMap machineMap
-  ?? @pipelineMap pipelineMap
-  ?? @architectureMap archMap
+routine microArchPartTest
+  ?? @varIdfStruct varIdfStruct
+  ?? @decodedBehaviorMap decodedBehaviorMap 
+  ?? @intMap memSpaceWithRegister
+  ?? @memoryParamMap memChunk
   ?! @TfieldMap templateStruct
 :
-  @bool useCAS := false;
-  @instructionPipelinePathListForMachine ippListMap;
-  extractPipelinePaths !machineMap ?ippListMap;
-  #only the first architecture.
-  if [machineMap count] > 1 then
-    error here: "More than one machine are defined. This is not allowed for code generation at this date";
-  elsif [machineMap count] == 1 then # case with a micro-architecture.
-    useCAS := true;
-    @graphNodeMap componentAccessMap;
-    getInstructionComponentGraph !instListMap !defaultValues ?componentAccessMap;
-    generateComponentAccessGraphViz !componentAccessMap ![modelName string];
-    @instructionPipelinePathList ippList;
-    @lstring firstMachine;
-    [[machineMap keyList] first ?firstMachine];
-    [ippListMap searchKey !firstMachine ?ippList];
-    @graphNodeMapMap portAccessMap;
-    mapInstructionsOnArchitecture !archMap !pipelineMap !ippList !componentAccessMap ?portAccessMap ![modelName string] !?templateStruct;
-    @stringMap instToInstructionClassMap;
-    @instructionClassMap icMap;
-    extractInstructionClasses !portAccessMap ?icMap ?instToInstructionClassMap !?templateStruct;
-    @boolMap devicePortToRemove;
-    reduceInstructionClasses !archMap !pipelineMap !?icMap !?instToInstructionClassMap !?templateStruct ?devicePortToRemove;
-    giveInstructionItsClass !impMap !instToInstructionClassMap !icMap !?templateStruct;
-    
-    @DDCPipelineInfoList DDCPipelineInfoList;
-    @bool DDCStagesOK;
-    DDCfindReadAndWritePipelineStages !componentMap !archMap !pipelineMap ?DDCPipelineInfoList ?DDCStagesOK;
-    @DDCRegisterAccessMap DDCRegisterAccessMap;
-    @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap;
-    getRegistersInInstructions !componentMap !instListMap ?DDCRegisterAccessMap ?DDCMemoryRegisterInfoMap;
-    generateDDCMethodsInInstructions !DDCRegisterAccessMap !?DDCMemoryRegisterInfoMap !globalVarMap !?templateStruct;
-    generateP2AFiles !modelName !pipelineMap !icMap !archMap !ippList !devicePortToRemove !DDCPipelineInfoList !?templateStruct;
-    microArchPipelineTemplate !?templateStruct !pipelineMap;
-  else
-    if [option .verbose_output value] then
-      message "no micro-architecture defined. ISS simulation only.\n";
-    end if;
-  end if;
-  microArchTemplate !?templateStruct !archMap; #even if no pipeline.. signals may be present.
-  addBoolValue !?templateStruct !lstringWith[!"useCAS"] !useCAS;
+  @boolMap regMap := [varIdfStruct->varMap getDDCRegMap];
+  @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap := [memChunk getDDCMemoryRegisterInfoMap !memSpaceWithRegister ![regMap count]];
+
+  @DDCRegisterAccessMap DDCRegisterAccessMap := getRegistersInInstructions[!varIdfStruct !decodedBehaviorMap !memSpaceWithRegister];
+  generateDDCMethodsInInstructions !regMap !DDCMemoryRegisterInfoMap !DDCRegisterAccessMap !?templateStruct;
 end routine;
+
+
+#routine microArchPart
+#  #old (TODO: update required)
+#  ?? @defaultSection defaultValues
+#  ?? @lstring modelName
+#  ?? @instructionImplementationMap impMap
+#  ?? @varMap globalVarMap
+#  ?? @componentMap componentMap
+#  ?? @machineMap machineMap
+#  ?? @pipelineMap pipelineMap
+#  ?? @architectureMap archMap
+#  ?! @TfieldMap templateStruct
+#  #new
+#  ?? @varIdfStruct varIdfStruct
+#  ?? @decodedBehaviorMap decodedBehaviorMap 
+#  ?? @intMap memSpaceWithRegister
+#  ?? @memoryParamMap memChunk
+#:
+#  @bool useCAS := false;
+#  @instructionPipelinePathListForMachine ippListMap;
+#  extractPipelinePaths !machineMap ?ippListMap;
+#  #only the first architecture.
+#  if [machineMap count] > 1 then
+#    error here: "More than one machine are defined. This is not allowed for code generation at this date";
+#  elsif [machineMap count] == 1 then # case with a micro-architecture.
+#    useCAS := true;
+#    @graphNodeMap componentAccessMap;
+#    getInstructionComponentGraph !decodedBehaviorMap !defaultValues ?componentAccessMap;
+#    generateComponentAccessGraphViz !componentAccessMap ![modelName string];
+#    @instructionPipelinePathList ippList;
+#    @lstring firstMachine;
+#    [[machineMap keyList] first ?firstMachine];
+#    [ippListMap searchKey !firstMachine ?ippList];
+#    @graphNodeMapMap portAccessMap;
+#    mapInstructionsOnArchitecture !archMap !pipelineMap !ippList !componentAccessMap ?portAccessMap ![modelName string] !?templateStruct;
+#    @stringMap instToInstructionClassMap;
+#    @instructionClassMap icMap;
+#    extractInstructionClasses !portAccessMap ?icMap ?instToInstructionClassMap !?templateStruct;
+#    @boolMap devicePortToRemove;
+#    reduceInstructionClasses !archMap !pipelineMap !?icMap !?instToInstructionClassMap !?templateStruct ?devicePortToRemove;
+#    giveInstructionItsClass !impMap !instToInstructionClassMap !icMap !?templateStruct;
+#    
+#    @DDCPipelineInfoList DDCPipelineInfoList;
+#    @bool DDCStagesOK;
+#    DDCfindReadAndWritePipelineStages !varIdfStruct !memChunk !archMap !pipelineMap ?DDCPipelineInfoList ?DDCStagesOK; #TODO
+##    @DDCRegisterAccessMap DDCRegisterAccessMap;
+##    @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap;
+##    getRegistersInInstructions !componentMap !instListMap ?DDCRegisterAccessMap ?DDCMemoryRegisterInfoMap;
+#    @DDCRegisterAccessMap DDCRegisterAccessMap := getRegistersInInstructions[!varIdfStruct !decodedBehaviorMap !memSpaceWithRegister];
+#    @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap := [memChunk getDDCMemoryRegisterInfoMap !memSpaceWithRegister !0];
+#
+##    generateDDCMethodsInInstructions !DDCRegisterAccessMap !?DDCMemoryRegisterInfoMap !globalVarMap !?templateStruct;
+#    generateP2AFiles !modelName !pipelineMap !icMap !archMap !ippList !devicePortToRemove !DDCPipelineInfoList !?templateStruct;
+#    microArchPipelineTemplate !?templateStruct !pipelineMap;
+#  else
+#    if [option .verbose_output value] then
+#      message "no micro-architecture defined. ISS simulation only.\n";
+#    end if;
+#  end if;
+#  microArchTemplate !?templateStruct !archMap; #even if no pipeline.. signals may be present.
+#  addBoolValue !?templateStruct !lstringWith[!"useCAS"] !useCAS;
+#end routine;
 end semantics ;
 # vim:ft=ggs:ts=2:sw=2
