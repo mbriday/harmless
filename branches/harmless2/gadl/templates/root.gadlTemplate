@@ -4,7 +4,7 @@
 write to MODELNAME."/Makefile":
   template Makefile_1
 
-let useCAS := false
+#let useCAS := false
 let useCounters := false
 
 #get the list of all .cpp files for compilation.
@@ -17,7 +17,7 @@ template isa in isa
 template log in log
 
 ##Cycle accurate related files
-#template cas in cas
+template cas in cas
 
 #utils to generate code (types, macro, ..)
 template utils in utils

@@ -1,0 +1,83 @@
+%template headerC%
+#include <sstream> //stringstream
+#include "pipelineTraceDebug.h"
+
+using namespace std;
+
+pipelineTraceDebug::pipelineTraceDebug(const unsigned int pipelineSize) :
+m_pipelineSize(pipelineSize), m_pipelineTraceContents(0)
+{
+	unsigned int nbBits = 0;
+	while((1UL<<nbBits) < m_pipelineSize) nbBits++;
+	m_pipelineMask = (1<<nbBits)-1;
+	m_addressSet.insert(0); // pipeline is full of 0 at the beginning
+}
+
+void pipelineTraceDebug::pipelineTrace(const unsigned int pipeMove, const u64 nbCycles, %!MODELNAME%_instruction **instTab, const unsigned int nbInstIn)
+{
+	stringstream result;
+	unsigned int pipelineTraceNextContents = 0;
+	result << (unsigned int)(nbCycles) << " ";
+	unsigned int offset = 0;
+	for(unsigned int i=0;i<m_pipelineSize;i++) //pipeline stages
+	{
+		//condition explanation:
+		//first 2 low bits represent instruction movement from LSB: 
+		// * bit 0 <=> An instruction enters in the stage
+		// * bit 1 <=> An instruction enters in the next stages (i.e. get out of the current stage)
+		//The last bit is the hisrtory of the bit state previous cycle (using m_pipelineTraceContents)
+		// * bit 2 <=> there was an instruction in the previous cycle.
+		// There is a stall if either:
+		// * There is no instruction entering in the stage, and there was no instruction before -> in binary: '0X0'
+		// * There was an instruction, and it moves to the next states, without being replaced: in binary: '110', 
+		// remaining codes are 
+		// '000' : no instruction before, and no new now.
+		// '010' : impossible case: there was no instruction previously, but there is a new one in next stage
+		// '110' : there was an instruction and it gets in the next stage (without being replaced).
+		const unsigned int cond = ((pipeMove >> i) & 3) | (((m_pipelineTraceContents >> i) & 1) << 2);
+		if((cond == 0) || (cond == 6))
+		{
+			//stall.
+			result << "-1 ";
+		} else {
+			pipelineTraceNextContents |= (1<<i);
+			//-1 because it always points to the next instruction (to remove).
+			const unsigned int index = (nbInstIn -1 -offset) & m_pipelineMask; //instIndex - offset -1
+			const u32 pc = instTab[index]->getInstructionPointer();
+			result << pc << " ";
+			if(i==0) //only introduce addresses for instruction in the first stage, for efficiency.
+			{
+				m_addressSet.insert(pc);
+			}
+			offset += 1;
+		}
+	}
+	m_pipelineTraceContents = pipelineTraceNextContents;
+	result << endl;
+	m_pipeTraceVector.push_back(result.str());
+}
+
+
+void pipelineTraceDebug::outputPipelineTrace(std::string filename, arch*_arch)
+{
+	ofstream file;
+	file.open(filename.c_str(), ofstream::out);
+	if(!file)
+		cerr << "open file error :" << filename << " in write mode" << endl;
+	else {
+		file << m_addressSet.size() << endl;
+		set<u32>::iterator it;
+		set<u32>::const_iterator itEnd = m_addressSet.end();
+		for(it=m_addressSet.begin() ; it != itEnd; it++ )
+		{
+			const u32 address = *it;
+			file << dec << address << " " << hex << "0x" << address << " " << _arch->disassemble(address,1) << endl;
+		}
+		const unsigned int size = m_pipeTraceVector.size();
+		file << dec << size << " " << m_pipelineSize << endl;
+		for(unsigned int i = 0; i < size; i++)
+			file << m_pipeTraceVector[i];
+		file.close();
+	}	
+}
+
