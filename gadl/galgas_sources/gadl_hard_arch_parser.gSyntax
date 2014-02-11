@@ -47,8 +47,8 @@ rule <device>
   $idf$ ?componentName ;
   ${$;
   repeat
-  while
-    <aliasFunction> !?readAliasMap !?writeAliasMap;
+#  while #deprecated.
+#    <aliasFunction> !?readAliasMap !?writeAliasMap;
   while
     @bool isShared;
     select
@@ -131,31 +131,31 @@ rule <readOrWriteOrFetchOrIdf>
   end select;
 end rule;
 
-rule <aliasFunction>
-  ?! @aliasMap readAliasMap
-  ?! @aliasMap writeAliasMap
-:
-  @bool isRead;
-  select
-    $read$;
-    isRead := true;
-  or
-    $write$;
-    isRead := false;
-  end select;
-  $is$;
-  repeat
-    @lstring methodName;
-    $idf$ ?methodName;
-      if isRead then
-        [!?readAliasMap insertKey !methodName];
-      else
-        [!?writeAliasMap insertKey !methodName]; 
-    end if;
-  while
-    $|$;
-  end repeat;
-end rule;
+#rule <aliasFunction> #deprecated
+#  ?! @aliasMap readAliasMap
+#  ?! @aliasMap writeAliasMap
+#:
+#  @bool isRead;
+#  select
+#    $read$;
+#    isRead := true;
+#  or
+#    $write$;
+#    isRead := false;
+#  end select;
+#  $is$;
+#  repeat
+#    @lstring methodName;
+#    $idf$ ?methodName;
+#      if isRead then
+#        [!?readAliasMap insertKey !methodName];
+#      else
+#        [!?writeAliasMap insertKey !methodName]; 
+#    end if;
+#  while
+#    $|$;
+#  end repeat;
+#end rule;
 
 #this rule allows to write ":x (2)" or ":x or y or z (2)" or ": except x,y,z".
 rule <functionAllowed>

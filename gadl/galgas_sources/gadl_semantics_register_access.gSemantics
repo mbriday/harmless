@@ -9,7 +9,7 @@ semantics gadl_semantics_register_access :
 # * pipeline stage where the registers are written
 #
 list @DDCPipelineInfoList {
-  @lstring associatedComponent;
+  @lstring addressSpace;
   @lstring pipelineReadName;
   @lstring pipelineStageReadName;
   @lstring pipelineWriteName;
@@ -17,19 +17,21 @@ list @DDCPipelineInfoList {
 }
 
 #this class is used only to get information about the memory registers file
-# -> a unique name (memory chunk name)
+# -> a unique name (memory space name)
 # -> nb of elements (i.e. if this is a 32 bits registers, it is the size/4). It uses the stride.
+# -> if there are more than one chunk, used in alphabetical order, from small offset.
 map @DDCMemoryRegisterInfoMap {
   @uint nbElt;
   @uint width;
-  @uint chunkId ; #store the chunkId.
-  @uint chunkOffset ; #store the chunkOffset.
+  @uint maskId ; #store the chunkId.
+  @uint maskOffset ; #store the chunkOffset.
+  @intMap memChunkOffsetMap; #offset foreach memChunk (local -> should add chunkOffset).
   insert insertKey error message "the '%K' DDCMemoryRegisterInfoMap is already defined in %L" ; 
   search searchKey error message "the '%K' DDCMemoryRegisterInfoMap is not defined" ;
 }
 
 #access to a register file.
-#Key is the memory chunk name.
+#Key is the memory space name (no notion of mem chunk inside an instruction).
 map @DDCRegisterFileAccess {
   @bool read;  #got a read  access;
   @bool write; #got a write access;
@@ -44,9 +46,12 @@ reader @DDCMemoryRegisterInfoMap string
 :
   msg := "register files for data dependancy controller\n";
   foreach selfcopy do
-    msg .= "\tmemory ".[lkey string].":\n";
+    msg .= "\tmemory space ".[lkey string].":\n";
     msg .= "\t\t".[nbElt string]." elements of ".[width string]." bytes \n";
-    msg .= "\t\tinternal assignement chunk".[chunkId string].", offset ".[chunkOffset string]."\n";
+    msg .= "\t\tinternal mask assignment chunk".[maskId string].", offset ".[maskOffset string]."\n";
+    foreach memChunkOffsetMap do
+      msg .= "\t\t\tmem chunk ".[lkey string]." -> offset ".[val string]."\n";
+    end foreach;
   end foreach;
 end reader;
 
@@ -240,32 +245,32 @@ routine checkForAccessInRegisterFile
  ?? @intMap memSpaceWithRegister
  ?! @DDCRegisterFileAccess registerFileAccess #it stores registers accesses (output)
 :
-  @lstring memChunkName := [idfList idfAtIndex !0]; #we don't need the type of access considered.
-  message "check for reg file access ".[memChunkName string].":";
-  if [memSpaceWithRegister hasKey ![memChunkName string]] then #this is a mem space with regs.
-    if [registerFileAccess hasKey ![memChunkName string]] then
-      message "update";
+  @lstring memSpaceName := [idfList idfAtIndex !0]; #we don't need the type of access considered.
+  #message "check for reg file access ".[memSpaceName string].":";
+  if [memSpaceWithRegister hasKey ![memSpaceName string]] then #this is a mem space with regs.
+    if [registerFileAccess hasKey ![memSpaceName string]] then
+      #message "update";
       #already a file access -> update
       if read then
-        [!?registerFileAccess setReadForKey !true ![memChunkName string]]; #update
+        [!?registerFileAccess setReadForKey !true ![memSpaceName string]]; #update
       else
-        [!?registerFileAccess setWriteForKey !true ![memChunkName string]]; #update
+        [!?registerFileAccess setWriteForKey !true ![memSpaceName string]]; #update
       end if;
     else
-      message "insert";
+      #message "insert";
       #no access. Insert entry.
       @bool R := read;
       @bool W := not read;
-      [!?registerFileAccess insertKey !memChunkName !R !W];
+      [!?registerFileAccess insertKey !memSpaceName !R !W];
     end if;
-    if read then message "(R)"; else message "(W)"; end if;
+    #if read then message "(R)"; else message "(W)"; end if;
     #debug.
-    [registerFileAccess searchKey !memChunkName ?@bool R ?@bool W];
-    message " -> ";
-    if R  then message "R"; end if;
-    if W then message "W"; end if;
+    #[registerFileAccess searchKey !memSpaceName ?@bool R ?@bool W];
+    #message " -> ";
+    #if R  then message "R"; end if;
+    #if W then message "W"; end if;
   end if;
-  message "\n";
+  #message "\n";
 end routine;
 
 override method @instFunctionCall getRegisterUsage

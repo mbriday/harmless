@@ -15,12 +15,18 @@ semantics gadl_semantics_data_dependency_instruction_classes :
 ## 3* find the associated device
 ## 4* find the associated port
 ## 5* find the pipeline stage! \o/
+## -> deprecated
+#for each address Space
+# 1: find the associated device
+# 2: find the associated port
+# 3: find the pipeline stage
 routine DDCfindReadAndWritePipelineStages
+  ?? @intMap memSpaceWithRegister
 #  ?? @varIdfStruct varIdfStruct
-  ?? @memoryParamMap memChunk  
+#  ?? @memoryParamMap memChunk  
 #  ?? @componentMap componentMap
-#  ?? @architectureMap architectureMap
-#  ?? @pipelineMap pipelineMap
+  ?? @architectureMap architectureMap
+  ?? @pipelineMap pipelineMap
   !  @DDCPipelineInfoList DDCPipelineInfoList
   !  @bool ok #at least one register bank is mapped on the pipeline.
 :
@@ -31,16 +37,64 @@ routine DDCfindReadAndWritePipelineStages
   @lstring pipelineStageReadName  := [@lstring new !"" !here];
   @lstring pipelineWriteName      := [@lstring new !"" !here];
   @lstring pipelineStageWriteName := [@lstring new !"" !here];
-## 1* find memory chunks with type=register.
-## 2* find the associated components
   if [option .verbose_output value] then
     message "Data dependancy controller generation:\n";
-    foreach memChunk do
-      if access == [@memType GPR] then
-        message "\tmemory chunk for DDC is ".[lkey string]."\n";
-      end if;
-    end foreach;
   end if;
+  #for each address Space
+  foreach memSpaceWithRegister (@lstring asName ...) do
+    if [option .verbose_output value] then
+      message "\taddress space is ".[asName string]."\n";
+    end if;
+    @bool found := false;
+    foreach architectureMap (@lstring archName @deviceMap deviceMap *) while not found do
+      foreach deviceMap (@lstring deviceName @lstring addressSpaceName @portMap portMap @aliasMap readAliasMap @aliasMap writeAliasMap) while not found do #componentName or addressSpaceName here...
+        #is it Dze device?
+        found := [addressSpaceName string] == [asName string];
+        if found then
+          if [option .verbose_output value] then
+            message "\t\tdevice for DDC is ".[archName string].".".[deviceName string]."\n";
+          end if;
+          #OK, search the "read"
+          @stringset strReadSet;
+          getPortsWithMethod !"read" !portMap ?strReadSet;
+          if [strReadSet count] != 1 then
+            error deviceName: "The device ".[deviceName string]."is associated to a register bank, ".
+                              "but I can't find the 'read' port. ".
+                              "This is needed to generate the data dependency controller.";
+          end if;
+          #OK, only 1 loop. We have found the right port.
+          foreach strReadSet (@string readPort) do
+            getPipelineStageForDevicePort !pipelineMap !archName !deviceName !readPort ?pipelineReadName ?pipelineStageReadName ?okRead;
+            if [option .verbose_output value] then
+              message "\t\tread is in pipeline  ".[pipelineReadName string].", stage ".[pipelineStageReadName string]."\n";
+            end if;          
+            #now we have to find the pipeline stage.
+          end foreach;
+          @stringset strWriteSet;
+          getPortsWithMethod !"write" !portMap ?strWriteSet;
+          if [strWriteSet count] != 1 then
+            error deviceName: "The device ".[deviceName string]."is associated to a register bank, ".
+                              "but I can't find the 'write' port. ".
+                              "This is needed to generate the data dependency controller.";
+          end if;
+          #OK, only 1 loop. We have found the right port.
+          foreach strWriteSet (@string writePort) do
+            getPipelineStageForDevicePort !pipelineMap !archName !deviceName !writePort ?pipelineWriteName ?pipelineStageWriteName ?okWrite;
+            if [option .verbose_output value] then
+              message "\t\twrite is in pipeline ".[pipelineWriteName string].", stage ".[pipelineStageWriteName string]."\n";
+            end if;          
+          end foreach;
+        end if; #found
+      end foreach;
+    end foreach;
+    if not (okRead & okWrite) then
+      warning asName: "Cannot map register bank from ".[asName string]." on a pipeline!\n".
+                      "There is a device, but it is not mapped on any pipeline.\n".
+                      "This is required to generate the data dependancy controller.\n";
+    else
+      DDCPipelineInfoList += !asName !pipelineReadName !pipelineStageReadName !pipelineWriteName !pipelineStageWriteName;
+    end if;    
+  end foreach;
   #TODO: to be continued...
 ## 3* find the associated device
 #  foreach componentsWithRegs (@lstring compNameRegs) do
@@ -254,31 +308,85 @@ routine getDDCRegisterFileRWinInstruction
   addListValue !?templateStruct !lstringWith[!"DDCReagisterFileAccessType"] !DDCRegFileRW; 
 end routine;
 
+#register masks:
+# this is done very simple at this date, but it should work for most models.
+# it is limited to 64 entries per memory space, because:
+# * One mask (64 bits) per memory space
+# * each reg file has an offset inside this mask.
+#If required, it can be updated.
+# -> one mask if 2 mem space require less than 64 bits?
+# OK: tested 30/01/2014 with 3 cases.
 reader @memoryParamMap getDDCMemoryRegisterInfoMap
   ?? @intMap memSpaceWithRegister
   ?? @uint initOffset #initial offset (for registers defined outside of mem chunk)
   -> @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
 :
+  @uint totalSize := 0;
+  #first, evaluate if it all fits into only one mask (most models).
+  foreach memSpaceWithRegister : ms_ do #foreach memspace.
+    foreach selfcopy : mc_ do
+      @lstring memSpace := [mc_memoryMapping memSpaceName];
+      if [memSpace string] == [ms_lkey string] then #current mem space.
+        [memSpaceWithRegister searchKey !memSpace ?@uint stride];
+        @uint nbElt := mc_expSize >> stride;
+        totalSize := totalSize+nbElt;
+      end if;
+    end foreach;
+  end foreach;
+  #3 cases:
+  # 1: totalSize > 64 -> one mask for each mem space (bad luck)
+       #chunk 0 for regular regs, chunk1 and next for mem spaces.
+  # 2: totalSize+initOffset > 64 -> one mask for all mem space, and another one for all mem spaces.
+       #chunk 0 for regular regs, chunk1 for mem spaces.
+  # 3: totalSize+initOffset <= 64 -> one mask for all (good luck!).
+       #chunk 0 for all.
+  @uint case;
+  if totalSize+initOffset > 64 then 
+    if totalSize > 64 then 
+      case := 1; 
+    else
+      case := 2;
+    end if;
+  else
+    case := 3;
+  end if;
+
+  #init for case 3 (modify for other cases).
   @uint currentOffset := initOffset;
   @uint chunkId := 0;
-  @uint totalSize := 0;
+  if case == 2 then
+    chunkId := 1; #one chunk id for all mem spaces, at id 1.
+    currentOffset := 0;
+  end if;
   DDCMemoryRegisterInfoMap := [@DDCMemoryRegisterInfoMap emptyMap];
-  foreach selfcopy do
-    @lstring memSpace := [memoryMapping memSpaceName];
-    if [memSpaceWithRegister hasKey ![memSpace string]] then #it is a register
-      [memSpaceWithRegister searchKey !memSpace ?@uint stride];
-      @uint nbElt := expSize >> stride;
-      totalSize := totalSize+nbElt;
-      if currentOffset + nbElt > 63 then #store with 64 bits
-        currentOffset := 0;
-        chunkId := chunkId + 1;
-      end if;
-      if nbElt > 63 then
-        error lkey: "a register file cannot exceed 64 elements at this date (".nbElt." elements here)";
-      end if;
-      [!?DDCMemoryRegisterInfoMap insertKey !lkey !nbElt !width !chunkId !currentOffset];
-      currentOffset := currentOffset + nbElt;
+  foreach memSpaceWithRegister : ms_ do #foreach memspace (prefix ms_)
+    if case == 1 then #case 1
+      chunkId := chunkId + 1; #one chunk per mem space, starting at 1.
+      currentOffset := 0;
     end if;
+    @uint memSpaceOffset := currentOffset;
+    @intMap memChunkOffsetMap [emptyMap];
+    @uint nbElt := 0;
+    @uint width := 0; #hack...
+    foreach selfcopy : mc_ do #prefix mc_
+      @lstring memSpace := [mc_memoryMapping memSpaceName];
+      if [memSpace string] == [ms_lkey string] then #current mem space.
+        [memSpaceWithRegister searchKey !memSpace ?@uint stride];
+        @uint nbEltChunk := mc_expSize >> stride;
+        #message [ms_lkey string]." -> currentOffset ".[currentOffset string]."\n";
+        #message [ms_lkey string]." -> nbEltChunk ".[nbEltChunk string]."\n";
+        if currentOffset + nbEltChunk > 64 then #store with 64 bits
+          @uint val := currentOffset + nbEltChunk;
+          error ms_lkey: "a memory space cannot have more than 64 registers at this date (".val." elements here):";
+          message [DDCMemoryRegisterInfoMap string];    
+        end if;
+        [!?memChunkOffsetMap insertKey !mc_lkey !currentOffset-memSpaceOffset];
+        currentOffset := currentOffset + nbEltChunk;
+        nbElt := nbElt + nbEltChunk;
+        if mc_width > width then width := mc_width; end if;
+      end if;
+    end foreach;
+    [!?DDCMemoryRegisterInfoMap insertKey !ms_lkey !nbElt !width !chunkId !memSpaceOffset !memChunkOffsetMap];
   end foreach;
   if [option .verbose_output value] then
     message [DDCMemoryRegisterInfoMap string];
@@ -312,29 +420,32 @@ routine generateDDCMethodsInInstructions
   ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap #list of registers used for DDC defined in reg files.
 #  ?? @varIdfStruct varIdfStruct
   ?? @DDCRegisterAccessMap DDCRegisterAccessMap
-#  ?! @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
 #  ?? @varMap globalVarMap
   ?! @TfieldMap templateStruct
 :
-  #chunks are defined like this:
-  #First one contains registers alone, in the alphabetical order
-  #nexts are for register banks defined in memory chunks.
-  #each entry in DDCMemoryRegisterInfoMap is associated to one mem chunk, however,
-  #more than one memory chunk can refer to a mask chunk.
+  #chunks are defined like explained in  getDDCMemoryRegisterInfoMap
   @TfieldMapList DDCRegChunk [emptyList];
   foreach DDCMemoryRegisterInfoMap do
     @TfieldMap DDCRegChunkBody [emptyMap];
-    addLStringValue !?DDCRegChunkBody !"name" !lkey; #memory chunk name
-    addUnsignedValue !?DDCRegChunkBody !lstringWith[!"chunkId"] ![chunkId uint64];
-    addUnsignedValue !?DDCRegChunkBody !lstringWith[!"chunkOffset"] ![chunkOffset uint64];
+    addLStringValue !?DDCRegChunkBody !"memSpace" !lkey; #memory space name
+    addUnsignedValue !?DDCRegChunkBody !lstringWith[!"maskId"] ![maskId uint64];
+    addUnsignedValue !?DDCRegChunkBody !lstringWith[!"maskOffset"] ![maskOffset uint64];
+    @TfieldMapList memChunkOffsetMapTpl [emptyList];  
+    foreach memChunkOffsetMap : m_co do
+      @TfieldMap memChunkOffsetMapBody [emptyMap];
+      addLStringValue !?memChunkOffsetMapBody !"chunk" !m_colkey; #memory chunk name
+      addUnsignedValue !?memChunkOffsetMapBody !lstringWith[!"offset"] ![m_coval uint64];
+      memChunkOffsetMapTpl += !memChunkOffsetMapBody;
+    end foreach;
+    addListValue !?DDCRegChunkBody !lstringWith[!"DDCChunkOffset"] !memChunkOffsetMapTpl; 
     DDCRegChunk += !DDCRegChunkBody;
   end foreach;
   addListValue !?templateStruct !lstringWith[!"DDCRegChunk"] !DDCRegChunk; 
 
-  #extract the number of chunks
+  #extract the number of mask chunks
   @uint nbChunk := 0;
   foreach DDCMemoryRegisterInfoMap do
-    if chunkId > nbChunk then nbChunk := chunkId; end if;
+    if maskId > nbChunk then nbChunk := maskId; end if;
   end foreach;
   #OK, done.
   #For register File Access, we have to inform inst that it should take care of R/W accesses in the execute method.
@@ -382,11 +493,12 @@ routine generateDDCMethodsInInstructions
 
 #    message "masks are R:".[readMask string].", W:".[writeMask string]." for ".[instName string]."\n";
     #second are masks related to memory registers.
-    foreach registerFileAccess (@lstring memChunkName ...) do #TODO: le registerFileAccess se refere a un mem space :-/
-      [DDCMemoryRegisterInfoMap searchKey !memChunkName ?* ?* ?@uint chunkId ?@uint chunkOffset];
-      @string readMaskStr  := "m_DDCRegFile".[chunkId string]."MaskRead";
-      @string writeMaskStr := "m_DDCRegFile".[chunkId string]."MaskWrite";
-      [!?regMaskMap insertKey !memChunkName !readMaskStr !writeMaskStr];
+    foreach registerFileAccess (@lstring memSpaceName ...) do
+      #We have to get the chunkId related to that memSpace
+      [DDCMemoryRegisterInfoMap searchKey !memSpaceName ?* ?* ?@uint maskId ?* ?*];
+      @string readMaskStr  := "m_DDCRegFile".[maskId string]."MaskRead";
+      @string writeMaskStr := "m_DDCRegFile".[maskId string]."MaskWrite";
+      [!?regMaskMap insertKey !memSpaceName !readMaskStr !writeMaskStr];
     end foreach;
     [!?mask insertKey !instName !regReadMask !regWriteMask !regMaskMap];
   end foreach;
@@ -401,7 +513,6 @@ routine generateDDCMethodsInInstructions
   addStringValue !?templateStruct !lstringWith[!"paramDDCLock"] !paramDDCLock;
   addStringValue !?templateStruct !lstringWith[!"paramDDCRequire"] !paramDDCRequire;
   
-
     #log: TODO: add info in new templates.
 #  foreach mask (@lstring instName @uint64 registerReadMask  @uint64 registerWriteMask @regMaskMap regMaskMap) do
 #    message [instName string].":\n";
@@ -412,6 +523,8 @@ routine generateDDCMethodsInInstructions
 #    end foreach;
 #  end foreach;
 end routine;
+
+
 #
 ##function to add code verification of dynamic and static access for classic registers.
 #function checkStaticVsDynamicClassicRegisterAccess
@@ -448,11 +561,10 @@ function generateGetDDCReadRegs
       @uint nbElt;
       @uint id;
       @uint offset;
-      [DDCMemoryRegisterInfoMap searchKey !key ?nbElt ?* ?id ?offset];
+      [DDCMemoryRegisterInfoMap searchKey !key ?nbElt ?* ?id ?offset ?*];
       if readMaskStr != "" then
         @string regStr := "regsMask".[id string];
-        @uint realOffset := offset-nbElt;  #'offset' refers to the end.
-        code .= "\t".regStr." |= ".readMaskStr."<<".[realOffset string].";\n";
+        code .= "\t".regStr." |= ".readMaskStr."<<".[offset string].";\n";
 #        code .= "\t".regStr." = (".regStr." << ".[nbElt string].") | ".readMaskStr.";\n";
       end if;
     end foreach;
@@ -501,11 +613,10 @@ function generateLockDDCWriteRegs
       @uint nbElt;
       @uint id;
       @uint offset;
-      [DDCMemoryRegisterInfoMap searchKey !key ?nbElt ?* ?id ?offset];
+      [DDCMemoryRegisterInfoMap searchKey !key ?nbElt ?* ?id ?offset ?*];
       if writeMaskStr != "" then
         @string lockStr := "lock".[id string];
-        @uint realOffset := offset-nbElt;  #'offset' refers to the end.
-        code .= "\t".lockStr." |= ".writeMaskStr."<<".[realOffset string].";\n";
+        code .= "\t".lockStr." |= ".writeMaskStr."<<".[offset string].";\n";
       end if;
     end foreach;
     #code .= "}\n\n";
