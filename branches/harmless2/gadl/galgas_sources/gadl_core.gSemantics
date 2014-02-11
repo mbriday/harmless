@@ -6,6 +6,7 @@ semantics gadl_core :
   import "gadl_templates.gSemantics" ;
   import "gadl_semantics_templateExport.gSemantics" ;
   import "gadl_micro_architecture.gSemantics" ;
+  import "gadl_timing_parser.gSyntax";
 
   #TODO TMP
   #import "gadl_semantics_data_dependency_instruction_classes.gSemantics" ;
@@ -17,9 +18,9 @@ routine coreSemantic
   ?? @ASTmemoryParamMap ASTmemChunk
   ?? @stringlist unused memChunkOrder 
   ?? @ASTmemSpaceMap ASTmemSpaceMap
-  ?? @architectureMap unused archMap
-  ?? @pipelineMap unused pipelineMap
-  ?? @machineMap unused machineMap
+  ?? @architectureMap archMap
+  ?? @pipelineMap pipelineMap
+  ?? @machineMap machineMap
 :
   @TfieldMap templateStruct := [@TfieldMap emptyMap];
   [!?templateStruct initTemplate !coreName];
@@ -42,8 +43,13 @@ routine coreSemantic
   ##########################################################################################
   @memoryParamMap memChunk := [ASTmemChunk getMemMap];
   [memChunk setInTemplate !lstringWith[!"memInCoreList"] !?templateStruct];
-  message [ASTmemChunk string];
-  message [memChunk string];
+
+  ##########################################################################################
+  # Architecture (defined in core), for a CAS version.
+  ##########################################################################################
+  @intMap memSpaceWithRegister := [memChunk memSpaceWithRegisterBank !memSpaceMap];
+  microArchPart !isa !coreName !machineMap !pipelineMap !archMap !idfStruct !memSpaceWithRegister !memChunk !?templateStruct;
+
   ##########################################################################################
   # export data from idfStruct (components and so on).
   ##########################################################################################
@@ -61,13 +67,6 @@ routine coreSemantic
   # filewrappers: add binary files inside the gadl compiler.
   ##########################################################################################
   addFileWrappers !coreName;
-  
-  #TMP:
-  @intMap memSpaceWithRegister := [memChunk memSpaceWithRegisterBank !memSpaceMap];
-  #@DDCRegisterAccessMap DDCRegisterAccessMap := getRegistersInInstructions[!idfStruct !isa->decodedBehaviorMap !memSpaceWithRegister];
-  
-  microArchPartTest !idfStruct !isa->decodedBehaviorMap !memSpaceWithRegister !memChunk !?templateStruct;
-
 end routine;
 
 end semantics ;

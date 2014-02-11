@@ -115,6 +115,25 @@ semantics "gadl_semantics_register_access.gSemantics" ;
 ##main micro-architecture file (populate templates)
 semantics "gadl_micro_architecture.gSemantics" ;
 
+#******************************************************************** 
+# timing section: The timing section is used to model
+# timings of peripherals using a time-automata, associated to the 
+# behavior (defined in a component).
+# Primary goal: the memory hierarchy.
+# **
+# This part does not model the pipeline.
+#******************************************************************** 
+
+syntax "gadl_timing_parser.gSyntax";
+semantics "gadl_timing_AST.gSemantics";
+
+#semantics "gadl_semantics_timingSection.gSemantics" ; #main file
+#automata generation routines (both Harmless and Uppaal)
+#semantics "gadl_semantics_timingSectionAutomata.gSemantics" ; 
+#transform Harmless automata into simulation steps.
+#semantics "gadl_semantics_timingSimulationStep.gSemantics" ;
+#semantics "gadl_semantics_signalSection.gSemantics" ;
+
 #####################################################################
 # new template management, included from galgas SVN (common with goil)
 #####################################################################

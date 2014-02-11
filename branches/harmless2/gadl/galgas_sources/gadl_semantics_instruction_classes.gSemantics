@@ -8,6 +8,8 @@ semantics gadl_semantics_instruction_classes :
   import "gadl_semantics_hard_pipeline.gSemantics"; #stageBodyList, pipelineMap
   import "gadl_graph.gSemantics"; #graphNodeMap
   import "gadl_templates.gSemantics"; #templates
+  import "gadl_varIdfStruct.gSemantics"; #varIdfStruct (address space)
+  
 
 #list of pipeline stages (+port/devices) for one pipeline sequence.
 list @flatPipelineStageList {
@@ -70,36 +72,35 @@ end routine;
 #returns all the matching ports for a method.
 routine getMatchingPortsOnDevice
   ?? @portMap portMap
-  ?? @aliasMap readAliasMap  #aliases for the 'read' access
-  ?? @aliasMap writeAliasMap #aliases for the 'write' access
+#  ?? @aliasMap readAliasMap  #aliases for the 'read' access
+#  ?? @aliasMap writeAliasMap #aliases for the 'write' access
   ?? @lstring methodName
   !  @stringset matchingPortsInDevice
-
 :
   matchingPortsInDevice := [@stringset emptySet];
   foreach portMap (@lstring name * @functionAllowedToAPort functionAllowedToAPort) do
-    @bool hasRead := false;
-    @bool hasWrite := false;
+    #@bool hasRead := false;
+    #@bool hasWrite := false;
     cast functionAllowedToAPort
     when == @isOr functionAllowedToAPortIsOr :
       @lstringlist methodList := [functionAllowedToAPortIsOr functionAllowedList];
       foreach methodList (@lstring methodLStr) do
         if [methodLStr string] == [methodName string] then
           matchingPortsInDevice += ![name string];
-        elsif [methodLStr string] == "read" then
-          hasRead := true;
-        elsif [methodLStr string] == "write" then
-          hasWrite := true;
+        #elsif [methodLStr string] == "read" then
+        #  hasRead := true;
+        #elsif [methodLStr string] == "write" then
+        #  hasWrite := true;
         end if;
       end foreach;
     when == @isWithNumber functionAllowedToAPortIsWithNumber :
       @string methodStr := [[functionAllowedToAPortIsWithNumber functionAllowedName] string];
       if methodStr == [methodName string] then
         matchingPortsInDevice += ![name string];
-      elsif methodStr == "read" then
-        hasRead := true;
-      elsif methodStr == "write" then
-        hasWrite := true;
+      #elsif methodStr == "read" then
+      #  hasRead := true;
+      #elsif methodStr == "write" then
+      #  hasWrite := true;
       end if;
     when == @isAll : #Ok.
       matchingPortsInDevice += ![name string];
@@ -109,18 +110,18 @@ routine getMatchingPortsOnDevice
       foreach methodExcludedList (@lstring methodLStr) do
         if [methodLStr string] == [methodName string] then
           found := true;
-        elsif [methodLStr string] == "read" then
-          foreach readAliasMap (@lstring methodStr) do
-            if [methodStr string] == [methodName string] then
-              found := true;
-            end if;
-          end foreach;
-        elsif [methodLStr string] == "write" then
-          foreach writeAliasMap (@lstring methodStr) do
-            if [methodStr string] == [methodName string] then
-              found := true;
-            end if;
-          end foreach;
+        #elsif [methodLStr string] == "read" then
+        #  foreach readAliasMap (@lstring methodStr) do
+        #    if [methodStr string] == [methodName string] then
+        #      found := true;
+        #    end if;
+        #  end foreach;
+        #elsif [methodLStr string] == "write" then
+        #  foreach writeAliasMap (@lstring methodStr) do
+        #    if [methodStr string] == [methodName string] then
+        #      found := true;
+        #    end if;
+        #  end foreach;
         end if;
       end foreach;
       if not found then #not excluded
@@ -129,20 +130,20 @@ routine getMatchingPortsOnDevice
     else
       error here: "internal error in routine 'getMatchingPortsOnDevice'";
     end cast;
-    if hasRead then #check in the read list.
-      foreach readAliasMap (@lstring methodStr) do
-        if [methodStr string] == [methodName string] then
-          matchingPortsInDevice += ![name string];
-        end if;
-      end foreach;
-    end if;
-    if hasWrite then #check in the read list.
-      foreach writeAliasMap (@lstring methodStr) do
-        if [methodStr string] == [methodName string] then
-          matchingPortsInDevice += ![name string];
-        end if;
-      end foreach;
-    end if;
+    #if hasRead then #check in the read list.
+    #  foreach readAliasMap (@lstring methodStr) do
+    #    if [methodStr string] == [methodName string] then
+    #      matchingPortsInDevice += ![name string];
+    #    end if;
+    #  end foreach;
+    #end if;
+    #if hasWrite then #check in the read list.
+    #  foreach writeAliasMap (@lstring methodStr) do
+    #    if [methodStr string] == [methodName string] then
+    #      matchingPortsInDevice += ![name string];
+    #    end if;
+    #  end foreach;
+    #end if;
   end foreach;
 end routine;
 
@@ -151,6 +152,7 @@ routine isComponentMethodMatchingDevice
   ?? @stageBody stageBody #structure created during pipeline parsing for 1 device. Store the port list.
   ?? @lstring componentName #component name of the instruction to map on pipeline
   ?? @lstring methodName #method name ...
+  ?? @varIdfStruct varIdfStruct  
   !  @bool ok #return true if the component.method match the device.
   ! @lstring portName #return the corresponding port that is obtained.
 :
@@ -160,14 +162,28 @@ routine isComponentMethodMatchingDevice
   #get info about the device.
   @lstring componentRelatedToDeviceName;
   @portMap  portMap;       #ports for the device.
-  @aliasMap readAliasMap;  #aliases for the 'read' access
-  @aliasMap writeAliasMap; #aliases for the 'write' access
-  [deviceMap searchKey !device ?componentRelatedToDeviceName ?portMap ?readAliasMap ?writeAliasMap];
-  if [componentName string] == [componentRelatedToDeviceName string] then
+  #@aliasMap readAliasMap;  #aliases for the 'read' access TODO: a supprimer?
+  #@aliasMap writeAliasMap; #aliases for the 'write' access
+  #[deviceMap searchKey !device ?componentRelatedToDeviceName ?portMap ?readAliasMap ?writeAliasMap];
+  [deviceMap searchKey !device ?componentRelatedToDeviceName ?portMap ?* ?*];
+  #message "\tcomponentName :".componentName."\n";
+  #message "\tmethodName :".methodName." -> ".[methodName leftSubString !4]."\n";
+  #check for address space.
+  @bool isAnAddressSpace := [varIdfStruct->memSpaceMap hasKey ![componentRelatedToDeviceName string]];
+  if ([componentName string] == [componentRelatedToDeviceName string]) | isAnAddressSpace then
+    @lstring methodToSearch := methodName;
+    if isAnAddressSpace then
+      if [methodName leftSubString !4] == "read" then 
+        methodToSearch := [@lstring new !"read" !here];
+      elsif [methodName leftSubString !5] == "write" then
+        methodToSearch := [@lstring new !"write" !here];
+      end if;
+    end if;
     #component name is matching, next is method
     @stringset matchingPortsInDevice;
-    getMatchingPortsOnDevice !portMap !readAliasMap !writeAliasMap !methodName ?matchingPortsInDevice;
-    #Ok. Now, we have a stringSet (matchingPortsInDevice) that contains the port that can accept the method.
+    #getMatchingPortsOnDevice !portMap !readAliasMap !writeAliasMap !methodName ?matchingPortsInDevice;
+    getMatchingPortsOnDevice !portMap !methodToSearch ?matchingPortsInDevice;
+    #Ok. Now, we have a stringSet (matchingPortsInDevice) that contains the ports that can accept the method.
     #get a stringset of ports available in pipeline stage;
     @stringset portsAvailableInPipelineStage [emptySet];
     foreach portList (@lstring port) do
@@ -196,7 +212,12 @@ routine isComponentMethodMatchingDevice
       ok := false;
       portName := [@lstring new !"" !here]; #unused value.
     end if;
-  elsif [componentName string] == "__fetch_component" then #special case for implicit fetch.
+  else
+    ok := false;
+    portName := [@lstring new !"" !here]; #unused value.
+  end if;
+  #special case for implicit fetch.
+  if [componentName string] == "__fetch_component" then
     if [portMap hasKey !"fetch"] then #ok.
       portName := [@lstring new !"fetch" !here];
       ok := true;
@@ -204,9 +225,6 @@ routine isComponentMethodMatchingDevice
       portName := [@lstring new !"" !here]; #unused value.
       ok := false;
     end if;
-  else
-    ok := false;
-    portName := [@lstring new !"" !here]; #unused value.
   end if;
 end routine;
 
@@ -281,6 +299,7 @@ routine mapInstructionOnPipelinePath
   ?? @lstring instName
   ?? @flatPipelineStageList fps #list of pipeline stages.
   ?? @graphNode nodeRoot        #input : graph with component/method.
+  ?? @varIdfStruct varIdfStruct  
   ?! @intMap accessMap          #map to record accesses to port devices.
   !  @graphNode portAccessNode  #output: graph with device/port
   ?! @uint nodeId               #to generate the 'portAccessNode' graph.
@@ -310,7 +329,7 @@ routine mapInstructionOnPipelinePath
         @deviceMap deviceMap;
         [architectureMap searchKey !archName ?deviceMap ?*];
         if debug then message "\t\t\tmatching ".[deviceName string]." ? "; end if;
-        isComponentMethodMatchingDevice !deviceMap !stageBody !componentName !methodName ?foundStage ?portName;
+        isComponentMethodMatchingDevice !deviceMap !stageBody !componentName !methodName !varIdfStruct ?foundStage ?portName;
         if debug then if foundStage then message "yes -> ".[deviceName string].".".[portName string]."\n"; 
         else message "no\n"; end if; end if;
       end foreach;
@@ -336,7 +355,7 @@ routine mapInstructionOnPipelinePath
     foreach [nodeRoot nextNodeList] (@graphNode subnode) while subOk do
       @graphNode portAccessSubNode;
       @intMap accessMapSubNode := accessMap; #make a copy for subnodes.
-      mapInstructionOnPipelinePath !architectureMap !instName !copyFps !subnode !?accessMapSubNode ?portAccessSubNode !?nodeId ?subOk !debug;
+      mapInstructionOnPipelinePath !architectureMap !instName !copyFps !subnode !varIdfStruct !?accessMapSubNode ?portAccessSubNode !?nodeId ?subOk !debug;
       subNodeList += !portAccessSubNode;
     end foreach;
     ok := subOk; #ok since all subnodes are ok and current stage is ok.
@@ -383,6 +402,7 @@ routine mapInstructionsOnArchitecture
   ?? @graphNodeMap componentAccessMap
   !  @graphNodeMapMap portAccessMap 
   ?? @string modelName
+  ?? @varIdfStruct varIdfStruct  
   ?! @TfieldMap templateStruct
 :
   #first, extract the pipeline paths into flatPipelineStageList (and log)
@@ -420,7 +440,7 @@ routine mapInstructionsOnArchitecture
       @intMap accessMap [emptyMap];
       @uint nodeId := 0;
       @bool ok;
-      mapInstructionOnPipelinePath !architectureMap !instName !fps !nodeRoot !?accessMap ?portAccessNode !?nodeId ?ok !false;
+      mapInstructionOnPipelinePath !architectureMap !instName !fps !nodeRoot !varIdfStruct !?accessMap ?portAccessNode !?nodeId ?ok !false;
       foundAPath := foundAPath | ok;
       addStringValue !?instMappingOnPipelineBody !lstringWith[!"pipelineName"] !fpsLog;
       if ok then
@@ -443,7 +463,7 @@ routine mapInstructionsOnArchitecture
         message "\tTry to map ".instName." on ".fpsLog."..\n";
         @intMap accessMap [emptyMap];
         @uint nodeId := 0;
-        mapInstructionOnPipelinePath !architectureMap !instName !fps !nodeRoot !?accessMap ?* !?nodeId ?* !true;
+        mapInstructionOnPipelinePath !architectureMap !instName !fps !nodeRoot !varIdfStruct !?accessMap ?* !?nodeId ?* !true;
       end foreach;
     end if;
     [!?portAccessMap insertKey !instName !portAccessMapForInstruction];
