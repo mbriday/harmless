@@ -58,7 +58,7 @@ void pipelineTraceDebug::pipelineTrace(const unsigned int pipeMove, const u64 nb
 }
 
 
-void pipelineTraceDebug::outputPipelineTrace(std::string filename, arch*_arch)
+void pipelineTraceDebug::outputPipelineTrace(std::string filename, core *_core)
 {
 	ofstream file;
 	file.open(filename.c_str(), ofstream::out);
@@ -71,7 +71,7 @@ void pipelineTraceDebug::outputPipelineTrace(std::string filename, arch*_arch)
 		for(it=m_addressSet.begin() ; it != itEnd; it++ )
 		{
 			const u32 address = *it;
-			file << dec << address << " " << hex << "0x" << address << " " << _arch->disassemble(address,1) << endl;
+			file << dec << address << " " << hex << "0x" << address << " " << _core->disassemble(address,1) << endl;
 		}
 		const unsigned int size = m_pipeTraceVector.size();
 		file << dec << size << " " << m_pipelineSize << endl;

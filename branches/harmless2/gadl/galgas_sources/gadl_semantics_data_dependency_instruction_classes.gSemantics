@@ -350,6 +350,7 @@ reader @memoryParamMap getDDCMemoryRegisterInfoMap
   else
     case := 3;
   end if;
+  #message "case : ".[case string]." -> ".[initOffset string]."\n";
 
   #init for case 3 (modify for other cases).
   @uint currentOffset := initOffset;
@@ -433,7 +434,7 @@ routine generateDDCMethodsInInstructions
     @TfieldMapList memChunkOffsetMapTpl [emptyList];  
     foreach memChunkOffsetMap : m_co do
       @TfieldMap memChunkOffsetMapBody [emptyMap];
-      addLStringValue !?memChunkOffsetMapBody !"chunk" !m_colkey; #memory chunk name
+      addLStringValue !?memChunkOffsetMapBody !"chunk" !m_colkey; #memory chunk name in that address space.
       addUnsignedValue !?memChunkOffsetMapBody !lstringWith[!"offset"] ![m_coval uint64];
       memChunkOffsetMapTpl += !memChunkOffsetMapBody;
     end foreach;
@@ -441,12 +442,34 @@ routine generateDDCMethodsInInstructions
     DDCRegChunk += !DDCRegChunkBody;
   end foreach;
   addListValue !?templateStruct !lstringWith[!"DDCRegChunk"] !DDCRegChunk; 
-
   #extract the number of mask chunks
   @uint nbChunk := 0;
   foreach DDCMemoryRegisterInfoMap do
     if maskId > nbChunk then nbChunk := maskId; end if;
   end foreach;
+  #other approach to define registers (same data...)
+  #one list, (one for each chunk)
+  # each item is the list of the associated mem spaces.
+  @uint currentId := 0;
+  @TfieldMapList DDCRegDefList [emptyList];
+  loop nbChunk+1:
+  while currentId <= nbChunk do
+    @TfieldMap DDCRegDef [emptyMap];
+    @TfieldMapList DDCRegDefListMS [emptyList];
+    foreach DDCMemoryRegisterInfoMap do
+      if maskId == currentId then
+        @TfieldMap DDCRegDefBody [emptyMap];  
+        addLStringValue !?DDCRegDefBody !"memSpace" !lkey; #memory space name
+        DDCRegDefListMS += !DDCRegDefBody;    
+      end if;
+    end foreach;
+    addListValue !?DDCRegDef !lstringWith[!"memSpaceList"] !DDCRegDefListMS;
+    addUnsignedValue !?DDCRegDef !lstringWith[!"id"] ![currentId uint64];
+    
+    DDCRegDefList += !DDCRegDef;
+    currentId := currentId + 1;
+  end loop;
+  addListValue !?templateStruct !lstringWith[!"DDCRegDef"] !DDCRegDefList; 
   #OK, done.
   #For register File Access, we have to inform inst that it should take care of R/W accesses in the execute method.
   getDDCRegisterFileRWinInstruction !DDCRegisterAccessMap !?templateStruct;
@@ -590,7 +613,7 @@ function getDDCInstructionMethodParams
   end loop;
 end function;
 
-function generateLockDDCWriteRegs
+function generateLockDDCWriteRegs #deprecated (no more used in templates).
   ?? @regMaskMapMap mask
   ?? @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap
   -> @TfieldMapList lockTplList

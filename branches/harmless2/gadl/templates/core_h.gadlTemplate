@@ -53,6 +53,13 @@ if useCAS then
     foreach reg in DDCRegInfo do
       %#define DDC_REGISTER_MASK_%!reg::regName% (1<<%!reg::id%)\n%
     end foreach
+    if exists DDCRegChunk then
+      foreach chunk in DDCRegChunk do
+      %#define DDC_REGISTER_NAME_R_AS_%!chunk::memSpace% m_DDCreadReg%!chunk::maskId%Access\n%
+      %#define DDC_REGISTER_NAME_W_AS_%!chunk::memSpace% m_DDCwriteReg%!chunk::maskId%Access\n%
+      %#define DDC_REGISTER_OFFSET_AS_%!chunk::memSpace% (%!chunk::maskOffset%)\n%
+      end foreach
+    end if
   end if
 end if
 %
@@ -188,12 +195,15 @@ end if #useCAS
 		void debugDDCRegField(); //debug.
 %if useCAS then
 %		//DDC register file access (R/W);
-%foreach memInfo in DDCRegFileMemInfo do %		u64 m_DDCreadRegFile%!memInfo::memoryId%Access;
-		u64 m_DDCwriteRegFile%!memInfo::memoryId%Access;
-%end foreach
-%		u64 m_DDCreadRegAccess;
-		u64 m_DDCwriteRegAccess;
-%
+%		foreach DDCReg in DDCRegDef do
+%		//DDC register for %
+			foreach ms in DDCReg::memSpaceList
+			do !ms::memSpace
+			between %, %
+			end foreach %\n%
+%		u64 m_DDCreadReg%!DDCReg::id%Access;\n%
+%		u64 m_DDCwriteReg%!DDCReg::id%Access;\n%
+		end foreach
 end if #useCAS
 %\n		//timing related automata.
 %
@@ -225,7 +235,7 @@ end if #exists timingList
 		inline unsigned long long const getNBInstructions() const {return m_nbInst;};
 		/** generic function to access the program counter */
 		inline %!idfStruct::PC_C_TYPE% programCounter() {%if useCAS then%
-			m_DDCreadRegAccess |= DDC_REGISTER_MASK_%!idfStruct::PC_NAME%; %end if%
+			m_DDCreadReg0Access |= DDC_REGISTER_MASK_%!idfStruct::PC_NAME%; %end if%
 			return m_%!idfStruct::PC_NAME%;};
 		
 		/** returns the function symbol for a given address (typically program counter). (for ELF files). */
@@ -353,7 +363,7 @@ end if #exists timingList
 
 		/** generic function to access the program counter */
 		inline void setProgramCounter(const %!idfStruct::PC_C_TYPE% val) { %if useCAS then%
-			m_DDCwriteRegAccess |= DDC_REGISTER_MASK_%!idfStruct::PC_NAME%; %end if%
+			m_DDCwriteReg0Access |= DDC_REGISTER_MASK_%!idfStruct::PC_NAME%; %end if%
 			m_%!idfStruct::PC_NAME% = val;};
 
 		/** return the object that reads the binary application code */
@@ -441,26 +451,37 @@ end if #exists timingList
 %if useCAS then%
 		//this function should be called ONLY by the execute method of an instruction.
 		inline void initDDCRegAccess() {
-			%foreach memInfo in DDCRegFileMemInfo do %
-			m_DDCreadRegFile%!memInfo::memoryId%Access  = 0;
-			m_DDCwriteRegFile%!memInfo::memoryId%Access = 0;
-			%end foreach%
-			m_DDCreadRegAccess = 0;
-			m_DDCwriteRegAccess = 0;
+
+%			foreach chunk in DDCRegChunk do %
+           //memSpace   %!chunk::memSpace%
+           //maskId     %!chunk::maskId%
+           //maskOffset %!chunk::maskOffset%
+           %foreach offset in chunk::DDCChunkOffset do%
+             //chunk %!offset::chunk%
+             //offset %!offset::offset%
+           %end foreach
+			end foreach
+			foreach DDCReg in DDCRegDef do
+%			//DDC chunk for %
+				foreach ms in DDCReg::memSpaceList
+				do !ms::memSpace
+				between %, %
+				end foreach %\n%
+%			m_DDCreadReg%!DDCReg::id%Access = 0;\n%
+%			m_DDCwriteReg%!DDCReg::id%Access = 0;\n%
+			end foreach%
 		};
-%foreach memInfo in DDCRegFileMemInfo do %
-		//this function should be called ONLY by the execute method of an instruction.
-		inline void getDDCRegFile%!memInfo::memoryId%AccessMask(u64 &r, u64 &w) {
-			r=m_DDCreadRegFile%!memInfo::memoryId%Access;
-			w=m_DDCwriteRegFile%!memInfo::memoryId%Access;
-		};
-%end foreach%
-		//this function should be called ONLY by the execute method of an instruction.
-		inline void getDDCRegAccessMask(u64 &r, u64 &w) {
-			r=m_DDCreadRegAccess;
-			w=m_DDCwriteRegAccess;
-		};
-%end if #useCAS
+%
+			foreach DDCReg in DDCRegDef
+			do
+%			//this function should be called ONLY by the execute method of an instruction.
+			inline void getDDCReg%!DDCReg::id%AccessMask(u64 &r, u64 &w) {
+				r=m_DDCreadReg%!DDCReg::id%Access;
+				w=m_DDCwriteReg%!DDCReg::id%Access;
+			};
+%
+			end foreach
+end if #useCAS
 		if exists timingList then
 			if [timingList length] > 0 then
 %		//timing simulation steps accessors
@@ -476,6 +497,7 @@ end if #exists timingList
 		/** Memory Access */
 %
 let memSpaceMap := mapOf idfStruct::memSpaceList by name
+let memSpaceMapDDC := mapOf addressSpaceReg by name #address space with regs (using DDC)
 foreach mem in memSpaceMap do
   #one getChunk for each mem space.
   %\t\tinline storage *get_%!mem::name%_chunk(const u32 address)\n\t\t{\n%
@@ -511,35 +533,47 @@ foreach mem in memSpaceMap do
     if mem::stride != 0 then let addressWithStride := "address << ".[mem::stride string] end if
     #read access.
     %\t\tinline u%!type% %!mem::name%_read%!methodSize::size%(const u32 address)\n\t\t{\n%
+    let storageNameOptim := "sto"
     if nbMemChunks > 1 then
       %\t\t\troStorage *sto = (roStorage *)get_%!mem::name%_chunk(%!addressWithStride%);\n%
       %\t\t\t#ifdef DEBUG_MEM\n%
       %\t\t\t\tassert(sto);\n%
       %\t\t\t#endif //DEBUG_MEM\n%
-      %\t\t\treturn sto->%
     else #optimisation (about 20-30% with the ISS).
       %\t\t\t#ifdef DEBUG_MEM\n%
       %\t\t\t\tassert(get_%!mem::name%_chunk(%!addressWithStride%));\n%
       %\t\t\t#endif //DEBUG_MEM\n%
-      %\t\t\treturn %!storageName%->%
+      let storageNameOptim := storageName
     end if
-    %read%!type%AtAddress(%!addressWithStride%);\n%
+    #DDC related part
+    if useCAS then
+      if exists memSpaceMapDDC[mem::name] then
+        %\t\t\tDDC_REGISTER_NAME_R_AS_%!mem::name% |= ((u64)address) << DDC_REGISTER_OFFSET_AS_%!mem::name%;\n%
+      end if
+    end if
+    %\t\t\treturn %!storageNameOptim%->read%!type%AtAddress(%!addressWithStride%);\n%
     %\t\t}\n%
     #write access.
     %\t\tinline void %!mem::name%_write%!methodSize::size%(const u32 address, const u%!type% value)\n\t\t{\n%
+    let storageNameOptim := "sto"
     if nbMemChunks > 1 then
       %\t\t\trwStorage *sto = (rwStorage *)get_%!mem::name%_chunk(%!addressWithStride%);\n%
       %\t\t\t#ifdef DEBUG_MEM\n%
       %\t\t\t\tassert(sto);\n%
       %\t\t\t#endif //DEBUG_MEM\n%
-      %\t\t\tsto->%
     else
       %\t\t\t#ifdef DEBUG_MEM\n%
       %\t\t\t\tassert(get_%!mem::name%_chunk(%!addressWithStride%));\n%
       %\t\t\t#endif //DEBUG_MEM\n%
-      %\t\t\t%!storageName%->%
+      let storageNameOptim := storageName
     end if
-    %write%!type%AtAddress(%!addressWithStride%, value);\n%
+    #DDC related part
+    if useCAS then
+      if exists memSpaceMapDDC[mem::name] then
+        %\t\t\tDDC_REGISTER_NAME_W_AS_%!mem::name% |= ((u64)address) << DDC_REGISTER_OFFSET_AS_%!mem::name%;\n%
+      end if
+    end if
+    %\t\t\t%!storageNameOptim%->write%!type%AtAddress(%!addressWithStride%, value);\n%
     %\t\t}\n%
   end foreach
 end foreach
@@ -608,7 +642,7 @@ foreach reg in idfStruct::varList do
       %\t\t\t%!key%++;\n%
     end if
     if useCAS then
-      %\t\t\tm_DDCreadRegAccess |= DDC_REGISTER_MASK_%!reg::name%;\n%
+      %\t\t\tm_DDCreadReg0Access |= DDC_REGISTER_MASK_%!reg::baseName%;\n%
     end if
     #effective code
     %\t\t\t%!reg::getter%\n\t\t};\n%
@@ -619,7 +653,7 @@ foreach reg in idfStruct::varList do
     else
       % value) {\n%
       if useCAS then
-        %\t\t\tm_DDCwriteRegAccess |= DDC_REGISTER_MASK_%!reg::name%;\n%
+        %\t\t\tm_DDCwriteReg0Access |= DDC_REGISTER_MASK_%!reg::baseName%;\n%
       end if
       #effective code
       !reg::setter%\n%

@@ -1144,7 +1144,7 @@ routine printVariable
       printVariable !indent !mType !mValue;
     end foreach;
   when unconstructedType:
-    error here: "internal error, unconstrcuted type";
+    error here: "internal error, unconstructed type";
   end switch;
 end routine;
 

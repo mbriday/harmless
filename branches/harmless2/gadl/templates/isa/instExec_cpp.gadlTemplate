@@ -37,21 +37,14 @@ using namespace std;
     %\tm_jumpTaken = _core->%!idfStruct::PC_NAME%()-val_pc_before;\n%
   end if
   
-  if useCAS then
-    if exists DDCReagisterFileAccessTypeMap[inst::name] then #DDC register access (part 2)
-      foreach RFA in DDCReagisterFileAccessTypeMap[inst::name]::regFileAccess 
-      before
-        %\t//Data Dependancy Controller related part\n%
-      do
-        if RFA::R | RFA::W then
-          %\t_core->getDDCRegFile%!RFA::memoryId%AccessMask(this->m_DDCRegFile%!RFA::memoryId%MaskRead, this->m_DDCRegFile%!RFA::memoryId%MaskWrite);\n%
-        end if
-      end foreach
+	if useCAS then
+		foreach DDCReg in DDCRegDef
+		before
+		%\n\t//Data Dependancy Controller related part\n%
+		do
+		%\t_core->getDDCReg%!DDCReg::id%AccessMask(this->m_DDCReg%!DDCReg::id%MaskRead, this->m_DDCReg%!DDCReg::id%MaskWrite);\n%
+		end foreach
     end if
-    if exists DDCClassicRegsUsageMap[inst::name] then
-      %\t_core->getDDCRegAccessMask(this->m_DDCRegMaskRead, this->m_DDCRegMaskWrite);\n%
-    end if
-  end if
   %}\n%
   between %\n%
 end foreach

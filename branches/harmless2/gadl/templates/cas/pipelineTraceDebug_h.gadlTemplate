@@ -5,7 +5,7 @@
 #include <vector>
 #include <string>
 #include <set>
-#include "arch.h"
+#include "core.h"
 
 /** This class is used to generate a .ptr file that
  *  can be used to get a graphical trace of the pipeline
@@ -24,10 +24,10 @@ class pipelineTraceDebug {
 public:
 	///constructor
 	pipelineTraceDebug(const unsigned int pipelineSize);
-	///internal function: Should only be called by arch...
+	///internal function: Should only be called by core...
 	void pipelineTrace(const unsigned int pipeMove, const u64 nbCycles, %!MODELNAME%_instruction **instTab, const unsigned int nbInstIn);
 	///output trace to a file.
-	void outputPipelineTrace(std::string filename, arch*_arch);
+	void outputPipelineTrace(std::string filename, core*_core);
 };
 
 #endif

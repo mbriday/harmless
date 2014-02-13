@@ -328,9 +328,11 @@ bool core::execOneCycle()
 	#ifdef GADL_CYCLIC_ENABLE
 		if(m_nextCyclicWakeUpDate <= m_nbCycles) manageCyclicPart();
 	#endif
-%if [timingList length] > 0 then
+%if exists timingList then 
+   if [timingList length] > 0 then
 %	if(m_timingNextWakeUp <= m_nbCycles) manageTiming();
 %end if
+end if
 %	const unsigned int notification = m_pipeline%!firstPipeline::name% -> execOneState(getExternalResourcesState_%!firstPipeline::name%(),m_nextInstruction_%!firstPipeline::name%->instClass());
 	bool instExecuted = false;
 	//we have to deal with notifications.
