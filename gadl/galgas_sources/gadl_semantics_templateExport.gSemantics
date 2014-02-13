@@ -76,6 +76,14 @@ method @varIdfStruct setInTemplate
     addStringValue !?varMapRegBody !lstringWith[!"type"] !typeStr;
     addBoolValue !?varMapRegBody !lstringWith[!"constant"] !constant;
     addUnsignedValue !?varMapRegBody !lstringWith[!"varClassId"] ![varClass id];
+    @lstring baseName := lkey;
+    if varClass == [@varClass registerSlice] then
+      @stringlist strList := [[lkey string] componentsSeparatedByString !"_"];
+      [strList first ?@string baseNameStr];
+      baseName := [@lstring new !baseNameStr ![lkey location]];
+    end if;
+    addLStringValue !?varMapRegBody !"baseName" !baseName;
+
     @uint size := 0;
     if (type is >= @varBaseType) then
       size := [[type getBaseType] size];

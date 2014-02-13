@@ -4,15 +4,39 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>${EXECUTABLE_NAME}</string>
+	<key>CFBundleIconFile</key>
+	<string>application_icns</string>
+	<key>CFBundleIdentifier</key>
+	<string>fr.irccyn.gadl</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>${PRODUCT_NAME}</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>10.6</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.8.1</string>
+	<key>NSMainNibFile</key>
+	<string>MainMenu</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
+			<key>CFBundleTypeIconFile</key>
+			<string>core_icns</string>
 			<key>CFBundleTypeExtensions</key>
 			<array>
-				<string>hadl</string>
+				<string>core</string>
 			</array>
 			<key>CFBundleTypeName</key>
-			<string>Harmless Source</string>
+			<string>gadl Source</string>
 			<key>CFBundleTypeOSTypes</key>
 			<array>
 				<string>TEXT</string>
@@ -24,26 +48,7 @@
 			<key>NSDocumentClass</key>
 			<string>OC_GGS_Document</string>
 		</dict>
+
 	</array>
-	<key>CFBundleExecutable</key>
-	<string>Harmless</string>
-	<key>CFBundleIconFile</key>
-	<string>icone</string>
-	<key>CFBundleIdentifier</key>
-	<string>com.irccyn.gadl</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>${PRODUCT_NAME}</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleSignature</key>
-	<string>MikB</string>
-	<key>CFBundleVersion</key>
-	<string>1.0</string>
-	<key>NSMainNibFile</key>
-	<string>MainMenu</string>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
 </dict>
 </plist>

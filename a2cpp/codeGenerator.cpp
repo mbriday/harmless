@@ -36,7 +36,7 @@ void codeGenerator::generateFilePreamble()
 	CPP << "#include <cassert> //assert" << endl;
 	CPP << "#include \"" << m_prefix << ".h\"" << endl;
 	CPP << "#include \"instruction.h\"" << endl;
-	CPP << "#include \"arch.h\"" << endl;
+	CPP << "#include \"core.h\"" << endl;
 	CPP << endl;
 }
 
@@ -77,7 +77,7 @@ void codeGenerator::initHeader(fileHeaderGeneration &outputH)
 	notificationMasks(outputH);	
 	externalResourcesOffsets(outputH);	
 	outputH.beforeStream() << "class "<< modelName << "_instruction;" << endl;
-	outputH.beforeStream() << "class arch;" << endl << endl;
+	outputH.beforeStream() << "class core;" << endl << endl;
 }
 
 void codeGenerator::initCPPFile(std::string filename)
@@ -153,10 +153,10 @@ void codeGenerator::function_execOneState(fileHeaderGeneration &outputH)
 void codeGenerator::function_init(fileHeaderGeneration &outputH)
 {
 	outputH.publicStream() << "\t//this function init internal data structures." << endl;
-	outputH.privateStream() << "\tarch *m_arch;" << endl;
-	outputH.publicStream() << "\tvoid init(arch *);" << endl;
-	CPP << "void " << m_prefix << "::init(arch *_arch) {" << endl;
-	CPP << "\tm_arch = _arch;" << endl;
+	outputH.privateStream() << "\tcore *m_core;" << endl;
+	outputH.publicStream() << "\tvoid init(core *);" << endl;
+	CPP << "void " << m_prefix << "::init(core *_core) {" << endl;
+	CPP << "\tm_core = _core;" << endl;
 	CPP << "\tm_currentState = 0;" << endl;
 	CPP << "}" << endl;
 

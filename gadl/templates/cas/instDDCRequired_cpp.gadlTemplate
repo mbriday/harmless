@@ -2,17 +2,23 @@
 if useCAS then%
 #include "instruction.h" //first for precompiled header
 #include <iostream>
-#include "arch.h"
+#include "core.h"
 
 using namespace std;
 
 // instructions that require registers for the data dependency controller.
 
 %foreach inst in instDDCRequired do
-  %void %!inst::name%::getDDCReadRegs(%!paramDDCRequire%){
-%!inst::required
-%}
-%
+	%void %!inst::name%::getDDCReadRegs(%
+		foreach DDCReg in DDCRegDef do
+			%u64 &regMask%!DDCReg::id
+		between %, %
+		end foreach
+	%){\n%
+	foreach DDCReg in DDCRegDef do
+		%\tregMask%!DDCReg::id% = m_DDCReg%!DDCReg::id%MaskRead;\n%
+	end foreach
+	%}\n%
 between %\n%
 end foreach
 end if #useCAS

@@ -86,6 +86,19 @@ routine microArchTemplate
   addListValue !?templateStruct !lstringWith[!"archList"] !archListTpl;  
 end routine;
 
+routine addAddressSpaceWithRegTemplates
+  ?! @TfieldMap templateStruct
+  ?? @intMap memSpaceWithRegister  
+:
+  @TfieldMapList ASListTpl [emptyList]; 
+  foreach memSpaceWithRegister do
+    @TfieldMap ASTplBody [emptyMap];
+    addLStringValue !?ASTplBody !"name" !lkey;
+    ASListTpl += !ASTplBody;
+  end foreach;
+  addListValue !?templateStruct !lstringWith[!"addressSpaceReg"] !ASListTpl;
+end routine;
+
 routine microArchPart
   ?? @Isa isa
   ?? @lstring modelName
@@ -126,8 +139,8 @@ routine microArchPart
     DDCfindReadAndWritePipelineStages !memSpaceWithRegister !archMap !pipelineMap ?DDCPipelineInfoList ?DDCStagesOK;
     @DDCRegisterAccessMap DDCRegisterAccessMap := getRegistersInInstructions[!varIdfStruct ![isa decodedBehaviorMap] !memSpaceWithRegister];
 
-    @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap := [memChunk getDDCMemoryRegisterInfoMap !memSpaceWithRegister !0];
     @boolMap regMap := [varIdfStruct->varMap getDDCRegMap];
+    @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap := [memChunk getDDCMemoryRegisterInfoMap !memSpaceWithRegister ![regMap count]];
     generateDDCMethodsInInstructions !regMap !DDCMemoryRegisterInfoMap !DDCRegisterAccessMap !?templateStruct;
     generateP2AFiles !modelName !pipelineMap !icMap !archMap !ippList !devicePortToRemove !DDCPipelineInfoList !?templateStruct;
     microArchPipelineTemplate !?templateStruct !pipelineMap;
@@ -138,6 +151,7 @@ routine microArchPart
   end if;
   microArchTemplate !?templateStruct !archMap; #even if no pipeline.. signals may be present.
   addBoolValue !?templateStruct !lstringWith[!"useCAS"] !useCAS;
+  addAddressSpaceWithRegTemplates !?templateStruct !memSpaceWithRegister;
 end routine;
 end semantics ;
 # vim:ft=ggs:ts=2:sw=2
