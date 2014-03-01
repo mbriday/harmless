@@ -39,7 +39,7 @@ foreach timing in core::timingList do
 end foreach
 end if #timingList exists
 
-if useCAS then
+if core::useCAS then
   foreach pipeline in core::pipelineList 
   before
   %//pipeline models declaration\n%
@@ -100,7 +100,7 @@ end if
 		stackSpyController *m_stackController;
 		#endif
 
-%if useCAS then
+%if core::useCAS then
    foreach pipeline in core::pipelineList 
    before
    %		//pipeline models instance\n%
@@ -114,7 +114,7 @@ end if
 		u64 m_memStage; //TODO: will not work if more than 1 pipeline!
 		fifo<u32> *m_fifoMemAccessTab[%!pipelineBufferSize%];
    %end foreach
-end if #useCAS
+end if #core::useCAS
 %
 
 		#ifdef GADL_WITH_PIPELINE_TRACE
@@ -134,7 +134,7 @@ end if #useCAS
 		//main function for DDC management. Used each cycle.
 		void DDCManagement(const unsigned int notification);
 		void debugDDCRegField(); //debug.
-%if useCAS then
+%if core::useCAS then
 %		//DDC register file access (R/W);
 %		foreach DDCReg in core::DDCRegDef do
 %		//DDC register for %
@@ -145,7 +145,7 @@ end if #useCAS
 %		u64 m_DDCreadReg%!DDCReg::id%Access;\n%
 %		u64 m_DDCwriteReg%!DDCReg::id%Access;\n%
 		end foreach
-end if #useCAS
+end if #core::useCAS
 %\n		//timing related automata.
 %
 if exists core::timingList then
@@ -169,7 +169,7 @@ end if #exists timingList
 		///debugging info
 		virtual void decoderStats();
 		/** generic function to access the program counter */
-		u32 programCounter() {%if useCAS then%
+		u32 programCounter() {%if core::useCAS then%
 			m_DDCreadReg0Access |= DDC_REGISTER_MASK_%!core::idfStruct::PC_NAME%; %end if%
 			return (u32)(m_%!core::idfStruct::PC_NAME%);};
 		
@@ -223,7 +223,7 @@ end if #exists timingList
 		virtual void runUntil(const unsigned int addr, const unsigned int max);
 
 		/** generic function to access the program counter */
-		void setProgramCounter(const u32 val) { %if useCAS then%
+		void setProgramCounter(const u32 val) { %if core::useCAS then%
 			m_DDCwriteReg0Access |= DDC_REGISTER_MASK_%!core::idfStruct::PC_NAME%; %end if%
 			m_%!core::idfStruct::PC_NAME% = val;};
 
@@ -256,7 +256,7 @@ end if #exists timingList
 		 */
 		void doNotExececuteNextInstructions(const u32 val);
 
-%if useCAS then
+%if core::useCAS then
    foreach pipeline in core::pipelineList do 
 %		/** pipeline model related function */
 		unsigned int getNextInstructionCodeIn_%!pipeline::name%();
@@ -301,7 +301,7 @@ end if #exists timingList
 			%address%
 		end if%;
 		}
-%if useCAS then%
+%if core::useCAS then%
 		//this function should be called ONLY by the execute method of an instruction.
 		inline void initDDCRegAccess() {
 
@@ -334,7 +334,7 @@ end if #exists timingList
 			};
 %
 			end foreach
-end if #useCAS
+end if #core::useCAS
 		if exists core::timingList then
 			if [core::timingList length] > 0 then
 %		//timing simulation steps accessors
@@ -399,7 +399,7 @@ foreach mem in memSpaceMap do
       let storageNameOptim := storageName
     end if
     #DDC related part
-    if useCAS then
+    if core::useCAS then
       if exists core::memSpaceMapDDC[mem::name] then
         %\t\t\tDDC_REGISTER_NAME_R_AS_%!mem::name% |= ((u64)address) << DDC_REGISTER_OFFSET_AS_%!mem::name%;\n%
       end if
@@ -421,7 +421,7 @@ foreach mem in memSpaceMap do
       let storageNameOptim := storageName
     end if
     #DDC related part
-    if useCAS then
+    if core::useCAS then
       if exists core::memSpaceMapDDC[mem::name] then
         %\t\t\tDDC_REGISTER_NAME_W_AS_%!mem::name% |= ((u64)address) << DDC_REGISTER_OFFSET_AS_%!mem::name%;\n%
       end if
@@ -458,13 +458,13 @@ do
 	do
 		let key := component::name."_".method::name
 		%\t\tinline %!method::returnTypeStr% %!component::name%_%!method::name%(%!method::paramStr%) {\n%
-		if useCAS then
+		if core::useCAS then
 			if exists DDCRegFileChunkMap[key] then #this is a DDC related function (read or write).
 				let reg := "m_DDC".DDCRegFileChunkMap[key]::access."RegFile".DDCRegFileChunkMap[key]::memoryId."Access"
 				%\t\t\t//DDC related function (%!DDCRegFileChunkMap[key]::access%)\n%
 				%\t\t\t%!reg% |= 1<<address;\n%
 			end if
-			if useCAS then
+			if core::useCAS then
 				#TODO: Temporary for Data Cache -> UGLY
 				foreach pipeline in core::pipelineList 
 				before
@@ -484,7 +484,7 @@ do
 					end if
 				end foreach
 		    end if
-		end if #useCAS
+		end if #core::useCAS
 	    let keyCount := "counter_".key
 		if exists counterMap[keyCount] then #access counter
 			%\t\t\t%!keyCount%++;\n%
@@ -508,7 +508,7 @@ foreach reg in core::idfStruct::varList do
     if exists counterMap[key] then
       %\t\t\t%!key%++;\n%
     end if
-    if useCAS then
+    if core::useCAS then
       %\t\t\tm_DDCreadReg0Access |= DDC_REGISTER_MASK_%!reg::baseName%;\n%
     end if
     #effective code
@@ -519,7 +519,7 @@ foreach reg in core::idfStruct::varList do
       %) {% 
     else
       % value) {\n%
-      if useCAS then
+      if core::useCAS then
         %\t\t\tm_DDCwriteReg0Access |= DDC_REGISTER_MASK_%!reg::baseName%;\n%
       end if
       #effective code

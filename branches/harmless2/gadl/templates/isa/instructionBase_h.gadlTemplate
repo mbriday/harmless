@@ -13,7 +13,7 @@ class %!core::NAME%_core;
 class %!core::NAME%_instruction {
 	/// use for the retain/release mechanism.
 	int m_user;
-%if useCAS then%
+%if core::useCAS then%
 	/// class code of the instruction (used by pipeline model)
 	//const unsigned int m_classCode;
 %end if%
@@ -71,7 +71,7 @@ class %!core::NAME%_instruction {
 	 */
 	virtual bool jumpTaken() {return false;};
 
-	%if useCAS then%
+	%if core::useCAS then%
 	/** \return the code of the instruction class. 
 	*
 	* This information is needed by the pipeline model

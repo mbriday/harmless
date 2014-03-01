@@ -1,7 +1,7 @@
 %
 
 #log related to instruction components usage.
-if useCAS then
+if core::useCAS then
   write to exportDir."/log/".core::NAME."_instructionMapping.html":
     template instructionMapping_html in log
   end write
