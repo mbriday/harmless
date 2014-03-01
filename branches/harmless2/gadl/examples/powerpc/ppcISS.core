@@ -1,0 +1,50 @@
+import isa powerpc from "ppc_iss.isa" 
+
+program memory space mem width 32
+memory space reg width 32 stride 4 -- access 32 bits: index 2 means address 2*4 = 0x8
+memory space FPR width 32 stride 4 -- access 32 bits: index 2 means address 2*4 = 0x8
+
+core powerpc : isa powerpc
+{
+  memory GPR {
+    width  := 32
+    size   := 128 -- 32 registers
+    type   := register
+  } maps to reg:0
+
+--   memory GPR2 {
+--     width  := 32
+--     size   := 28 -- 7 other registers
+--     --size   := 68 -- 17 other registers
+--     --size   := 128 -- 32 other registers
+--     type   := register
+--   } maps to reg:32
+
+  memory FPU {
+    width  := 32
+    size   := 64  -- 16 registers
+    type   := register
+  } maps to FPR:0
+
+  memory mem1 {
+    width  := 32
+    size   := 32mb
+    type   := RAM
+  } maps to mem:0
+
+--  memory mem3 {
+--    width  := 30
+--    size   := 4kb
+--    type   := RAM
+--  } maps to mem:128kb
+--
+--  memory mem2 {
+--    width  := 32
+--    size   := 2kb
+--    type   := RAM
+--  } maps to mem:256kb
+
+}
+-- errorformat=%f:%l:%c:%m
+-- makeprg=gadl\ \%
+-- vim:ft=harmlesscore:ts=2:sw=2:tw=0

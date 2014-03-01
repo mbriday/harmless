@@ -1,0 +1,139 @@
+import isa powerpc from "ppc_iss.isa" 
+
+program memory space mem width 32
+memory space reg width 32 stride 4 -- access 32 bits: index 2 means address 2*4 = 0x8
+memory space FPR width 32 stride 4 -- access 32 bits: index 2 means address 2*4 = 0x8
+
+core e200z4 : isa powerpc
+{
+  memory GPR {
+    width  := 32
+    size   := 128 -- 32 registers
+    type   := register
+  } maps to reg:0
+
+--   memory GPR2 {
+--     width  := 32
+--     size   := 28 -- 7 other registers
+--     --size   := 68 -- 17 other registers
+--     --size   := 128 -- 32 other registers
+--     type   := register
+--   } maps to reg:32
+
+  memory FPU {
+    width  := 32
+    size   := 64  -- 16 registers
+    type   := register
+  } maps to FPR:0
+
+  memory mem1 {
+    width  := 32
+    size   := 32mb
+    type   := RAM
+  } maps to mem:0
+
+--  memory mem3 {
+--    width  := 30
+--    size   := 4kb
+--    type   := RAM
+--  } maps to mem:128kb
+--
+--  memory mem2 {
+--    width  := 32
+--    size   := 2kb
+--    type   := RAM
+--  } maps to mem:256kb
+
+  -----------------------------------------------------------------------------
+  -- Hardware : architectures
+  -----------------------------------------------------------------------------
+  
+  architecture Generic {
+  
+    device RegDev : reg { -- a component or an address space.
+      port rs : read (3)
+      port rd : write (2)
+    }
+
+		device SPRDev : SRU {
+				port rs : spr_read
+				port rd : spr_write
+		}
+  
+    device FPUDev : FPR {
+      port fps : read (2)  -- 64 bits not supported
+      port fpd : write (2) -- 64 bits not supported
+    }
+  
+    device IntDev : Integer_Unit {
+      port all 
+    }
+  
+    device IntWithoutDiv : Integer_Unit {
+      port all :except div_ov_signed,
+                       div_ov_signed_withUpdateStatus,
+                       div_ov_unsigned,
+                       div_ov_unsigned_withUpdateStatus
+    }
+    
+    device EAUDev : effective_address_Unit {
+      port effAddrUnit : eff_addr_add
+    }
+  
+    device MemDev : mem {
+      shared port fetch : read
+      shared port loadStore : read or write (2)
+    }
+  
+    device FetcherDev : fetcher {
+      port branch : absBranch
+    }
+  
+  }
+  
+  ---------------------------------------------------------------------------------
+  ---- Hardware : pipelines
+  ---------------------------------------------------------------------------------
+  --------------------------------------------------
+  -- simple architecture to test code generation.
+  --------------------------------------------------
+  pipeline pipelineExample maps to Generic {
+  
+    stage FETCH {
+        MemDev : fetch
+      }
+  
+    stage DECODE_EA {
+        FetcherDev : branch
+        RegDev : rs
+				SPRDev : rs
+        EAUDev : effAddrUnit
+        FPUDev : fps
+      }
+  
+    stage EXECUTE { --EXECUTE_MEM {
+        IntDev : all
+  --      MemDev : loadStore
+      }
+      
+    stage MEM {
+        MemDev : loadStore
+      }
+  
+  
+    stage REGISTER {
+  --      RegDev bypass in <DECODE_EA>: rd
+        RegDev: rd
+				SPRDev: rd
+        FPUDev: fpd
+    }
+  }
+  
+  machine all {
+    pipelineExample
+  }
+
+}
+-- errorformat=%f:%l:%c:%m
+-- makeprg=gadl\ \%
+-- vim:ft=harmlesscore:ts=2:sw=2:tw=0
