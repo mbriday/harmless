@@ -100,34 +100,8 @@ method @varIdfStruct setInTemplate
   end foreach;
   addListValue !?idfStructBody !lstringWith[!"varList"] !varListTpl;
   
-  #to be done in a memSpaceMap category
-  @TfieldMapList memSpaceListTpl [emptyList];  
-  foreach memSpaceMap do
-    @TfieldMap memSpaceMapBody [emptyMap];
-    addLStringValue !?memSpaceMapBody !"name" !lkey;
-    addUnsignedValue !?memSpaceMapBody !lstringWith[!"width"] ![width uint64]; #bus width
-    addBoolValue !?memSpaceMapBody !lstringWith[!"isProgram"] !isProgram;
-    addUnsignedValue !?memSpaceMapBody !lstringWith[!"stride"]  ![stride uint64];
-    @TfieldMapList memSpaceAccessSizeTpl [emptyList];
-    foreach methodMap do
-      @TfieldMap methodMapBody [emptyMap];
-      @uint methodSize := [[outType getBaseType] size];
-      if methodSize > 0 then #return u0 in write accessor.
-        addUnsignedValue !?methodMapBody !lstringWith[!"size"] ![methodSize uint64]; #method size (access)
-        memSpaceAccessSizeTpl += !methodMapBody;    
-      end if;
-    end foreach;
-    addListValue !?memSpaceMapBody !lstringWith[!"methodSizeList"] !memSpaceAccessSizeTpl;
-    memSpaceListTpl += !memSpaceMapBody;    
-  end foreach;
-  addListValue !?idfStructBody !lstringWith[!"memSpaceList"] !memSpaceListTpl;
-  
-  #typedefMap -> memberList - declaration , name, component!!
-  #componentMap -> à faire en 2 fois (componentMap et functionMap)
-  #memSpaceMap ? -> pas sûr
-#  foreach selfcopy->varMap do
-#  end foreach;
-  #typedefMap
+  #do not export memSpaceMap to the idfStruct (which is embedded into a core).
+  #because a memSpace is global. There is a copy in idfStruct for easy access.
   addStructValue !?templateStruct !lstringWith[!"idfStruct"] !idfStructBody;
 end method;
 

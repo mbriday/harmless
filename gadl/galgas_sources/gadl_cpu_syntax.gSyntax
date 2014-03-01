@@ -1,0 +1,30 @@
+syntax gadl_cpu_syntax ("gadl_lexique.gLexique") :
+import "gadl_options.gOption" ;
+import "gadl_memory.gSemantics";
+import "gadl_isa.gSemantics";
+import "gadl_isa_grammar.gGrammar";
+import "gadl_varIdfStruct.gSemantics"; #lstringMap
+import "gadl_cpu.gSemantics";
+
+nonterminal <memorySpace> ?! @ASTmemSpaceMap ASTmemSpaceMap;
+nonterminal <peripheral>;
+
+rule <cpu>
+:
+  @ASTmemSpaceMap ASTmemSpaceMap [emptyMap];
+  repeat
+  while
+    #mem space definition.
+    <memorySpace> !?ASTmemSpaceMap;
+  while
+    #peripheral def
+    <peripheral>;
+  end repeat;
+
+  $cpu$; $idf$ ?@lstring cpuName;
+  ${$;
+  $}$;
+end rule;
+
+end syntax ;
+# vim:ft=ggs:ts=2:sw=2

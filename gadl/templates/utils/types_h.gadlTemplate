@@ -1,6 +1,6 @@
 %template headerC%
-#ifndef __%!MODELNAME%_TYPE_H__
-#define __%!MODELNAME%_TYPE_H__
+#ifndef __TYPE_H__
+#define __TYPE_H__
 
 #include <ostream>
 

@@ -1,6 +1,6 @@
 %
-if exists instData then
-  foreach inst in instData do
+if exists core::instData then
+  foreach inst in core::instData do
     % name: % !inst::instID %\n%
     % size: % !inst::codeLength %\n%
     % seq : %

@@ -1,0 +1,32 @@
+syntax gadl_register_parser ("gadl_lexique.gLexique") :
+  import "gadl_variable.gSemantics" ; #varClass.
+  import "gadl_semantics_AST_implementation.gSemantics" ; #varClass.
+
+#from gadl_implementation_parser
+nonterminal <typeDeclaration> ! @varAbstractType type;
+#from gadl_expression_parser
+nonterminal <bitField> !@ASTfieldList fieldList;
+
+
+rule <registerBitAccessDef>
+  ?? @lstring regName
+  ?? @varAbstractType type
+  ?! @ASTInstructionList regDefList
+:
+  ${$;
+  repeat
+  while
+    @lstring bitFieldName;
+    $idf$ ?bitFieldName;
+    $:=$; $slice$;
+    @ASTfieldList fieldList;
+    <bitField> ?fieldList;
+    regDefList += ![@ASTInstDeclarationRegSlice new !here 
+                                ![@varClass registerSlice] !type !regName 
+                                !bitFieldName !fieldList];
+  end repeat;  
+  $}$;
+end rule;
+
+end syntax ;
+# vim:ft=ggs:ts=2:sw=2

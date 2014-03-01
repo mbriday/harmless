@@ -1,0 +1,13 @@
+indexing grammar gadl_cpu_grammar "LL1":
+with "gadl_memory_parser.gSyntax";
+with "gadl_cpu_syntax.gSyntax";
+with "gadl_peripheral_parser.gSyntax";
+with "gadl_register_parser.gSyntax";
+with "gadl_expression_parser.gSyntax";
+with "gadl_implementation_parser.gSyntax";
+with "gadl_function_parser.gSyntax";
+
+root <cpu> ;
+
+end grammar ;
+# vim:ft=ggs:ts=2:sw=2

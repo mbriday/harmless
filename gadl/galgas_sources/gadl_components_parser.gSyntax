@@ -18,7 +18,14 @@ nonterminal <functionDef>
   ?! @ASTFunctionMap ASTFunctionMap
 ;
 
-#TODO: should be moved.
+#defined in gadl_register_parser.gSyntax
+nonterminal <registerBitAccessDef>
+  ?? @lstring regName
+  ?? @varAbstractType type
+  ?! @ASTInstructionList regDefList
+;
+
+#registers as defined in components.
 rule <registerDef>
   ?! @ASTInstructionList regDefList
 :
@@ -30,35 +37,13 @@ rule <registerDef>
     $program$; $counter$;
     varClass := [@varClass programCounter];
   end select;
-  @varAbstractType type;
-  <typeDeclaration> ?type;
-  @lstring idf;
-  $idf$ ?idf;
+  <typeDeclaration> ?@varAbstractType type;
+  $idf$ ?@lstring idf;
   regDefList += ![@ASTInstDeclaration new !here !varClass !type !idf];
   select
   or
     <registerBitAccessDef> !idf !type !?regDefList;
   end select;
-end rule;
-
-rule <registerBitAccessDef>
-  ?? @lstring regName
-  ?? @varAbstractType type
-  ?! @ASTInstructionList regDefList
-:
-  ${$;
-  repeat
-  while
-    @lstring bitFieldName;
-    $idf$ ?bitFieldName;
-    $:=$; $slice$;
-    @ASTfieldList fieldList;
-    <bitField> ?fieldList;
-    regDefList += ![@ASTInstDeclarationRegSlice new !here 
-                                ![@varClass registerSlice] !type !regName 
-                                !bitFieldName !fieldList];
-  end repeat;  
-  $}$;
 end rule;
 
 rule <component> 

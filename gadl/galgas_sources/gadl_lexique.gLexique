@@ -245,7 +245,9 @@ list keyWordList error message "the '%K' keyword" style keywordsStyle:
 "loop","while",                                          #loops 
 "true","false","ror","rol","cat",                        #expression
 "instruction","size","address",                          #expression
-"core", "import","isa","from"                            #core
+"core", "import","isa","from",                           #core
+"peripheral",                                            #peripherals
+"cpu"                                                    #cpu
 ;
 #-------------a variable .. and identifers (1/2).---------------------
 # TODO: not terminated. u3f does not send an identifier for instance.

@@ -466,6 +466,7 @@ function printValue
   when unsignedType:
     str .= [[mValue mUnsigned64Value] string];
   when stringType:
+    str .= getXMLCompliant[![mValue mStringValue]];
   when listType:
     str .= extractListTemplateStructureRec[![mValue mMapListValue] !nbTab+1].tabsTpl[!nbTab];
   when mapType:
@@ -483,8 +484,10 @@ function getXMLCompliant
   -> @string xml
 :
   xml := [base stringByReplacingStringByString !"&" !"&amp;"]; #XML
-  xml := [xml stringByReplacingStringByString !"<" !"&lt;"];  #XML
-  xml := [xml stringByReplacingStringByString !">" !"&gt;"];  #XML
+  xml := [xml stringByReplacingStringByString !"<" !"&lt;"];   #XML
+  xml := [xml stringByReplacingStringByString !">" !"&gt;"];   #XML
+  xml := [xml stringByReplacingStringByString !"\"" !"&quot;"];#XML
+  xml := [xml stringByReplacingStringByString !"'" !"&apos;"]; #XML
 end function;
 
 #map type (recursive)

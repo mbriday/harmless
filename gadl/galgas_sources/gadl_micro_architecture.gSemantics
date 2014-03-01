@@ -101,7 +101,8 @@ end routine;
 
 routine microArchPart
   ?? @Isa isa
-  ?? @lstring modelName
+  ?? @lstring coreName
+  ?? @lstring exportDir
   ?? @machineMap machineMap
   ?? @pipelineMap pipelineMap
   ?? @architectureMap archMap
@@ -120,13 +121,13 @@ routine microArchPart
     useCAS := true;
     @graphNodeMap componentAccessMap;
     getInstructionComponentGraph ![isa decodedBehaviorMap] ![isa defaultValues] ?componentAccessMap;
-    generateComponentAccessGraphViz !componentAccessMap ![modelName string];
+    generateComponentAccessGraphViz !componentAccessMap ![exportDir string];
     @instructionPipelinePathList ippList;
     @lstring firstMachine;
     [[machineMap keyList] first ?firstMachine];
     [ippListMap searchKey !firstMachine ?ippList];
     @graphNodeMapMap portAccessMap;
-    mapInstructionsOnArchitecture !archMap !pipelineMap !ippList !componentAccessMap ?portAccessMap ![modelName string] !varIdfStruct !?templateStruct;
+    mapInstructionsOnArchitecture !archMap !pipelineMap !ippList !componentAccessMap ?portAccessMap ![exportDir string] !varIdfStruct !?templateStruct;
     @stringMap instToInstructionClassMap;
     @instructionClassMap icMap;
     extractInstructionClasses !portAccessMap ?icMap ?instToInstructionClassMap !?templateStruct;
@@ -142,7 +143,7 @@ routine microArchPart
     @boolMap regMap := [varIdfStruct->varMap getDDCRegMap];
     @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap := [memChunk getDDCMemoryRegisterInfoMap !memSpaceWithRegister ![regMap count]];
     generateDDCMethodsInInstructions !regMap !DDCMemoryRegisterInfoMap !DDCRegisterAccessMap !?templateStruct;
-    generateP2AFiles !modelName !pipelineMap !icMap !archMap !ippList !devicePortToRemove !DDCPipelineInfoList !?templateStruct;
+    generateP2AFiles !exportDir !coreName !pipelineMap !icMap !archMap !ippList !devicePortToRemove !DDCPipelineInfoList !?templateStruct;
     microArchPipelineTemplate !?templateStruct !pipelineMap;
   else
     if [option .verbose_output value] then

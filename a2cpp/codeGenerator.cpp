@@ -28,6 +28,8 @@ string codeGenerator::tab()
 
 void codeGenerator::generateFilePreamble()
 {
+	string modelName = m_configuration->modelName();
+
 	CPP << "/** automata simulation" << endl;
 	CPP << "automatically generated using a2cpp." << endl;
 	CPP << "DO NOT MODIFY." << endl;
@@ -35,8 +37,8 @@ void codeGenerator::generateFilePreamble()
 
 	CPP << "#include <cassert> //assert" << endl;
 	CPP << "#include \"" << m_prefix << ".h\"" << endl;
-	CPP << "#include \"instruction.h\"" << endl;
-	CPP << "#include \"core.h\"" << endl;
+	CPP << "#include \"" << modelName << "_instruction.h\"" << endl;
+	CPP << "#include \"" << modelName << "_core.h\"" << endl;
 	CPP << endl;
 }
 

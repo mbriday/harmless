@@ -1,0 +1,26 @@
+il faut que le système de test:
+* se base sur les exemples "normaux"
+* se base sur des exemples locaux, genre un modèle qui doit générer une erreur.
+-> faire une entrée "localModel"
+-> fait
+
+permette de limiter les compilations, et optimise pour qu'un modèle ne soit
+compilé qu'une seule fois pour tous les tests associés
+-> c'est fait.
+
+Pour les tests, il faut pouvoir avoir:
+* les comparaisons: un script python (ou standalone), comparé avec un fichier
+de résultat. Si le fichier n'existe pas, il est créé.
+* les tests de behaviors. Ils sont coupés en 2:
+	* une partie 'build', qui permet de les générer -> nécessite le
+	cross-compilateur, mais pas le modèle Harmless
+	* une partie 'compare', qui utilise le modèle Harmless, et fait la
+	comparaison
+* les tests des mibenchs, en faisant une comparaison sur le nombre
+d'instructions et de cycles. Est-ce que ça a besoin d'être un cas particulier?
+
+On va faire des tests:
+* sur les erreurs générées à la compilation du modèle: appel par gadl;
+* sur les cas particuliers -> script dédié et comparaison.
+* sur les timings, avec les mibenchs par exemple, en comparant le nb de cycles.
+

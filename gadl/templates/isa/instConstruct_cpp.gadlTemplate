@@ -1,20 +1,20 @@
 %template headerC%
-#include "instruction.h"
+#include "%!core::NAME%_instruction.h"
 
 #include <iostream>
 using namespace std;
 
 #include "macro.h"
 
-%!MODELNAME%_instruction::%!MODELNAME%_instruction(const %!idfStruct::PC_C_TYPE% instructionPointer) : m_pc(instructionPointer)
+%!core::NAME%_instruction::%!core::NAME%_instruction(const %!core::idfStruct::PC_C_TYPE% instructionPointer) : m_pc(instructionPointer)
 {
 	m_user = 1;
 }
 
-%foreach inst in INST_CONSTRUCTOR do
+%foreach inst in core::INST_CONSTRUCTOR do
   #declaration
   !inst::name%::%!inst::name
-  !instContructorParam[inst::name]% : %!MODELNAME%_instruction(pc) %
+  !instContructorParam[inst::name]% : %!core::NAME%_instruction(pc) %
   #constructor body.
   %{\n%!inst::INST_CONSTRUCTOR_BODY%}\n%
 between % \n%

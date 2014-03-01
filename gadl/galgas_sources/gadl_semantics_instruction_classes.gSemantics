@@ -401,7 +401,7 @@ routine mapInstructionsOnArchitecture
   ?? @instructionPipelinePathList ippList
   ?? @graphNodeMap componentAccessMap
   !  @graphNodeMapMap portAccessMap 
-  ?? @string modelName
+  ?? @string exportDir
   ?? @varIdfStruct varIdfStruct  
   ?! @TfieldMap templateStruct
 :
@@ -447,7 +447,7 @@ routine mapInstructionsOnArchitecture
         [!?portAccessMapForInstruction insertKey ![@lstring new !fpsLog !here] !portAccessNode];
         @string graphVizContent := graphNodeOutput[!portAccessNode ![instName string]];
         @string exportFileName := [instName string]."-dev".nbSolution;
-        createFile !modelName."/log" !exportFileName.".dot" !graphVizContent;
+        createFile !exportDir."/log" !exportFileName.".dot" !graphVizContent;
         addStringValue !?instMappingOnPipelineBody !lstringWith[!"file"] !exportFileName;
         nbSolution ++;
 #        message "ok\n";

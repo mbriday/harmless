@@ -8,6 +8,7 @@ with "gadl_default_parser.gSyntax";
 with "gadl_components_parser.gSyntax";
 with "gadl_function_parser.gSyntax";
 with "gadl_instruction_behavior_parser.gSyntax";
+with "gadl_register_parser.gSyntax";
 
 root <isa> !@ASTIsa ASTIsa;
 

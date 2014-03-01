@@ -48,6 +48,26 @@
 			<key>NSDocumentClass</key>
 			<string>OC_GGS_Document</string>
 		</dict>
+		<dict>
+			<key>CFBundleTypeIconFile</key>
+			<string>cpu_icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>cpu</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>gadl Source</string>
+			<key>CFBundleTypeOSTypes</key>
+			<array>
+				<string>TEXT</string>
+			</array>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSTypeIsPackage</key>
+			<false/>
+			<key>NSDocumentClass</key>
+			<string>OC_GGS_Document</string>
+		</dict>
 
 	</array>
 </dict>

@@ -64,12 +64,16 @@ end function;
 ##NO_BEHAVIOR         : command line option.
 ##HOST_COMPILATION_64_BITS : used in Makefile for default simulator compilation mode
 #TODO constructor.
+
 modifier @TfieldMap initTemplate
-  ?? @lstring modelName
+  ?? @lstring cpuName
+  ?? @lstring exportDir
 :
   @TfieldMap templateStructCopy := selfcopy;
   #model name
-  addLStringValue !?templateStructCopy !"MODELNAME" !modelName;
+  addLStringValue !?templateStructCopy !"CPUNAME" !cpuName;
+  #export Dir
+  addLStringValue !?templateStructCopy !"exportDir" !exportDir;
   #date
   @string date := [@string stringWithCurrentDateTime];
   addStringValue !?templateStructCopy !lstringWith[!"DATE"] !date;

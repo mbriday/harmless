@@ -6,8 +6,8 @@
 
 #include "types.h"
 
-class %!MODELNAME%_instDecoder;
-class %!MODELNAME%_instruction;
+class %!core::NAME%_instDecoder;
+class %!core::NAME%_instruction;
 class core;
 
 #define IDC_VALID_OFFSET 0
@@ -27,29 +27,29 @@ class core;
 //	* a tag
 //	* a valid bit
 //	* the number of instruction code chunks
-struct %!MODELNAME%_instDecoderCacheEntry
+struct %!core::NAME%_instDecoderCacheEntry
 {
 	/**instruction stored in the cache*/
-	%!MODELNAME%_instruction *inst;
+	%!core::NAME%_instruction *inst;
 	/** the control bit field is composed of
 	 * bit 0 : valid bit -> the entry contains an instruction (0 -> no data).
 	 * bit 1..4 : nb of chunks required. (i.e. the number of time the fetch 
 	 *                                    function should be called)
 	 * bit 5.. : tag. index length may be from 1??? to 14 bits. The size of the 
 	 *           cache will be 2^(index length) entries. The instruction 
-	 *           pointer (%!idfStruct::PC_SIZE_IN_BITS% bits) is composed of a  
-	 *           -- tag -- index -- zeros ( %!FETCH_ALIGNMENT_IN_BITS% '0' according to alignment)
-	 *           => tagLength+indexLength = %!idfStruct::PC_SIZE_IN_BITS%-%!FETCH_ALIGNMENT_IN_BITS%
+	 *           pointer (%!core::idfStruct::PC_SIZE_IN_BITS% bits) is composed of a  
+	 *           -- tag -- index -- zeros ( %!core::FETCH_ALIGNMENT_IN_BITS% '0' according to alignment)
+	 *           => tagLength+indexLength = %!core::idfStruct::PC_SIZE_IN_BITS%-%!core::FETCH_ALIGNMENT_IN_BITS%
 	 */
 	u32 control;
 };
 
-class executeInstAction;
+class %!core::NAME%_executeInstAction;
 
-class %!MODELNAME%_instDecoderCache
+class %!core::NAME%_instDecoderCache
 {
 	//buffer that stores instructions.
-	%!MODELNAME%_instDecoderCacheEntry *m_buffer;
+	%!core::NAME%_instDecoderCacheEntry *m_buffer;
 
 	//size of the block
 	const unsigned int m_indexLengthBits;
@@ -65,45 +65,45 @@ class %!MODELNAME%_instDecoderCache
      *  updated accordingly and the instruction pointer is returned. In the other case, a
 	 *  NULL pointer is returned.
      */
-    %!MODELNAME%_instruction *isInBuffer(const %!idfStruct::PC_C_TYPE% index, 
-										const %!idfStruct::PC_C_TYPE% tag, 
-										%!idfStruct::PC_C_TYPE% &codeAddr%!defaultFetchDeclare%);
+    %!core::NAME%_instruction *isInBuffer(const %!core::idfStruct::PC_C_TYPE% index, 
+										const %!core::idfStruct::PC_C_TYPE% tag, 
+										%!core::idfStruct::PC_C_TYPE% &codeAddr%!defaultFetchDeclare%);
 
 	/** decode a new instruction (that was not in the cache), update the instruction 
 	 *  pointer, and set it in the buffer. 
      *  If there is no entry available, the last recently used entry is removed
      */
-    %!MODELNAME%_instruction* storeInBuffer(core *_core,
-							               %!idfStruct::PC_C_TYPE% &codeAddress,
-							               %!MODELNAME%_instDecoder *decoder,	
-							               const %!idfStruct::PC_C_TYPE% index, 
-							               const %!idfStruct::PC_C_TYPE% tag%!defaultFetchDeclare%);
+    %!core::NAME%_instruction* storeInBuffer(%!core::NAME%_core *_core,
+							               %!core::idfStruct::PC_C_TYPE% &codeAddress,
+							               %!core::NAME%_instDecoder *decoder,	
+							               const %!core::idfStruct::PC_C_TYPE% index, 
+							               const %!core::idfStruct::PC_C_TYPE% tag%!defaultFetchDeclare%);
 
     public:
 	/** get instruction in the cache (and update instruction pointer) if it was previously used. 
 	 *  In the other case, the instruction is decoded, the instruction pointer is updated and 
 	 *  the new instruction is stored in the buffer.
 	 */
-    %!MODELNAME%_instruction *getInstruction(core *_core, %!idfStruct::PC_C_TYPE% &pc, %!MODELNAME%_instDecoder *%!defaultFetchDeclare%);
+    %!core::NAME%_instruction *getInstruction(%!core::NAME%_core *_core, %!core::idfStruct::PC_C_TYPE% &pc, %!core::NAME%_instDecoder *%!defaultFetchDeclare%);
 	/** constructor.
 	 * \param indexLengthBits size of the buffer in bits. For instance 8 will build 
 	 * a direct cache with 256 entries.
 	 */
-    %!MODELNAME%_instDecoderCache(const unsigned int indexLengthBits);
+    %!core::NAME%_instDecoderCache(const unsigned int indexLengthBits);
 	/** print useful information on std output (cache use, nb of hits/miss) 
 	 */
 	void printCacheStats();
 
 	//just to know if an instruction is in the cache.
-	%!MODELNAME%_instruction *isInCache(const %!idfStruct::PC_C_TYPE% address);
+	%!core::NAME%_instruction *isInCache(const %!core::idfStruct::PC_C_TYPE% address);
 	
-	/** should be called when an executeInstAction is added
-	 * The executeInstAction embedds both an instruction AND a list of execute actions.
+	/** should be called when an %!core::NAME%_executeInstAction is added
+	 * The %!core::NAME%_executeInstAction embedds both an instruction AND a list of execute actions.
 	 */
-	void replaceInCache(const %!idfStruct::PC_C_TYPE% addr, %!MODELNAME%_instruction *inst,executeInstAction *eia);	
+	void replaceInCache(const %!core::idfStruct::PC_C_TYPE% addr, %!core::NAME%_instruction *inst,%!core::NAME%_executeInstAction *eia);	
 	/** deconstructor.
 	 */
-	~%!MODELNAME%_instDecoderCache();
+	~%!core::NAME%_instDecoderCache();
 
     private:
 };

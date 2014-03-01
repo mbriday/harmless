@@ -409,7 +409,9 @@ reader @varMap getDDCRegMap
   foreach regMap do
     msg .= [lkey string]." ";
   end foreach;
-  message msg."\n";
+  if [option .verbose_output value] then  
+    message msg."\n";
+  end if;
 end reader;
 
 #This routine generate the data dep controller related methods for each instruction.

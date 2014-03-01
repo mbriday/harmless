@@ -1,21 +1,23 @@
 %
 #main.cpp is related to target 'standalone' -> hand written scenario.
-write to MODELNAME."/main.cpp":
+write to exportDir."/main.cpp":
   template main_cpp in target
 end write
 
 #core.i is related to target 'python' -> interface between python and C++ using Swig
-write to MODELNAME."/core.i":
-  template core_i in target
-end write
+foreach core in coreList do
+  write to exportDir."/".core::NAME."_core.i":
+    template core_i in target
+  end write
+end foreach
 
 #gdb target related files.
 if exists GDB_DEBUG_COMPONENT then
-  write to MODELNAME."/gdbServerInterface.cpp":
+  write to exportDir."/gdbServerInterface.cpp":
     template gdbServerInterface_cpp in target
   end write
 
-  write to MODELNAME."/main_gdb.cpp":
+  write to exportDir."/main_gdb.cpp":
     template main_gdb_cpp in target
   end write
 end if

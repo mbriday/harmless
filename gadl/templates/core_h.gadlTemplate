@@ -1,22 +1,20 @@
 %template headerC%
-#ifndef __%!MODELNAME%_CORE_H__
-#define __%!MODELNAME%_CORE_H__
+#ifndef __%!core::NAME%_CORE_H__
+#define __%!core::NAME%_CORE_H__
 
+#include "core.h"
 #include "types.h"
 #include "storage.h"
 #include "macro.h"
-#include "instructionBase.h"
+#include "%!core::NAME%_instructionBase.h"
 #include "fifo.h"
 #include <vector> 
 #include <string>
 #include <string.h> //required by Linux for memcpy...
 
-#include <map> //used for breakpoints.
-class breakpointAction;
 class executeAction;
-class %!MODELNAME%_instDecoder;
-class %!MODELNAME%_instruction;
-class codeReader;
+class %!core::NAME%_instDecoder;
+class %!core::NAME%_instruction;
 
 #ifdef DEBUG_MEM
 #include <assert.h>
@@ -30,31 +28,31 @@ class codeReader;
 	class pipelineTraceDebug;
 #endif
 
-%if exists timingList then
-if [timingList length] > 0 then
+%if exists core::timingList then
+if [core::timingList length] > 0 then
 %//timing parts.
 #include "timingSignal.h"
 class timingBase;
 %end if
-foreach timing in timingList do
+foreach timing in core::timingList do
   %#include "timing_%!timing::name%.h"\n% #tmp: only the timing for activation is required.
 end foreach
 end if #timingList exists
 
 if useCAS then
-  foreach pipeline in pipelineList 
+  foreach pipeline in core::pipelineList 
   before
   %//pipeline models declaration\n%
   do
     %class %!pipeline::name%;\n%
   end foreach
-  if exists DDCRegInfo then
+  if exists core::DDCRegInfo then
     %//DDC register mask definition\n%
-    foreach reg in DDCRegInfo do
+    foreach reg in core::DDCRegInfo do
       %#define DDC_REGISTER_MASK_%!reg::regName% (1<<%!reg::id%)\n%
     end foreach
-    if exists DDCRegChunk then
-      foreach chunk in DDCRegChunk do
+    if exists core::DDCRegChunk then
+      foreach chunk in core::DDCRegChunk do
       %#define DDC_REGISTER_NAME_R_AS_%!chunk::memSpace% m_DDCreadReg%!chunk::maskId%Access\n%
       %#define DDC_REGISTER_NAME_W_AS_%!chunk::memSpace% m_DDCwriteReg%!chunk::maskId%Access\n%
       %#define DDC_REGISTER_OFFSET_AS_%!chunk::memSpace% (%!chunk::maskOffset%)\n%
@@ -64,50 +62,10 @@ if useCAS then
 end if
 %
 
-class core
-{
-	public:
-		/** ISS (Instruction Set Simulation) mode or
-		 *  CAS (Cycle Accurate Simulation) mode.
-		 */ 
-		enum executionMode {ISS, CAS};
-		
-		///constructor
-		core();
-
-		/** 
-		 * Stop the simulation (breakpoint, ..)
-		 * \param : reason: see m_stopSimu var
-		 */
-		void stopSimu(int);
-
-	private:
-		/** values are the same than in gdb-server.
-		 *  0  : Run
-		 *  18 : Stopped by user
-		 *  5  : Breakpoint found 
-		 */
-		int m_stopSimu; 
-
-		/** used for breakpoints (interactive simulation). Breakpoints use actions.
-		 * When a breakpoint is defined at an address, an action is inserted. 
-		 * This variable store the address of the last breakpoint found.
-		 */
-		u32  m_lastBreakpointAddr;
-		
-		/** map that stores a pointer for each action. This is useful to
-		*  remove all breakpoints. Key is the address (in program chunk).
-		*/  
-		std::map<u32, breakpointAction *> m_breakpointActionMap; 
-		
-		/** object that read a program file from a Intel Hex, 
-		 *  Motorola SRecord or Elf format and store code in memory.
-		 *  It can also handle symbols.
-		 */
-		codeReader *m_reader;
-	
+class %!core::NAME%_core : public core
+{	
 		///core memory chunks declaration.
-%foreach memInCore in memInCoreList do
+%foreach memInCore in core::memInCoreList do
   let storageName := memInCore::name."_memChunk"
   %\t\t%
   if memInCore::type == 0 then %roStorage% #ROM
@@ -117,7 +75,7 @@ class core
  end foreach
 %
 		///registers (global use) var declaration
-%foreach reg in idfStruct::varList do
+%foreach reg in core::idfStruct::varList do
   if reg::varClassId == 0 #program counter
    | reg::varClassId == 1 #GPR
    | reg::varClassId == 2 then #SFR
@@ -125,24 +83,10 @@ class core
   end if
 end foreach
 %
-
-		///store the number of cycles executed since the beginning of the simulation.
-		///value is not updated in ISS mode.
-		u64 m_nbCycles;
-		///store the number of instruction executed since the beginning of the simulation.
-		///value is updated both in CAS and ISS modes.
-		u64 m_nbInst;
 		
 		///pointer to the decoder... that decodes instructions :-)
-		%!MODELNAME%_instDecoder *m_decoder;
+		%!core::NAME%_instDecoder *m_decoder;
 	
-		///ISS (Instruction Set Simulation) mode or
-		///CAS (Cycle Accurate Simulation) mode.
-		executionMode m_executionMode;
-	
-		/// Exec instruction (ISS mode)
-		/// \param nb number of instruction to execute.
-		int emuInst(const unsigned int nb);
 
 %if exists useCounters then
 %		//counters of component method accesses.\n%
@@ -156,18 +100,15 @@ end if
 		stackSpyController *m_stackController;
 		#endif
 
-		//internal function related to file I/O stubs.
-		bool addIOStub(executeAction *act, std::string funcName);
-
 %if useCAS then
-   foreach pipeline in pipelineList 
+   foreach pipeline in core::pipelineList 
    before
    %		//pipeline models instance\n%
    do%
 		%!pipeline::name% *m_pipeline%!pipeline::name%;
-		%!MODELNAME%_instruction *m_nextInstruction_%!pipeline::name%;
+		%!core::NAME%_instruction *m_nextInstruction_%!pipeline::name%;
 %    let pipelineBufferSize := 1 << nbBitsToCodeUnsigned([pipeline::stageList length] - 1)
-%		%!MODELNAME%_instruction *m_instructionsInPipeline_%!pipeline::name%[%!pipelineBufferSize%];
+%		%!core::NAME%_instruction *m_instructionsInPipeline_%!pipeline::name%[%!pipelineBufferSize%];
 		u64 m_instInPipe_%!pipeline::name%;
 		//*******  Data Cache (TODO:Hand coded).*****
 		u64 m_memStage; //TODO: will not work if more than 1 pipeline!
@@ -195,7 +136,7 @@ end if #useCAS
 		void debugDDCRegField(); //debug.
 %if useCAS then
 %		//DDC register file access (R/W);
-%		foreach DDCReg in DDCRegDef do
+%		foreach DDCReg in core::DDCRegDef do
 %		//DDC register for %
 			foreach ms in DDCReg::memSpaceList
 			do !ms::memSpace
@@ -207,11 +148,11 @@ end if #useCAS
 end if #useCAS
 %\n		//timing related automata.
 %
-if exists timingList then
-foreach timing in deviceToTimingMap do
+if exists core::timingList then
+foreach timing in core::deviceToTimingMap do
   %\t\ttiming%!timing% *m_timing%!KEY%;\n%
 end foreach
-if [timingList length] > 0 then
+if [core::timingList length] > 0 then
 %		timingBase *m_pendingSignalEmitTab[NB_SIGNAL_EMIT];
 		timingBase *m_pendingSignalWaitTab[NB_SIGNAL_WAIT];
 		timingBase *m_timingListRoot;
@@ -226,65 +167,12 @@ end if #exists timingList
 		 *  status
 		 *******************************************************************/
 		///debugging info
-		void decoderStats();
-		/** get number of cycles executed since the beginning of the simulation.
-		 * This value is not modified in ISS mode (functional)
-		 */
-		inline unsigned long long const getNBCycles() const {return m_nbCycles;};
-		/// get number of instruction executed since the beginning of the simulation.
-		inline unsigned long long const getNBInstructions() const {return m_nbInst;};
+		virtual void decoderStats();
 		/** generic function to access the program counter */
-		inline %!idfStruct::PC_C_TYPE% programCounter() {%if useCAS then%
-			m_DDCreadReg0Access |= DDC_REGISTER_MASK_%!idfStruct::PC_NAME%; %end if%
-			return m_%!idfStruct::PC_NAME%;};
+		u32 programCounter() {%if useCAS then%
+			m_DDCreadReg0Access |= DDC_REGISTER_MASK_%!core::idfStruct::PC_NAME%; %end if%
+			return (u32)(m_%!core::idfStruct::PC_NAME%);};
 		
-		/** returns the function symbol for a given address (typically program counter). (for ELF files). */
-		std::string whichFunctionAtAddress(const u32 v_addr);
-
-		/** Disassemble binary code.
-		* \param ipStart Instruction Pointer from which the disassemble is started
-		* \param nbBytes Number of bytes to disassemble: Value may be exceeded: 
-		* i.e. if set to 1 to decode a 32 bits instruction, 1 instruction will be decoded.
-		* \param verbose return also the address where the code is decoded and the opcode of the instruction.
-		*/ 
-		std::string disassemble(const unsigned int pcStart, const int nbBytes, bool verbose = false);
-		/** print the value of all variables defined as 'register' in the description
-          * It does not take into account memory chunk defined has 'register'
-          */
-		void printRegs();
-		/* @return the physical address. 
-		 * If no physical address is matching, the virtual address is returned
-		 * and found is set to false.
-	 	 */
-		#ifdef SWIG /*Swig wrapper (for Python interface)*/
-			u32 getPhysicalAddress(const u32 v_addr, bool &OUTPUT);
-		#else
-			u32 getPhysicalAddress(const u32 v_addr, bool &found);
-		#endif
-		/* this function search for the virtual address and size of the symbol name (first parameter).
-		 * @return true if a symbol have been found, and updates v_addr and size
-		 * @return false if no symbol is matching. v_addr and size are not updated.
-		 */
-		#ifdef SWIG /*Swig wrapper (for Python interface)*/
-			bool getSymbolObjectAddress(const char *symbolName, u32 &OUTPUT, u32 &OUTPUT);
-		#else
-			bool getSymbolObjectAddress(const char *symbolName, u32 &v_addr, u32 &size);
-		#endif
-		/* this function search for the virtual address of the function (first parameter).
-		 * @return true if a function have been found, and updates v_addr 
-		 * @return false if no function is matching. v_addr and size are not updated.
-		 */
-		#ifdef SWIG /*Swig wrapper (for Python interface)*/
-			bool getFunctionName(const char *symbolName, u32 &OUTPUT);
-		#else
-			bool getFunctionName(const char *symbolName, u32 &v_addr);
-		#endif
-		
-		/** print all object symbols (for ELF files)*/
-		void dumpObjects();
-		/** print all function symbols  (for ELF files)*/
-		void dumpFunctions();
-
 		/** Use this function to record the pipeline trace.. Simulation is quite slower. */
 		void usePipelineTrace();
 		/** Output pipeline trace to a .ptr file 
@@ -296,75 +184,48 @@ end if #exists timingList
 		 * updated to point to the next instruction address.
 		 **/
 		#ifdef SWIG /*Swig wrapper (for Python interface)*/		
-			std::string getInstructionStaticInfo(unsigned int &INOUT);
+			virtual std::string getInstructionStaticInfo(unsigned int &INOUT);
 		#else
-			std::string getInstructionStaticInfo(unsigned int &p_addr);
+			virtual std::string getInstructionStaticInfo(unsigned int &p_addr);
 		#endif
+		/** print the value of all variables defined as 'register' in the description
+          * It does not take into account memory chunk defined has 'register'
+          */
+		virtual void printRegs();
+		/** Disassemble binary code.
+		* \param ipStart Instruction Pointer from which the disassemble is started
+		* \param nbBytes Number of bytes to disassemble: Value may be exceeded: 
+		* i.e. if set to 1 to decode a 32 bits instruction, 1 instruction will be decoded.
+		* \param verbose return also the address where the code is decoded and the opcode of the instruction.
+		*/ 
+		virtual std::string disassemble(const unsigned int pcStart, const int nbBytes, bool verbose = false);
 
-		/*******************************************************************
-		 *  Breakpoints
-		 *******************************************************************/
-		/** remove all breakpoints (interactive simulation) */
-		void removeAllBreakpoints();
-		/** remove a breakpoint for interactive simulation */
-		void removeBreakpoint(const unsigned int addr);
-		/** remove a breakpoint for interactive simulation */
-		void removeBreakpoint(const char *symbolName);
-		/** add a breakpoint for interactive simulation
-		 *  An error is generated if there is already a breakpoint at this addr.
-		 */
-		void addBreakpoint(const unsigned int addr);
-		/** add a breakpoint for interactive simulation */
-		void addBreakpoint(const char *symbolName);
-
-		/*******************************************************************
-		 *  Configuration
-		 *******************************************************************/
-		/** Set the simulator mode:
-		 *  - ISS: Instruction Set Simulator
-		 *  - CAS: Cycle Accurate Simulator
-		 */
-		void setExecutionMode(const executionMode mode);
-		/** install io stubs to support open, close, read and write functions.
-		 * These functions are mapped to the host, using actions.
-		 * It returns true if there was no error.
-		 * This function requires extra files (ioStubs.cpp and .h) that are nor yet
-		 * generated by the Harmless compiler (have a look in the example folder)
-		 * Moreover, the USE_IO_STUBS should be set to 1 in the Makefile and it requires
-		 * actions.
-		 */
-		bool useIOStubs();
 		
 		/*******************************************************************
 		 *  Execution
 		 *******************************************************************/
 		/// restore the cpu in the init state (called in constructor)
-		void reset();
-		/** Read a code file with 
-		 *  - Intel Hex format
-		 *  - Motorola SRecord format
-		 *  - ELF format (if linked with the appropriate library).
-		 *  (no CRC verification)
-		 *  \return true if the code file is correctly read.
-		 */  
-		bool readCodeFile(const char *filename, const bool verbose = false);
+		virtual void reset();
 		/** simulate instructions of the processor.
 		* The simulator may be in CAS or ISS mode
 		* \param nb number of instruction to execute.
 		* \return what causes the execution to stop : 18 on user stop, 5 on breakpoint or 0 on success
 		*/ 
-		int execInst(const unsigned int nb);
+		virtual int execInst(const unsigned int nb);
+		/// Exec instruction (ISS mode)
+		/// \param nb number of instruction to execute.
+		int emuInst(const unsigned int nb);
 
 		/** run simulation until PC=addr. It does not take into account segmentation!!
 		 *  \param addr the address compared to the program counter
 		 *  \param max the max number of instruction to execute.
 		 */
-		void runUntil(const unsigned int addr, const unsigned int max);
+		virtual void runUntil(const unsigned int addr, const unsigned int max);
 
 		/** generic function to access the program counter */
-		inline void setProgramCounter(const %!idfStruct::PC_C_TYPE% val) { %if useCAS then%
-			m_DDCwriteReg0Access |= DDC_REGISTER_MASK_%!idfStruct::PC_NAME%; %end if%
-			m_%!idfStruct::PC_NAME% = val;};
+		void setProgramCounter(const u32 val) { %if useCAS then%
+			m_DDCwriteReg0Access |= DDC_REGISTER_MASK_%!core::idfStruct::PC_NAME%; %end if%
+			m_%!core::idfStruct::PC_NAME% = val;};
 
 		/** return the object that reads the binary application code */
 		codeReader *getCodeReader() {return m_reader;};
@@ -381,20 +242,12 @@ end if #exists timingList
 		 *             simulators objects: memory, actions, ...
 		 *             THEY SHOULD NOT BE CALLED DURING SIMULATION.
 		 *******************************************************************/
-		/**
-		 * This is an internal function that SHOULD ONLY be called 
-		 * from harmless instructions.
-		 */
-		inline void addCycle(unsigned int val) {m_nbCycles += val;};
-
-		void removeExecuteActionAtAddress(const u32 addr, executeAction *ea);
-		void addExecuteActionAtAddress(const u32 addr, executeAction *ea);
-		/** this method should ONLY be called by an action that is 
-		 *  associated to a breakpoint (interactive simulation)
-		 */
-		inline void actionFoundABreakpoint(const u32 addr) {stopSimu(5); m_lastBreakpointAddr = addr;};
 		/** return the memory chunk that contains 'address'. This is used for program loading. */
-		storage * getProgramChunk(const unsigned int address);
+		virtual storage * getProgramChunk(const unsigned int address);
+
+		virtual void removeExecuteActionAtAddress(const u32 addr, executeAction *ea);
+		virtual void addExecuteActionAtAddress(const u32 addr, executeAction *ea);
+
 		/** this method is called by instructions that have a 'nop' statement:
          *  'add xx nop'
 		 * This method will be called to decode (and NOT execute) the next xx (val)
@@ -404,7 +257,7 @@ end if #exists timingList
 		void doNotExececuteNextInstructions(const u32 val);
 
 %if useCAS then
-   foreach pipeline in pipelineList do 
+   foreach pipeline in core::pipelineList do 
 %		/** pipeline model related function */
 		unsigned int getNextInstructionCodeIn_%!pipeline::name%();
 		/** pipeline model related function */
@@ -417,7 +270,7 @@ end if #exists timingList
 		/** internal function that translates an address from the linker
           * to a real address in the global memory address.
           */
-		u32 linkerAddressTranslation(u32 addr);
+		virtual u32 linkerAddressTranslation(u32 addr);
 		/** This is the default fetch function used in the decode phase. Another Fetch function can be defined
          *  and should be declared in the default section of the .hadl processor description
          *  This function just get a word (size is defined in instruction size in the default section) in 
@@ -427,23 +280,23 @@ end if #exists timingList
 		 * If a user fetch function is defined, the default fetch function is used for the disassembler.
          */
 		#ifdef SWIG /*Swig wrapper (for Python interface)*/
-			inline %!INST_DEFAULT_C_SIZE% defaultFetch(%!idfStruct::PC_C_TYPE% &INOUT)
+			inline %!core::INST_DEFAULT_C_SIZE% defaultFetch(%!core::idfStruct::PC_C_TYPE% &INOUT)
 		#else
-			inline %!INST_DEFAULT_C_SIZE% defaultFetch(%!idfStruct::PC_C_TYPE% &pc)
+			inline %!core::INST_DEFAULT_C_SIZE% defaultFetch(%!core::idfStruct::PC_C_TYPE% &pc)
 		#endif
 		{
 			unsigned int realAddress = getFetchAddress(pc);
 			roStorage *codeMem = (roStorage *)getProgramChunk(realAddress);
-			const %!INST_DEFAULT_C_SIZE% instCode = codeMem->read%!INST_SIZE_IN_BITS%AtAddress(realAddress);
-			pc += %!INST_SIZE_IN_BYTES%;
+			const %!core::INST_DEFAULT_C_SIZE% instCode = codeMem->read%!core::INST_SIZE_IN_BITS%AtAddress(realAddress);
+			pc += %!core::INST_SIZE_IN_BYTES%;
 			return instCode;
 		}
 
 		inline u32 getFetchAddress(u32 address)
 		{
 			 return %
-		if fetchAddressComponentName != "" then
-			!fetchAddressComponentName%_%!fetchAddressMethodName%(address)%
+		if core::fetchAddressComponentName != "" then
+			!core::fetchAddressComponentName%_%!core::fetchAddressMethodName%(address)%
 		else
 			%address%
 		end if%;
@@ -452,7 +305,7 @@ end if #exists timingList
 		//this function should be called ONLY by the execute method of an instruction.
 		inline void initDDCRegAccess() {
 
-%			foreach chunk in DDCRegChunk do %
+%			foreach chunk in core::DDCRegChunk do %
            //memSpace   %!chunk::memSpace%
            //maskId     %!chunk::maskId%
            //maskOffset %!chunk::maskOffset%
@@ -461,7 +314,7 @@ end if #exists timingList
              //offset %!offset::offset%
            %end foreach
 			end foreach
-			foreach DDCReg in DDCRegDef do
+			foreach DDCReg in core::DDCRegDef do
 %			//DDC chunk for %
 				foreach ms in DDCReg::memSpaceList
 				do !ms::memSpace
@@ -472,7 +325,7 @@ end if #exists timingList
 			end foreach%
 		};
 %
-			foreach DDCReg in DDCRegDef
+			foreach DDCReg in core::DDCRegDef
 			do
 %			//this function should be called ONLY by the execute method of an instruction.
 			inline void getDDCReg%!DDCReg::id%AccessMask(u64 &r, u64 &w) {
@@ -482,8 +335,8 @@ end if #exists timingList
 %
 			end foreach
 end if #useCAS
-		if exists timingList then
-			if [timingList length] > 0 then
+		if exists core::timingList then
+			if [core::timingList length] > 0 then
 %		//timing simulation steps accessors
 		void timingWaitForCycles(timingBase *,const u64 nbCycles);
 		bool timingSynchroEmit(timingBase *,unsigned int sigName, const bool broadcast);
@@ -496,8 +349,8 @@ end if #useCAS
 
 		/** Memory Access */
 %
-let memSpaceMap := mapOf idfStruct::memSpaceList by name
-let memSpaceMapDDC := mapOf addressSpaceReg by name #address space with regs (using DDC)
+let memSpaceMap := mapOf memSpaceList by name
+let core::memSpaceMapDDC := mapOf core::addressSpaceReg by name #address space with regs (using DDC)
 foreach mem in memSpaceMap do
   #one getChunk for each mem space.
   %\t\tinline storage *get_%!mem::name%_chunk(const u32 address)\n\t\t{\n%
@@ -509,7 +362,7 @@ foreach mem in memSpaceMap do
   let first := True
   let nbMemChunks := 0 #can optimize if there is only one.
   let storageName := ""
-  foreach memChunk in memInCoreList do
+  foreach memChunk in core::memInCoreList do
     if mem::name == memChunk::memSpaceName then #chunk in same address space
       let nbMemChunks := nbMemChunks + 1
       %\t\t\t%
@@ -532,7 +385,7 @@ foreach mem in memSpaceMap do
     let addressWithStride := "address"
     if mem::stride != 0 then let addressWithStride := "address << ".[mem::stride string] end if
     #read access.
-    %\t\tinline u%!type% %!mem::name%_read%!methodSize::size%(const u32 address)\n\t\t{\n%
+    %\t\tvirtual u%!type% %!mem::name%_read%!methodSize::size%(const u32 address)\n\t\t{\n%
     let storageNameOptim := "sto"
     if nbMemChunks > 1 then
       %\t\t\troStorage *sto = (roStorage *)get_%!mem::name%_chunk(%!addressWithStride%);\n%
@@ -547,14 +400,14 @@ foreach mem in memSpaceMap do
     end if
     #DDC related part
     if useCAS then
-      if exists memSpaceMapDDC[mem::name] then
+      if exists core::memSpaceMapDDC[mem::name] then
         %\t\t\tDDC_REGISTER_NAME_R_AS_%!mem::name% |= ((u64)address) << DDC_REGISTER_OFFSET_AS_%!mem::name%;\n%
       end if
     end if
     %\t\t\treturn %!storageNameOptim%->read%!type%AtAddress(%!addressWithStride%);\n%
     %\t\t}\n%
     #write access.
-    %\t\tinline void %!mem::name%_write%!methodSize::size%(const u32 address, const u%!type% value)\n\t\t{\n%
+    %\t\tvirtual void %!mem::name%_write%!methodSize::size%(const u32 address, const u%!type% value)\n\t\t{\n%
     let storageNameOptim := "sto"
     if nbMemChunks > 1 then
       %\t\t\trwStorage *sto = (rwStorage *)get_%!mem::name%_chunk(%!addressWithStride%);\n%
@@ -569,7 +422,7 @@ foreach mem in memSpaceMap do
     end if
     #DDC related part
     if useCAS then
-      if exists memSpaceMapDDC[mem::name] then
+      if exists core::memSpaceMapDDC[mem::name] then
         %\t\t\tDDC_REGISTER_NAME_W_AS_%!mem::name% |= ((u64)address) << DDC_REGISTER_OFFSET_AS_%!mem::name%;\n%
       end if
     end if
@@ -577,14 +430,28 @@ foreach mem in memSpaceMap do
     %\t\t}\n%
   end foreach
 end foreach
+
 %
-		/** components implementation*/
+		/** constructors */
+		///default constructor
+		%!core::NAME%_core();
+
+%
+	foreach method in core::coreConstructorList
+	do
+		%\t\t%!core::NAME%_core(%!method::paramStr%) {\n%
+		%\t\t\t%!core::NAME%_core(); //call default constructor first\n% 
+		!method::codeStr
+		%\n\t\t}\n%
+    end foreach
+
+%		/** components implementation*/
 %
 let DDCRegFileChunkMap := emptyMap
-if exists DDCRegFileChunk then
-  let DDCRegFileChunkMap := mapOf DDCRegFileChunk by key
+if exists core::DDCRegFileChunk then
+  let DDCRegFileChunkMap := mapOf core::DDCRegFileChunk by key
 end if
-foreach component in componentList
+foreach component in core::componentList
 do
 	%\t\t/*********** component %!component::name% ************/\n%
 	foreach method in component::methodList
@@ -599,7 +466,7 @@ do
 			end if
 			if useCAS then
 				#TODO: Temporary for Data Cache -> UGLY
-				foreach pipeline in pipelineList 
+				foreach pipeline in core::pipelineList 
 				before
 				do
 					let pipelineBufferSize := 1 << nbBitsToCodeUnsigned([pipeline::stageList length] - 1)
@@ -629,7 +496,7 @@ end foreach
 %		
 		/** local registers accessors */
 %
-foreach reg in idfStruct::varList do
+foreach reg in core::idfStruct::varList do
   if reg::varClassId == 0 #program counter
    | reg::varClassId == 1 #GPR
    | reg::varClassId == 2 #SFR

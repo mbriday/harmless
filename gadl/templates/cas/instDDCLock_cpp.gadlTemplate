@@ -1,21 +1,21 @@
 %template headerC%
 %if useCAS then
-%#include "instruction.h" //first for precompiled header
+%#include "%!core::NAME%_instruction.h" //first for precompiled header
 #include <iostream>
-#include "core.h"
+#include "%!core::NAME%_core.h"
 
 using namespace std;
 
 // instructions that lock registers for the data dependency controller.
 
-%foreach inst in instDDCLock do
+%foreach inst in core::instDDCLock do
 	%void %!inst::name%::lockDDCWriteRegs(%
-		foreach DDCReg in DDCRegDef do
+		foreach DDCReg in core::DDCRegDef do
 			%u64 &lock%!DDCReg::id
 		between %, %
 		end foreach
 	%){\n%
-	foreach DDCReg in DDCRegDef do
+	foreach DDCReg in core::DDCRegDef do
 		%\tlock%!DDCReg::id% = m_DDCReg%!DDCReg::id%MaskWrite;\n%
 	end foreach
 	%}\n%

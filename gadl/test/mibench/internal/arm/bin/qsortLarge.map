@@ -1,0 +1,1701 @@
+Archive member included because of file (symbol)
+
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o)
+                              /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o (sqrt)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-e_sqrt.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o) (__ieee754_sqrt)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_fpclassify.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o) (__fpclassifyd)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_lib_ver.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o) (__fdlib_version)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_matherr.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o) (matherr)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-errno.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o) (__errno)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o)
+                              /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o (fopen)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fscanf.o)
+                              /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o (fscanf)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o) (_fseek_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fstatr.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o) (_fstat_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-impure.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-errno.o) (_impure_ptr)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o) (__smakebuf_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o) (_malloc_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memset.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o) (memset)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mlock.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o) (__malloc_lock)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-openr.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o) (_open_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-printf.o)
+                              /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o (printf)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o)
+                              /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o (qsort)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fstatr.o) (errno)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o) (__srefill_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sbrkr.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o) (_sbrk_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o) (__sread)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-printf.o) (_vfprintf_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fscanf.o) (_vfscanf_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-writer.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o) (_write_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wsetup.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o) (__swsetup_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-closer.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o) (_close_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ctype_.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o) (__ctype_ptr__)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o) (_dtoa_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fflush.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o) (__sflush_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-findfp.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o) (_cleanup_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-flags.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o) (__sflags)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fread.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o) (_fread_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-freer.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o) (_free_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fwalk.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o) (_fwalk)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-isattyr.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o) (_isatty_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-iswspace.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o) (iswspace)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o) (__locale_mb_cur_max)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-lseekr.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o) (_lseek_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o) (_mbrtowc_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbtowc_r.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o) (__mbtowc)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memchr-stub.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o) (memchr)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memcpy-stub.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o) (memcpy)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o) (_Balloc)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-readr.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o) (_read_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sccl.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o) (__sccl)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sf_nan.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o) (nanf)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sprintf.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o) (sprintf)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strcmp.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o) (strcmp)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strlen.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o) (strlen)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o) (_strtod_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtol.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o) (_strtol_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtoul.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o) (_strtoul_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sprintf.o) (_svfprintf_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ungetc.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o) (_ungetc_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o) (__sprint_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-callocr.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o) (_calloc_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fclose.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-findfp.o) (fclose)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o) (_fputwc_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o) (__sfvwrite_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o) (__gethex)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-hexnan.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o) (__hexnan)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memmove.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o) (memmove)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reallocr.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ungetc.o) (_realloc_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strncmp.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o) (strncmp)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o) (__ssprint_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wbuf.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o) (__swbuf_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wcrtomb.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o) (_wcrtomb_r)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wctomb_r.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wcrtomb.o) (__wctomb)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_udivsi3.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o) (__aeabi_uidiv)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_dvmd_tls.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_udivsi3.o) (__aeabi_idiv0)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_addsubdf3.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-e_sqrt.o) (__aeabi_dsub)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_muldivdf3.o)
+                              /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o (__aeabi_dmul)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_cmpdf2.o)
+                              /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o (__aeabi_dcmpeq)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixdfsi.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o) (__aeabi_d2iz)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixunsdfsi.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o) (__aeabi_d2uiz)
+/usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_truncdfsf2.o)
+                              /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o) (__aeabi_d2f)
+
+Allocating common symbols
+Common symbol       size              file
+
+errno               0x4               /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+__hexdig            0x100             /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+external_ram     0x0000000081000000 0x0000000000a00000
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+LOAD /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+LOAD /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccRxRFQd.o
+LOAD /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a
+LOAD /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a
+LOAD /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a
+
+.text           0x0000000081000000    0x121e0
+ *(.init)
+                0x0000000081000000                . = ALIGN (0x4)
+ *(.text)
+ .text          0x0000000081000000       0x5c /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+                0x0000000081000000                compare
+ .text          0x000000008100005c       0xbc /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccRxRFQd.o
+                0x000000008100005c                writechar
+                0x000000008100006c                _open
+                0x0000000081000070                _close
+                0x0000000081000078                _writeToFile
+                0x000000008100007c                _write
+                0x00000000810000c4                _read
+                0x00000000810000c8                _fstat
+                0x00000000810000d8                _lseek
+                0x00000000810000e0                _sbrk
+                0x000000008100010c                _isatty
+                0x0000000081000114                _exit
+ .text          0x0000000081000118      0x128 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o)
+                0x0000000081000118                sqrt
+ .text          0x0000000081000240      0x23c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-e_sqrt.o)
+                0x0000000081000240                __ieee754_sqrt
+ .text          0x000000008100047c       0x6c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_fpclassify.o)
+                0x000000008100047c                __fpclassifyd
+ .text          0x00000000810004e8        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_lib_ver.o)
+ .text          0x00000000810004e8        0x8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_matherr.o)
+                0x00000000810004e8                matherr
+ .text          0x00000000810004f0       0x10 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-errno.o)
+                0x00000000810004f0                __errno
+ .text          0x0000000081000500       0xfc /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o)
+                0x0000000081000500                _fopen_r
+                0x00000000810005e0                fopen
+ .text          0x00000000810005fc       0x70 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fscanf.o)
+                0x00000000810005fc                fscanf
+                0x000000008100063c                _fscanf_r
+ .text          0x000000008100066c      0x48c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o)
+                0x000000008100066c                _fseek_r
+                0x0000000081000acc                fseek
+ .text          0x0000000081000af8       0x40 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fstatr.o)
+                0x0000000081000af8                _fstat_r
+ .text          0x0000000081000b38        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-impure.o)
+ .text          0x0000000081000b38      0x15c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o)
+                0x0000000081000b38                __smakebuf_r
+ .text          0x0000000081000c94      0x71c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o)
+                0x0000000081000c94                _malloc_r
+ .text          0x00000000810013b0       0xf8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memset.o)
+                0x00000000810013b0                memset
+ .text          0x00000000810014a8        0x8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mlock.o)
+                0x00000000810014a8                __malloc_lock
+                0x00000000810014ac                __malloc_unlock
+ .text          0x00000000810014b0       0x44 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-openr.o)
+                0x00000000810014b0                _open_r
+ .text          0x00000000810014f4       0x74 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-printf.o)
+                0x00000000810014f4                _printf_r
+                0x0000000081001528                printf
+ .text          0x0000000081001568      0x964 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o)
+                0x0000000081001568                qsort
+ .text          0x0000000081001ecc      0x19c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+                0x0000000081001ecc                cleanup_glue
+                0x0000000081001ef8                _reclaim_reent
+                0x0000000081001ff4                _wrapup_reent
+ .text          0x0000000081002068      0x1f0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o)
+                0x0000000081002090                __srefill_r
+ .text          0x0000000081002258       0x40 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sbrkr.o)
+                0x0000000081002258                _sbrk_r
+ .text          0x0000000081002298       0xdc /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o)
+                0x0000000081002298                __sread
+                0x00000000810022cc                __seofread
+                0x00000000810022d4                __swrite
+                0x000000008100232c                __sseek
+                0x0000000081002360                __sclose
+ .text          0x0000000081002374     0x1f2c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+                0x0000000081002374                _vfprintf_r
+                0x0000000081004274                vfprintf
+ .text          0x00000000810042a0     0x1580 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+                0x00000000810042a0                __svfscanf_r
+                0x0000000081005758                _vfscanf_r
+                0x00000000810057a0                __svfscanf
+                0x00000000810057cc                vfscanf
+ .text          0x0000000081005820       0x44 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-writer.o)
+                0x0000000081005820                _write_r
+ .text          0x0000000081005864      0x15c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wsetup.o)
+                0x0000000081005864                __swsetup_r
+ .text          0x00000000810059c0       0x3c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-closer.o)
+                0x00000000810059c0                _close_r
+ .text          0x00000000810059fc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ctype_.o)
+ *fill*         0x00000000810059fc        0x4 
+ .text          0x0000000081005a00     0x1878 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o)
+                0x0000000081005be0                _dtoa_r
+ .text          0x0000000081007278      0x2c4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fflush.o)
+                0x0000000081007278                __sflush_r
+                0x00000000810074a8                _fflush_r
+                0x00000000810074fc                fflush
+ .text          0x000000008100753c      0x2c4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-findfp.o)
+                0x000000008100754c                _cleanup_r
+                0x00000000810075e0                __sfmoreglue
+                0x0000000081007628                _cleanup
+                0x0000000081007638                __sinit
+                0x00000000810076b0                __sfp
+                0x00000000810077a8                __sfp_lock_acquire
+                0x00000000810077ac                __sfp_lock_release
+                0x00000000810077b0                __sinit_lock_acquire
+                0x00000000810077b4                __sinit_lock_release
+                0x00000000810077b8                __fp_lock_all
+                0x00000000810077dc                __fp_unlock_all
+ .text          0x0000000081007800       0xc0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-flags.o)
+                0x0000000081007800                __sflags
+ .text          0x00000000810078c0      0x240 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fread.o)
+                0x00000000810078c0                _fread_r
+                0x0000000081007abc                fread
+ .text          0x0000000081007b00      0x368 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-freer.o)
+                0x0000000081007b00                _malloc_trim_r
+                0x0000000081007bfc                _free_r
+ .text          0x0000000081007e68      0x110 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fwalk.o)
+                0x0000000081007e68                _fwalk
+                0x0000000081007eec                _fwalk_reent
+ .text          0x0000000081007f78       0x3c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-isattyr.o)
+                0x0000000081007f78                _isatty_r
+ .text          0x0000000081007fb4       0x24 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-iswspace.o)
+                0x0000000081007fb4                iswspace
+ .text          0x0000000081007fd8       0xd0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o)
+                0x0000000081007fd8                _setlocale_r
+                0x0000000081008044                __locale_charset
+                0x0000000081008050                __locale_mb_cur_max
+                0x0000000081008060                __locale_msgcharset
+                0x000000008100806c                __locale_cjk_lang
+                0x0000000081008074                _localeconv_r
+                0x0000000081008080                setlocale
+                0x000000008100809c                localeconv
+ .text          0x00000000810080a8       0x44 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-lseekr.o)
+                0x00000000810080a8                _lseek_r
+ .text          0x00000000810080ec      0x140 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o)
+                0x00000000810080ec                _mbrtowc_r
+                0x0000000081008184                mbrtowc
+ .text          0x000000008100822c       0x9c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbtowc_r.o)
+                0x000000008100822c                __ascii_mbtowc
+                0x0000000081008274                _mbtowc_r
+ .text          0x00000000810082c8      0x11c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memchr-stub.o)
+                0x00000000810082c8                memchr
+ .text          0x00000000810083e4       0xf4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memcpy-stub.o)
+                0x00000000810083e4                memcpy
+ .text          0x00000000810084d8      0xd20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+                0x00000000810084d8                _Balloc
+                0x0000000081008564                _Bfree
+                0x0000000081008580                __multadd
+                0x000000008100865c                __s2b
+                0x000000008100874c                __hi0bits
+                0x000000008100879c                __lo0bits
+                0x0000000081008830                __i2b
+                0x0000000081008854                __multiply
+                0x0000000081008a38                __pow5mult
+                0x0000000081008b2c                __lshift
+                0x0000000081008c30                __mcmp
+                0x0000000081008c94                __mdiff
+                0x0000000081008de0                __ulp
+                0x0000000081008e44                __b2d
+                0x0000000081008f10                __d2b
+                0x0000000081009018                __ratio
+                0x00000000810090a8                _mprec_log10
+                0x00000000810090fc                __copybits
+                0x0000000081009170                __any_on
+ .text          0x00000000810091f8       0x44 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-readr.o)
+                0x00000000810091f8                _read_r
+ .text          0x000000008100923c       0xcc /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sccl.o)
+                0x000000008100923c                __sccl
+ .text          0x0000000081009308        0xc /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sf_nan.o)
+                0x0000000081009308                nanf
+ .text          0x0000000081009314       0xdc /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sprintf.o)
+                0x0000000081009314                _sprintf_r
+                0x000000008100937c                sprintf
+ .text          0x00000000810093f0      0x230 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strcmp.o)
+                0x00000000810093f0                strcmp
+ .text          0x0000000081009620       0x60 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strlen.o)
+                0x0000000081009620                strlen
+ .text          0x0000000081009680     0x1698 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+                0x0000000081009680                _strtod_r
+                0x000000008100aca8                strtod
+                0x000000008100acc4                strtof
+ .text          0x000000008100ad18      0x1f8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtol.o)
+                0x000000008100ad18                _strtol_r
+                0x000000008100aee4                strtol
+ .text          0x000000008100af10      0x20c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtoul.o)
+                0x000000008100af10                _strtoul_r
+                0x000000008100b0f0                strtoul
+ .text          0x000000008100b11c     0x1cf8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+                0x000000008100b11c                _svfprintf_r
+ .text          0x000000008100ce14      0x240 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ungetc.o)
+                0x000000008100ce14                __submore
+                0x000000008100cec0                _ungetc_r
+                0x000000008100d038                ungetc
+ .text          0x000000008100d054     0x1174 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+                0x000000008100d054                __sprint_r
+                0x000000008100d114                _vfiprintf_r
+                0x000000008100e19c                vfiprintf
+ .text          0x000000008100e1c8       0x94 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-callocr.o)
+                0x000000008100e1c8                _calloc_r
+ .text          0x000000008100e25c      0x100 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fclose.o)
+                0x000000008100e25c                _fclose_r
+                0x000000008100e348                fclose
+ .text          0x000000008100e35c      0x19c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o)
+                0x000000008100e35c                _fputwc_r
+                0x000000008100e4ac                fputwc
+ .text          0x000000008100e4f8      0x4c0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o)
+                0x000000008100e4f8                __sfvwrite_r
+ .text          0x000000008100e9b8      0x9d0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+                0x000000008100eac0                __hexdig_init
+                0x000000008100eb44                __gethex
+ .text          0x000000008100f388      0x2a8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-hexnan.o)
+                0x000000008100f388                __hexnan
+ .text          0x000000008100f630      0x134 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memmove.o)
+                0x000000008100f630                memmove
+ .text          0x000000008100f764      0x574 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reallocr.o)
+                0x000000008100f764                _realloc_r
+ .text          0x000000008100fcd8      0x140 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strncmp.o)
+                0x000000008100fcd8                strncmp
+ .text          0x000000008100fe18     0x1044 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+                0x000000008100fe18                __ssprint_r
+                0x000000008100ffbc                _svfiprintf_r
+ .text          0x0000000081010e5c      0x134 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wbuf.o)
+                0x0000000081010e5c                __swbuf_r
+                0x0000000081010f74                __swbuf
+ .text          0x0000000081010f90      0x134 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wcrtomb.o)
+                0x0000000081010f90                _wcrtomb_r
+                0x0000000081011020                wcrtomb
+ .text          0x00000000810110c4       0x7c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wctomb_r.o)
+                0x00000000810110c4                __ascii_wctomb
+                0x00000000810110f0                _wctomb_r
+ .text          0x0000000081011140      0x114 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_udivsi3.o)
+                0x0000000081011140                __udivsi3
+                0x0000000081011140                __aeabi_uidiv
+                0x0000000081011234                __aeabi_uidivmod
+ .text          0x0000000081011254        0x4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_dvmd_tls.o)
+                0x0000000081011254                __aeabi_ldiv0
+                0x0000000081011254                __aeabi_idiv0
+ .text          0x0000000081011258      0x41c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_addsubdf3.o)
+                0x0000000081011258                __aeabi_drsub
+                0x0000000081011260                __subdf3
+                0x0000000081011260                __aeabi_dsub
+                0x0000000081011264                __aeabi_dadd
+                0x0000000081011264                __adddf3
+                0x0000000081011574                __aeabi_ui2d
+                0x0000000081011574                __floatunsidf
+                0x0000000081011598                __floatsidf
+                0x0000000081011598                __aeabi_i2d
+                0x00000000810115c0                __extendsfdf2
+                0x00000000810115c0                __aeabi_f2d
+                0x0000000081011600                __aeabi_ul2d
+                0x0000000081011600                __floatundidf
+                0x0000000081011614                __aeabi_l2d
+                0x0000000081011614                __floatdidf
+ .text          0x0000000081011674      0x49c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_muldivdf3.o)
+                0x0000000081011674                __aeabi_dmul
+                0x0000000081011674                __muldf3
+                0x0000000081011904                __aeabi_ddiv
+                0x0000000081011904                __divdf3
+ .text          0x0000000081011b10      0x144 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_cmpdf2.o)
+                0x0000000081011b10                __gtdf2
+                0x0000000081011b10                __gedf2
+                0x0000000081011b18                __ltdf2
+                0x0000000081011b18                __ledf2
+                0x0000000081011b20                __eqdf2
+                0x0000000081011b20                __nedf2
+                0x0000000081011b20                __cmpdf2
+                0x0000000081011ba8                __aeabi_cdrcmple
+                0x0000000081011bc4                __aeabi_cdcmple
+                0x0000000081011bc4                __aeabi_cdcmpeq
+                0x0000000081011bdc                __aeabi_dcmpeq
+                0x0000000081011bf4                __aeabi_dcmplt
+                0x0000000081011c0c                __aeabi_dcmple
+                0x0000000081011c24                __aeabi_dcmpge
+                0x0000000081011c3c                __aeabi_dcmpgt
+ .text          0x0000000081011c54       0x5c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixdfsi.o)
+                0x0000000081011c54                __fixdfsi
+                0x0000000081011c54                __aeabi_d2iz
+ .text          0x0000000081011cb0       0x54 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixunsdfsi.o)
+                0x0000000081011cb0                __fixunsdfsi
+                0x0000000081011cb0                __aeabi_d2uiz
+ .text          0x0000000081011d04       0xa0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_truncdfsf2.o)
+                0x0000000081011d04                __aeabi_d2f
+                0x0000000081011d04                __truncdfsf2
+ .text          0x0000000081011da4       0x38 ./internal/arm/crt0.o
+                0x0000000081011da8                _entryPoint
+                0x0000000081011dd0                shouldNotHappen
+                0x0000000081011ddc                . = ALIGN (0x4)
+ *(.rodata)
+ .rodata        0x0000000081011ddc        0x4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-impure.o)
+                0x0000000081011ddc                _global_impure_ptr
+ .rodata        0x0000000081011de0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+ .rodata        0x0000000081011e00       0x24 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+ .rodata        0x0000000081011e24      0x104 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ctype_.o)
+                0x0000000081011e24                _ctype_
+ .rodata        0x0000000081011f28      0x128 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+                0x0000000081011f38                __mprec_tens
+                0x0000000081012000                __mprec_tinytens
+                0x0000000081012028                __mprec_bigtens
+ .rodata        0x0000000081012050       0x28 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+ .rodata        0x0000000081012078       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+ .rodata        0x0000000081012098       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+ .rodata        0x00000000810120b8       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+                0x00000000810120d8                . = ALIGN (0x4)
+ *(.rodata*)
+ .rodata.str1.4
+                0x00000000810120d8       0x66 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+                                         0x68 (size before relaxing)
+ *fill*         0x000000008101213e        0x2 
+ .rodata.str1.4
+                0x0000000081012140        0x5 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o)
+                                          0x8 (size before relaxing)
+ *fill*         0x0000000081012145        0x3 
+ .rodata.str1.4
+                0x0000000081012148        0x2 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-impure.o)
+                                          0x4 (size before relaxing)
+ *fill*         0x000000008101214a        0x2 
+ .rodata.str1.4
+                0x000000008101214c       0x42 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+                                         0x44 (size before relaxing)
+ *fill*         0x000000008101218e        0x2 
+ .rodata.str1.4
+                0x0000000081012190        0x5 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+                                          0x8 (size before relaxing)
+ *fill*         0x0000000081012195        0x3 
+ .rodata.str1.4
+                0x0000000081012198       0x10 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o)
+                                         0x14 (size before relaxing)
+ .rodata.str1.4
+                0x00000000810121a8        0xa /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o)
+                                         0x14 (size before relaxing)
+ .rodata.str1.4
+                0x0000000000000000        0x4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o)
+ *fill*         0x00000000810121b2        0x2 
+ .rodata.str1.4
+                0x00000000810121b4        0xf /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+                                         0x10 (size before relaxing)
+ .rodata.str1.4
+                0x0000000000000000       0x44 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+ .rodata.str1.4
+                0x0000000000000000       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+ *fill*         0x00000000810121c3        0x1 
+ .rodata.str1.4
+                0x00000000810121c4       0x1c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+ .rodata.str1.4
+                0x0000000000000000       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+                0x00000000810121e0                . = ALIGN (0x4)
+ *(.glue_7t)
+ .glue_7t       0x0000000000000000        0x0 linker stubs
+                0x00000000810121e0                . = ALIGN (0x4)
+ *(.glue_7)
+ .glue_7        0x0000000000000000        0x0 linker stubs
+                0x00000000810121e0                . = ALIGN (0x4)
+                0x00000000810121e0                etext = .
+
+.vfp11_veneer   0x00000000810121e0        0x0
+ .vfp11_veneer  0x0000000000000000        0x0 linker stubs
+
+.v4_bx          0x00000000810121e0        0x0
+ .v4_bx         0x0000000000000000        0x0 linker stubs
+
+.text.startup   0x00000000810121e0      0x1dc
+ .text.startup  0x00000000810121e0      0x1dc /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+                0x00000000810121e0                main
+
+.iplt           0x00000000810123bc        0x0
+ .iplt          0x0000000000000000        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+
+.rel.dyn        0x00000000810123bc        0x0
+ .rel.iplt      0x0000000000000000        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+
+.fini
+
+.eh_frame
+
+.ARM.exidx
+
+.init_array
+
+.fini_array
+
+.jcr
+
+.data           0x00000000810123c0      0x8f8
+                0x00000000810123c0                __data_start = .
+ *(.data)
+ .data          0x00000000810123c0        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+ .data          0x00000000810123c0        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccRxRFQd.o
+ .data          0x00000000810123c0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o)
+ .data          0x00000000810123c0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-e_sqrt.o)
+ .data          0x00000000810123c0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_fpclassify.o)
+ .data          0x00000000810123c0        0x1 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_lib_ver.o)
+                0x00000000810123c0                __fdlib_version
+ .data          0x00000000810123c1        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_matherr.o)
+ .data          0x00000000810123c1        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-errno.o)
+ .data          0x00000000810123c1        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o)
+ .data          0x00000000810123c1        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fscanf.o)
+ .data          0x00000000810123c1        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o)
+ .data          0x00000000810123c1        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fstatr.o)
+ *fill*         0x00000000810123c1        0x7 
+ .data          0x00000000810123c8      0x430 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-impure.o)
+                0x00000000810123c8                _impure_ptr
+ .data          0x00000000810127f8        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o)
+ .data          0x00000000810127f8      0x410 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o)
+                0x00000000810127f8                __malloc_av_
+                0x0000000081012c00                __malloc_sbrk_base
+                0x0000000081012c04                __malloc_trim_threshold
+ .data          0x0000000081012c08        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memset.o)
+ .data          0x0000000081012c08        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mlock.o)
+ .data          0x0000000081012c08        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-openr.o)
+ .data          0x0000000081012c08        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-printf.o)
+ .data          0x0000000081012c08        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o)
+ .data          0x0000000081012c08        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+ .data          0x0000000081012c08        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o)
+ .data          0x0000000081012c08        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sbrkr.o)
+ .data          0x0000000081012c08        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o)
+ .data          0x0000000081012c08        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+ .data          0x0000000081012c08        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+ .data          0x0000000081012c08        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-writer.o)
+ .data          0x0000000081012c08        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wsetup.o)
+ .data          0x0000000081012c08        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-closer.o)
+ .data          0x0000000081012c08        0x4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ctype_.o)
+                0x0000000081012c08                __ctype_ptr__
+ .data          0x0000000081012c0c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o)
+ .data          0x0000000081012c0c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fflush.o)
+ .data          0x0000000081012c0c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-findfp.o)
+ .data          0x0000000081012c0c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-flags.o)
+ .data          0x0000000081012c0c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fread.o)
+ .data          0x0000000081012c0c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-freer.o)
+ .data          0x0000000081012c0c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fwalk.o)
+ .data          0x0000000081012c0c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-isattyr.o)
+ .data          0x0000000081012c0c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-iswspace.o)
+ .data          0x0000000081012c0c       0x7c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o)
+                0x0000000081012c2c                __mb_cur_max
+ .data          0x0000000081012c88        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-lseekr.o)
+ .data          0x0000000081012c88        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o)
+ .data          0x0000000081012c88        0x4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbtowc_r.o)
+                0x0000000081012c88                __mbtowc
+ .data          0x0000000081012c8c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memchr-stub.o)
+ .data          0x0000000081012c8c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memcpy-stub.o)
+ .data          0x0000000081012c8c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+ .data          0x0000000081012c8c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-readr.o)
+ .data          0x0000000081012c8c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sccl.o)
+ .data          0x0000000081012c8c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sf_nan.o)
+ .data          0x0000000081012c8c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sprintf.o)
+ .data          0x0000000081012c8c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strcmp.o)
+ .data          0x0000000081012c8c        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strlen.o)
+ .data          0x0000000081012c8c       0x28 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtol.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtoul.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ungetc.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-callocr.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fclose.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-hexnan.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memmove.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reallocr.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strncmp.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wbuf.o)
+ .data          0x0000000081012cb4        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wcrtomb.o)
+ .data          0x0000000081012cb4        0x4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wctomb_r.o)
+                0x0000000081012cb4                __wctomb
+ .data          0x0000000081012cb8        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_udivsi3.o)
+ .data          0x0000000081012cb8        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_dvmd_tls.o)
+ .data          0x0000000081012cb8        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_addsubdf3.o)
+ .data          0x0000000081012cb8        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_muldivdf3.o)
+ .data          0x0000000081012cb8        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_cmpdf2.o)
+ .data          0x0000000081012cb8        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixdfsi.o)
+ .data          0x0000000081012cb8        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixunsdfsi.o)
+ .data          0x0000000081012cb8        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_truncdfsf2.o)
+ .data          0x0000000081012cb8        0x0 ./internal/arm/crt0.o
+                0x0000000081012cb8                . = ALIGN (0x4)
+                0x0000000081012cb8                edata = .
+                0x0000000081012cb8                _edata = .
+                0x0000000081012cb8                __data_end = .
+
+.igot.plt       0x0000000081012cb8        0x0
+ .igot.plt      0x0000000000000000        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+
+.bss            0x0000000081012cb8      0x148
+                0x0000000081012cb8                __bss_start__ = .
+ *(.bss)
+ .bss           0x0000000081012cb8        0x0 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+ .bss           0x0000000081012cb8        0x4 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccRxRFQd.o
+ .bss           0x0000000081012cbc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o)
+ .bss           0x0000000081012cbc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-e_sqrt.o)
+ .bss           0x0000000081012cbc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_fpclassify.o)
+ .bss           0x0000000081012cbc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_lib_ver.o)
+ .bss           0x0000000081012cbc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_matherr.o)
+ .bss           0x0000000081012cbc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-errno.o)
+ .bss           0x0000000081012cbc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o)
+ .bss           0x0000000081012cbc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fscanf.o)
+ .bss           0x0000000081012cbc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o)
+ .bss           0x0000000081012cbc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fstatr.o)
+ .bss           0x0000000081012cbc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-impure.o)
+ .bss           0x0000000081012cbc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o)
+ .bss           0x0000000081012cbc       0x34 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o)
+                0x0000000081012cbc                __malloc_top_pad
+                0x0000000081012cc0                __malloc_current_mallinfo
+                0x0000000081012ce8                __malloc_max_sbrked_mem
+                0x0000000081012cec                __malloc_max_total_mem
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memset.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mlock.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-openr.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-printf.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sbrkr.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-writer.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wsetup.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-closer.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ctype_.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fflush.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-findfp.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-flags.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fread.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-freer.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fwalk.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-isattyr.o)
+ .bss           0x0000000081012cf0        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-iswspace.o)
+ .bss           0x0000000081012cf0        0xc /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o)
+                0x0000000081012cf0                _PathLocale
+                0x0000000081012cf4                __mlocale_changed
+                0x0000000081012cf8                __nlocale_changed
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-lseekr.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbtowc_r.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memchr-stub.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memcpy-stub.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-readr.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sccl.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sf_nan.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sprintf.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strcmp.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strlen.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtol.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtoul.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ungetc.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-callocr.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fclose.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-hexnan.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memmove.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reallocr.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strncmp.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wbuf.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wcrtomb.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wctomb_r.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_udivsi3.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_dvmd_tls.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_addsubdf3.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_muldivdf3.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_cmpdf2.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixdfsi.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixunsdfsi.o)
+ .bss           0x0000000081012cfc        0x0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_truncdfsf2.o)
+ .bss           0x0000000081012cfc        0x0 ./internal/arm/crt0.o
+ *(COMMON)
+ COMMON         0x0000000081012cfc        0x4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+                0x0000000081012cfc                errno
+ COMMON         0x0000000081012d00      0x100 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+                0x0000000081012d00                __hexdig
+                0x0000000081012e00                . = ALIGN (0x4)
+                0x0000000081012e00                __bss_end__ = .
+                0x0000000081012e00                end = .
+                0x00000000819ffffc                _init_sp = 0x819ffffc
+LOAD ./internal/arm/crt0.o
+OUTPUT(internal/arm/bin/qsortLarge.elf elf32-littlearm)
+
+.debug_info     0x0000000000000000    0x2ce30
+ .debug_info    0x0000000000000000      0xc80 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+ .debug_info    0x0000000000000c80      0x558 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccRxRFQd.o
+ .debug_info    0x00000000000011d8      0x227 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o)
+ .debug_info    0x00000000000013ff      0x23a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-e_sqrt.o)
+ .debug_info    0x0000000000001639       0xdf /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_fpclassify.o)
+ .debug_info    0x0000000000001718       0xc0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_lib_ver.o)
+ .debug_info    0x00000000000017d8      0x139 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_matherr.o)
+ .debug_info    0x0000000000001911      0x95e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-errno.o)
+ .debug_info    0x000000000000226f      0xb5a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o)
+ .debug_info    0x0000000000002dc9      0xaa3 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fscanf.o)
+ .debug_info    0x000000000000386c      0xe94 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o)
+ .debug_info    0x0000000000004700      0xb65 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fstatr.o)
+ .debug_info    0x0000000000005265      0x965 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-impure.o)
+ .debug_info    0x0000000000005bca      0xbf0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o)
+ .debug_info    0x00000000000067ba      0xe85 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o)
+ .debug_info    0x000000000000763f      0x11c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memset.o)
+ .debug_info    0x000000000000775b      0x989 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mlock.o)
+ .debug_info    0x00000000000080e4      0x9e7 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-openr.o)
+ .debug_info    0x0000000000008acb      0xa8c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-printf.o)
+ .debug_info    0x0000000000009557      0xcf3 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o)
+ .debug_info    0x000000000000a24a      0xb2a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+ .debug_info    0x000000000000ad74      0xb35 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o)
+ .debug_info    0x000000000000b8a9      0x9d0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sbrkr.o)
+ .debug_info    0x000000000000c279      0xc7c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o)
+ .debug_info    0x000000000000cef5     0x19c8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+ .debug_info    0x000000000000e8bd     0x14af /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+ .debug_info    0x000000000000fd6c      0xa03 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-writer.o)
+ .debug_info    0x000000000001076f      0xa01 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wsetup.o)
+ .debug_info    0x0000000000011170      0x9ba /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-closer.o)
+ .debug_info    0x0000000000011b2a       0x71 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ctype_.o)
+ .debug_info    0x0000000000011b9b     0x1442 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o)
+ .debug_info    0x0000000000012fdd      0xb80 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fflush.o)
+ .debug_info    0x0000000000013b5d      0xdbe /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-findfp.o)
+ .debug_info    0x000000000001491b      0x9a8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-flags.o)
+ .debug_info    0x00000000000152c3      0xbe0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fread.o)
+ .debug_info    0x0000000000015ea3      0xd0e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-freer.o)
+ .debug_info    0x0000000000016bb1      0xa77 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fwalk.o)
+ .debug_info    0x0000000000017628      0x9ba /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-isattyr.o)
+ .debug_info    0x0000000000017fe2       0xc9 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-iswspace.o)
+ .debug_info    0x00000000000180ab      0xd0f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o)
+ .debug_info    0x0000000000018dba      0x9f1 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-lseekr.o)
+ .debug_info    0x00000000000197ab      0xb5f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o)
+ .debug_info    0x000000000001a30a      0xacb /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbtowc_r.o)
+ .debug_info    0x000000000001add5      0x12e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memchr-stub.o)
+ .debug_info    0x000000000001af03      0x136 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memcpy-stub.o)
+ .debug_info    0x000000000001b039     0x1763 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+ .debug_info    0x000000000001c79c      0x9fc /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-readr.o)
+ .debug_info    0x000000000001d198      0x100 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sccl.o)
+ .debug_info    0x000000000001d298       0xd2 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sf_nan.o)
+ .debug_info    0x000000000001d36a      0xacf /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sprintf.o)
+ .debug_info    0x000000000001de39       0xf0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strcmp.o)
+ .debug_info    0x000000000001df29       0xb9 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strlen.o)
+ .debug_info    0x000000000001dfe2     0x18aa /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+ .debug_info    0x000000000001f88c      0xa86 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtol.o)
+ .debug_info    0x0000000000020312      0xa86 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtoul.o)
+ .debug_info    0x0000000000020d98     0x17bc /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+ .debug_info    0x0000000000022554      0xb68 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ungetc.o)
+ .debug_info    0x00000000000230bc     0x12b7 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+ .debug_info    0x0000000000024373      0xac2 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-callocr.o)
+ .debug_info    0x0000000000024e35      0xab0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fclose.o)
+ .debug_info    0x00000000000258e5      0xb79 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o)
+ .debug_info    0x000000000002645e      0xd69 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o)
+ .debug_info    0x00000000000271c7     0x1341 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+ .debug_info    0x0000000000028508      0x32c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-hexnan.o)
+ .debug_info    0x0000000000028834      0x136 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memmove.o)
+ .debug_info    0x000000000002896a      0xdb4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reallocr.o)
+ .debug_info    0x000000000002971e       0xfa /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strncmp.o)
+ .debug_info    0x0000000000029818     0x10d4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+ .debug_info    0x000000000002a8ec      0xa9b /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wbuf.o)
+ .debug_info    0x000000000002b387      0xb49 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wcrtomb.o)
+ .debug_info    0x000000000002bed0      0xa92 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wctomb_r.o)
+ .debug_info    0x000000000002c962       0x99 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_udivsi3.o)
+ .debug_info    0x000000000002c9fb       0x99 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_dvmd_tls.o)
+ .debug_info    0x000000000002ca94       0x9a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_addsubdf3.o)
+ .debug_info    0x000000000002cb2e       0x9a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_muldivdf3.o)
+ .debug_info    0x000000000002cbc8       0x9a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_cmpdf2.o)
+ .debug_info    0x000000000002cc62       0x9a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixdfsi.o)
+ .debug_info    0x000000000002ccfc       0x9a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixunsdfsi.o)
+ .debug_info    0x000000000002cd96       0x9a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_truncdfsf2.o)
+
+.debug_abbrev   0x0000000000000000     0x85cb
+ .debug_abbrev  0x0000000000000000      0x222 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+ .debug_abbrev  0x0000000000000222      0x1d6 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccRxRFQd.o
+ .debug_abbrev  0x00000000000003f8      0x13a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o)
+ .debug_abbrev  0x0000000000000532      0x118 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-e_sqrt.o)
+ .debug_abbrev  0x000000000000064a       0x6f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_fpclassify.o)
+ .debug_abbrev  0x00000000000006b9       0x4f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_lib_ver.o)
+ .debug_abbrev  0x0000000000000708       0x9a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_matherr.o)
+ .debug_abbrev  0x00000000000007a2      0x171 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-errno.o)
+ .debug_abbrev  0x0000000000000913      0x238 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o)
+ .debug_abbrev  0x0000000000000b4b      0x1f8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fscanf.o)
+ .debug_abbrev  0x0000000000000d43      0x2be /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o)
+ .debug_abbrev  0x0000000000001001      0x1e0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fstatr.o)
+ .debug_abbrev  0x00000000000011e1      0x162 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-impure.o)
+ .debug_abbrev  0x0000000000001343      0x1e8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o)
+ .debug_abbrev  0x000000000000152b      0x284 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o)
+ .debug_abbrev  0x00000000000017af       0x9f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memset.o)
+ .debug_abbrev  0x000000000000184e      0x17c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mlock.o)
+ .debug_abbrev  0x00000000000019ca      0x1e0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-openr.o)
+ .debug_abbrev  0x0000000000001baa      0x209 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-printf.o)
+ .debug_abbrev  0x0000000000001db3      0x1c7 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o)
+ .debug_abbrev  0x0000000000001f7a      0x263 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+ .debug_abbrev  0x00000000000021dd      0x23e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o)
+ .debug_abbrev  0x000000000000241b      0x1df /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sbrkr.o)
+ .debug_abbrev  0x00000000000025fa      0x229 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o)
+ .debug_abbrev  0x0000000000002823      0x3b9 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+ .debug_abbrev  0x0000000000002bdc      0x2f6 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+ .debug_abbrev  0x0000000000002ed2      0x1d6 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-writer.o)
+ .debug_abbrev  0x00000000000030a8      0x1d5 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wsetup.o)
+ .debug_abbrev  0x000000000000327d      0x1d1 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-closer.o)
+ .debug_abbrev  0x000000000000344e       0x4e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ctype_.o)
+ .debug_abbrev  0x000000000000349c      0x2af /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o)
+ .debug_abbrev  0x000000000000374b      0x261 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fflush.o)
+ .debug_abbrev  0x00000000000039ac      0x308 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-findfp.o)
+ .debug_abbrev  0x0000000000003cb4      0x18f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-flags.o)
+ .debug_abbrev  0x0000000000003e43      0x25b /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fread.o)
+ .debug_abbrev  0x000000000000409e      0x24d /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-freer.o)
+ .debug_abbrev  0x00000000000042eb      0x1b3 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fwalk.o)
+ .debug_abbrev  0x000000000000449e      0x1d1 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-isattyr.o)
+ .debug_abbrev  0x000000000000466f       0x83 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-iswspace.o)
+ .debug_abbrev  0x00000000000046f2      0x2a1 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o)
+ .debug_abbrev  0x0000000000004993      0x1e0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-lseekr.o)
+ .debug_abbrev  0x0000000000004b73      0x1f5 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o)
+ .debug_abbrev  0x0000000000004d68      0x1f4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbtowc_r.o)
+ .debug_abbrev  0x0000000000004f5c       0xba /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memchr-stub.o)
+ .debug_abbrev  0x0000000000005016       0xab /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memcpy-stub.o)
+ .debug_abbrev  0x00000000000050c1      0x378 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+ .debug_abbrev  0x0000000000005439      0x1d1 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-readr.o)
+ .debug_abbrev  0x000000000000560a       0x87 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sccl.o)
+ .debug_abbrev  0x0000000000005691       0x72 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sf_nan.o)
+ .debug_abbrev  0x0000000000005703      0x1fa /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sprintf.o)
+ .debug_abbrev  0x00000000000058fd       0x8c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strcmp.o)
+ .debug_abbrev  0x0000000000005989       0x70 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strlen.o)
+ .debug_abbrev  0x00000000000059f9      0x3b6 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+ .debug_abbrev  0x0000000000005daf      0x1f6 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtol.o)
+ .debug_abbrev  0x0000000000005fa5      0x1f6 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtoul.o)
+ .debug_abbrev  0x000000000000619b      0x351 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+ .debug_abbrev  0x00000000000064ec      0x255 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ungetc.o)
+ .debug_abbrev  0x0000000000006741      0x3a8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+ .debug_abbrev  0x0000000000006ae9      0x1f5 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-callocr.o)
+ .debug_abbrev  0x0000000000006cde      0x24e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fclose.o)
+ .debug_abbrev  0x0000000000006f2c      0x283 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o)
+ .debug_abbrev  0x00000000000071af      0x234 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o)
+ .debug_abbrev  0x00000000000073e3      0x37a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+ .debug_abbrev  0x000000000000775d      0x163 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-hexnan.o)
+ .debug_abbrev  0x00000000000078c0       0xab /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memmove.o)
+ .debug_abbrev  0x000000000000796b      0x23d /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reallocr.o)
+ .debug_abbrev  0x0000000000007ba8       0x81 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strncmp.o)
+ .debug_abbrev  0x0000000000007c29      0x2e3 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+ .debug_abbrev  0x0000000000007f0c      0x21a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wbuf.o)
+ .debug_abbrev  0x0000000000008126      0x1f5 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wcrtomb.o)
+ .debug_abbrev  0x000000000000831b      0x210 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wctomb_r.o)
+ .debug_abbrev  0x000000000000852b       0x14 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_udivsi3.o)
+ .debug_abbrev  0x000000000000853f       0x14 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_dvmd_tls.o)
+ .debug_abbrev  0x0000000000008553       0x14 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_addsubdf3.o)
+ .debug_abbrev  0x0000000000008567       0x14 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_muldivdf3.o)
+ .debug_abbrev  0x000000000000857b       0x14 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_cmpdf2.o)
+ .debug_abbrev  0x000000000000858f       0x14 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixdfsi.o)
+ .debug_abbrev  0x00000000000085a3       0x14 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixunsdfsi.o)
+ .debug_abbrev  0x00000000000085b7       0x14 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_truncdfsf2.o)
+
+.debug_loc      0x0000000000000000    0x1871f
+ .debug_loc     0x0000000000000000      0x17a /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+ .debug_loc     0x000000000000017a      0x1a9 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccRxRFQd.o
+ .debug_loc     0x0000000000000323       0x7d /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o)
+ .debug_loc     0x00000000000003a0      0x48b /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-e_sqrt.o)
+ .debug_loc     0x000000000000082b       0x79 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_fpclassify.o)
+ .debug_loc     0x00000000000008a4       0x21 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_matherr.o)
+ .debug_loc     0x00000000000008c5      0x1a3 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o)
+ .debug_loc     0x0000000000000a68       0xde /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fscanf.o)
+ .debug_loc     0x0000000000000b46      0x37e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o)
+ .debug_loc     0x0000000000000ec4       0x8b /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fstatr.o)
+ .debug_loc     0x0000000000000f4f      0x139 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o)
+ .debug_loc     0x0000000000001088      0xc89 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o)
+ .debug_loc     0x0000000000001d11      0x1f4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memset.o)
+ .debug_loc     0x0000000000001f05       0xc2 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-openr.o)
+ .debug_loc     0x0000000000001fc7       0xa4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-printf.o)
+ .debug_loc     0x000000000000206b     0x18dd /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o)
+ .debug_loc     0x0000000000003948      0x185 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+ .debug_loc     0x0000000000003acd       0xdc /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o)
+ .debug_loc     0x0000000000003ba9       0x5f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sbrkr.o)
+ .debug_loc     0x0000000000003c08      0x2b7 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o)
+ .debug_loc     0x0000000000003ebf     0x249d /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+ .debug_loc     0x000000000000635c     0x15a0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+ .debug_loc     0x00000000000078fc       0xc2 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-writer.o)
+ .debug_loc     0x00000000000079be       0x88 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wsetup.o)
+ .debug_loc     0x0000000000007a46       0x5f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-closer.o)
+ .debug_loc     0x0000000000007aa5     0x22e6 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o)
+ .debug_loc     0x0000000000009d8b      0x2cb /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fflush.o)
+ .debug_loc     0x000000000000a056      0x2f2 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-findfp.o)
+ .debug_loc     0x000000000000a348       0xef /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-flags.o)
+ .debug_loc     0x000000000000a437      0x335 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fread.o)
+ .debug_loc     0x000000000000a76c      0x468 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-freer.o)
+ .debug_loc     0x000000000000abd4      0x1e0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fwalk.o)
+ .debug_loc     0x000000000000adb4       0x5f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-isattyr.o)
+ .debug_loc     0x000000000000ae13       0x21 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-iswspace.o)
+ .debug_loc     0x000000000000ae34       0xf9 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o)
+ .debug_loc     0x000000000000af2d       0xc2 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-lseekr.o)
+ .debug_loc     0x000000000000afef      0x281 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o)
+ .debug_loc     0x000000000000b270      0x161 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbtowc_r.o)
+ .debug_loc     0x000000000000b3d1      0x188 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memchr-stub.o)
+ .debug_loc     0x000000000000b559      0x231 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memcpy-stub.o)
+ .debug_loc     0x000000000000b78a     0x21e5 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+ .debug_loc     0x000000000000d96f       0xc2 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-readr.o)
+ .debug_loc     0x000000000000da31      0x173 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sccl.o)
+ .debug_loc     0x000000000000dba4       0x21 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sf_nan.o)
+ .debug_loc     0x000000000000dbc5       0xcf /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sprintf.o)
+ .debug_loc     0x000000000000dc94       0x42 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strcmp.o)
+ .debug_loc     0x000000000000dcd6       0x21 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strlen.o)
+ .debug_loc     0x000000000000dcf7     0x24a8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+ .debug_loc     0x000000000001019f      0x3ad /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtol.o)
+ .debug_loc     0x000000000001054c      0x370 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtoul.o)
+ .debug_loc     0x00000000000108bc     0x211f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+ .debug_loc     0x00000000000129db      0x22e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ungetc.o)
+ .debug_loc     0x0000000000012c09     0x13a0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+ .debug_loc     0x0000000000013fa9      0x22a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-callocr.o)
+ .debug_loc     0x00000000000141d3       0xdd /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fclose.o)
+ .debug_loc     0x00000000000142b0      0x19f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o)
+ .debug_loc     0x000000000001444f      0x5b6 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o)
+ .debug_loc     0x0000000000014a05     0x101c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+ .debug_loc     0x0000000000015a21      0x4e1 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-hexnan.o)
+ .debug_loc     0x0000000000015f02      0x2a4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memmove.o)
+ .debug_loc     0x00000000000161a6      0xe06 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reallocr.o)
+ .debug_loc     0x0000000000016fac      0x125 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strncmp.o)
+ .debug_loc     0x00000000000170d1     0x11b5 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+ .debug_loc     0x0000000000018286      0x153 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wbuf.o)
+ .debug_loc     0x00000000000183d9      0x23c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wcrtomb.o)
+ .debug_loc     0x0000000000018615      0x10a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wctomb_r.o)
+
+.debug_aranges  0x0000000000000000      0x9d0
+ .debug_aranges
+                0x0000000000000000       0x28 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+ .debug_aranges
+                0x0000000000000028       0x20 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccRxRFQd.o
+ .debug_aranges
+                0x0000000000000048       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o)
+ .debug_aranges
+                0x0000000000000068       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-e_sqrt.o)
+ .debug_aranges
+                0x0000000000000088       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_fpclassify.o)
+ .debug_aranges
+                0x00000000000000a8       0x18 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_lib_ver.o)
+ .debug_aranges
+                0x00000000000000c0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_matherr.o)
+ .debug_aranges
+                0x00000000000000e0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-errno.o)
+ .debug_aranges
+                0x0000000000000100       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o)
+ .debug_aranges
+                0x0000000000000120       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fscanf.o)
+ .debug_aranges
+                0x0000000000000140       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o)
+ .debug_aranges
+                0x0000000000000160       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fstatr.o)
+ .debug_aranges
+                0x0000000000000180       0x18 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-impure.o)
+ .debug_aranges
+                0x0000000000000198       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o)
+ .debug_aranges
+                0x00000000000001b8       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o)
+ .debug_aranges
+                0x00000000000001d8       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memset.o)
+ .debug_aranges
+                0x00000000000001f8       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mlock.o)
+ .debug_aranges
+                0x0000000000000218       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-openr.o)
+ .debug_aranges
+                0x0000000000000238       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-printf.o)
+ .debug_aranges
+                0x0000000000000258       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o)
+ .debug_aranges
+                0x0000000000000278       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+ .debug_aranges
+                0x0000000000000298       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o)
+ .debug_aranges
+                0x00000000000002b8       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sbrkr.o)
+ .debug_aranges
+                0x00000000000002d8       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o)
+ .debug_aranges
+                0x00000000000002f8       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+ .debug_aranges
+                0x0000000000000318       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+ .debug_aranges
+                0x0000000000000338       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-writer.o)
+ .debug_aranges
+                0x0000000000000358       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wsetup.o)
+ .debug_aranges
+                0x0000000000000378       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-closer.o)
+ .debug_aranges
+                0x0000000000000398       0x18 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ctype_.o)
+ .debug_aranges
+                0x00000000000003b0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o)
+ .debug_aranges
+                0x00000000000003d0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fflush.o)
+ .debug_aranges
+                0x00000000000003f0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-findfp.o)
+ .debug_aranges
+                0x0000000000000410       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-flags.o)
+ .debug_aranges
+                0x0000000000000430       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fread.o)
+ .debug_aranges
+                0x0000000000000450       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-freer.o)
+ .debug_aranges
+                0x0000000000000470       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fwalk.o)
+ .debug_aranges
+                0x0000000000000490       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-isattyr.o)
+ .debug_aranges
+                0x00000000000004b0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-iswspace.o)
+ .debug_aranges
+                0x00000000000004d0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o)
+ .debug_aranges
+                0x00000000000004f0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-lseekr.o)
+ .debug_aranges
+                0x0000000000000510       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o)
+ .debug_aranges
+                0x0000000000000530       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbtowc_r.o)
+ .debug_aranges
+                0x0000000000000550       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memchr-stub.o)
+ .debug_aranges
+                0x0000000000000570       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memcpy-stub.o)
+ .debug_aranges
+                0x0000000000000590       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+ .debug_aranges
+                0x00000000000005b0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-readr.o)
+ .debug_aranges
+                0x00000000000005d0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sccl.o)
+ .debug_aranges
+                0x00000000000005f0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sf_nan.o)
+ .debug_aranges
+                0x0000000000000610       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sprintf.o)
+ .debug_aranges
+                0x0000000000000630       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strcmp.o)
+ .debug_aranges
+                0x0000000000000650       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strlen.o)
+ .debug_aranges
+                0x0000000000000670       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+ .debug_aranges
+                0x0000000000000690       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtol.o)
+ .debug_aranges
+                0x00000000000006b0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtoul.o)
+ .debug_aranges
+                0x00000000000006d0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+ .debug_aranges
+                0x00000000000006f0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ungetc.o)
+ .debug_aranges
+                0x0000000000000710       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+ .debug_aranges
+                0x0000000000000730       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-callocr.o)
+ .debug_aranges
+                0x0000000000000750       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fclose.o)
+ .debug_aranges
+                0x0000000000000770       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o)
+ .debug_aranges
+                0x0000000000000790       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o)
+ .debug_aranges
+                0x00000000000007b0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+ .debug_aranges
+                0x00000000000007d0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-hexnan.o)
+ .debug_aranges
+                0x00000000000007f0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memmove.o)
+ .debug_aranges
+                0x0000000000000810       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reallocr.o)
+ .debug_aranges
+                0x0000000000000830       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strncmp.o)
+ .debug_aranges
+                0x0000000000000850       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+ .debug_aranges
+                0x0000000000000870       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wbuf.o)
+ .debug_aranges
+                0x0000000000000890       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wcrtomb.o)
+ .debug_aranges
+                0x00000000000008b0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wctomb_r.o)
+ .debug_aranges
+                0x00000000000008d0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_udivsi3.o)
+ .debug_aranges
+                0x00000000000008f0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_dvmd_tls.o)
+ .debug_aranges
+                0x0000000000000910       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_addsubdf3.o)
+ .debug_aranges
+                0x0000000000000930       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_muldivdf3.o)
+ .debug_aranges
+                0x0000000000000950       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_cmpdf2.o)
+ .debug_aranges
+                0x0000000000000970       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixdfsi.o)
+ .debug_aranges
+                0x0000000000000990       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixunsdfsi.o)
+ .debug_aranges
+                0x00000000000009b0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_truncdfsf2.o)
+
+.debug_ranges   0x0000000000000000      0xd08
+ .debug_ranges  0x0000000000000000       0x18 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+ .debug_ranges  0x0000000000000018       0x30 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccRxRFQd.o
+ .debug_ranges  0x0000000000000048       0x50 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o)
+ .debug_ranges  0x0000000000000098      0x4d8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o)
+ .debug_ranges  0x0000000000000570      0x1a0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+ .debug_ranges  0x0000000000000710      0x150 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+ .debug_ranges  0x0000000000000860       0x18 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fflush.o)
+ .debug_ranges  0x0000000000000878       0x18 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fread.o)
+ .debug_ranges  0x0000000000000890       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+ .debug_ranges  0x00000000000008c0       0xa0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+ .debug_ranges  0x0000000000000960      0x180 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+ .debug_ranges  0x0000000000000ae0       0xa0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+ .debug_ranges  0x0000000000000b80       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-callocr.o)
+ .debug_ranges  0x0000000000000bb0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o)
+ .debug_ranges  0x0000000000000be0       0x18 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o)
+ .debug_ranges  0x0000000000000bf8       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+ .debug_ranges  0x0000000000000c28       0x98 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reallocr.o)
+ .debug_ranges  0x0000000000000cc0       0x48 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+
+.debug_line     0x0000000000000000     0xac50
+ .debug_line    0x0000000000000000      0x1ff /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+ .debug_line    0x00000000000001ff      0x10c /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccRxRFQd.o
+ .debug_line    0x000000000000030b      0x171 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o)
+ .debug_line    0x000000000000047c      0x19c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-e_sqrt.o)
+ .debug_line    0x0000000000000618      0x12a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_fpclassify.o)
+ .debug_line    0x0000000000000742       0x6a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_lib_ver.o)
+ .debug_line    0x00000000000007ac       0xba /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_matherr.o)
+ .debug_line    0x0000000000000866      0x134 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-errno.o)
+ .debug_line    0x000000000000099a      0x1b9 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o)
+ .debug_line    0x0000000000000b53      0x1a6 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fscanf.o)
+ .debug_line    0x0000000000000cf9      0x2d9 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o)
+ .debug_line    0x0000000000000fd2      0x19d /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fstatr.o)
+ .debug_line    0x000000000000116f      0x119 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-impure.o)
+ .debug_line    0x0000000000001288      0x1fd /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o)
+ .debug_line    0x0000000000001485      0x35a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o)
+ .debug_line    0x00000000000017df      0x182 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memset.o)
+ .debug_line    0x0000000000001961      0x12b /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mlock.o)
+ .debug_line    0x0000000000001a8c      0x187 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-openr.o)
+ .debug_line    0x0000000000001c13      0x19e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-printf.o)
+ .debug_line    0x0000000000001db1      0x3a2 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o)
+ .debug_line    0x0000000000002153      0x1c3 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+ .debug_line    0x0000000000002316      0x213 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o)
+ .debug_line    0x0000000000002529      0x185 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sbrkr.o)
+ .debug_line    0x00000000000026ae      0x1ab /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o)
+ .debug_line    0x0000000000002859      0xa43 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+ .debug_line    0x000000000000329c      0x683 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+ .debug_line    0x000000000000391f      0x188 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-writer.o)
+ .debug_line    0x0000000000003aa7      0x1fd /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wsetup.o)
+ .debug_line    0x0000000000003ca4      0x188 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-closer.o)
+ .debug_line    0x0000000000003e2c       0x6b /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ctype_.o)
+ .debug_line    0x0000000000003e97      0x772 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o)
+ .debug_line    0x0000000000004609      0x256 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fflush.o)
+ .debug_line    0x000000000000485f      0x250 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-findfp.o)
+ .debug_line    0x0000000000004aaf      0x166 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-flags.o)
+ .debug_line    0x0000000000004c15      0x225 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fread.o)
+ .debug_line    0x0000000000004e3a      0x250 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-freer.o)
+ .debug_line    0x000000000000508a      0x1c8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fwalk.o)
+ .debug_line    0x0000000000005252      0x189 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-isattyr.o)
+ .debug_line    0x00000000000053db      0x121 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-iswspace.o)
+ .debug_line    0x00000000000054fc      0x1bd /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o)
+ .debug_line    0x00000000000056b9      0x188 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-lseekr.o)
+ .debug_line    0x0000000000005841      0x1b6 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o)
+ .debug_line    0x00000000000059f7      0x1a7 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbtowc_r.o)
+ .debug_line    0x0000000000005b9e      0x172 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memchr-stub.o)
+ .debug_line    0x0000000000005d10      0x194 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memcpy-stub.o)
+ .debug_line    0x0000000000005ea4      0x600 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+ .debug_line    0x00000000000064a4      0x187 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-readr.o)
+ .debug_line    0x000000000000662b      0x105 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sccl.o)
+ .debug_line    0x0000000000006730       0xb4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sf_nan.o)
+ .debug_line    0x00000000000067e4      0x1d9 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sprintf.o)
+ .debug_line    0x00000000000069bd       0xcc /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strcmp.o)
+ .debug_line    0x0000000000006a89      0x11a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strlen.o)
+ .debug_line    0x0000000000006ba3      0x67a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+ .debug_line    0x000000000000721d      0x1f5 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtol.o)
+ .debug_line    0x0000000000007412      0x1f4 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtoul.o)
+ .debug_line    0x0000000000007606      0x973 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+ .debug_line    0x0000000000007f79      0x220 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ungetc.o)
+ .debug_line    0x0000000000008199      0x684 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+ .debug_line    0x000000000000881d      0x152 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-callocr.o)
+ .debug_line    0x000000000000896f      0x1d9 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fclose.o)
+ .debug_line    0x0000000000008b48      0x1da /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o)
+ .debug_line    0x0000000000008d22      0x2b0 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o)
+ .debug_line    0x0000000000008fd2      0x408 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+ .debug_line    0x00000000000093da      0x162 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-hexnan.o)
+ .debug_line    0x000000000000953c      0x195 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memmove.o)
+ .debug_line    0x00000000000096d1      0x27c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reallocr.o)
+ .debug_line    0x000000000000994d      0x186 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strncmp.o)
+ .debug_line    0x0000000000009ad3      0x64c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+ .debug_line    0x000000000000a11f      0x1df /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wbuf.o)
+ .debug_line    0x000000000000a2fe      0x1b5 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wcrtomb.o)
+ .debug_line    0x000000000000a4b3      0x1a5 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wctomb_r.o)
+ .debug_line    0x000000000000a658       0x8a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_udivsi3.o)
+ .debug_line    0x000000000000a6e2       0x61 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_dvmd_tls.o)
+ .debug_line    0x000000000000a743      0x168 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_addsubdf3.o)
+ .debug_line    0x000000000000a8ab      0x180 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_muldivdf3.o)
+ .debug_line    0x000000000000aa2b       0xae /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_cmpdf2.o)
+ .debug_line    0x000000000000aad9       0x78 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixdfsi.o)
+ .debug_line    0x000000000000ab51       0x76 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixunsdfsi.o)
+ .debug_line    0x000000000000abc7       0x89 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_truncdfsf2.o)
+
+.debug_str      0x0000000000000000     0x285d
+ .debug_str     0x0000000000000000      0x48c /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+                                        0x539 (size before relaxing)
+ .debug_str     0x000000000000048c      0x150 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccRxRFQd.o
+                                        0x282 (size before relaxing)
+ .debug_str     0x00000000000005dc      0x133 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o)
+                                        0x1ed (size before relaxing)
+ .debug_str     0x000000000000070f       0x78 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-e_sqrt.o)
+                                        0x196 (size before relaxing)
+ .debug_str     0x0000000000000787       0x8e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_fpclassify.o)
+                                        0x15e (size before relaxing)
+ .debug_str     0x0000000000000815       0x3c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_lib_ver.o)
+                                        0x19d (size before relaxing)
+ .debug_str     0x0000000000000851       0x3c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_matherr.o)
+                                        0x16f (size before relaxing)
+ .debug_str     0x000000000000088d       0x85 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-errno.o)
+                                        0x4e6 (size before relaxing)
+ .debug_str     0x0000000000000912       0xdb /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o)
+                                        0x54f (size before relaxing)
+ .debug_str     0x00000000000009ed       0x6b /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fscanf.o)
+                                        0x526 (size before relaxing)
+ .debug_str     0x0000000000000a58       0xa2 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o)
+                                        0x659 (size before relaxing)
+ .debug_str     0x0000000000000afa       0x8c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fstatr.o)
+                                        0x5dc (size before relaxing)
+ .debug_str     0x0000000000000b86       0x57 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-impure.o)
+                                        0x4fe (size before relaxing)
+ .debug_str     0x0000000000000bdd       0x58 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o)
+                                        0x607 (size before relaxing)
+ .debug_str     0x0000000000000c35      0x27b /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o)
+                                        0x70d (size before relaxing)
+ .debug_str     0x0000000000000eb0       0x9c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memset.o)
+                                        0x148 (size before relaxing)
+ .debug_str     0x0000000000000f4c       0x4d /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mlock.o)
+                                        0x507 (size before relaxing)
+ .debug_str     0x0000000000000f99       0x37 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-openr.o)
+                                        0x4f6 (size before relaxing)
+ .debug_str     0x0000000000000fd0       0x4e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-printf.o)
+                                        0x527 (size before relaxing)
+ .debug_str     0x000000000000101e       0xac /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o)
+                                        0x157 (size before relaxing)
+ .debug_str     0x00000000000010ca       0x71 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+                                        0x52b (size before relaxing)
+ .debug_str     0x000000000000113b       0x63 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o)
+                                        0x549 (size before relaxing)
+ .debug_str     0x000000000000119e       0x37 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sbrkr.o)
+                                        0x4f5 (size before relaxing)
+ .debug_str     0x00000000000011d5       0x90 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o)
+                                        0x558 (size before relaxing)
+ .debug_str     0x0000000000001265      0x2c6 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+                                        0x8b6 (size before relaxing)
+ .debug_str     0x000000000000152b      0x190 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+                                        0x704 (size before relaxing)
+ .debug_str     0x00000000000016bb       0x38 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-writer.o)
+                                        0x4f2 (size before relaxing)
+ .debug_str     0x00000000000016f3       0x38 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wsetup.o)
+                                        0x50d (size before relaxing)
+ .debug_str     0x000000000000172b       0x38 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-closer.o)
+                                        0x4e2 (size before relaxing)
+ .debug_str     0x0000000000001763       0x8e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ctype_.o)
+                                         0xb6 (size before relaxing)
+ .debug_str     0x00000000000017f1      0x156 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o)
+                                        0x650 (size before relaxing)
+ .debug_str     0x0000000000001947       0x4f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fflush.o)
+                                        0x548 (size before relaxing)
+ .debug_str     0x0000000000001996       0xcc /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-findfp.o)
+                                        0x5f7 (size before relaxing)
+ .debug_str     0x0000000000001a62       0x3c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-flags.o)
+                                        0x4e5 (size before relaxing)
+ .debug_str     0x0000000000001a9e       0x5f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fread.o)
+                                        0x555 (size before relaxing)
+ .debug_str     0x0000000000001afd       0x34 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-freer.o)
+                                        0x657 (size before relaxing)
+ .debug_str     0x0000000000001b31       0x46 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fwalk.o)
+                                        0x503 (size before relaxing)
+ .debug_str     0x0000000000001b77       0x39 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-isattyr.o)
+                                        0x4ec (size before relaxing)
+ .debug_str     0x0000000000001bb0       0x3a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-iswspace.o)
+                                        0x144 (size before relaxing)
+ .debug_str     0x0000000000001bea      0x15b /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o)
+                                        0x75b (size before relaxing)
+ .debug_str     0x0000000000001d45       0x38 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-lseekr.o)
+                                        0x4f7 (size before relaxing)
+ .debug_str     0x0000000000001d7d       0x4b /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o)
+                                        0x52f (size before relaxing)
+ .debug_str     0x0000000000001dc8       0x5a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbtowc_r.o)
+                                        0x537 (size before relaxing)
+ .debug_str     0x0000000000001e22       0xa8 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memchr-stub.o)
+                                        0x160 (size before relaxing)
+ .debug_str     0x0000000000001eca       0x6d /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memcpy-stub.o)
+                                        0x16d (size before relaxing)
+ .debug_str     0x0000000000001f37       0xa3 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+                                        0x60a (size before relaxing)
+ .debug_str     0x0000000000001fda       0x37 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-readr.o)
+                                        0x4f0 (size before relaxing)
+ .debug_str     0x0000000000002011       0x3f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sccl.o)
+                                        0x139 (size before relaxing)
+ .debug_str     0x0000000000002050       0x39 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sf_nan.o)
+                                        0x14b (size before relaxing)
+ .debug_str     0x0000000000002089       0x51 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sprintf.o)
+                                        0x52b (size before relaxing)
+ .debug_str     0x00000000000020da       0x52 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strcmp.o)
+                                        0x14b (size before relaxing)
+ .debug_str     0x000000000000212c       0x41 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strlen.o)
+                                        0x141 (size before relaxing)
+ .debug_str     0x000000000000216d      0x1cc /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+                                        0x902 (size before relaxing)
+ .debug_str     0x0000000000002339       0x55 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtol.o)
+                                        0x524 (size before relaxing)
+ .debug_str     0x000000000000238e       0x4d /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtoul.o)
+                                        0x527 (size before relaxing)
+ .debug_str     0x00000000000023db        0xc /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+                                        0x873 (size before relaxing)
+ .debug_str     0x00000000000023e7       0x54 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ungetc.o)
+                                        0x539 (size before relaxing)
+ .debug_str     0x000000000000243b       0x2e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+                                        0x6a8 (size before relaxing)
+ .debug_str     0x0000000000002469        0xf /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-callocr.o)
+                                        0x537 (size before relaxing)
+ .debug_str     0x0000000000002478       0x49 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fclose.o)
+                                        0x53a (size before relaxing)
+ .debug_str     0x00000000000024c1       0x56 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o)
+                                        0x548 (size before relaxing)
+ .debug_str     0x0000000000002517       0x5f /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o)
+                                        0x590 (size before relaxing)
+ .debug_str     0x0000000000002576       0xe3 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+                                        0x889 (size before relaxing)
+ .debug_str     0x0000000000002659       0x47 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-hexnan.o)
+                                        0x271 (size before relaxing)
+ .debug_str     0x00000000000026a0       0x43 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memmove.o)
+                                        0x167 (size before relaxing)
+ .debug_str     0x00000000000026e3       0x4e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reallocr.o)
+                                        0x5df (size before relaxing)
+ .debug_str     0x0000000000002731       0x3a /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strncmp.o)
+                                        0x136 (size before relaxing)
+ .debug_str     0x000000000000276b        0xe /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+                                        0x676 (size before relaxing)
+ .debug_str     0x0000000000002779       0x3e /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wbuf.o)
+                                        0x512 (size before relaxing)
+ .debug_str     0x00000000000027b7       0x4b /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wcrtomb.o)
+                                        0x52f (size before relaxing)
+ .debug_str     0x0000000000002802       0x5b /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wctomb_r.o)
+                                        0x53e (size before relaxing)
+
+.comment        0x0000000000000000       0x11
+ .comment       0x0000000000000000       0x11 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+                                         0x12 (size before relaxing)
+ .comment       0x0000000000000000       0x12 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccRxRFQd.o
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-e_sqrt.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_fpclassify.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_lib_ver.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_matherr.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-errno.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fscanf.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fstatr.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-impure.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memset.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mlock.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-openr.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-printf.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sbrkr.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-writer.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wsetup.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-closer.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ctype_.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fflush.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-findfp.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-flags.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fread.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-freer.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fwalk.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-isattyr.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-iswspace.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-lseekr.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbtowc_r.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memchr-stub.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memcpy-stub.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-readr.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sccl.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sf_nan.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sprintf.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strcmp.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strlen.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtol.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtoul.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ungetc.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-callocr.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fclose.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-hexnan.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memmove.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reallocr.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strncmp.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wbuf.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wcrtomb.o)
+ .comment       0x0000000000000000       0x12 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wctomb_r.o)
+
+.ARM.attributes
+                0x0000000000000000       0x2e
+ .ARM.attributes
+                0x0000000000000000       0x30 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+ .ARM.attributes
+                0x0000000000000030       0x30 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccRxRFQd.o
+ .ARM.attributes
+                0x0000000000000060       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o)
+ .ARM.attributes
+                0x0000000000000090       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-e_sqrt.o)
+ .ARM.attributes
+                0x00000000000000c0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_fpclassify.o)
+ .ARM.attributes
+                0x00000000000000f0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_lib_ver.o)
+ .ARM.attributes
+                0x0000000000000120       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_matherr.o)
+ .ARM.attributes
+                0x0000000000000150       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-errno.o)
+ .ARM.attributes
+                0x0000000000000180       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o)
+ .ARM.attributes
+                0x00000000000001b0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fscanf.o)
+ .ARM.attributes
+                0x00000000000001e0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o)
+ .ARM.attributes
+                0x0000000000000210       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fstatr.o)
+ .ARM.attributes
+                0x0000000000000240       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-impure.o)
+ .ARM.attributes
+                0x0000000000000270       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o)
+ .ARM.attributes
+                0x00000000000002a0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o)
+ .ARM.attributes
+                0x00000000000002d0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memset.o)
+ .ARM.attributes
+                0x0000000000000300       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mlock.o)
+ .ARM.attributes
+                0x0000000000000330       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-openr.o)
+ .ARM.attributes
+                0x0000000000000360       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-printf.o)
+ .ARM.attributes
+                0x0000000000000390       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o)
+ .ARM.attributes
+                0x00000000000003c0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+ .ARM.attributes
+                0x00000000000003f0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o)
+ .ARM.attributes
+                0x0000000000000420       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sbrkr.o)
+ .ARM.attributes
+                0x0000000000000450       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o)
+ .ARM.attributes
+                0x0000000000000480       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+ .ARM.attributes
+                0x00000000000004b0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+ .ARM.attributes
+                0x00000000000004e0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-writer.o)
+ .ARM.attributes
+                0x0000000000000510       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wsetup.o)
+ .ARM.attributes
+                0x0000000000000540       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-closer.o)
+ .ARM.attributes
+                0x0000000000000570       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ctype_.o)
+ .ARM.attributes
+                0x00000000000005a0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o)
+ .ARM.attributes
+                0x00000000000005d0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fflush.o)
+ .ARM.attributes
+                0x0000000000000600       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-findfp.o)
+ .ARM.attributes
+                0x0000000000000630       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-flags.o)
+ .ARM.attributes
+                0x0000000000000660       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fread.o)
+ .ARM.attributes
+                0x0000000000000690       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-freer.o)
+ .ARM.attributes
+                0x00000000000006c0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fwalk.o)
+ .ARM.attributes
+                0x00000000000006f0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-isattyr.o)
+ .ARM.attributes
+                0x0000000000000720       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-iswspace.o)
+ .ARM.attributes
+                0x0000000000000750       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o)
+ .ARM.attributes
+                0x0000000000000780       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-lseekr.o)
+ .ARM.attributes
+                0x00000000000007b0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o)
+ .ARM.attributes
+                0x00000000000007e0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbtowc_r.o)
+ .ARM.attributes
+                0x0000000000000810       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memchr-stub.o)
+ .ARM.attributes
+                0x0000000000000840       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memcpy-stub.o)
+ .ARM.attributes
+                0x0000000000000870       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+ .ARM.attributes
+                0x00000000000008a0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-readr.o)
+ .ARM.attributes
+                0x00000000000008d0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sccl.o)
+ .ARM.attributes
+                0x0000000000000900       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sf_nan.o)
+ .ARM.attributes
+                0x0000000000000930       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sprintf.o)
+ .ARM.attributes
+                0x0000000000000960       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strcmp.o)
+ .ARM.attributes
+                0x0000000000000990       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strlen.o)
+ .ARM.attributes
+                0x00000000000009c0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+ .ARM.attributes
+                0x00000000000009f0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtol.o)
+ .ARM.attributes
+                0x0000000000000a20       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtoul.o)
+ .ARM.attributes
+                0x0000000000000a50       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+ .ARM.attributes
+                0x0000000000000a80       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ungetc.o)
+ .ARM.attributes
+                0x0000000000000ab0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+ .ARM.attributes
+                0x0000000000000ae0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-callocr.o)
+ .ARM.attributes
+                0x0000000000000b10       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fclose.o)
+ .ARM.attributes
+                0x0000000000000b40       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o)
+ .ARM.attributes
+                0x0000000000000b70       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o)
+ .ARM.attributes
+                0x0000000000000ba0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+ .ARM.attributes
+                0x0000000000000bd0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-hexnan.o)
+ .ARM.attributes
+                0x0000000000000c00       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memmove.o)
+ .ARM.attributes
+                0x0000000000000c30       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reallocr.o)
+ .ARM.attributes
+                0x0000000000000c60       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strncmp.o)
+ .ARM.attributes
+                0x0000000000000c90       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+ .ARM.attributes
+                0x0000000000000cc0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wbuf.o)
+ .ARM.attributes
+                0x0000000000000cf0       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wcrtomb.o)
+ .ARM.attributes
+                0x0000000000000d20       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wctomb_r.o)
+ .ARM.attributes
+                0x0000000000000d50       0x18 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_udivsi3.o)
+ .ARM.attributes
+                0x0000000000000d68       0x18 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_dvmd_tls.o)
+ .ARM.attributes
+                0x0000000000000d80       0x18 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_addsubdf3.o)
+ .ARM.attributes
+                0x0000000000000d98       0x18 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_muldivdf3.o)
+ .ARM.attributes
+                0x0000000000000db0       0x18 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_cmpdf2.o)
+ .ARM.attributes
+                0x0000000000000dc8       0x18 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixdfsi.o)
+ .ARM.attributes
+                0x0000000000000de0       0x18 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_fixunsdfsi.o)
+ .ARM.attributes
+                0x0000000000000df8       0x18 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_arm_truncdfsf2.o)
+ .ARM.attributes
+                0x0000000000000e10       0x14 ./internal/arm/crt0.o
+
+.debug_frame    0x0000000000000000     0x154c
+ .debug_frame   0x0000000000000000       0x64 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccFF64Ju.o
+ .debug_frame   0x0000000000000064       0xc8 /var/folders/f8/7rbmd4jd4ngf0xhctv_zqp140000gn/T//ccRxRFQd.o
+ .debug_frame   0x000000000000012c       0x38 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-w_sqrt.o)
+ .debug_frame   0x0000000000000164       0x34 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-e_sqrt.o)
+ .debug_frame   0x0000000000000198       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_fpclassify.o)
+ .debug_frame   0x00000000000001b8       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libm.a(lib_a-s_matherr.o)
+ .debug_frame   0x00000000000001d8       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-errno.o)
+ .debug_frame   0x00000000000001f8       0x40 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fopen.o)
+ .debug_frame   0x0000000000000238       0x54 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fscanf.o)
+ .debug_frame   0x000000000000028c       0x50 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fseek.o)
+ .debug_frame   0x00000000000002dc       0x2c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fstatr.o)
+ .debug_frame   0x0000000000000308       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-makebuf.o)
+ .debug_frame   0x0000000000000338       0x38 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mallocr.o)
+ .debug_frame   0x0000000000000370       0x28 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memset.o)
+ .debug_frame   0x0000000000000398       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mlock.o)
+ .debug_frame   0x00000000000003c8       0x2c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-openr.o)
+ .debug_frame   0x00000000000003f4       0x58 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-printf.o)
+ .debug_frame   0x000000000000044c       0x38 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-qsort.o)
+ .debug_frame   0x0000000000000484       0x68 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reent.o)
+ .debug_frame   0x00000000000004ec       0x44 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-refill.o)
+ .debug_frame   0x0000000000000530       0x2c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sbrkr.o)
+ .debug_frame   0x000000000000055c       0x88 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-stdio.o)
+ .debug_frame   0x00000000000005e4       0x58 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfprintf.o)
+ .debug_frame   0x000000000000063c       0x90 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfscanf.o)
+ .debug_frame   0x00000000000006cc       0x2c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-writer.o)
+ .debug_frame   0x00000000000006f8       0x2c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wsetup.o)
+ .debug_frame   0x0000000000000724       0x2c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-closer.o)
+ .debug_frame   0x0000000000000750       0x64 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-dtoa.o)
+ .debug_frame   0x00000000000007b4       0x64 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fflush.o)
+ .debug_frame   0x0000000000000818      0x134 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-findfp.o)
+ .debug_frame   0x000000000000094c       0x28 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-flags.o)
+ .debug_frame   0x0000000000000974       0x54 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fread.o)
+ .debug_frame   0x00000000000009c8       0x50 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-freer.o)
+ .debug_frame   0x0000000000000a18       0x54 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fwalk.o)
+ .debug_frame   0x0000000000000a6c       0x2c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-isattyr.o)
+ .debug_frame   0x0000000000000a98       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-iswspace.o)
+ .debug_frame   0x0000000000000ab8       0x98 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-locale.o)
+ .debug_frame   0x0000000000000b50       0x2c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-lseekr.o)
+ .debug_frame   0x0000000000000b7c       0x5c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbrtowc.o)
+ .debug_frame   0x0000000000000bd8       0x48 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mbtowc_r.o)
+ .debug_frame   0x0000000000000c20       0x2c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memchr-stub.o)
+ .debug_frame   0x0000000000000c4c       0x2c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memcpy-stub.o)
+ .debug_frame   0x0000000000000c78      0x220 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-mprec.o)
+ .debug_frame   0x0000000000000e98       0x2c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-readr.o)
+ .debug_frame   0x0000000000000ec4       0x2c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sccl.o)
+ .debug_frame   0x0000000000000ef0       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sf_nan.o)
+ .debug_frame   0x0000000000000f10       0x5c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-sprintf.o)
+ .debug_frame   0x0000000000000f6c       0x30 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strcmp.o)
+ .debug_frame   0x0000000000000f9c       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strlen.o)
+ .debug_frame   0x0000000000000fbc       0x68 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtod.o)
+ .debug_frame   0x0000000000001024       0x50 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtol.o)
+ .debug_frame   0x0000000000001074       0x50 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strtoul.o)
+ .debug_frame   0x00000000000010c4       0x3c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfprintf.o)
+ .debug_frame   0x0000000000001100       0x5c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-ungetc.o)
+ .debug_frame   0x000000000000115c       0x7c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-vfiprintf.o)
+ .debug_frame   0x00000000000011d8       0x28 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-callocr.o)
+ .debug_frame   0x0000000000001200       0x3c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fclose.o)
+ .debug_frame   0x000000000000123c       0x50 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fputwc.o)
+ .debug_frame   0x000000000000128c       0x38 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-fvwrite.o)
+ .debug_frame   0x00000000000012c4       0x68 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-gethex.o)
+ .debug_frame   0x000000000000132c       0x38 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-gdtoa-hexnan.o)
+ .debug_frame   0x0000000000001364       0x2c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-memmove.o)
+ .debug_frame   0x0000000000001390       0x38 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-reallocr.o)
+ .debug_frame   0x00000000000013c8       0x28 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-strncmp.o)
+ .debug_frame   0x00000000000013f0       0x64 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-svfiprintf.o)
+ .debug_frame   0x0000000000001454       0x3c /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wbuf.o)
+ .debug_frame   0x0000000000001490       0x58 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wcrtomb.o)
+ .debug_frame   0x00000000000014e8       0x44 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/../../../../arm-none-eabi/lib/libc.a(lib_a-wctomb_r.o)
+ .debug_frame   0x000000000000152c       0x20 /usr/local/yagarto-4.7.2/bin/../lib/gcc/arm-none-eabi/4.7.2/libgcc.a(_udivsi3.o)

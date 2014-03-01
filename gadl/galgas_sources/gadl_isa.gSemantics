@@ -75,13 +75,6 @@ method @ASTIsa getIsa
   [defaultValues updateTemplate !?templateStruct];
 
   isa := [@Isa new !impMap !decodedBehaviorMap !branchInstMap !defaultValues];
-
-
-  #TODO: TMP:
-  @graphNodeMap componentAccessMap;
-  getInstructionComponentGraph !decodedBehaviorMap !defaultValues ?componentAccessMap;
-  generateComponentAccessGraphViz !componentAccessMap ![modelName string];
-
 end method;
 
 end semantics ;

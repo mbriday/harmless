@@ -1,7 +1,7 @@
 %template headerC%
 
-#include "core.h"
-#include "instruction.h"
+#include "%!core::NAME%_core.h"
+#include "%!core::NAME%_instruction.h"
 
 %foreach inst in branchTargetStaticDetect do
   if not inst::unknown & inst::unconditionnal then

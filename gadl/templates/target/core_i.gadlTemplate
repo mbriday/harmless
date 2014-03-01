@@ -1,26 +1,27 @@
 %template headerC%
-\%module %!MODELNAME%
+\%module %!core::NAME%
 \%include typemaps.i
 /* used to interprete correctly C++ string type.*/
 \%include "std_string.i"
 
 \%{
 /* Includes the header in the wrapper code */
-#include "core.h"
+#include "%!core::NAME%_core.h"
 #include "storage.h"
-#include "instructionBase.h"
-#include "stackController.h"
-#include "stackSwitchList.h"
-#include "stackList.h"
+#include "%!core::NAME%_instructionBase.h"
+/* #include "%!core::NAME%_stackController.h" */
+/* #include "%!core::NAME%_stackSwitchList.h" */
+/* #include "%!core::NAME%_stackList.h" */
 #include "codeReader.h"
 \%}
 
 /* Parse the header file to generate wrappers */
 \%include "types.h"
 \%include "core.h"
+\%include "%!core::NAME%_core.h"
 \%include "storage.h"
-\%include "instructionBase.h"
-\%include "stackController.h"
-\%include "stackSwitchList.h"
-\%include "stackList.h"
+\%include "%!core::NAME%_instructionBase.h"
+/* \%include "%!core::NAME%_stackController.h" */
+/* \%include "%!core::NAME%_stackSwitchList.h" */
+/* \%include "%!core::NAME%_stackList.h" */
 \%include "codeReader.h"

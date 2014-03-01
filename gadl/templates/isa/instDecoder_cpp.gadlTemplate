@@ -1,11 +1,11 @@
 %template headerC%
-#include "instruction.h" //first for precompiled headers
+#include "%!core::NAME%_instruction.h" //first for precompiled headers
 #include <iostream>
-#include "instDecoder.h"
+#include "%!core::NAME%_instDecoder.h"
 #ifndef DO_NOT_USE_INTERNAL_INSTRUCTION_CACHE
-#include "instDecoderCache.h"
+#include "%!core::NAME%_instDecoderCache.h"
 #endif
-#include "core.h"
+#include "%!core::NAME%_core.h"
 using namespace std;
 /** set internal instruction cache size.
  *  The instruction cache is used by the simulator to
@@ -19,27 +19,27 @@ using namespace std;
 %
 #up to 256 decoder functions.
 
-let decoderFuncArgs := MODELNAME."_instDecoder *decoder, core *_core, ".idfStruct::PC_C_TYPE." &pc, const ".idfStruct::PC_C_TYPE." pcBase, const ".INST_DEFAULT_SIZE_C_STR." chunk1".defaultFetchDeclare
+let decoderFuncArgs := core::NAME."_instDecoder *decoder, ".core::NAME."_core *_core, ".core::idfStruct::PC_C_TYPE." &pc, const ".core::idfStruct::PC_C_TYPE." pcBase, const ".core::INST_DEFAULT_SIZE_C_STR." chunk1".defaultFetchDeclare
 
-foreach func in DECODER_FUNCTION_LIST do
+foreach func in core::DECODER_FUNCTION_LIST do
   if func::exist then
-    !MODELNAME%_instruction* %!MODELNAME%_decode_%!func::id%(%!decoderFuncArgs%) {\n%
+    !core::NAME%_instruction* %!core::NAME%_decode_%!func::id%(%!decoderFuncArgs%) {\n%
     !func::body
     %}\n\n%
   end if
 end foreach
 
 #the 'Not Implemented' decoder function:
-!MODELNAME%_instruction* %!MODELNAME%_decode_NI(%!decoderFuncArgs%) {
+!core::NAME%_instruction* %!core::NAME%_decode_NI(%!decoderFuncArgs%) {
 	return NULL;
 }
 \n%
 
 #now the function tabular
-!MODELNAME%_instruction* (*%!MODELNAME%_decodeTab[])(%!decoderFuncArgs%) = {\n\t%
+!core::NAME%_instruction* (*%!core::NAME%_decodeTab[])(%!decoderFuncArgs%) = {\n\t%
 let i := 0
-foreach func in DECODER_FUNCTION_LIST do
-  !MODELNAME%_decode_%
+foreach func in core::DECODER_FUNCTION_LIST do
+  !core::NAME%_decode_%
   if func::exist then 
     !func::id
   else
@@ -54,15 +54,15 @@ between
 end foreach
 %\n};
 
-%!MODELNAME%_instDecoder::%!MODELNAME%_instDecoder()
+%!core::NAME%_instDecoder::%!core::NAME%_instDecoder()
 {
 	#ifndef DO_NOT_USE_INTERNAL_INSTRUCTION_CACHE
-		cache = new %!MODELNAME%_instDecoderCache(INTERNAL_INSTRUCTION_CACHE_SIZE_IN_BITS);
+		cache = new %!core::NAME%_instDecoderCache(INTERNAL_INSTRUCTION_CACHE_SIZE_IN_BITS);
 	#endif
 }
 
 
-%!MODELNAME%_instruction* %!MODELNAME%_instDecoder::decode(core *_core, %!idfStruct::PC_C_TYPE% &pc%!defaultFetchDeclare%)
+%!core::NAME%_instruction* %!core::NAME%_instDecoder::decode(%!core::NAME%_core *_core, %!core::idfStruct::PC_C_TYPE% &pc%!defaultFetchDeclare%)
 {
 	#ifndef DO_NOT_USE_INTERNAL_INSTRUCTION_CACHE
 		return cache->getInstruction(_core, pc, this%!defaultFetchParam%);
@@ -71,21 +71,21 @@ end foreach
 	#endif
 }
 
-%!MODELNAME%_instruction* %!MODELNAME%_instDecoder::decodeWithExecActionCache(core *_core, %!idfStruct::PC_C_TYPE% &codeAddr%!defaultFetchDeclare%)
+%!core::NAME%_instruction* %!core::NAME%_instDecoder::decodeWithExecActionCache(%!core::NAME%_core *_core, %!core::idfStruct::PC_C_TYPE% &codeAddr%!defaultFetchDeclare%)
 {
 	//search if instruction is in the cache.
-	executeInstAction *inst = m_execActionNotInCache.getAndRemoveAt(codeAddr);
+	%!core::NAME%_executeInstAction *inst = m_execActionNotInCache.getAndRemoveAt(codeAddr);
 	if(inst)
 	{
 		//cout << "instruction to decode is in exec cache (addr = " << hex << codeAddr << ")"<< endl;
-		%!MODELNAME%_instruction *notDecoratedInst = inst->instruction();
+		%!core::NAME%_instruction *notDecoratedInst = inst->instruction();
 		if(notDecoratedInst)
 		{
 			//cout << "instruction is " << notDecoratedInst->mnemo();
 			//instruction in cache, and decoded. 
 			//we should update the 'pc'.
 			const u8 chunks = notDecoratedInst->chunks();
-			%!MULTIPLE_FETCH_FUNCTION_CONDITION_IN_CACHE%
+			%!core::MULTIPLE_FETCH_FUNCTION_CONDITION_IN_CACHE%
 			return inst;
 		} else { 
 			//cout << "instruction was not yet decoded." << endl;
@@ -98,21 +98,21 @@ end foreach
 	}
 }
 
-%!MODELNAME%_instruction* %!MODELNAME%_instDecoder::decodeDirect(core *_core, u32 &pc)
+%!core::NAME%_instruction* %!core::NAME%_instDecoder::decodeDirect(%!core::NAME%_core *_core, u32 &pc)
 {
-	const %!idfStruct::PC_C_TYPE% pcBase = pc;
-	const %!INST_DEFAULT_C_SIZE% instCode = %!FETCH_FUNCTION_CONDITION%;
-	unsigned int tabEntry = instCode >> %!INST_SHIFT%; //most significant bits -> first part of the opcode.
-	%!MODELNAME%_instruction *inst = %!MODELNAME%_decodeTab[tabEntry](this, _core, pc, pcBase, instCode);
+	const %!core::idfStruct::PC_C_TYPE% pcBase = pc;
+	const %!core::INST_DEFAULT_C_SIZE% instCode = %!core::FETCH_FUNCTION_CONDITION%;
+	unsigned int tabEntry = instCode >> %!core::INST_SHIFT%; //most significant bits -> first part of the opcode.
+	%!core::NAME%_instruction *inst = %!core::NAME%_decodeTab[tabEntry](this, _core, pc, pcBase, instCode);
 	if(inst == NULL)
 	{
 		//not decoded. May be an illegal opcode (an instruction that follows a jump?)
-		inst = new %!MODELNAME%_instructionStall(pcBase, instCode);
+		inst = new %!core::NAME%_instructionStall(pcBase, instCode);
 	}
 	return inst;
 }
 
-void %!MODELNAME%_instDecoder::decoderStats()
+void %!core::NAME%_instDecoder::decoderStats()
 {
 	#ifndef DO_NOT_USE_INTERNAL_INSTRUCTION_CACHE
 		cache->printCacheStats();
@@ -121,10 +121,10 @@ void %!MODELNAME%_instDecoder::decoderStats()
 	#endif
 }
 
-%!MODELNAME%_instruction *%!MODELNAME%_instDecoder::isInCache(const u32 address)
+%!core::NAME%_instruction *%!core::NAME%_instDecoder::isInCache(const u32 address)
 {
 	#ifndef DO_NOT_USE_INTERNAL_INSTRUCTION_CACHE
-		//%!MODELNAME%_instruction *inst = cache->isInCache(address);
+		//%!core::NAME%_instruction *inst = cache->isInCache(address);
 		//if(inst) cerr << "1  instruction @0x" << hex << address << endl;
 		//else     cerr << "NO instruction @0x" << hex << address << endl;
 		//return inst;
@@ -134,7 +134,7 @@ void %!MODELNAME%_instDecoder::decoderStats()
 	#endif
 }
 
-void %!MODELNAME%_instDecoder::replaceInCache(const u32 addr, %!MODELNAME%_instruction *inst,executeInstAction *eia)
+void %!core::NAME%_instDecoder::replaceInCache(const u32 addr, %!core::NAME%_instruction *inst,%!core::NAME%_executeInstAction *eia)
 {
 	#ifndef DO_NOT_USE_INTERNAL_INSTRUCTION_CACHE
 		cache->replaceInCache(addr, inst, eia);
@@ -144,34 +144,34 @@ void %!MODELNAME%_instDecoder::replaceInCache(const u32 addr, %!MODELNAME%_instr
 	#endif
 }
 
-void %!MODELNAME%_instDecoder::addExecuteActionAtAddress(const u32 addr, executeAction *ea)
+void %!core::NAME%_instDecoder::addExecuteActionAtAddress(const u32 addr, executeAction *ea)
 {
 	//m_execActionNotInCache.dump();
 	//search if the instruction associated to this action is in the cache.
-	%!MODELNAME%_instruction *inst = isInCache(addr);
+	%!core::NAME%_instruction *inst = isInCache(addr);
 	if(inst)
 	{
 		//instruction is in cache.
 		if(inst->isInstAction())
 		{
-			//add the action to the existing executeInstAction
-			executeInstAction *eia = (executeInstAction *)inst;
+			//add the action to the existing %!core::NAME%_executeInstAction
+			%!core::NAME%_executeInstAction *eia = (%!core::NAME%_executeInstAction *)inst;
 			eia->addExecuteAction(ea);
 		} else {
 			//no executeInstAction associated. Create it.
-			executeInstAction *eia = new executeInstAction(addr);
+			%!core::NAME%_executeInstAction *eia = new %!core::NAME%_executeInstAction(addr);
 			eia->addExecuteAction(ea);
 			eia->setInstruction(inst);
 			//no retain 
 			replaceInCache(addr, inst, eia);
 		}
 	} else {
-		executeInstAction *eia = m_execActionNotInCache.get(addr);
+		%!core::NAME%_executeInstAction *eia = m_execActionNotInCache.get(addr);
 		if(eia) //already in the list
 		{
 			eia->addExecuteAction(ea);
 		} else {
-			eia = new executeInstAction(addr);
+			eia = new %!core::NAME%_executeInstAction(addr);
 			eia->addExecuteAction(ea);
 			m_execActionNotInCache.insert(eia);
 		}
@@ -180,29 +180,29 @@ void %!MODELNAME%_instDecoder::addExecuteActionAtAddress(const u32 addr, execute
 }
 
 
-void %!MODELNAME%_instDecoder::cacheRemoveInstruction(%!MODELNAME%_instruction *instToRemove)
+void %!core::NAME%_instDecoder::cacheRemoveInstruction(%!core::NAME%_instruction *instToRemove)
 {
 	if(instToRemove->isInstAction()) //is the instruction associated to an action.
 	{
-		executeInstAction *eia = (executeInstAction *)instToRemove;
+		%!core::NAME%_executeInstAction *eia = (%!core::NAME%_executeInstAction *)instToRemove;
 		eia->retain();
 		m_execActionNotInCache.insert(eia);
 	}
 }
 
-bool %!MODELNAME%_instDecoder::removeExecuteActionAtAddress(const %!idfStruct::PC_C_TYPE% addr, executeAction *ea)
+bool %!core::NAME%_instDecoder::removeExecuteActionAtAddress(const %!core::idfStruct::PC_C_TYPE% addr, executeAction *ea)
 {
 	bool found = false;
 	//search if the instruction associated to this action is in the cache.
-	%!MODELNAME%_instruction *inst = isInCache(addr);
+	%!core::NAME%_instruction *inst = isInCache(addr);
 	if(inst)
 	{
 		//cerr << "addr 0x" << addr << " is in cache"<<endl;
 		//instruction is in cache.
 		if(inst->isInstAction())
 		{
-			//remove the action to the existing executeInstAction
-			executeInstAction *eia = (executeInstAction *)inst;
+			//remove the action to the existing %!core::NAME%_executeInstAction
+			%!core::NAME%_executeInstAction *eia = (%!core::NAME%_executeInstAction *)inst;
 			found = eia->removeExecuteAction(ea);
 		} else { //no action at this place.
 			//cerr << "There is no execute action to remove at address 0x"<< hex << addr << endl;

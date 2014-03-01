@@ -3,20 +3,22 @@
 #include "action.h"
 using namespace std;
 
-void executeInstAction::execute(core *_core)
+%
+foreach core in coreList do%
+void %!core::NAME%_executeInstAction::execute(%!core::NAME%_core *_core)
 {
 	//cout << "execute decorated instruction @" << hex << getInstructionPointer() << endl;
 	triggerAction(_core);
 	m_inst->execute(_core);
 };
 
-executeInstAction::executeInstAction(const u32 address) :
-	%!MODELNAME%_instruction(address), m_inst(NULL),m_action(NULL),m_next(NULL)
+%!core::NAME%_executeInstAction::%!core::NAME%_executeInstAction(const u32 address) :
+	%!core::NAME%_instruction(address), m_inst(NULL),m_action(NULL),m_next(NULL)
 {
 	
 }
 
-void executeInstAction::addExecuteAction(executeAction* act)
+void %!core::NAME%_executeInstAction::addExecuteAction(executeAction* act)
 {
 	//cout << "adding execute action @" << hex << getInstructionPointer() << endl;
 	if(m_action) //there is an action.
@@ -49,7 +51,7 @@ void executeInstAction::addExecuteAction(executeAction* act)
 	}  
 }
 
-bool executeInstAction::removeExecuteAction(executeAction* act)
+bool %!core::NAME%_executeInstAction::removeExecuteAction(executeAction* act)
 {
 	bool found = false;
 	if(m_action)
@@ -83,17 +85,17 @@ bool executeInstAction::removeExecuteAction(executeAction* act)
 	return found;
 }
 
-void executeInstAction::triggerAction(core *_core)
+void %!core::NAME%_executeInstAction::triggerAction(%!core::NAME%_core *_core)
 {
 	if(m_action)
 	{
 		executeAction *currentAction = m_action;
-        executeAction *previous = NULL;
-        executeAction *next = NULL;
-        while(currentAction)
-        {
+		executeAction *previous = NULL;
+		executeAction *next = NULL;
+		while(currentAction)
+		{
             next = (executeAction *)(currentAction->next());
-            if(currentAction->trigger(_core))	//call the trigger method
+            if(currentAction->trigger((core *)_core))	//call the trigger method
             {
                 //remove the execute action.
                 if(previous) //not first action, there is a previous
@@ -119,15 +121,15 @@ void executeInstAction::triggerAction(core *_core)
 	}
 }
 
-void executeInstActionList::insert(executeInstAction *eia)
+void %!core::NAME%_executeInstActionList::insert(%!core::NAME%_executeInstAction *eia)
 {
 	const u32 address = eia->getInstructionPointer();
 	//cout << "insert exec action related instruction @" << hex << address << endl;
 	if(m_root)
 	{
 		bool found = false;
-		executeInstAction * currentItem = m_root;
-		executeInstAction * previousItem = NULL;
+		%!core::NAME%_executeInstAction * currentItem = m_root;
+		%!core::NAME%_executeInstAction * previousItem = NULL;
 		while(!found && currentItem) //at least one loop (since m_root not NULL).
 		{
 			if(currentItem->getInstructionPointer() >= address) 
@@ -154,12 +156,12 @@ void executeInstActionList::insert(executeInstAction *eia)
 	//cout << "exec action instruction cache size is now " << dec << m_size << endl;
 }
 
-executeInstAction *executeInstActionList::getAndRemoveAt(const u32 address)
+%!core::NAME%_executeInstAction *%!core::NAME%_executeInstActionList::getAndRemoveAt(const u32 address)
 {
 	//cout << "exec action instruction cache size is (before) " << dec << m_size << endl;
 	//cout << "looking for exec action related instruction @" << hex << address;
-	executeInstAction * currentItem = m_root;
-	executeInstAction * previousItem = NULL;
+	%!core::NAME%_executeInstAction * currentItem = m_root;
+	%!core::NAME%_executeInstAction * previousItem = NULL;
 	while(currentItem)
 	{
 		if(currentItem->getInstructionPointer() == address)
@@ -183,9 +185,9 @@ executeInstAction *executeInstActionList::getAndRemoveAt(const u32 address)
 	return NULL; //not found
 }
 
-executeInstAction *executeInstActionList::get(const u32 address)
+%!core::NAME%_executeInstAction *%!core::NAME%_executeInstActionList::get(const u32 address)
 {
-	executeInstAction * currentItem = m_root;
+	%!core::NAME%_executeInstAction * currentItem = m_root;
 	while(currentItem)
 	{
 		if(currentItem->getInstructionPointer() == address)
@@ -197,11 +199,11 @@ executeInstAction *executeInstActionList::get(const u32 address)
 	return NULL; //not found
 }
 
-bool executeInstActionList::removeExecAction(const u32 address, executeAction *ea)
+bool %!core::NAME%_executeInstActionList::removeExecAction(const u32 address, executeAction *ea)
 {
 	//cout << "exec action instruction cache size is (before) " << dec << m_size << endl;
 	//cout << "looking for exec action related instruction @" << hex << address << flush;
-	executeInstAction * currentItem = m_root;
+	%!core::NAME%_executeInstAction * currentItem = m_root;
 	bool found = false;
 	while(currentItem && !found)
 	{
@@ -217,12 +219,12 @@ bool executeInstActionList::removeExecAction(const u32 address, executeAction *e
 	return found;
 }
 
-void executeInstActionList::dump()
+void %!core::NAME%_executeInstActionList::dump()
 {
 	cout << "instructions that have an associated \"execute action\"" << endl
 		 << "but are not set in the (simulator) instruction cache." << endl;
 	cout << "There are " << dec << m_size << " entries:" << endl;
-	executeInstAction * currentItem = m_root;
+	%!core::NAME%_executeInstAction * currentItem = m_root;
 	while(currentItem)
 	{
 		const u32 address = currentItem->getInstructionPointer();
@@ -230,3 +232,5 @@ void executeInstActionList::dump()
 		currentItem = currentItem->next();
 	}
 }
+%end foreach #coreList
+%

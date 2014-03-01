@@ -1,31 +1,31 @@
 %template headerC%
-#ifndef __%!MODELNAME%_INSTRUCTION_H__
-#define __%!MODELNAME%_INSTRUCTION_H__
+#ifndef __%!core::NAME%_INSTRUCTION_H__
+#define __%!core::NAME%_INSTRUCTION_H__
 
-#include "instructionBase.h"
+#include "%!core::NAME%_instructionBase.h"
 
 %
 let InstClassMap := emptyMap
-if exists InstClassList then #there are instruction classes
-  let InstClassMap := mapOf InstClassList by name
+if exists core::InstClassList then #there are instruction classes
+  let InstClassMap := mapOf core::InstClassList by name
 end if
 
 let instDDCLockMap := emptyMap
-if exists instDDCLock then
-  let instDDCLockMap := mapOf instDDCLock by name
+if exists core::instDDCLock then
+  let instDDCLockMap := mapOf core::instDDCLock by name
 end if
 
-foreach inst in INST_CONSTRUCTOR do
-  let codeSizeInBytes := (INST_DEFAULT_SIZE_C * inst::codeLength) >> 3
+foreach inst in core::INST_CONSTRUCTOR do
+  let codeSizeInBytes := (core::INST_DEFAULT_SIZE_C * inst::codeLength) >> 3
   #declaration
-  %class %!inst::name% : public %!MODELNAME%_instruction {\n%
+  %class %!inst::name% : public %!core::NAME%_instruction {\n%
   !inst::INST_FIELD_DEF
-  if exists branchInstMap[inst::name] then
+  if exists core::branchInstMap[inst::name] then
     %\tbool m_jumpTaken;\n%
   end if
   if useCAS then
-	if exists DDCRegDef then
-		foreach DDCReg in DDCRegDef
+	if exists core::DDCRegDef then
+		foreach DDCReg in core::DDCRegDef
 		before
 		%\n\t//Data Dependancy Controller related part\n%
 		do
@@ -39,7 +39,7 @@ foreach inst in INST_CONSTRUCTOR do
 	public:
 	%!inst::name !instContructorParam[inst::name]%;
 	virtual ~%!inst::name%() {};
-	virtual void execute(core *);
+	virtual void execute(%!core::NAME%_core *);
 	virtual const char* const mnemo();
 %#	/** binary code size in bytes
 %	virtual unsigned char const size() {return %![codeSizeInBytes string]%;};
@@ -50,7 +50,7 @@ foreach inst in INST_CONSTRUCTOR do
 	if useCAS then
 		if exists instDDCLockMap[inst::name] then
 			let strArgs := ""
-			foreach DDCReg in DDCRegDef do
+			foreach DDCReg in core::DDCRegDef do
 				let strArgs := strArgs."u64 &reg".[DDCReg::id string]
 			between let strArgs := strArgs.", "
 			end foreach
@@ -58,7 +58,7 @@ foreach inst in INST_CONSTRUCTOR do
 			%\tvirtual void getDDCReadRegs(%!strArgs%);\n%
 		end if
 	end if #useCAS
-    if exists branchInstMap[inst::name] then
+    if exists core::branchInstMap[inst::name] then
       %\tvirtual bool jumpTaken() {return m_jumpTaken;};\n%
     end if
   foreach id in inst::ID_LIST do

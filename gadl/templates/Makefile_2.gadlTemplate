@@ -39,14 +39,15 @@ IMAGES_DOC=$(IMAGES_DOT:.dot=.svg)
 ############# Swig configuration.
 # Swig is used to generate a Wrapper between C++ and Python (or other script languages)
 # see http://www.swig.org
-PYTHON_LIB = _%!MODELNAME%.so #where %!MODELNAME% should be the module name defined in core.i
+PYTHON_LIB = _%!CPUNAME%.so #where %!CPUNAME% should be the module name defined in core.i
 # swig understang -Dflags for conditional compilation (DEFINES)
 SWIG=swig -python -c++ -classic
-PYTHON_INCLUDE = $(shell echo /usr/include/python*|tr ' ' '\\n'|sed "/_d/d"|sort|tail -n1)
-PYTHON_CFLAGS += -I$(PYTHON_INCLUDE)
-PYTHON_LDFLAGS = -l$(notdir $(PYTHON_INCLUDE)) -lstdc++
-INTERFACE = core.i
-
+#python configuration: we use python2.7-config tool (or xx instead of 2.7)
+PYTHON_VERSION=python2.7
+PYTHON_INCLUDE=$(shell $(PYTHON_VERSION)-config --includes)
+PYTHON_CFLAGS += -I$(PYTHON_INCLUDE) #we do not use $(PYTHON_VERSION)-config --cflags because it adds many other flags.
+PYTHON_LDFLAGS = $(shell $(PYTHON_VERSION)-config --ldflags)
+INTERFACE = %foreach core in coreList do !core::NAME%_core.i% between % % end foreach%
 IO_STUBS_SRC_DIR=../ioStubs/simulatorSource
 ########################################################
 # end of configuration...
@@ -119,17 +120,22 @@ doc: $(IMAGES_DOC)
 	@echo 'generate log image for $<' \	
 ########################################################
 %if useCAS then
+foreach core in coreList do
 %# build rules of pipelines (using automata internal model).
-GENERATED_SRCS = %!A2CPP_GENERATED%
-A2AFILES = %!A2AFILES%
+GENERATED_SRCS_%!core::NAME% = %!core::A2CPP_GENERATED%
+A2AFILES_%!core::NAME% = %!core::A2AFILES%
+
+%!core::A2CPP_RULES%
+
+SRCS_COM += $(GENERATED_SRCS_%!core::NAME%)
+%!core::NAME%_core.cpp: %!core::A2CPP_GENERATED_HEADER%
+%end foreach
+%
 
 \%.a2a: \%.config
 	chmod a+x $(P2A) $(A2CPP)
 	$(P2A) $< -o $@
 
-%!A2CPP_RULES%
-
-SRCS_COM += $(GENERATED_SRCS)
 ########################################################%end if%
 # SWIG compilation.
 INTERFACE_SRC = $(addsuffix _wrap.cpp, $(basename $(INTERFACE)))
@@ -175,7 +181,7 @@ ifeq ($(strip $(USE_IO_STUBS)),1)
   endif
 endif
 
-core.cpp: ioStubs.cpp %if exists A2CPP_GENERATED_HEADER then !A2CPP_GENERATED_HEADER end if%
+core.cpp: ioStubs.cpp 
 ##########
 #link
 

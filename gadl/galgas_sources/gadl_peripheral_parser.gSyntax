@@ -1,0 +1,96 @@
+syntax gadl_peripheral_parser ("gadl_lexique.gLexique") :
+  import "gadl_peripheral_AST.gSemantics" ;
+  import "gadl_variable.gSemantics" ; #varClass.
+  import "gadl_semantics_AST_implementation.gSemantics" ; #varClass.
+  import "gadl_semantics_function.gSemantics" ;  
+
+nonterminal <typeDeclaration> ! @varAbstractType type;
+nonterminal <registerBitAccessDef>
+  ?? @lstring regName
+  ?? @varAbstractType type
+  ?! @ASTInstructionList regDefList
+;
+
+#from gadl_function_parser
+#not the outType and functionName in the rule due to grammar LL1 restrictions.
+nonterminal <functionDef> 
+  ?? @varAbstractType outType
+  ?? @lstring functionName
+  ?! @ASTFunctionMap ASTFunctionMap
+;
+
+#registers as defined in peripherals.
+rule <registerPeriphDef>
+  ?! @ASTInstructionList regDefList
+:
+  #TODO: address et callbacks à mettre dans les structures.
+  $register$;
+  <typeDeclaration> ?@varAbstractType type;
+  $idf$ ?@lstring idf;
+  $maps$; $to$; $unumber$ ?@luint64 address;
+  regDefList += ![@ASTInstDeclaration new !here ![@varClass SFR] !type !idf];
+  select
+  or
+    <registerBitAccessDef> !idf !type !?regDefList;
+  end select;
+  #is there a callBack?
+  @bool hasReadFuncCall := false;
+  @bool hasWriteFuncCall := false;
+  @lstring readFuncCall := [@lstring new !"" !here];
+  @lstring writeFuncCall := [@lstring new !"" !here];
+  repeat
+  while
+    if hasReadFuncCall then
+      error here: "A function has already been declared for the read access";
+    end if;
+    $read$; $is$; $idf$? @lstring readFuncCall;
+    hasReadFuncCall := true;
+  while
+    if hasWriteFuncCall then
+      error here: "A function has already been declared for the read access";
+    end if;
+    $write$; $is$; $idf$? @lstring writeFuncCall;
+    hasWriteFuncCall := true;
+  end repeat;
+end rule;
+
+rule <deviceDeclaration>
+  ! @varAbstractType type
+:
+  $device$; $idf$ ?@lstring deviceType;
+  @varAbstractType typeBase := [@varDeviceType new ![@varKind custom] !deviceType];
+  select #code extracted from rule <typeDeclaration>
+    @luint64 tabLength;
+    $[$; $unumber$ ?tabLength; $]$;
+    type := [@varTabularType new ![@varKind tabular] !typeBase ![tabLength uint]];
+  or
+    type := typeBase;
+  end select;
+end rule;
+
+rule <peripheral>
+:
+  @ASTInstructionList regDefList [emptyList];
+  @ASTFunctionMap ASTFunctionMap [emptyMap];
+
+  $peripheral$;
+  $idf$ ?@lstring peripheral;
+  $memory$; $size$; $unumber$ ?@luint64 lsize;
+  ${$;
+    repeat
+    while
+      #register def
+      <registerPeriphDef> !?regDefList;
+    while
+      <typeDeclaration> ?@varAbstractType type;
+      $idf$ ?@lstring idf;
+      <functionDef> !type !idf !?ASTFunctionMap;
+    while
+      <deviceDeclaration> ? @varAbstractType deviceType;
+      $idf$ ?@lstring deviceName;
+    end repeat;
+  $}$;
+end rule;
+
+end syntax ;
+# vim:ft=ggs:ts=2:sw=2

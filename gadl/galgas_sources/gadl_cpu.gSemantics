@@ -1,0 +1,5 @@
+semantics gadl_cpu :
+  import "gadl_options.gOption" ;
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2
