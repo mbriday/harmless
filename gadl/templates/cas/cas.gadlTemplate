@@ -2,7 +2,7 @@
 #files related to Cycle Accurate Simulation only.
 
 #log related to instruction components usage.
-if useCAS then
+if core::useCAS then
   write to exportDir."/".core::NAME."_instDDCLock.cpp":
     template instDDCLock_cpp in cas
   end write

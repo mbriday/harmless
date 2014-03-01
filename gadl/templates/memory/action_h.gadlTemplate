@@ -109,7 +109,7 @@ class %!core::NAME%_executeInstAction : public %!core::NAME%_instruction
 	virtual unsigned char const chunks(){return m_inst->chunks();};
 	virtual const char* const mnemo()   {return m_inst->mnemo();};	
 	virtual bool jumpTaken()			{return m_inst->jumpTaken();};
-   %if useCAS then%
+   %if core::useCAS then%
 	virtual unsigned int const instClass() {return m_inst->instClass();};%end if%
 	%foreach all in core::ALL_ID_LIST do
      %\tvirtual bool hasID_%!all::ID%() {return m_inst->hasID_%!all::ID%();};\n%

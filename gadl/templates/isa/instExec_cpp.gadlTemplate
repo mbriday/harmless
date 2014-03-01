@@ -12,7 +12,7 @@ using namespace std;
 %foreach inst in instCodeListTmp do
   %void %!inst::name%::execute(%!core::NAME%_core *_core){\n%
   
-  if useCAS then
+  if core::useCAS then
     %\t_core->initDDCRegAccess();\n%
   end if
   
@@ -37,7 +37,7 @@ using namespace std;
     %\tm_jumpTaken = _core->%!core::idfStruct::PC_NAME%()-val_pc_before;\n%
   end if
   
-	if useCAS then
+	if core::useCAS then
 		foreach DDCReg in core::DDCRegDef
 		before
 		%\n\t//Data Dependancy Controller related part\n%

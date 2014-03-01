@@ -23,7 +23,7 @@ foreach inst in core::INST_CONSTRUCTOR do
   if exists core::branchInstMap[inst::name] then
     %\tbool m_jumpTaken;\n%
   end if
-  if useCAS then
+  if core::useCAS then
 	if exists core::DDCRegDef then
 		foreach DDCReg in core::DDCRegDef
 		before
@@ -47,7 +47,7 @@ foreach inst in core::INST_CONSTRUCTOR do
 %  if exists InstClassMap[inst::name] then
 %	virtual unsigned int const instClass() {return %![InstClassMap[inst::name]::id string]%;};
 %  end if
-	if useCAS then
+	if core::useCAS then
 		if exists instDDCLockMap[inst::name] then
 			let strArgs := ""
 			foreach DDCReg in core::DDCRegDef do

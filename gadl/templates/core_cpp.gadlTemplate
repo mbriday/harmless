@@ -28,7 +28,7 @@ if exists core::timingList then
   end foreach
 end if
 
-if useCAS then
+if core::useCAS then
   foreach pipeline in core::pipelineList do
     %#include "%!pipeline::name%.h"\n%
    end foreach
@@ -62,7 +62,7 @@ if exists useCounters then
 end if
 
 let firstPipeline := ""
- if useCAS then
+ if core::useCAS then
  foreach pipeline in core::pipelineList 
  before
  %	//pipeline model init\n%
@@ -95,7 +95,7 @@ let firstPipeline := ""
 % end if #useCAS
 let pipelineBufferSize := 1 #TODO: update handling of pipelineBufferSize
 let core::firstPipelinebufferMask := 1
-if useCAS then
+if core::useCAS then
   let pipelineBufferSize := 1 << nbBitsToCodeUnsigned([firstPipeline::stageList length] - 1)
   let core::firstPipelinebufferMask := pipelineBufferSize - 1
 %
@@ -155,7 +155,7 @@ end if
 int %!core::NAME%_core::execInst(const unsigned int nb)
 {
 	m_stopSimu = 0;
-%if useCAS then
+%if core::useCAS then
 %	if(getExecutionMode() == core::ISS) return emuInst(nb);
 	else { //CAS simulation.
 		if(!m_nextInstruction_%!firstPipeline::name%) //first time
@@ -185,7 +185,7 @@ void %!core::NAME%_core::runUntil(const unsigned int addr, const unsigned int ma
 		while(programCounter() != addr && getNBInstructions() < _max) execInst(1);
 }
 
-%if useCAS
+%if core::useCAS
   then foreach pipeline in core::pipelineList do 
 %unsigned int %!core::NAME%_core::getNextInstructionCodeIn_%!pipeline::name%()
 {
@@ -491,7 +491,7 @@ void %!core::NAME%_core::doNotExececuteNextInstructions(const u32 val) {
 
 void %!core::NAME%_core::usePipelineTrace()
 {
-%if useCAS then
+%if core::useCAS then
 %	#ifdef GADL_WITH_PIPELINE_TRACE
 		m_pipelineTrace = new pipelineTraceDebug(%![firstPipeline::stageList length]%);
 	#else
