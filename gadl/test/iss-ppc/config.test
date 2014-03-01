@@ -1,6 +1,6 @@
 [model]
 # list of harmless models, separated by ':'. Dir relative to gadl/example.
-files=powerpc/ppcIss.core
+files=powerpc/ppcISS.core
 models=powerpc
 
 [build]
