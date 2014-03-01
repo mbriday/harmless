@@ -9,6 +9,7 @@ semantics gadl_types :
 #  * varBaseType    for classical scalar types.
 #  * varStructType  for custom types
 #  * varTabularType for tabulars of scalar or custom types.
+#  * varDeviceType  for device types (instances of peripherals).
 
 #  * map @varBaseTypeMap -> map of varBaseType.
 
@@ -20,6 +21,7 @@ semantics gadl_types :
 #  * getBaseType    -> return the base type, and generate an error otherwise.
 #  * loc            -> return the location (for error generation).
 #  * sizeInBits     -> return the size in bits for a scalar, the size of one elt for a tab, an error for struct.
+#  * isVoid         -> return true for u0 (void) and false otherwise.
 
 # readers for varBaseType:
 #  * getCSize       -> return the size of the corresponding C var.
@@ -87,6 +89,11 @@ class @varTabularType extends @varAbstractType {
   @uint length; #nb items.
 }
 
+#a variable that refers to a device (same as a truct in fact...)
+class @varDeviceType extends @varAbstractType {
+  @lstring typeName;
+}
+
 # This map should contains field names with the suffix (@SRC...)
 map @varBaseTypeMap {
   @varBaseType type;
@@ -104,6 +111,10 @@ override reader @varBaseType loc -> @location l:
 end reader;
 
 override reader @varStructType loc -> @location l:
+  l := [typeName location];
+end reader;
+
+override reader @varDeviceType loc -> @location l:
   l := [typeName location];
 end reader;
 
@@ -156,6 +167,12 @@ reader @varStructType getCType
   -> @string str
 :
   str := "gadl_struct_TODO_".[typeName string]; #TODO: not a unique name!!!
+end reader;
+
+reader @varDeviceType getCType
+  -> @string str
+:
+  str := "periph_".[typeName string];
 end reader;
 
 ###############################################################################
@@ -229,6 +246,17 @@ override reader @varStructType getDeclaration
   end if;
 end reader;
 
+override reader @varDeviceType getDeclaration 
+  ?? @string  idf
+  ?? @codeCtx cgc
+  -> @string code
+:
+  code:= [selfcopy  getCType]." ".idf;
+  if cgc == [@codeCtx Uppaal] then
+    warning typeName: "no device code generation for Uppaal export at this date";
+  end if;
+end reader;
+
 override reader @varTabularType getDeclaration 
   ?? @string  idf
   ?? @codeCtx cgc  
@@ -258,6 +286,11 @@ end reader;
 override reader @varStructType string -> @string str
 :
   str := [selfcopy  getCType]; #return internal name directly.
+end reader;
+
+override reader @varDeviceType string -> @string str
+:
+  str := "device ".[selfcopy  getCType]; #return internal name directly.
 end reader;
 
 override reader @varTabularType string -> @string str
@@ -362,6 +395,18 @@ override reader @varTabularType sizeInBits -> @uint bits
     error [type loc] : "internal error: cannot yet handle tabs of tabs";
   end if;
   bits := [type sizeInBits];
+end reader;
+
+
+reader @varAbstractType isVoid -> @bool result
+:
+  cast selfcopy
+  when == @varBaseType vbt :
+    result := ([vbt size] == 0) & ([vbt kind] == [@varKind unsigned]);
+  else
+    result := false;
+  end cast;
+  
 end reader;
 
 end semantics ;

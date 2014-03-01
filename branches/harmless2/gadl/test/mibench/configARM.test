@@ -1,0 +1,16 @@
+[model]
+# list of harmless models, separated by ':'. Dir relative to gadl/example.
+files=arm/arm_iss_32.hadl
+models=arm_dbg
+
+[build]
+define=
+target=python
+stubs=true
+pipelineTrace=false
+
+[compare] ##TODO: limited to python scripts.
+#if the file is not present (first run), a message is written and the file is created.
+script=mibench.py -e arm
+files=resultARM.log
+

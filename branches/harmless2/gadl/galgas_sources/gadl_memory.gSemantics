@@ -256,5 +256,31 @@ reader @memoryParamMap memSpaceWithRegisterBank
   end foreach;
 end reader;
 
+method @memSpaceMap setInTemplate
+  ?! @TfieldMap templateStruct
+:
+  #to be done in a memSpaceMap category
+  @TfieldMapList memSpaceListTpl [emptyList];  
+  foreach selfcopy do
+    @TfieldMap memSpaceMapBody [emptyMap];
+    addLStringValue !?memSpaceMapBody !"name" !lkey;
+    addUnsignedValue !?memSpaceMapBody !lstringWith[!"width"] ![width uint64]; #bus width
+    addBoolValue !?memSpaceMapBody !lstringWith[!"isProgram"] !isProgram;
+    addUnsignedValue !?memSpaceMapBody !lstringWith[!"stride"]  ![stride uint64];
+    @TfieldMapList memSpaceAccessSizeTpl [emptyList];
+    foreach methodMap do
+      @TfieldMap methodMapBody [emptyMap];
+      @uint methodSize := [[outType getBaseType] size];
+      if methodSize > 0 then #return u0 in write accessor.
+        addUnsignedValue !?methodMapBody !lstringWith[!"size"] ![methodSize uint64]; #method size (access)
+        memSpaceAccessSizeTpl += !methodMapBody;    
+      end if;
+    end foreach;
+    addListValue !?memSpaceMapBody !lstringWith[!"methodSizeList"] !memSpaceAccessSizeTpl;
+    memSpaceListTpl += !memSpaceMapBody;    
+  end foreach;
+  addListValue !?templateStruct !lstringWith[!"memSpaceList"] !memSpaceListTpl;
+end method;
+
 end semantics ;
 # vim:ft=ggs:ts=2:sw=2

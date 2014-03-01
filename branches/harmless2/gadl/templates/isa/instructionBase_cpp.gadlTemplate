@@ -1,5 +1,5 @@
 %template headerC%
-#include "instructionBase.h"
+#include "%!core::NAME%_instructionBase.h"
 #include <sstream>
 
 using namespace std;
@@ -10,7 +10,7 @@ using namespace std;
  *  * size (in bytes)
  */
 
-string %!MODELNAME%_instruction::getStaticInfo() {
+string %!core::NAME%_instruction::getStaticInfo() {
 	ostringstream oss;
 	string sep = "@";
 	//values written in decimal.

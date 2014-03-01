@@ -1,29 +1,29 @@
 %
 
 #utils for simulation.
-write to MODELNAME."/macro.h":
+write to exportDir."/macro.h":
   template headerC
   template macro_h in utils
 end write
 
-write to MODELNAME."/types.cpp":
+write to exportDir."/types.cpp":
   template types_cpp in utils
 end write
 %types.cpp \\\n%
 
-write to MODELNAME."/types.h":
+write to exportDir."/types.h":
   template types_h in utils
 end write
 
-write to MODELNAME."/utils.cpp":
+write to exportDir."/utils.cpp":
   template utils_cpp in utils
 end write
 %utils.cpp \\\n%
 
-write to MODELNAME."/utils.h":
+write to exportDir."/utils.h":
   template utils_h in utils
 end write
 
-write to MODELNAME."/fifo.h":
+write to exportDir."/fifo.h":
   template fifo_h in utils
 end write

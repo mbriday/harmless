@@ -1,6 +1,6 @@
 %template headerC%
-#ifndef __powerpc_PIPELINE_TRACE_DEBUG_H__
-#define __powerpc_PIPELINE_TRACE_DEBUG_H_
+#ifndef __%!core::NAME%_PIPELINE_TRACE_DEBUG_H__
+#define __%!core::NAME%_PIPELINE_TRACE_DEBUG_H_
 
 #include <vector>
 #include <string>
@@ -25,7 +25,7 @@ public:
 	///constructor
 	pipelineTraceDebug(const unsigned int pipelineSize);
 	///internal function: Should only be called by core...
-	void pipelineTrace(const unsigned int pipeMove, const u64 nbCycles, %!MODELNAME%_instruction **instTab, const unsigned int nbInstIn);
+	void pipelineTrace(const unsigned int pipeMove, const u64 nbCycles, %!core::NAME%_instruction **instTab, const unsigned int nbInstIn);
 	///output trace to a file.
 	void outputPipelineTrace(std::string filename, core*_core);
 };

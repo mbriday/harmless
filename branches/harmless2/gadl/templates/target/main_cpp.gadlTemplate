@@ -1,17 +1,28 @@
 %template headerC%
-#include "instructionBase.h"
-#include "core.h"
-#include "instDecoder.h"
 #include "utils.h"
-
+%
+foreach core in coreList do
+%
+#include "%!core::NAME%_instructionBase.h"
+#include "%!core::NAME%_core.h"
+#include "%!core::NAME%_instDecoder.h"
+%end foreach%
 #include <iostream>
 #include <stdlib.h>
 using namespace std;
 
 /// debug in progress.
 int main(int argc, char *argv[])
-{
-	core *ZeCore = new core();
+{ 
+	//this example only starts the first core.
+%	let first := true
+	foreach core in coreList do
+		if first  then
+			%	%!core::NAME%_core *ZeCore = new %!core::NAME%_core();\n%
+			let first := false
+		end if
+	end foreach
+%
 	if(argc != 3) cout << "please specify a code file and a number of instruction to execute. " << endl;
 	else 
 	{

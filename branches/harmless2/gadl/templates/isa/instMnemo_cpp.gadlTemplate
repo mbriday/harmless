@@ -1,5 +1,5 @@
 %template headerC%
-#include "instruction.h" //first for precompiled headers
+#include "%!core::NAME%_instruction.h" //first for precompiled headers
 #include <stdio.h>
 #include "macro.h"
 #include "utils.h"

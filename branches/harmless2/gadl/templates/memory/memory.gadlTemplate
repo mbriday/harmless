@@ -1,37 +1,51 @@
 %
+#check that endianness is defined in the same order for each core.
+let IS_BIG_ENDIAN := ""
+let first := true
+foreach core in coreList do
+  #first time, init
+  if first then 
+    let IS_BIG_ENDIAN := core::IS_BIG_ENDIAN
+    let first := false
+  end if
+  if core::IS_BIG_ENDIAN != IS_BIG_ENDIAN then
+    error core::IS_BIG_ENDIAN : "The endianness should be the same for all cores\n"
+  end if
+end foreach
+
 #memory related files (including actions).
-write to MODELNAME."/storage.h":
+write to exportDir."/storage.h":
   template storage_h in memory
 end write
 
-write to MODELNAME."/storage.cpp":
+write to exportDir."/storage.cpp":
   template storage_cpp in memory
 end write
 %storage.cpp \\\n%
 
-write to MODELNAME."/action.h":
+write to exportDir."/action.h":
   template action_h in memory
 end write
 
-write to MODELNAME."/action.cpp":
+write to exportDir."/action.cpp":
   template action_cpp in memory
 end write
 %action.cpp \\\n%
 
-write to MODELNAME."/breakpointAction.h":
+write to exportDir."/breakpointAction.h":
   template breakpointAction_h in memory
 end write
 
-write to MODELNAME."/breakpointAction.cpp":
+write to exportDir."/breakpointAction.cpp":
   template breakpointAction_cpp in memory
 end write
 %breakpointAction.cpp \\\n%
 
-write to MODELNAME."/constAction.h":
+write to exportDir."/constAction.h":
   template constAction_h in memory
 end write
 
-write to MODELNAME."/constAction.cpp":
+write to exportDir."/constAction.cpp":
   template constAction_cpp in memory
 end write
 %constAction.cpp \\\n%

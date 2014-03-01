@@ -330,7 +330,8 @@ routine notificationDefinitionForP2A
 end routine;
 
 routine generateP2AFiles
-  ?? @lstring modelName
+  ?? @lstring exportDir
+  ?? @lstring coreName
   ?? @pipelineMap pipelineMap
   ?? @instructionClassMap icMap
   ?? @architectureMap architectureMap
@@ -347,7 +348,7 @@ routine generateP2AFiles
     getDDCResource !pipelineName !stageList !DDCPipelineInfoList ?DDCResourceStage ?foundDDCStage;
 
     @string p2aStr := "version 8\n";
-    p2aStr .= "model ".[modelName string]."\n\n";
+    p2aStr .= "model ".[coreName string]."\n\n";
     #define pipeline (with stages)
     pipelineDefinitionForP2A !pipelineName !stageList !?p2aStr;
     #define resources.
@@ -361,7 +362,7 @@ routine generateP2AFiles
     DDCNotifications !pipelineName !DDCPipelineInfoList !DDCResourceStage !?p2aNotificationMap !?templateStruct;
     notificationDefinitionForP2A !p2aNotificationMap !?p2aStr;
     
-    createFile ![modelName string] ![pipelineName string].".config" !p2aStr;
+    createFile ![exportDir string] ![pipelineName string].".config" !p2aStr;
     a2aFiles += ![pipelineName string];
   end foreach;
   updateMakefileForPipelines !pipelineMap !?templateStruct;

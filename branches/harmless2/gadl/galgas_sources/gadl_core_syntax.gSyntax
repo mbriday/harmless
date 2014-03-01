@@ -12,6 +12,16 @@ nonterminal <memoryChunk>
 ;
 nonterminal <memorySpace> ?! @ASTmemSpaceMap ASTmemSpaceMap;
 nonterminal  <architecture> ?! @architectureMap archMap;
+#for constructor.
+nonterminal <typeDeclaration> ! @varAbstractType type;
+#from gadl_function_parser
+#not the outType and functionName in the rule due to grammar LL1 restrictions.
+nonterminal <functionDef> 
+  ?? @varAbstractType outType
+  ?? @lstring functionName
+  ?! @ASTFunctionMap ASTFunctionMap
+;
+
 #pipeline
 nonterminal  <pipeline> 
   ?? @architectureMap architectureMap
@@ -24,7 +34,6 @@ nonterminal <machine>
   ?? @pipelineMap pipelineMap
 ;
 
-
 rule <importIsa>
   ?!@lstringMap importIsaMap
 :
@@ -36,6 +45,7 @@ rule <importIsa>
 end rule;
 
 rule <core> :
+  @ASTCoreMap ASTcoreMap [emptyMap];
   #memory stuff
   @ASTmemoryParamMap ASTmemChunk [emptyMap];
   @stringlist memChunkOrder [emptyList];
@@ -57,11 +67,18 @@ rule <core> :
   [importIsaMap searchKey !isaNameInCore ?@lstring isaFileName];
   grammar gadl_isa_grammar in isaFileName ??@ASTIsa ASTIsa;
   ${$;
-    <coreBody> !?ASTmemChunk !?memChunkOrder ?@architectureMap archMap ?@pipelineMap pipelineMap ?@machineMap machineMap;
+    <coreBody> !?ASTmemChunk !?memChunkOrder ?@architectureMap archMap ?@pipelineMap pipelineMap ?@machineMap machineMap ?@ASTFunctionMap ASTCoreConstructorMap !coreName;
   $}$;
   #Ok. Parsing done. Now apply semantic.
 
-  coreSemantic !coreName !ASTIsa !ASTmemChunk !memChunkOrder !ASTmemSpaceMap !archMap !pipelineMap !machineMap;
+  [!?ASTcoreMap insertKey !coreName !ASTIsa !ASTmemChunk !memChunkOrder !archMap !pipelineMap !machineMap !ASTCoreConstructorMap];
+
+  #do the job.
+  @memSpaceMap memSpaceMap := [ASTmemSpaceMap getMemSpaceMap];
+  [ASTcoreMap coreSemantic !coreName !coreName !memSpaceMap];
+  #[memSpaceMap setInTemplate !?templateStruct];
+
+  #coreSemantic !coreName !ASTIsa !ASTmemChunk !memChunkOrder !ASTmemSpaceMap !archMap !pipelineMap !machineMap !ASTCoreConstructorMap;
 end rule ;
 
 rule <coreBody>
@@ -70,11 +87,13 @@ rule <coreBody>
   !  @architectureMap archMap
   !  @pipelineMap pipelineMap
   !  @machineMap machineMap
+  !  @ASTFunctionMap ASTCoreConstructorMap
+  ?? @lstring coreName
 :
   archMap := [@architectureMap emptyMap];
   pipelineMap := [@pipelineMap emptyMap];
   machineMap := [@machineMap emptyMap];
-  
+  ASTCoreConstructorMap := [@ASTFunctionMap emptyMap];
   repeat
   while
     <memoryChunk> !?ASTmemChunk !?memChunkOrder;
@@ -83,7 +102,17 @@ rule <coreBody>
   while
     <pipeline> !archMap !?pipelineMap;
   while
-    <machine> !?machineMap !pipelineMap;  
+    <machine> !?machineMap !pipelineMap;
+  while #constructor.
+    <typeDeclaration> ?@varAbstractType type;
+    if not [type isVoid] then #should return void
+      error here: "The core constructor should return void";
+    end if;
+    $idf$ ?@lstring idf;
+    if [idf string] != [coreName string] then
+      error idf: "the constructor should have the same name than the core :".[coreName string];
+    end if;
+    <functionDef> !type !idf !?ASTCoreConstructorMap;
   end repeat;
 end rule;
 

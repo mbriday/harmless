@@ -42,4 +42,4 @@ h2 {
 
 </style></head><body><div>
 <h1>Instruction classes</h1>
-%!HTML_INSTRUCTION_CLASSES%
+%!core::HTML_INSTRUCTION_CLASSES%

@@ -1,16 +1,16 @@
 %template headerC%
-#ifndef __%!MODELNAME%_INSTRUCTION_BASE_H__
-#define __%!MODELNAME%_INSTRUCTION_BASE_H__
+#ifndef __%!core::NAME%_INSTRUCTION_BASE_H__
+#define __%!core::NAME%_INSTRUCTION_BASE_H__
 
 #include "types.h"
 #include <stdio.h>
 #include <string> /* for instruction mnemonique */
 
-class core;
+class %!core::NAME%_core;
 
 /** base class of all the instruction object. Should not be instantiated.
   */
-class %!MODELNAME%_instruction {
+class %!core::NAME%_instruction {
 	/// use for the retain/release mechanism.
 	int m_user;
 %if useCAS then%
@@ -21,12 +21,12 @@ class %!MODELNAME%_instruction {
 	* when the instruction is read. It corresponds to the pipeline
 	* register of the instruction pointer.
 	*/
-	const %!idfStruct::PC_C_TYPE% m_pc;
+	const %!core::idfStruct::PC_C_TYPE% m_pc;
 
 	public:
 
-    %!MODELNAME%_instruction(const %!idfStruct::PC_C_TYPE% instructionPointer);
-    virtual ~%!MODELNAME%_instruction() {};
+    %!core::NAME%_instruction(const %!core::idfStruct::PC_C_TYPE% instructionPointer);
+    virtual ~%!core::NAME%_instruction() {};
 
 	/// this method is only used to know if an the instruction is a 
 	// 'executeInstAction'. This is because there is no introspection
@@ -34,7 +34,7 @@ class %!MODELNAME%_instruction {
 	virtual bool isInstAction() {return false;};
 
 	/// \return the value of the instruction pointer in the pipeline.
-	inline %!idfStruct::PC_C_TYPE% const getInstructionPointer() {return m_pc;};	
+	inline %!core::idfStruct::PC_C_TYPE% const getInstructionPointer() {return m_pc;};	
 	///mnemonic of the instruction
 	virtual const char* const mnemo() {return "MNEMO_NOT_DEFINED";};
 	
@@ -43,7 +43,7 @@ class %!MODELNAME%_instruction {
 	 *  the core pointer is not stored in the instruction to save space 
 	 *  many instruction may be in cache.
 	 */
-	virtual void execute(core *) = 0;
+	virtual void execute(%!core::NAME%_core *) = 0;
 
 	/** @return the size of the instruction code in bytes.
         if the instruction size is not based on a multiple
@@ -91,7 +91,7 @@ class %!MODELNAME%_instruction {
      */
     std::string getStaticInfo();
 
-%  foreach all in ALL_ID_LIST do
+%  foreach all in core::ALL_ID_LIST do
      %\tvirtual bool hasID_%!all::ID%() {return false;};\n%
    end foreach
 %};
@@ -101,25 +101,25 @@ class %!MODELNAME%_instruction {
  * pipeline and is not taken into account after (instruction that
  * follows a branch instruction, misprediction of an instruction, ..)
  */
-class %!MODELNAME%_instructionStall : public %!MODELNAME%_instruction
+class %!core::NAME%_instructionStall : public %!core::NAME%_instruction
 {
-  const %!INST_DEFAULT_SIZE_C_STR% m_code; //code of the first chunk of the instruction.
+  const %!core::INST_DEFAULT_SIZE_C_STR% m_code; //code of the first chunk of the instruction.
   public:
 	///class code should be 0
-	%!MODELNAME%_instructionStall(const %!idfStruct::PC_C_TYPE% instructionPointer=0, const %!INST_DEFAULT_SIZE_C_STR% code = 0)
-		: %!MODELNAME%_instruction(instructionPointer), m_code(code) {};
-	virtual ~%!MODELNAME%_instructionStall() {};
-	virtual void execute(core *); // nop
+	%!core::NAME%_instructionStall(const %!core::idfStruct::PC_C_TYPE% instructionPointer=0, const %!core::INST_DEFAULT_SIZE_C_STR% code = 0)
+		: %!core::NAME%_instruction(instructionPointer), m_code(code) {};
+	virtual ~%!core::NAME%_instructionStall() {};
+	virtual void execute(%!core::NAME%_core *); // nop
 	virtual const char* const mnemo() 
 	{
 		char *result = new char[64];
 		int index = 0;	
 		index += sprintf (result + index,"Stall");
 		if(m_code)
-			index += sprintf (result + index," (\%0%!INST_SIZE_IN_HALF_BYTES%x)",m_code);
+			index += sprintf (result + index," (\%0%!core::INST_SIZE_IN_HALF_BYTES%x)",m_code);
 		return result;
 	};
-	virtual unsigned char const size() {return %!INST_SIZE_IN_BYTES%;};
+	virtual unsigned char const size() {return %!core::INST_SIZE_IN_BYTES%;};
 	virtual unsigned char const chunks() {return 1;};
 	virtual unsigned int const instClass() {return 0;};
 };

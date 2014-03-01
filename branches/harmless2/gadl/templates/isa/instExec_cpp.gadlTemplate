@@ -1,8 +1,8 @@
 %template headerC%
-#include "instruction.h" //first for precompiled headers
+#include "%!core::NAME%_instruction.h" //first for precompiled headers
 #include <iostream>
 #include "macro.h"
-#include "core.h"
+#include "%!core::NAME%_core.h"
 #include "utils.h"
 
 using namespace std;
@@ -10,35 +10,35 @@ using namespace std;
 // instruction execute code.
 
 %foreach inst in instCodeListTmp do
-  %void %!inst::name%::execute(core *_core){\n%
+  %void %!inst::name%::execute(%!core::NAME%_core *_core){\n%
   
   if useCAS then
     %\t_core->initDDCRegAccess();\n%
   end if
   
-  if exists branchInstMap[inst::name] then #branch?
-    %\t%!idfStruct::PC_C_TYPE% val_pc_before = _core->%!idfStruct::PC_NAME%();\n%
+  if exists core::branchInstMap[inst::name] then #branch?
+    %\t%!core::idfStruct::PC_C_TYPE% val_pc_before = _core->%!core::idfStruct::PC_NAME%();\n%
   end if
   
-  if exists timingInstMap[inst::name] then #timing counter?
+  if exists core::timingInstMap[inst::name] then #timing counter?
     %\t//pre timing code\n%
-    !timingInstMap[inst::name]::preTiming
+    !core::timingInstMap[inst::name]::preTiming
   end if
   
   %\t//effective code\n%
   !inst::code #effective code
   
-  if exists timingInstMap[inst::name] then #timing counter part 2
+  if exists core::timingInstMap[inst::name] then #timing counter part 2
     %\t//post timing code\n%
-    !timingInstMap[inst::name]::postTiming
+    !core::timingInstMap[inst::name]::postTiming
   end if
-  if exists branchInstMap[inst::name] then #branch part 2.
+  if exists core::branchInstMap[inst::name] then #branch part 2.
     %\t//branch check.\n%
-    %\tm_jumpTaken = _core->%!idfStruct::PC_NAME%()-val_pc_before;\n%
+    %\tm_jumpTaken = _core->%!core::idfStruct::PC_NAME%()-val_pc_before;\n%
   end if
   
 	if useCAS then
-		foreach DDCReg in DDCRegDef
+		foreach DDCReg in core::DDCRegDef
 		before
 		%\n\t//Data Dependancy Controller related part\n%
 		do

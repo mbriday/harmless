@@ -1,32 +1,32 @@
 %template headerC%
-#include "instruction.h" //first for precompiled headers
+#include "%!core::NAME%_instruction.h" //first for precompiled headers
 #include <iostream>
 #include "macro.h"
-#include "core.h"
+#include "%!core::NAME%_core.h"
 #include "utils.h"
 
 using namespace std;
 
-void %!MODELNAME%_instruction::release() {
+void %!core::NAME%_instruction::release() {
 	m_user --;
 	SEGFAULTIF(m_user < 0);
 	if(!m_user) delete this;
 }
 
-void %!MODELNAME%_instructionStall::execute(core *_core){}
+void %!core::NAME%_instructionStall::execute(%!core::NAME%_core *_core){}
 
 // instructions without any behavior...
 
 %
 let instWithCodeMap := emptyMap
-if exists instCodeList then #no 'no behavior' option.
-  let instWithCodeMap := mapOf instCodeList by name
+if exists core::instCodeList then #no 'no behavior' option.
+  let instWithCodeMap := mapOf core::instCodeList by name
 end if
 
-foreach inst in INST_CONSTRUCTOR do
+foreach inst in core::INST_CONSTRUCTOR do
   if not exists instWithCodeMap[inst::name] then
     #no behavior -> add a default one.
-    %void %!inst::name%::execute(core *_core){\n%
+    %void %!inst::name%::execute(%!core::NAME%_core *_core){\n%
     %\tcerr << "instruction %!inst::name% have no behavior defined" << endl;\n%
     %}\n%
   end if

@@ -87,7 +87,55 @@ project all_gadl (0:8:1) -> "gadl" :
 # components <-> link ISA to micro-architecture.
 #******************************************************
   syntax    "gadl_components_parser.gSyntax" ;
+  syntax    "gadl_register_parser.gSyntax" ;
   semantics "gadl_components.gSemantics" ;
+
+#******************************************************************** 
+# timing section: The timing section is used to model
+# timings of peripherals using a time-automata, associated to the 
+# behavior (defined in a component).
+# Primary goal: the memory hierarchy.
+# **
+# This part does not model the pipeline.
+#******************************************************************** 
+
+#syntax "gadl_timing_parser.gSyntax";
+#semantics "gadl_timing_AST.gSemantics";
+
+#semantics "gadl_semantics_timingSection.gSemantics" ; #main file
+#automata generation routines (both Harmless and Uppaal)
+#semantics "gadl_semantics_timingSectionAutomata.gSemantics" ; 
+#transform Harmless automata into simulation steps.
+#semantics "gadl_semantics_timingSimulationStep.gSemantics" ;
+#semantics "gadl_semantics_signalSection.gSemantics" ;
+
+  syntax    "gadl_peripheral_parser.gSyntax" ;
+  semantics "gadl_peripheral_AST.gSemantics" ;
+
+
+#####################################################################
+# new template management, included from galgas SVN (common with goil)
+#####################################################################
+
+  semantics "template_semantics.gSemantics";
+  lexique   "template_scanner.gLexique";
+  syntax    "template_expression_parser.gSyntax";
+  syntax    "template_parser.gSyntax";
+  grammar   "template_grammar.gGrammar";
+  semantics "template_invocation.gSemantics";
+  semantics "template_functions.gSemantics";
+  
+  semantics "gadl_templates.gSemantics" ;
+
+#####################################################################
+# Core part.
+#####################################################################
+#******************************************************
+# Core root main file
+#****************************************************** 
+  grammar   "gadl_core_grammar.gGrammar" ;
+  syntax    "gadl_core_syntax.gSyntax";
+  semantics "gadl_core.gSemantics";
 
 #******************************************************************** 
 #timing approach. Pipeline and instruction classes.
@@ -115,48 +163,16 @@ semantics "gadl_semantics_register_access.gSemantics" ;
 ##main micro-architecture file (populate templates)
 semantics "gadl_micro_architecture.gSemantics" ;
 
-#******************************************************************** 
-# timing section: The timing section is used to model
-# timings of peripherals using a time-automata, associated to the 
-# behavior (defined in a component).
-# Primary goal: the memory hierarchy.
-# **
-# This part does not model the pipeline.
-#******************************************************************** 
-
-syntax "gadl_timing_parser.gSyntax";
-semantics "gadl_timing_AST.gSemantics";
-
-#semantics "gadl_semantics_timingSection.gSemantics" ; #main file
-#automata generation routines (both Harmless and Uppaal)
-#semantics "gadl_semantics_timingSectionAutomata.gSemantics" ; 
-#transform Harmless automata into simulation steps.
-#semantics "gadl_semantics_timingSimulationStep.gSemantics" ;
-#semantics "gadl_semantics_signalSection.gSemantics" ;
-
 #####################################################################
-# new template management, included from galgas SVN (common with goil)
-#####################################################################
-
-  semantics "template_semantics.gSemantics";
-  lexique   "template_scanner.gLexique";
-  syntax    "template_expression_parser.gSyntax";
-  syntax    "template_parser.gSyntax";
-  grammar   "template_grammar.gGrammar";
-  semantics "template_invocation.gSemantics";
-  semantics "template_functions.gSemantics";
-  
-  semantics "gadl_templates.gSemantics" ;
-
-#####################################################################
-# Core part.
+# CPU part.
 #####################################################################
 #******************************************************
-# Core root main file
+# CPU root main file
 #****************************************************** 
-  grammar   "gadl_core_grammar.gGrammar" ;
-  syntax    "gadl_core_syntax.gSyntax";
-  semantics "gadl_core.gSemantics";
+  grammar   "gadl_cpu_grammar.gGrammar" ;
+  syntax    "gadl_cpu_syntax.gSyntax";
+  semantics "gadl_cpu.gSemantics";
+
 
 #******************************************************
 # memory.

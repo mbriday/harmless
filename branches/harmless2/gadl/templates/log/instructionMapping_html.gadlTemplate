@@ -44,12 +44,12 @@ h2 {
 <h1>Pipeline sequences.</h1>
 <p>This section logs the pipeline paths. A pipeline paths is the list of sequential pipelines that are taken by an instruction. For instance on a superscalar architecture, there may have one pipeline path for instructions using the integer unit, one other pipeline path for floating point instructions, and so on.</p>
 <p>Pipeline paths are extracted from the 'pipeline expression' in the architecture view. For each pipeline path, the list of devices in pipeline stages are given.</p>
-%!HTML_LOG_PIPELINE_PATHS%
+%!core::HTML_LOG_PIPELINE_PATHS%
 <h1><a name="InstructionsAccesses">Instructions' accesses to components.</a></h1>
 <p>GraphViz should be installed on the computer to generates images (using the 'dot' tool). Then, you have to run 'make doc' to generate .svg images from .dot input graphs.</p>
-%!HTML_INSTRUCTION_CLASSES%
-%if exists instData then
-  foreach inst in instMappingOnPipeline do
+%!core::HTML_INSTRUCTION_CLASSES%
+%if exists core::instData then
+  foreach inst in core::instMappingOnPipeline do
     %<h2><a name="%!inst::name%">Instruction "%!inst::name%"</a></h2>\n%
     %<h3>Component access of instruction</h3>\n%
     %<img src="%!inst::name%.svg" alt="GraphViz export"/>\n%

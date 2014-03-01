@@ -4,6 +4,8 @@ with "gadl_core_syntax.gSyntax";
 with "gadl_expression_parser.gSyntax";
 with "gadl_hard_arch_parser.gSyntax";
 with "gadl_hard_pipeline_parser.gSyntax";
+with "gadl_function_parser.gSyntax";
+with "gadl_implementation_parser.gSyntax";
 
 root <core> ;
 

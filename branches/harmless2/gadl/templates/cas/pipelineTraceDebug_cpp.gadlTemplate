@@ -13,7 +13,7 @@ m_pipelineSize(pipelineSize), m_pipelineTraceContents(0)
 	m_addressSet.insert(0); // pipeline is full of 0 at the beginning
 }
 
-void pipelineTraceDebug::pipelineTrace(const unsigned int pipeMove, const u64 nbCycles, %!MODELNAME%_instruction **instTab, const unsigned int nbInstIn)
+void pipelineTraceDebug::pipelineTrace(const unsigned int pipeMove, const u64 nbCycles, %!core::NAME%_instruction **instTab, const unsigned int nbInstIn)
 {
 	stringstream result;
 	unsigned int pipelineTraceNextContents = 0;
