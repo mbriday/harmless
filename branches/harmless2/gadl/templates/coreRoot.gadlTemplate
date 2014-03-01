@@ -1,0 +1,83 @@
+% #This is the main file for a core generation.
+  #Should be called for each core definition.
+
+#Instruction Set Architecture related files.
+template isa in isa
+
+#logs..
+template log in log
+#
+##Cycle accurate related files
+template cas in cas
+
+#casC -> compiled CAS specific files.
+#template casC in casC
+
+#generate a counter Map to count
+# *component method access
+# *register access (R/W) in components and memory.
+let counterMap := emptyMap
+if exists useCounters then
+  foreach component in core::componentList do
+    foreach method in component::methodList do
+      let key := "counter_".component::name."_".method::name
+    let counterMap[key] := true
+    end foreach
+    foreach reg in core::idfStruct::varList do
+      let key := "counter_read_".reg::name
+      if not exists counterMap[key] then
+        let counterMap[key] := true
+      end if
+      let key := "counter_write_".reg::name
+      if not exists counterMap[key] then
+        let counterMap[key] := true
+      end if
+    end foreach
+  end foreach
+end if
+
+#main header.
+write to exportDir."/".core::NAME."_core.h":
+  template core_h
+end write
+
+write to exportDir."/".core::NAME."_core.cpp":
+  template core_cpp
+end write
+!core::NAME%_core.cpp \\\n%
+
+#
+#############################################################
+##timings:
+#############################################################
+##generate a map that associates a device to its timing.
+#let deviceToTimingMap := emptyMap
+#if exists archList then
+#  foreach arch in archList do
+#    #create a device map (of devices that are associated to a timing)
+#    #value is the related timing name.
+#    let deviceMap := mapOf arch::deviceList by name
+#    foreach connection in arch::signalConnectList do
+#      let deviceName := connection::devNameSrc
+#      if not exists deviceToTimingMap[deviceName] then
+#        let timingName := deviceMap[deviceName]::component
+#        let deviceToTimingMap[deviceName] := timingName
+#      end if
+#      let deviceName := connection::devNameDst
+#      if not exists deviceToTimingMap[deviceName] then
+#        let timingName := deviceMap[deviceName]::component
+#        let deviceToTimingMap[deviceName] := timingName
+#      end if
+#    end foreach
+#  end foreach
+#end if
+#
+##new timing part (memory hierarchy)
+#template timing in timing
+#
+#write to MODELNAME."/componentTypeDef.h":
+#  template componentTypeDef_h
+#end write
+#
+#  template Makefile_2
+#end write

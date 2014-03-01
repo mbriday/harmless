@@ -1,0 +1,251 @@
+%template headerC%
+#include "core.h"
+#include "breakpointAction.h"
+#include "iHexReader.h"
+#include "sRecordReader.h"
+#ifdef USE_LIBELF
+	#include "elfReader.h"
+#endif
+
+using namespace std;
+
+core::core()
+{
+	m_nbCycles = 0;
+	m_nbInst = 0;
+	m_reader = NULL;
+	m_lastBreakpointAddr = 0;
+	m_executionMode = core::CAS;
+}
+
+void core::reset()
+{
+	m_stopSimu = 0;
+	m_nbCycles = 0;
+	m_nbInst = 0;
+}
+
+void core::setExecutionMode(const executionMode mode)
+{
+	if(m_nbCycles)
+	{
+		std::cerr << "switch ISS <-> CAS mode not yet implemented dynamically!" << std::endl;
+		std::cerr << "Warning : change is not taken into account!" << std::endl;
+	} else m_executionMode = mode;
+}
+
+void core::removeAllBreakpoints()
+{
+	map<u32, breakpointAction *>::iterator it = m_breakpointActionMap.begin();
+	const map<u32, breakpointAction *>::const_iterator itEnd = m_breakpointActionMap.end();
+	while(it != itEnd)
+	{
+		u32 addr = (*it).first;
+		breakpointAction *ba = (*it).second;
+		removeExecuteActionAtAddress(addr, ba);
+		delete ba;
+		it++;
+	}
+	m_breakpointActionMap.clear();
+}
+
+void core::removeBreakpoint(const unsigned int addr)
+{
+	map<u32, breakpointAction *>::iterator it = m_breakpointActionMap.find(addr);
+	if(it != m_breakpointActionMap.end())
+	{
+		breakpointAction *ba = (*it).second;
+		removeExecuteActionAtAddress(addr, ba);
+		m_breakpointActionMap.erase(it);
+		delete ba;
+	} else cerr << "no breakpoint defined at address 0x" << hex << addr << endl;
+}
+
+void core::addBreakpoint(const unsigned int addr)
+{
+		map<u32, breakpointAction *>::iterator it = m_breakpointActionMap.find(addr);
+		if(it == m_breakpointActionMap.end())
+		{
+			breakpointAction *ba = new breakpointAction(addr);
+			addExecuteActionAtAddress(addr, ba);
+			m_breakpointActionMap[addr] = ba;
+		} else cerr << "There is already a breakpoint defined at address 0x" << hex << addr << endl;
+}
+
+void core::removeBreakpoint(const char *symbolName)
+{
+	u32 v_addr;
+	if(getFunctionName(symbolName, v_addr))
+	{
+		bool found = false;
+		u32 p_addr = getPhysicalAddress(v_addr, found);
+		if(!found) cerr << "symbol " << symbolName << " have a virtual address (0x" <<
+			hex << v_addr << "), but no physical address.";
+		removeBreakpoint(p_addr);
+	} else cerr << "no symbol found for " << symbolName << endl;
+}
+
+void core::addBreakpoint(const char *symbolName)
+{
+	u32 v_addr;
+	if(getFunctionName(symbolName, v_addr))
+	{
+		bool found = false;
+		u32 p_addr = getPhysicalAddress(v_addr, found);
+		if(!found) cerr << "symbol " << symbolName << " have a virtual address (0x" <<
+			hex << v_addr << "), but no physical address.";
+		addBreakpoint(p_addr);
+	} else cerr << "no symbol found for " << symbolName << endl;
+}
+
+u32 core::getPhysicalAddress(const u32 v_addr, bool &found)
+{
+	if(m_reader) return linkerAddressTranslation(m_reader->getPhysicalAddress(v_addr, found));
+	else 
+	{
+		found = false;
+		return v_addr;
+	}
+}
+
+bool core::getFunctionName(const char *symbolName, u32 &v_addr)
+{
+	if(m_reader) return m_reader->getFunctionName(symbolName, v_addr);
+	else return false;
+}
+
+bool core::getSymbolObjectAddress(const char *symbolName, u32 &v_addr, u32 &size)
+{
+	if(m_reader) return m_reader->getSymbolObjectAddress(symbolName, v_addr, size);
+	else return false;
+}
+
+/** read an Intel .H86, a Freescale Srecord file or an elf file */
+bool core::readCodeFile(const char *filename, const bool verbose)
+{	
+
+	#ifdef USE_LIBELF
+		if(!m_reader)
+		{
+			//Try an elf file format (only if LGPL'd libelf library is installed). 
+			m_reader = new elfReader();
+			bool ok = m_reader -> readFile(filename,this,verbose);
+			if(ok) setProgramCounter(m_reader -> getProgramCounter());
+			else {delete m_reader; m_reader = NULL;}
+		}
+	#endif
+	if(!m_reader)
+	{
+		//try an Intel .H86 format
+		m_reader = new iHexReader();
+		bool ok = m_reader -> readFile(filename,this,verbose);
+		if(!ok) {delete m_reader; m_reader = NULL;}
+	}
+	if(!m_reader)
+	{
+		//then try a Motorola SRecord format
+		m_reader = new sRecordReader();
+		bool ok = m_reader -> readFile(filename,this,verbose);
+		if(!ok) {delete m_reader; m_reader = NULL;}
+	}
+	//nothing? -> can't read the file.
+	if(!m_reader) {
+		std::cerr << "ERROR: can't read program file. It should be an Intel format"
+		          << "(.h86, .hex), a Motorola (.sr, .s19) format";
+		#ifdef USE_LIBELF
+			std::cerr << " or an elf file." << std::endl;
+		#else
+			std::cerr << ". You can add Elf support if you install the LibElf"
+			          << " elf library, available at http://www.mr511.de/software/english.html" 
+					  << " (free software, licence is LGPL). Then you have to recompile the "
+					  << " generated simulator using : make LIBELF=1."  << std::endl;
+		#endif
+	}
+	return (m_reader!=NULL);
+}
+#ifdef USE_IO_STUBS
+	#include "ioStubs.h"
+#endif
+bool core::addIOStub(executeAction *act, string funcName)
+{
+	bool result = false;
+#ifdef USE_IO_STUBS
+	u32 v_addr;
+	if(getFunctionName(funcName.c_str(), v_addr))
+	{
+		bool found = false;
+		u32 p_addr = getPhysicalAddress(v_addr, found);
+		if(!found) 
+		{
+			cerr << "internal error: symbol " << funcName << " have a virtual address (0x" <<
+			hex << v_addr << "), but no physical address.";
+		} else {
+			//ok, insert action.
+			//cerr << "insert execute action for " << funcName << " at 0x" << hex << p_addr << endl;
+			addExecuteActionAtAddress(p_addr, act);
+			result = true;
+		}
+	} else {
+		//cannot find symbol of funcName
+	}
+#endif
+	return result;
+}
+
+bool core::useIOStubs()
+{
+#ifdef USE_IO_STUBS 
+	if(!m_reader)
+	{
+		cerr << "you should first load a file, before using io stubs." << endl;
+		return false;
+	 } else {
+		//program loaded.
+		//try with "open":
+		ioStubOpen *iso = new ioStubOpen();
+		bool openOk = addIOStub(iso, iso->functionName());
+		//try with "read":
+		ioStubRead *isr = new ioStubRead(iso);
+		bool readOk = addIOStub(isr, isr->functionName());
+		//try with "write"
+		ioStubWrite *isw = new ioStubWrite(iso);
+		bool writeOk = addIOStub(isw, isw->functionName());
+		//try with "write on stdout"
+		ioStubPrintStdout *isps = new ioStubPrintStdout();
+		bool writeStdOk = addIOStub(isps, isps->functionName());
+		if(!openOk && (readOk || writeOk)) 
+			cerr << "I/O stub error: no 'open' function, but a 'read' or 'write' function!!" << endl; 
+		return (readOk || readOk || writeOk || writeStdOk); //at least one stub OK.
+		//if(!readOk) delete isr;
+	 }
+#else //USE_IO_STUBS
+  cerr << "file I/O stubs not compiled in. Make sure that USE_IO_STUBS is set to 1"
+       << " in Makefile and hand written stubs (ioStubs.cpp and ioStubs.h) are added"
+	   << "to the project (in example/<core>/ioStubs/simulatorSource." <<endl;
+	return false; 
+#endif
+}
+
+void core::dumpObjects()
+{
+	if(m_reader) m_reader->dumpObjects();
+}
+
+void core::dumpFunctions()
+{
+	if(m_reader) m_reader->dumpFunctions();
+}
+
+std::string core::whichFunctionAtAddress(const u32 v_addr)
+{
+	if(m_reader) return m_reader->whichFunctionAtAddress(v_addr);
+	else return string("");
+}
+
+void core::stopSimu(int reason)
+{
+	if(reason)	m_stopSimu = reason;
+	else m_stopSimu = 1; 
+}
+
+%
