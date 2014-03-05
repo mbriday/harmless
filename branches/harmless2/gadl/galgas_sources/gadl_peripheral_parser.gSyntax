@@ -8,7 +8,7 @@ nonterminal <typeDeclaration> ! @varAbstractType type;
 nonterminal <registerBitAccessDef>
   ?? @lstring regName
   ?? @varAbstractType type
-  ?! @ASTInstructionList regDefList
+  ?! @ASTInstructionList ASTregDefList
 ;
 
 #from gadl_function_parser
@@ -21,17 +21,17 @@ nonterminal <functionDef>
 
 #registers as defined in peripherals.
 rule <registerPeriphDef>
-  ?! @ASTInstructionList regDefList
+  ?! @ASTregisterPeriphDefMap ASTregDefMap
 :
-  #TODO: address et callbacks à mettre dans les structures.
+  @ASTInstructionList ASTregDecList [emptyList];
   $register$;
   <typeDeclaration> ?@varAbstractType type;
   $idf$ ?@lstring idf;
   $maps$; $to$; $unumber$ ?@luint64 address;
-  regDefList += ![@ASTInstDeclaration new !here ![@varClass SFR] !type !idf];
+  ASTregDecList += ![@ASTInstDeclaration new !here ![@varClass SFR] !type !idf];
   select
   or
-    <registerBitAccessDef> !idf !type !?regDefList;
+    <registerBitAccessDef> !idf !type !?ASTregDecList;
   end select;
   #is there a callBack?
   @bool hasReadFuncCall := false;
@@ -43,15 +43,16 @@ rule <registerPeriphDef>
     if hasReadFuncCall then
       error here: "A function has already been declared for the read access";
     end if;
-    $read$; $is$; $idf$? @lstring readFuncCall;
+    $read$; $is$; $idf$? readFuncCall;
     hasReadFuncCall := true;
   while
     if hasWriteFuncCall then
       error here: "A function has already been declared for the read access";
     end if;
-    $write$; $is$; $idf$? @lstring writeFuncCall;
+    $write$; $is$; $idf$? writeFuncCall;
     hasWriteFuncCall := true;
   end repeat;
+  [!?ASTregDefMap insertKey !idf !ASTregDecList !address !readFuncCall !writeFuncCall !type];
 end rule;
 
 rule <deviceDeclaration>
@@ -69,18 +70,20 @@ rule <deviceDeclaration>
 end rule;
 
 rule <peripheral>
+  ?! @ASTperipheralMap ASTperipheralMap
 :
-  @ASTInstructionList regDefList [emptyList];
+  @ASTregisterPeriphDefMap ASTregDefMap [emptyMap];
   @ASTFunctionMap ASTFunctionMap [emptyMap];
+  @ASTInstructionList ASTInstDecList [emptyList];
 
   $peripheral$;
-  $idf$ ?@lstring peripheral;
+  $idf$ ?@lstring peripheralName;
   $memory$; $size$; $unumber$ ?@luint64 lsize;
   ${$;
     repeat
     while
       #register def
-      <registerPeriphDef> !?regDefList;
+      <registerPeriphDef> !?ASTregDefMap;
     while
       <typeDeclaration> ?@varAbstractType type;
       $idf$ ?@lstring idf;
@@ -88,8 +91,10 @@ rule <peripheral>
     while
       <deviceDeclaration> ? @varAbstractType deviceType;
       $idf$ ?@lstring deviceName;
+      ASTInstDecList += ![@ASTInstDeclaration new !here ![@varClass device] !deviceType !deviceName];
     end repeat;
   $}$;
+  [!?ASTperipheralMap insertKey !peripheralName !lsize !ASTregDefMap !ASTFunctionMap !ASTInstDecList];
 end rule;
 
 end syntax ;

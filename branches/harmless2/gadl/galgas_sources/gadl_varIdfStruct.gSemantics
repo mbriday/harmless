@@ -3,7 +3,6 @@ semantics gadl_varIdfStruct :
   import "gadl_variable.gSemantics" ;
   import "gadl_semantics.gSemantics" ;
   import "gadl_semantics_instruction.gSemantics" ;
-  import "gadl_templates.gSemantics" ;
   import "gadl_semantics_implementation.gSemantics" ;
   
 ##

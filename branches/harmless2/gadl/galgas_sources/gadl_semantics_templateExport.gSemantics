@@ -11,7 +11,9 @@ reader @instDeclaration setter
   when programCounter,GPR,SFR:
     str := "\t\t\tm_".[[selfcopy name] string]." = value;";
   when registerSlice:
-    error here: "internal error: @instDeclaration getter with slice":str;
+    error here: "internal error: @instDeclaration setter with slice":str;
+  when device:
+    error here: "internal error: @instDeclaration setter with device":str;
   when localVar, field:
     str := [[selfcopy name] string];
   end switch;
@@ -22,8 +24,8 @@ override reader @instDeclarationRegSlice setter
   -> @string str
 :
   switch access
-  when programCounter,GPR,SFR,localVar, field:
-    error here: "internal error: @instDeclaration getter with slice":str;
+  when programCounter,GPR,SFR,localVar, field,device:
+    error here: "internal error: @instDeclaration setter":str;
   when registerSlice:
     str := "\t\t\t".[[type getBaseType] getCType] ." __temp = ".[idf string]."();\n";
     str .= "\t\t\t__temp = ".[fieldList getAssignCode ![@codeCtx C] !"__temp" !"value"].";\n";
@@ -33,6 +35,7 @@ end reader;
 
 ## getter for instDeclaration (for getter function in generated code).
 reader @instDeclaration getter
+  ?? @bool unused useLocal #can use local variable (optimisation for components).
   -> @string str
 :
   switch access
@@ -40,32 +43,46 @@ reader @instDeclaration getter
     str := "return m_".[[selfcopy name] string].";";
   when registerSlice:
     error here: "internal error: @instDeclaration getter with slice":str;
+  when device:
+    error here: "internal error: @instDeclaration getter with device":str;
   when localVar, field:
     str := [[selfcopy name] string];
   end switch;
 end reader;
 
 override reader @instDeclarationRegSlice getter
+  ?? @bool useLocal #can use local variable (optimisation for components).
   -> @string str
 :
   switch access
-  when programCounter,GPR,SFR,localVar, field:
+  when programCounter,GPR,SFR,localVar, field,device:
     error here: "internal error: @instDeclaration getter with slice":str;
   when registerSlice:
-    str := "return ".[fieldList getExpCode ![@codeCtx C] !"m_".[idf string]].";";
+    @string name;
+    if useLocal then
+      name := "m_".[idf string]; #for components (direct access)
+    else
+      name := [idf string]."()"; #for peripherals (trigger action).
+    end if;
+    str := "return ".[fieldList getExpCode ![@codeCtx C] !name].";";
   end switch;
 end reader;
+
+
+method @varIdfStruct setProgramCounterInTemplate
+  ?! @TfieldMap templateStruct
+:
+  #program counter specific
+  [selfcopy->varMap checkProgramCounter ?@varBaseType typePC ?@lstring PCname];
+  addStringValue !?templateStruct !lstringWith[!"PC_SIZE_IN_BITS"] ! [[typePC size] string];
+  addStringValue !?templateStruct !lstringWith[!"PC_C_TYPE"] ![typePC getCType];
+  addStringValue !?templateStruct !lstringWith[!"PC_NAME"] ![PCname string];
+end method;
 
 method @varIdfStruct setInTemplate
   ?! @TfieldMap templateStruct
 :
   @TfieldMap idfStructBody [emptyMap];
-  
-  #program counter specific
-  [selfcopy->varMap checkProgramCounter ?@varBaseType typePC ?@lstring PCname];
-  addStringValue !?idfStructBody !lstringWith[!"PC_SIZE_IN_BITS"] ! [[typePC size] string];
-  addStringValue !?idfStructBody !lstringWith[!"PC_C_TYPE"] ![typePC getCType];
-  addStringValue !?idfStructBody !lstringWith[!"PC_NAME"] ![PCname string];
 
   @TfieldMapList varListTpl [emptyList];
   #varMap -> registers : type and name
@@ -91,7 +108,8 @@ method @varIdfStruct setInTemplate
     addUnsignedValue !?varMapRegBody !lstringWith[!"size"] ![size uint64]; #size in bits.
 
     #getter code.
-    addStringValue !?varMapRegBody !lstringWith[!"getter"] ![inst getter];
+    addStringValue !?varMapRegBody !lstringWith[!"getter"] ![inst getter !true];
+    addStringValue !?varMapRegBody !lstringWith[!"getterNoLocal"] ![inst getter !false];
     
     #setter code.
     addStringValue !?varMapRegBody !lstringWith[!"setter"] ![inst setter];

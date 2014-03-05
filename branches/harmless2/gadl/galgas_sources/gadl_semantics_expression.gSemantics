@@ -40,7 +40,8 @@ enum @expressionContext {
   timing,
   instCycle, #related to the fourth view of instruction: inst cycle without pipeline.
   architecture,
-  defaultSection #default is a keyword :-/
+  defaultSection, #default is a keyword :-/
+  peripheral
 }
 
 reader @expressionContext msg -> @string outResult :
@@ -53,6 +54,7 @@ reader @expressionContext msg -> @string outResult :
     when instCycle      : outResult := "an expression in an instruction cycle (fourth) view" ;
     when architecture   : outResult := "an expression in the architecture description" ;
     when defaultSection : outResult := "an expression in the default section" ;
+    when peripheral     : outResult := "an expression in a peripheral description" ;
   end switch ;
 end reader ;
 

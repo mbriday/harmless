@@ -48,7 +48,7 @@ h2 {
 <h1><a name="InstructionsAccesses">Instructions' accesses to components.</a></h1>
 <p>GraphViz should be installed on the computer to generates images (using the 'dot' tool). Then, you have to run 'make doc' to generate .svg images from .dot input graphs.</p>
 %!core::HTML_INSTRUCTION_CLASSES%
-%if exists core::instData then
+%if exists core::instMappingOnPipeline then
   foreach inst in core::instMappingOnPipeline do
     %<h2><a name="%!inst::name%">Instruction "%!inst::name%"</a></h2>\n%
     %<h3>Component access of instruction</h3>\n%

@@ -18,7 +18,8 @@ enum @varClass {
   SFR,
   registerSlice,
   localVar,
-  field
+  field,
+  device        #a device defined inside a peripheral.
 }
 
 reader @varClass msg -> @string outResult :
@@ -29,6 +30,7 @@ reader @varClass msg -> @string outResult :
     when registerSlice  : outResult := "a register slice" ; 
     when localVar       : outResult := "a local variable" ;     
     when field          : outResult := "a binary field of instruction" ;     
+    when device         : outResult := "a device" ;
   end switch ;
 end reader ;
 
@@ -41,6 +43,7 @@ reader @varClass id -> @uint64 outResult:
     when registerSlice  : outResult := 3L;
     when localVar       : outResult := 4L;
     when field          : outResult := 5L;
+    when device         : outResult := 6L;
   end switch ;
 end reader ;
 

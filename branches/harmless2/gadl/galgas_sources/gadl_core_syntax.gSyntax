@@ -1,10 +1,10 @@
 syntax gadl_core_syntax ("gadl_lexique.gLexique") :
 import "gadl_options.gOption" ;
+import "gadl_core.gSemantics";
 import "gadl_memory.gSemantics";
 import "gadl_isa.gSemantics";
 import "gadl_isa_grammar.gGrammar";
 import "gadl_varIdfStruct.gSemantics"; #lstringMap
-import "gadl_core.gSemantics";
 
 nonterminal <memoryChunk>
   ?! @ASTmemoryParamMap ASTmemChunk 
@@ -44,18 +44,20 @@ rule <importIsa>
   [!?importIsaMap insertKey !isaName !srcFile];
 end rule;
 
-rule <core> :
-  @ASTCoreMap ASTcoreMap [emptyMap];
+#called from a cpu part.
+rule <core> 
+  ?! @ASTCoreMap ASTcoreMap
+  ?! @ASTmemSpaceMap ASTmemSpaceMap
+:
   #memory stuff
   @ASTmemoryParamMap ASTmemChunk [emptyMap];
   @stringlist memChunkOrder [emptyList];
   #importing isa
   @lstringMap importIsaMap [emptyMap];
-  @ASTmemSpaceMap ASTmemSpaceMap [emptyMap];
  
   repeat
   while
-    #mem space definition.
+    #local mem space definition.
     <memorySpace> !?ASTmemSpaceMap;
   while
     #ISA importation
@@ -69,16 +71,7 @@ rule <core> :
   ${$;
     <coreBody> !?ASTmemChunk !?memChunkOrder ?@architectureMap archMap ?@pipelineMap pipelineMap ?@machineMap machineMap ?@ASTFunctionMap ASTCoreConstructorMap !coreName;
   $}$;
-  #Ok. Parsing done. Now apply semantic.
-
   [!?ASTcoreMap insertKey !coreName !ASTIsa !ASTmemChunk !memChunkOrder !archMap !pipelineMap !machineMap !ASTCoreConstructorMap];
-
-  #do the job.
-  @memSpaceMap memSpaceMap := [ASTmemSpaceMap getMemSpaceMap];
-  [ASTcoreMap coreSemantic !coreName !coreName !memSpaceMap];
-  #[memSpaceMap setInTemplate !?templateStruct];
-
-  #coreSemantic !coreName !ASTIsa !ASTmemChunk !memChunkOrder !ASTmemSpaceMap !archMap !pipelineMap !machineMap !ASTCoreConstructorMap;
 end rule ;
 
 rule <coreBody>

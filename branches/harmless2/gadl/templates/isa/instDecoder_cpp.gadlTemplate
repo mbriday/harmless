@@ -19,7 +19,7 @@ using namespace std;
 %
 #up to 256 decoder functions.
 
-let decoderFuncArgs := core::NAME."_instDecoder *decoder, ".core::NAME."_core *_core, ".core::idfStruct::PC_C_TYPE." &pc, const ".core::idfStruct::PC_C_TYPE." pcBase, const ".core::INST_DEFAULT_SIZE_C_STR." chunk1".defaultFetchDeclare
+let decoderFuncArgs := core::NAME."_instDecoder *decoder, ".core::NAME."_core *_core, ".core::PC_C_TYPE." &pc, const ".core::PC_C_TYPE." pcBase, const ".core::INST_DEFAULT_SIZE_C_STR." chunk1".defaultFetchDeclare
 
 foreach func in core::DECODER_FUNCTION_LIST do
   if func::exist then
@@ -62,7 +62,7 @@ end foreach
 }
 
 
-%!core::NAME%_instruction* %!core::NAME%_instDecoder::decode(%!core::NAME%_core *_core, %!core::idfStruct::PC_C_TYPE% &pc%!defaultFetchDeclare%)
+%!core::NAME%_instruction* %!core::NAME%_instDecoder::decode(%!core::NAME%_core *_core, %!core::PC_C_TYPE% &pc%!defaultFetchDeclare%)
 {
 	#ifndef DO_NOT_USE_INTERNAL_INSTRUCTION_CACHE
 		return cache->getInstruction(_core, pc, this%!defaultFetchParam%);
@@ -71,7 +71,7 @@ end foreach
 	#endif
 }
 
-%!core::NAME%_instruction* %!core::NAME%_instDecoder::decodeWithExecActionCache(%!core::NAME%_core *_core, %!core::idfStruct::PC_C_TYPE% &codeAddr%!defaultFetchDeclare%)
+%!core::NAME%_instruction* %!core::NAME%_instDecoder::decodeWithExecActionCache(%!core::NAME%_core *_core, %!core::PC_C_TYPE% &codeAddr%!defaultFetchDeclare%)
 {
 	//search if instruction is in the cache.
 	%!core::NAME%_executeInstAction *inst = m_execActionNotInCache.getAndRemoveAt(codeAddr);
@@ -100,7 +100,7 @@ end foreach
 
 %!core::NAME%_instruction* %!core::NAME%_instDecoder::decodeDirect(%!core::NAME%_core *_core, u32 &pc)
 {
-	const %!core::idfStruct::PC_C_TYPE% pcBase = pc;
+	const %!core::PC_C_TYPE% pcBase = pc;
 	const %!core::INST_DEFAULT_C_SIZE% instCode = %!core::FETCH_FUNCTION_CONDITION%;
 	unsigned int tabEntry = instCode >> %!core::INST_SHIFT%; //most significant bits -> first part of the opcode.
 	%!core::NAME%_instruction *inst = %!core::NAME%_decodeTab[tabEntry](this, _core, pc, pcBase, instCode);
@@ -190,7 +190,7 @@ void %!core::NAME%_instDecoder::cacheRemoveInstruction(%!core::NAME%_instruction
 	}
 }
 
-bool %!core::NAME%_instDecoder::removeExecuteActionAtAddress(const %!core::idfStruct::PC_C_TYPE% addr, executeAction *ea)
+bool %!core::NAME%_instDecoder::removeExecuteActionAtAddress(const %!core::PC_C_TYPE% addr, executeAction *ea)
 {
 	bool found = false;
 	//search if the instruction associated to this action is in the cache.

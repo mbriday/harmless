@@ -170,8 +170,8 @@ end if #exists timingList
 		virtual void decoderStats();
 		/** generic function to access the program counter */
 		u32 programCounter() {%if core::useCAS then%
-			m_DDCreadReg0Access |= DDC_REGISTER_MASK_%!core::idfStruct::PC_NAME%; %end if%
-			return (u32)(m_%!core::idfStruct::PC_NAME%);};
+			m_DDCreadReg0Access |= DDC_REGISTER_MASK_%!core::PC_NAME%; %end if%
+			return (u32)(m_%!core::PC_NAME%);};
 		
 		/** Use this function to record the pipeline trace.. Simulation is quite slower. */
 		void usePipelineTrace();
@@ -224,8 +224,8 @@ end if #exists timingList
 
 		/** generic function to access the program counter */
 		void setProgramCounter(const u32 val) { %if core::useCAS then%
-			m_DDCwriteReg0Access |= DDC_REGISTER_MASK_%!core::idfStruct::PC_NAME%; %end if%
-			m_%!core::idfStruct::PC_NAME% = val;};
+			m_DDCwriteReg0Access |= DDC_REGISTER_MASK_%!core::PC_NAME%; %end if%
+			m_%!core::PC_NAME% = val;};
 
 		/** return the object that reads the binary application code */
 		codeReader *getCodeReader() {return m_reader;};
@@ -280,9 +280,9 @@ end if #exists timingList
 		 * If a user fetch function is defined, the default fetch function is used for the disassembler.
          */
 		#ifdef SWIG /*Swig wrapper (for Python interface)*/
-			inline %!core::INST_DEFAULT_C_SIZE% defaultFetch(%!core::idfStruct::PC_C_TYPE% &INOUT)
+			inline %!core::INST_DEFAULT_C_SIZE% defaultFetch(%!core::PC_C_TYPE% &INOUT)
 		#else
-			inline %!core::INST_DEFAULT_C_SIZE% defaultFetch(%!core::idfStruct::PC_C_TYPE% &pc)
+			inline %!core::INST_DEFAULT_C_SIZE% defaultFetch(%!core::PC_C_TYPE% &pc)
 		#endif
 		{
 			unsigned int realAddress = getFetchAddress(pc);

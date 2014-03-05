@@ -1,29 +1,149 @@
 syntax gadl_cpu_syntax ("gadl_lexique.gLexique") :
 import "gadl_options.gOption" ;
 import "gadl_memory.gSemantics";
-import "gadl_isa.gSemantics";
-import "gadl_isa_grammar.gGrammar";
+import "gadl_core.gSemantics";
+import "gadl_core_grammar.gGrammar";
 import "gadl_varIdfStruct.gSemantics"; #lstringMap
 import "gadl_cpu.gSemantics";
+import "gadl_peripheral_AST.gSemantics";
+
+#test
+import "gadl_peripheral.gSemantics";
+import "gadl_peripheral_templateExport.gSemantics";
 
 nonterminal <memorySpace> ?! @ASTmemSpaceMap ASTmemSpaceMap;
-nonterminal <peripheral>;
+nonterminal <peripheral>  ?! @ASTperipheralMap ASTperipheralMap;
+nonterminal <memoryChunk>
+  ?! @ASTmemoryParamMap ASTmemChunk 
+  ?! @stringlist memChunkOrder
+;
+
+rule <importCore>
+  ?!@lstringMap importCoreMap
+:
+  $import$; $core$;
+  $idf$ ?@lstring coreName;
+  $from$;
+  $caracterStr$ ?@lstring srcFile;  
+  [!?importCoreMap insertKey !coreName !srcFile];
+end rule;
+
+rule <coreInstantiation>
+  ?! @lstringMap coreTypeMap
+  ?! @ASTCoreMap ASTcoreMap
+  ?! @stringset coreSet
+  ?! @ASTmemSpaceMap ASTmemSpaceMap
+  ?? @lstringMap importCoreMap
+:
+  $core$; $idf$ ?@lstring coreType;
+  $idf$ ?@lstring coreName;
+  [!?coreTypeMap insertKey !coreName !coreType];
+  if not [coreSet hasKey ![coreType string]] then
+    #core type not parsed yet.
+    [importCoreMap searchKey !coreType ?@lstring coreFileName];
+    grammar gadl_core_grammar in coreFileName !?ASTcoreMap !?ASTmemSpaceMap;
+    coreSet += ![coreType string];
+  end if;
+  #tmp: core
+  #Ok. Parsing done. Now apply semantic.
+  #@memSpaceMap memSpaceMap := [ASTmemSpaceMap getMemSpaceMap];
+  #[ASTcoreMap coreSemantic !coreType !coreType !memSpaceMap];
+end rule;
 
 rule <cpu>
 :
   @ASTmemSpaceMap ASTmemSpaceMap [emptyMap];
+  @ASTperipheralMap ASTperipheralMap [emptyMap];
+  #importing core
+  @lstringMap importCoreMap [emptyMap];
+  #memory stuff
+  @ASTmemoryParamMap ASTmemChunk [emptyMap];
+  @stringlist memChunkOrder [emptyList];
+  
   repeat
   while
-    #mem space definition.
+    #global mem space definition.
     <memorySpace> !?ASTmemSpaceMap;
   while
     #peripheral def
-    <peripheral>;
+    <peripheral> !?ASTperipheralMap;
+  while
+    #Core importation
+    <importCore> !?importCoreMap;
   end repeat;
 
   $cpu$; $idf$ ?@lstring cpuName;
   ${$;
+  #associate core type and a name (TODO and constructor param).
+  @lstringMap coreTypeMap [emptyMap];
+  #map of cores, key is the type.
+  @ASTCoreMap ASTcoreMap [emptyMap];
+  #set of core types, to parse only one time each core type.
+  @stringset coreSet [emptySet];
+  repeat
+  while
+    <memoryChunk> !?ASTmemChunk !?memChunkOrder;
+    message "mem chunk in CPU not implemented!!\n";
+  while
+    <coreInstantiation> !?coreTypeMap !?ASTcoreMap !?coreSet !?ASTmemSpaceMap !importCoreMap;
+  end repeat;
+  
   $}$;
+  
+#  #tests.
+#  @peripheralMap peripheralMap := [ASTperipheralMap getPeriphMap];
+#
+#  @TfieldMap templateStruct := [@TfieldMap emptyMap];  
+#  [!?templateStruct initTemplate !lstringWith[!"cpu"] !lstringWith[!"export"]];
+#  [peripheralMap setInTemplate !?templateStruct];
+#  ###########################################################################
+#  # template generation
+#  ###########################################################################
+#  @string gadlLog := computeTemplate[!"" !templateStruct !"peripheral"];
+#  if [option gadl_options.templateLogFile value] then
+#    extractTemplateStructure !templateStruct !"templateLog.xml";
+#  end if;
+
+  @lstring exportDir := cpuName;
+
+  #Ok. Parsing done. Now apply semantic.
+  ###########################################################################
+  # init templates.
+  ###########################################################################
+  @TfieldMap templateStruct := [@TfieldMap emptyMap];
+  [!?templateStruct initTemplate !cpuName !exportDir];
+
+  ###########################################################################
+  # memory space.
+  ###########################################################################
+  @memSpaceMap memSpaceMap := [ASTmemSpaceMap getMemSpaceMap];
+  [memSpaceMap setInTemplate !?templateStruct];
+
+  ###########################################################################
+  # peripherals
+  ###########################################################################
+  @peripheralMap peripheralMap := [ASTperipheralMap getPeriphMap];
+  [peripheralMap setInTemplate !?templateStruct];
+
+  ###########################################################################
+  # core generation.
+  ###########################################################################
+  [ASTcoreMap coreSemantic !cpuName !memSpaceMap !?templateStruct];
+
+  ###########################################################################
+  # template generation
+  ###########################################################################
+  @string gadlLog := computeTemplate[!"" !templateStruct !"root"];
+  if [option gadl_options.templateLogFile value] then
+    extractTemplateStructure !templateStruct !"templateLog.xml";
+  end if;
+  ###########################################################################
+  # filewrappers: add binary files inside the gadl compiler.
+  ###########################################################################
+  addFileWrappers !exportDir;
+
+
+
 end rule;
 
 end syntax ;

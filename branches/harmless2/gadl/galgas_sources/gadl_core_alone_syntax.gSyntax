@@ -1,0 +1,100 @@
+syntax gadl_core_alone_syntax ("gadl_lexique.gLexique") :
+  import "gadl_options.gOption" ;
+  import "gadl_core.gSemantics";
+  import "gadl_memory.gSemantics";
+  import "gadl_isa.gSemantics";
+  import "gadl_isa_grammar.gGrammar";
+  import "gadl_varIdfStruct.gSemantics"; #lstringMap
+  import "gadl_templates.gSemantics" ;
+
+nonterminal <memoryChunk>
+  ?! @ASTmemoryParamMap ASTmemChunk 
+  ?! @stringlist memChunkOrder
+;
+nonterminal <memorySpace> ?! @ASTmemSpaceMap ASTmemSpaceMap;
+nonterminal  <architecture> ?! @architectureMap archMap;
+#for constructor.
+nonterminal <typeDeclaration> ! @varAbstractType type;
+#from gadl_function_parser
+#not the outType and functionName in the rule due to grammar LL1 restrictions.
+nonterminal <functionDef> 
+  ?? @varAbstractType outType
+  ?? @lstring functionName
+  ?! @ASTFunctionMap ASTFunctionMap
+;
+
+#pipeline
+nonterminal  <pipeline> 
+  ?? @architectureMap architectureMap
+  ?! @pipelineMap pipelineMap
+;
+
+#assembly of global pipeline
+nonterminal <machine>
+  ?! @machineMap machineMap
+  ?? @pipelineMap pipelineMap
+;
+
+nonterminal <importIsa>
+  ?!@lstringMap importIsaMap
+;
+
+nonterminal <coreBody>
+  ?! @ASTmemoryParamMap ASTmemChunk
+  ?! @stringlist memChunkOrder
+  !  @architectureMap archMap
+  !  @pipelineMap pipelineMap
+  !  @machineMap machineMap
+  !  @ASTFunctionMap ASTCoreConstructorMap
+  ?? @lstring coreName
+;
+
+nonterminal <core> 
+  ?! @ASTCoreMap ASTcoreMap
+  ?! @ASTmemSpaceMap ASTmemSpaceMap
+;
+
+rule <coreAlone> :
+
+  @ASTCoreMap ASTcoreMap [emptyMap];
+  @ASTmemSpaceMap ASTmemSpaceMap [emptyMap];
+  <core> !?ASTcoreMap !?ASTmemSpaceMap;
+  #get back the core name, and set cpuName and exportDir.
+  @lstring coreName := [@lstring new !"coreName" !here];
+  foreach ASTcoreMap do coreName := lkey; end foreach;
+  @lstring cpuName   := coreName;
+  @lstring exportDir := coreName;
+  #Ok. Parsing done. Now apply semantic.
+  ###########################################################################
+  # init templates.
+  ###########################################################################
+  @TfieldMap templateStruct := [@TfieldMap emptyMap];
+  [!?templateStruct initTemplate !cpuName !exportDir];
+
+  ###########################################################################
+  # memory space.
+  ###########################################################################
+  @memSpaceMap memSpaceMap := [ASTmemSpaceMap getMemSpaceMap];
+  [memSpaceMap setInTemplate !?templateStruct];
+  
+  ###########################################################################
+  # core generation.
+  ###########################################################################
+  [ASTcoreMap coreSemantic !exportDir !memSpaceMap !?templateStruct];
+
+  ###########################################################################
+  # template generation
+  ###########################################################################
+  @string gadlLog := computeTemplate[!"" !templateStruct !"root"];
+  if [option gadl_options.templateLogFile value] then
+    extractTemplateStructure !templateStruct !"templateLog.xml";
+  end if;
+  ###########################################################################
+  # filewrappers: add binary files inside the gadl compiler.
+  ###########################################################################
+  addFileWrappers !exportDir;
+  
+end rule ;
+
+end syntax ;
+# vim:ft=ggs:ts=2:sw=2

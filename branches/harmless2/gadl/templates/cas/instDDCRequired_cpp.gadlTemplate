@@ -1,5 +1,5 @@
 %template headerC
-if useCAS then%
+if core::useCAS then%
 #include "%!core::NAME%_instruction.h" //first for precompiled header
 #include <iostream>
 #include "%!core::NAME%_core.h"

@@ -1,0 +1,8 @@
+%template headerC%
+
+#include "periph_%!peripheral::name%.h"
+
+peripheral_%!peripheral::name%::peripheral_%!peripheral::name%(const u32 address) : peripheral("%!peripheral::name%", %!peripheral::memSize%, address)
+{
+
+}
