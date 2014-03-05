@@ -1,6 +1,6 @@
 program gadl_program :
 import "gadl_semantics.gSemantics" ;
-import "gadl_core_grammar.gGrammar" ;
+import "gadl_core_alone_grammar.gGrammar" ;
 import "gadl_cpu_grammar.gGrammar" ;
 
 #--- Prologue routine
@@ -9,14 +9,14 @@ before {
 
 #--- 'when' clauses
 when . "core"
-message "a source text file with the .core extension"
+message "a core only description file (with the .core extension)"
 ??@lstring inSourceFile {
-  grammar gadl_core_grammar in inSourceFile ;
+  grammar gadl_core_alone_grammar in inSourceFile ;
 }
 
 #--- 'when' clauses
 when . "cpu"
-message "a source text file with the .cpu extension"
+message "a CPU description, including peripherals and cores (with the .cpu extension)"
 ??@lstring inSourceFile {
   grammar gadl_cpu_grammar in inSourceFile ;
 }

@@ -23,6 +23,8 @@ write to exportDir."/core.cpp":
 end write
 %core.cpp \\\n%
 
+#peripherals
+template peripheral in peripheral
 
 #utils to generate code (types, macro, ..)
 template utils in utils

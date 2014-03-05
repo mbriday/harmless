@@ -22,19 +22,11 @@ map @ASTCoreMap
   search searchKey error message "the '%K' core is not defined" ;
 }
 
-#this 
 method @ASTCoreMap coreSemantic
   ?? @lstring exportDir
-  ?? @lstring cpuName
   ?? @memSpaceMap memSpaceMap
-#  ?! @TfieldMap templateStruct
+  ?! @TfieldMap templateStruct
 :
-  @TfieldMap templateStruct2 := [@TfieldMap emptyMap];
-  ###########################################################################
-  # init templates.
-  ###########################################################################
-  [!?templateStruct2 initTemplate !cpuName !exportDir];
-
   @TfieldMapList coreTpl [emptyList];
   foreach selfcopy do
     @TfieldMap coreTplBody [emptyMap];
@@ -58,7 +50,7 @@ method @ASTCoreMap coreSemantic
     ###########################################################################
     # ISA
     ###########################################################################
-    [ASTIsa getIsa !?idfStruct !coreName !?coreTplBody ?@Isa isa];
+    [ASTIsa getIsa !?idfStruct !coreName !exportDir !?coreTplBody ?@Isa isa];
 
     ###########################################################################
     # local memory definition
@@ -77,94 +69,13 @@ method @ASTCoreMap coreSemantic
     # export data from idfStruct (components and so on).
     ###########################################################################
     [idfStruct setInTemplate !?coreTplBody];
-
+    [idfStruct setProgramCounterInTemplate !?coreTplBody];
 
     #end.
     coreTpl += !coreTplBody;
   end foreach;
-  addListValue !?templateStruct2 !lstringWith[!"coreList"] !coreTpl;
-  [memSpaceMap setInTemplate !?templateStruct2];
-
-  ###########################################################################
-  # template generation
-  ###########################################################################
-  @string gadlLog := computeTemplate[!"" !templateStruct2 !"root"];
-  if [option gadl_options.templateLogFile value] then
-    extractTemplateStructure !templateStruct2 !"templateLog.xml";
-  end if;
-  ###########################################################################
-  # filewrappers: add binary files inside the gadl compiler.
-  ###########################################################################
-  addFileWrappers !exportDir;
+  addListValue !?templateStruct !lstringWith[!"coreList"] !coreTpl;
 end method;
-
-##TODO: one object!!
-#routine coreSemantic
-#  ?? @lstring coreName
-#  ?? @ASTIsa ASTIsa 
-#  ?? @ASTmemoryParamMap ASTmemChunk
-#  ?? @stringlist unused memChunkOrder 
-#  ?? @ASTmemSpaceMap ASTmemSpaceMap
-#  ?? @architectureMap archMap
-#  ?? @pipelineMap pipelineMap
-#  ?? @machineMap machineMap
-#  ?? @ASTFunctionMap ASTCoreConstructorMap
-#:
-#  @TfieldMap templateStruct := [@TfieldMap emptyMap];
-#  [!?templateStruct initTemplate !coreName];
-#
-#  ##########################################################################################
-#  # memory space.
-#  ##########################################################################################
-#  @varIdfStruct idfStruct [default];
-#  @memSpaceMap memSpaceMap := [ASTmemSpaceMap getMemSpaceMap];
-#  idfStruct->memSpaceMap := memSpaceMap;
-#  #message [idfStruct string];
-#
-#  ##########################################################################################
-#  #constructor of the core (memory defined, and ISA not yet).
-#  ##########################################################################################
-#  @expressionContext ctx := [@expressionContext component]; #same ctx as a component...  
-#  @functionMap constructorMap := [ASTCoreConstructorMap getFunctionMap !ctx !idfStruct];
-#  addListValue !?templateStruct !lstringWith[!"coreConstructorList"] 
-#               ![constructorMap getFunctionTemplate];
-#  
-#  ##########################################################################################
-#  # ISA
-#  ##########################################################################################
-#  [ASTIsa getIsa !?idfStruct !coreName !?templateStruct ?@Isa isa];
-#
-#  ##########################################################################################
-#  # local memory definition
-#  ##########################################################################################
-#  @memoryParamMap memChunk := [ASTmemChunk getMemMap];
-#  [memChunk setInTemplate !lstringWith[!"memInCoreList"] !?templateStruct];
-#
-#  ##########################################################################################
-#  # Architecture (defined in core), for a CAS version.
-#  ##########################################################################################
-#  @intMap memSpaceWithRegister := [memChunk memSpaceWithRegisterBank !memSpaceMap];
-#  microArchPart !isa !coreName !machineMap !pipelineMap !archMap !idfStruct 
-#                !memSpaceWithRegister !memChunk !?templateStruct;
-#
-#  ##########################################################################################
-#  # export data from idfStruct (components and so on).
-#  ##########################################################################################
-#  [idfStruct setInTemplate !?templateStruct];
-#
-#  ##########################################################################################
-#  # template generation
-#  ##########################################################################################
-#  @string gadlLog := computeTemplate[!"" !templateStruct !"root"];
-#  if [option gadl_options.templateLogFile value] then
-#    extractTemplateStructure !templateStruct !"templateLog.xml";
-#  end if;
-#
-#  ##########################################################################################
-#  # filewrappers: add binary files inside the gadl compiler.
-#  ##########################################################################################
-#  addFileWrappers !coreName;
-#end routine;
 
 end semantics ;
 # vim:ft=ggs:ts=2:sw=2

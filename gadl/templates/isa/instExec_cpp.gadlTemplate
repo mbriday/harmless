@@ -17,7 +17,7 @@ using namespace std;
   end if
   
   if exists core::branchInstMap[inst::name] then #branch?
-    %\t%!core::idfStruct::PC_C_TYPE% val_pc_before = _core->%!core::idfStruct::PC_NAME%();\n%
+    %\t%!core::PC_C_TYPE% val_pc_before = _core->%!core::PC_NAME%();\n%
   end if
   
   if exists core::timingInstMap[inst::name] then #timing counter?
@@ -34,7 +34,7 @@ using namespace std;
   end if
   if exists core::branchInstMap[inst::name] then #branch part 2.
     %\t//branch check.\n%
-    %\tm_jumpTaken = _core->%!core::idfStruct::PC_NAME%()-val_pc_before;\n%
+    %\tm_jumpTaken = _core->%!core::PC_NAME%()-val_pc_before;\n%
   end if
   
 	if core::useCAS then

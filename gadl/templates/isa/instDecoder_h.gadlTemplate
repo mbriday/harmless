@@ -34,7 +34,7 @@ class %!core::NAME%_instDecoder
 	unsigned int m_nbMemAccessForNextInst;
 
 	//effectively decode the instruction.
-	%!core::NAME%_instruction* decodeDirect(%!core::NAME%_core *_core, %!core::idfStruct::PC_C_TYPE% &ip%!defaultFetchDeclare%);
+	%!core::NAME%_instruction* decodeDirect(%!core::NAME%_core *_core, %!core::PC_C_TYPE% &ip%!defaultFetchDeclare%);
 public:
 	/** \brief main function to decode instructions. 
 	 *
@@ -49,14 +49,14 @@ public:
 	 * \return an instruction object that correspond to the code pointed by
 	 * the instructtion pointer.
 	 */
-	%!core::NAME%_instruction* decode(%!core::NAME%_core *_core, %!core::idfStruct::PC_C_TYPE% &ip%!defaultFetchDeclare%);
+	%!core::NAME%_instruction* decode(%!core::NAME%_core *_core, %!core::PC_C_TYPE% &ip%!defaultFetchDeclare%);
 
 	/** instruction that effectively decode the instruction code.
 	 * This method is called by the internal instruction cache if 
 	 * the instruction code is not found in the internal cache.
 	 * IT SHOULD ONLY BE CALLED BY THE INTERNAL CACHE!
 	 */
-	%!core::NAME%_instruction* decodeWithExecActionCache(%!core::NAME%_core *_core, %!core::idfStruct::PC_C_TYPE% &ip%!defaultFetchDeclare%);
+	%!core::NAME%_instruction* decodeWithExecActionCache(%!core::NAME%_core *_core, %!core::PC_C_TYPE% &ip%!defaultFetchDeclare%);
 	/* constructor. Build the internal instruction cache.*/
 	%!core::NAME%_instDecoder();
 	/** return the instruction at address if it is in the cache
@@ -64,11 +64,11 @@ public:
 	 *  It does not decode anything!!
 	 *  (if simulator is compiled without instruction cache, it always returns NULL).
 	 */
-	%!core::NAME%_instruction *isInCache(const %!core::idfStruct::PC_C_TYPE% address);
+	%!core::NAME%_instruction *isInCache(const %!core::PC_C_TYPE% address);
 	/** should be called when an %!core::NAME%_executeInstAction is added
 	 * The %!core::NAME%_executeInstAction embedds both an instruction AND a list of execute actions.
 	 */
-	void replaceInCache(const %!core::idfStruct::PC_C_TYPE% addr, %!core::NAME%_instruction *inst,%!core::NAME%_executeInstAction *eia);
+	void replaceInCache(const %!core::PC_C_TYPE% addr, %!core::NAME%_instruction *inst,%!core::NAME%_executeInstAction *eia);
 
 	/** number of memory accesses required to decode the last instruction
 	 * useful in the case of variable length instructions. TODO: not yet used.
@@ -76,7 +76,7 @@ public:
 	inline unsigned int const getNumberOfMemoryAccessesForLastDecode() 
 		{return m_nbMemAccessForNextInst;};
 	
-	void addExecuteActionAtAddress(const %!core::idfStruct::PC_C_TYPE% addr, executeAction *ea);
+	void addExecuteActionAtAddress(const %!core::PC_C_TYPE% addr, executeAction *ea);
 
 	//this method should ONLY be called by the cache to inform the decoder
 	//that an instruction is removed.
@@ -84,7 +84,7 @@ public:
 
 	//remove an execute action at address.
 	//@return true if the action is effectively removed.
-	bool removeExecuteActionAtAddress(const %!core::idfStruct::PC_C_TYPE% addr, executeAction *ea);
+	bool removeExecuteActionAtAddress(const %!core::PC_C_TYPE% addr, executeAction *ea);
 	
 	void decoderStats();
 };

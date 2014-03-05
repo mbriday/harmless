@@ -295,6 +295,9 @@ override reader @instDeclaration generateCode
   when field,programCounter,GPR,SFR,registerSlice:
     #nothing.
     code := "";
+  when device:
+    message "TODO: override reader @instDeclaration generateCode -> device";
+    code := "";
   end switch;
 end reader;
 

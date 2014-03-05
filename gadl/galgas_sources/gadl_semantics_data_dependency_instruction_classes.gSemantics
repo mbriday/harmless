@@ -402,7 +402,7 @@ reader @varMap getDDCRegMap
   foreach selfcopy do
     switch varClass
       when programCounter,GPR: [!?regMap insertKey !lkey];
-      when SFR,registerSlice,localVar,field: #nothing
+      when SFR,registerSlice,localVar,field,device: #nothing
     end switch ;
   end foreach;
   @string msg := "registers:";

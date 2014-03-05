@@ -1,0 +1,96 @@
+semantics gadl_peripheral :
+  import "gadl_options.gOption" ;
+  import "gadl_peripheral_AST.gSemantics" ;
+  import "gadl_semantics_getInst.gSemantics" ; #getInst
+
+map @registerPeriphDefMap
+{
+  @instructionList regDecList;
+  @luint64 address;
+  @lstring readFuncCall;
+  @lstring writeFuncCall;
+  @varBaseType type; #type of the register (u32, …)
+  insert insertKey error message "the '%K' peripheral register is already defined in %L" ; 
+  search searchKey error message "the '%K' peripheral register is not defined" ;
+  remove removeKey error message "the '%K' peripheral register is not defined. Can't remove it." ;
+}
+
+map @peripheralMap
+{
+  @luint64 size;
+  @registerPeriphDefMap registerPeriphDefMap;
+  @functionMap functionMap;
+  @instructionList instDecList;
+  @varIdfStruct idfStruct;
+
+  insert insertKey error message "the '%K' peripheral is already defined in %L" ; 
+  search searchKey error message "the '%K' peripheral is not defined" ;
+  remove removeKey error message "the '%K' peripheral is not defined. Can't remove it." ;
+}
+
+method @ASTregisterPeriphDefMap getRegisterPeriphDefMap
+  ?? @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  ?? @ASTFunctionMap ASTFunctionMap
+  !  @registerPeriphDefMap registerPeriphDefMap
+:
+  @expressionContext ctx := [@expressionContext peripheral];
+  registerPeriphDefMap := [@registerPeriphDefMap emptyMap];
+  foreach selfcopy do
+    #extract instruction declaration
+    getInst !ASTregDecList !ctx !symbolMap !?idfStruct ?@instructionList regDecList;
+    #check that type is a basic type.
+    @varBaseType vbt := [type getBaseType];
+    #check that the Function call are defined.
+    if [readFuncCall string] != "" then
+      [ASTFunctionMap searchKey !readFuncCall ?@parameterDefList param ?@varAbstractType outType ?*];
+      #no parameter for read.
+      @parameterDefList paramExpected [emptyList];
+      if not [param checkEqual !paramExpected ![readFuncCall location]] then
+        error [readFuncCall location] : "The 'read' callback does not have correct parameters";
+      end if;
+      #check return type.
+      if not [outType isVoid] then
+        error [writeFuncCall location] : "The 'write' should not return any value";
+      end if;
+    end if;
+    if [writeFuncCall string] != "" then
+      [ASTFunctionMap searchKey !writeFuncCall ?@parameterDefList param ?@varAbstractType outType ?*];
+      #param: only 1 parameter, same type as the register size.
+      @parameterDefList paramExpected [emptyList];
+      paramExpected += !false !vbt ![@lstring new !"data" !here];
+      if not [param checkEqual !paramExpected ![writeFuncCall location]] then
+        error [writeFuncCall location] : "The 'write' callback does not have correct parameters";
+      end if;
+      #check return type.
+      if not [outType isVoid] then
+        error [writeFuncCall location] : "The 'write' should not return any value";
+      end if;
+    end if;
+    #insert in map.
+    [!?registerPeriphDefMap insertKey !lkey !regDecList !address !readFuncCall !writeFuncCall !vbt];
+  end foreach;
+end method;
+
+reader @ASTperipheralMap getPeriphMap
+  ->  @peripheralMap peripheralMap
+:
+  peripheralMap := [@peripheralMap emptyMap];
+  @expressionContext ctx := [@expressionContext peripheral];
+
+  foreach selfcopy do
+    @varIdfStruct idfStruct [default];
+    @symbolValueMap symbolMap [emptyMap];
+    @registerPeriphDefMap registerPeriphDefMap;
+    [ASTregisterPeriphDef getRegisterPeriphDefMap !symbolMap !?idfStruct !ASTFunctionMap ?registerPeriphDefMap];
+    getInst !ASTInstDecList !ctx !symbolMap !?idfStruct ?@instructionList instDecList;
+    message "\nIdfStruct\n".[idfStruct string];
+    @functionMap functionMap := [ASTFunctionMap getFunctionMap !ctx !idfStruct]; 
+    [!?peripheralMap insertKey !lkey !size !registerPeriphDefMap !functionMap !instDecList !idfStruct];
+  end foreach;
+end reader;
+
+
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

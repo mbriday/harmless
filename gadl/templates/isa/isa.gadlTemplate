@@ -29,7 +29,7 @@ end write
 let instContructorParam := emptyMap
 foreach inst in core::INST_CONSTRUCTOR do
   #declaration
-  let param := "(const ".core::idfStruct::PC_C_TYPE." pc, "
+  let param := "(const ".core::PC_C_TYPE." pc, "
   loop chunk from 1 to inst::codeLength 
   do
     let param := param."const ".core::INST_DEFAULT_SIZE_C_STR." chunk".[chunk string]

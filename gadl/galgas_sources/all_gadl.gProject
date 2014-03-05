@@ -111,6 +111,8 @@ project all_gadl (0:8:1) -> "gadl" :
 
   syntax    "gadl_peripheral_parser.gSyntax" ;
   semantics "gadl_peripheral_AST.gSemantics" ;
+  semantics "gadl_peripheral.gSemantics" ;     #decorated structures
+  semantics "gadl_peripheral_templateExport.gSemantics" ; #various template export
 
 
 #####################################################################
@@ -136,6 +138,9 @@ project all_gadl (0:8:1) -> "gadl" :
   grammar   "gadl_core_grammar.gGrammar" ;
   syntax    "gadl_core_syntax.gSyntax";
   semantics "gadl_core.gSemantics";
+  #used for a simulator with only a core (no cpu description).
+  grammar   "gadl_core_alone_grammar.gGrammar" ;
+  syntax    "gadl_core_alone_syntax.gSyntax";
 
 #******************************************************************** 
 #timing approach. Pipeline and instruction classes.

@@ -1,0 +1,6 @@
+%template headerC%
+#include "peripheral.h"
+
+peripheral::peripheral(std::string name, u32 size, u32 offset) : rwStorage(name,size,offset)
+{
+}

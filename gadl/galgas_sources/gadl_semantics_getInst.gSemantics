@@ -259,6 +259,9 @@ override method @ASTInstDeclaration getInst
     @instDeclaration instDec := [@instDeclaration new !loc !type !idf !access !""];
     [!?idfStruct->varMap insertKey !idf !type !false !access !instDec];
     inst := instDec;
+  when device:
+    message "TODO: method @ASTInstDeclaration getInst with device";
+    inst := [@instDeclaration new !loc !type !idf !access !""];
   when registerSlice:    
     error loc: "internal error in @ASTInstDeclaration should not be use in this ".
                "context -> @ASTInstDeclarationRegSlice" :inst;

@@ -1,0 +1,23 @@
+%template headerC%
+#include "peripheral_action.h"
+#include "peripheral.h"
+
+peripheralActionRead::peripheralActionRead(peripheral *periph, const u32 addr)
+: m_peripheral(periph),m_addr(addr)
+{
+}
+
+bool peripheralActionRead::trigger(storage *, spyInfo *s)
+{
+	return m_peripheral->readAction(m_addr);
+}
+
+peripheralActionWrite::peripheralActionWrite(peripheral *periph, const u32 addr)
+: m_peripheral(periph),m_addr(addr)
+{
+}
+
+bool peripheralActionWrite::trigger(storage *,u8 data, spyInfo *s)
+{
+	return m_peripheral->writeAction(m_addr,data);
+}

@@ -1,0 +1,43 @@
+semantics gadl_peripheral_templateExport:
+  import "gadl_options.gOption" ;
+  import "gadl_peripheral.gSemantics" ;
+  import "gadl_semantics_implementation_code_generation.gSemantics" ;
+  import "gadl_semantics_templateExport.gSemantics" ;
+
+method @registerPeriphDefMap setInTemplate
+  ?! @TfieldMap templateStruct
+:
+  @TfieldMapList registerPeriphDefTplList [emptyList];
+  foreach selfcopy do
+    @TfieldMap regPeriphDefTplBody [emptyMap];
+    addLStringValue  !?regPeriphDefTplBody !"name"                  !lkey;
+    addUnsignedValue !?regPeriphDefTplBody !lstringWith[!"address"] ![address uint64];
+    if [readFuncCall string] != "" then
+      addLStringValue  !?regPeriphDefTplBody !"readFunc"  !readFuncCall;
+    end if;
+    if [writeFuncCall string] != "" then
+      addLStringValue  !?regPeriphDefTplBody !"writeFunc" !writeFuncCall;
+    end if;
+    addStringValue   !?regPeriphDefTplBody !lstringWith[!"type"]    ![[type getBaseType] getCType];
+    registerPeriphDefTplList += !regPeriphDefTplBody;
+  end foreach;
+  addListValue !?templateStruct !lstringWith[!"regList"] !registerPeriphDefTplList;
+end method;
+
+method @peripheralMap setInTemplate
+  ?! @TfieldMap templateStruct
+:
+  @TfieldMapList peripheralList [emptyList];
+  foreach selfcopy do
+    @TfieldMap peripheralBody [emptyMap];
+    addLStringValue !?peripheralBody !"name" !lkey;
+    addUnsignedValue !?peripheralBody !lstringWith[!"memSize"] ![size uint64];
+    [idfStruct setInTemplate !?peripheralBody];
+    addListValue !?peripheralBody !lstringWith[!"methodList"] ![functionMap getFunctionTemplate];
+    [registerPeriphDefMap setInTemplate !?peripheralBody];
+    peripheralList += !peripheralBody;
+  end foreach;
+  addListValue !?templateStruct !lstringWith[!"peripheralList"] !peripheralList;
+end method;
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2

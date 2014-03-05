@@ -1,0 +1,28 @@
+%template headerC%
+#ifndef __PERIPHERAL_ACTION_H__
+#define __PERIPHERAL_ACTION_H__
+
+#include "action.h"
+class peripheral;
+
+class peripheralActionRead : public readAction
+{
+	peripheral *m_peripheral;
+	const u32 m_addr;
+
+	public:
+	peripheralActionRead(peripheral *periph, const u32 addr);
+	virtual bool trigger(storage *, spyInfo *s);
+};
+
+class peripheralActionWrite : public writeAction
+{
+	peripheral *m_peripheral;
+	const u32 m_addr;
+
+	public:
+	peripheralActionWrite(peripheral *periph, const u32 addr);
+	virtual bool trigger(storage *,u8 data, spyInfo *s);
+};
+
+#endif

@@ -399,7 +399,7 @@ routine handleFirstIdf
     when == @varBaseType :
       #Ok, first item a base type (or a tab of base type).
       switch varClass
-      when localVar,field:
+      when localVar,field,device: #TODO: update for devices.
         switch itemType
         when basic   : shouldStop := true; 
           detectedType := [@idfType localVar]; 

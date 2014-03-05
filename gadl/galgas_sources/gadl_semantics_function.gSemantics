@@ -16,6 +16,8 @@ semantics gadl_semantics_function :
 #             (defined in gadl_semantics_GetExp.gSemantics)
 # -> method @parameterDefList getInlinedInsts
 # -> reader @parameterDefList getFunctionParam (implementation using templates.)
+#check that parameter lists are equals (not names, but types).
+# -> reader @parameterDefList checkEqual
 
 #
 # @ASTFunctionMap AST related function
@@ -145,6 +147,32 @@ reader @functionMap getFunctionTemplate
     #end
     methodTplList += !methodTplBody;
   end foreach;
+end reader;
+
+#check that parameter lists are equals (not names, but types).
+reader @parameterDefList checkEqual
+  ?? @parameterDefList paramListExpected
+  ?? @location loc
+  -> @bool ok
+:
+  ok := true;
+  if [selfcopy length] != [paramListExpected length] then
+    error loc: [[paramListExpected length] string]." are expected here, but only ".
+               [[selfcopy length] string]." are given";
+    ok := false;
+  end if;
+  if ok then
+    foreach selfcopy : base_, paramListExpected : expected_ do
+      #in or out arg.
+      if base_out != expected_out then
+        error base_name: "The parameter is set as ".if base_out     then "out" else "in" end.
+                         "but the expected one is ".if expected_out then "out" else "in" end;
+        ok := false;
+      end if;
+      #check type.
+      ok := ok & [base_type checkEqual !expected_type];
+    end foreach;
+  end if;
 end reader;
 
 reader @parameterDefList getFunctionParam

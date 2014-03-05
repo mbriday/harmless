@@ -1,0 +1,75 @@
+%template headerC%
+#ifndef __PERIPH_%!peripheral::name%_H__
+#define __PERIPH_%!peripheral::name%_H__
+
+#include "peripheral.h"
+#include "macro.h"
+
+class peripheral_%!peripheral::name% : public peripheral
+{
+	public:
+		peripheral_%!peripheral::name%(const u32 address);
+
+		///register accessors (-> remap in memory for 'actions').
+%
+let regMap := mapof peripheral::regList by name
+foreach reg in peripheral::idfStruct::varList do
+  if reg::varClassId == 2      #SFR
+   | reg::varClassId == 3 then #reg fields.
+    %\t\t//register %!reg::name% access\n%
+    ##### getter code #####
+    %\t\t%!reg::type% %!reg::name%() {\n%
+    let key := "counter_read_".reg::name #access counter
+    if exists counterMap[key] then
+      %\t\t\t%!key%++;\n%
+    end if
+    #effective code
+    %\t\t\t%
+    if reg::varClassId == 2 then #SFR
+      #should be converted to a mem access.
+      %return this->read%!reg::size%AtAddress(%
+      !regMap[reg::name]::address
+      %);%
+    elsif reg::varClassId == 3 then #reg fields.
+      !reg::getterNoLocal
+    else error reg::name: "internal error - bad type"
+    end if
+    %\n\t\t};\n%
+    ##### setter code #####
+    %\t\tvoid set%!reg::name%(const %!reg::type
+    if reg::constant then 
+      %) {% 
+    else
+      % value) {\n%
+      #effective code
+      if reg::varClassId == 2 then #SFR
+        #should be converted to a mem access.
+        %\t\t\t%
+        %this->write%!reg::size%AtAddress(%
+        !regMap[reg::name]::address%,value);\n%
+      elsif reg::varClassId == 3 then #reg fields.
+        !reg::setter%\n%
+      else error reg::name: "internal error - bad type"
+      end if
+    end if #constant
+    let key := "counter_write_".reg::name #access counter
+    if exists counterMap[key] then
+      %\t\t\t%!key%++;\n%
+    end if
+    %\t\t};\n%
+  end if #varClass id
+end foreach
+
+#methods
+%\n\t\t//user methods (defined in the description)\n% 
+	foreach method in peripheral::methodList
+	do
+		let key := "method_".method::name
+		%\t\tinline %!method::returnTypeStr% %!key%(%!method::paramStr%) {\n%
+		!method::codeStr
+		%\n\t\t}\n%
+	end foreach
+%
+};
+
+#endif

@@ -5,6 +5,8 @@ syntax gadl_memory_parser ("gadl_lexique.gLexique") :
 
 nonterminal <expression> !@ASTExpression exp;
 
+#allow a memory space to be defined more than one time
+#(useful when using a core only description).
 rule <memorySpace>
   ?! @ASTmemSpaceMap ASTmemSpaceMap
 :
@@ -30,7 +32,22 @@ rule <memorySpace>
     stride := [[strideL uint64] uint];
   end select;
   #possible accessors.
-  [!?ASTmemSpaceMap insertKey !memSpaceName !width !isProgram !stride];
+  if [ASTmemSpaceMap hasKey ![memSpaceName string]] then
+    #already defined. Should have same characteristics.
+    [ASTmemSpaceMap searchKey !memSpaceName ?@uint ADwidth ?@bool ADisProgram ?@uint ADstride];
+    if width != ADwidth then
+      error memSpaceName : "The memory space is already defined, but with another memory width!";
+    end if;
+    if isProgram != ADisProgram then
+      error memSpaceName : "The memory space is already defined, but only one support program loading ('program' parameter)";
+    end if;
+    if stride != ADstride then
+      error memSpaceName : "The memory space is already defined, but with another stride.";
+    end if;
+  else
+    #not yet defined. insert.
+    [!?ASTmemSpaceMap insertKey !memSpaceName !width !isProgram !stride];
+  end if;
 end rule;
 
 

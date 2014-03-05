@@ -45,9 +45,7 @@ method @ASTComponentMap getComponentMap
   #because registers are global and may be used in other components
   foreach componentMapOrder (* @lstring componentName) do
     #first get the AST component data, in the description order
-    @ASTFunctionMap ASTmethodMap;
-    @ASTInstructionList regDefList;
-    [selfcopy searchKey !componentName ?ASTmethodMap ?regDefList];
+    [selfcopy searchKey !componentName ?@ASTFunctionMap ASTmethodMap ?@ASTInstructionList regDefList];
     #then, do the job.
     #prepare empty structures
 #    @varIdfStruct varIdfStructLocalCopy := varIdfStruct;

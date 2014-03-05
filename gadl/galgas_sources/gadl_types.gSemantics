@@ -22,12 +22,12 @@ semantics gadl_types :
 #  * loc            -> return the location (for error generation).
 #  * sizeInBits     -> return the size in bits for a scalar, the size of one elt for a tab, an error for struct.
 #  * isVoid         -> return true for u0 (void) and false otherwise.
+#  * checkEqual     -> check if types are equals
 
 # readers for varBaseType:
 #  * getCSize       -> return the size of the corresponding C var.
 #  * getCType       -> return the string of the C type
 #  * getUppaalType  -> return the size for Uppaal TODO: define a more realistic 'max'.
-#  * checkEqual     -> just verify if the type in param is the same
 
 # other useful functions/methods:
 # function getCSize ?uint size -> return the size of the corresponding C var (unsigned)
@@ -198,7 +198,37 @@ end reader;
 ## check for equality.
 ###############################################################################
 
-reader @varBaseType checkEqual
+abstract reader @varAbstractType checkEqual
+  ?? @varAbstractType otherType
+  -> @bool ok
+;
+
+override reader @varStructType checkEqual
+  ?? @varAbstractType otherType
+  -> @bool ok
+:
+  const @varStructType typeCast := (cast otherType: @varStructType);
+  ok := [[selfcopy typeName] string] == [[typeCast typeName] string];
+end reader;
+
+override reader @varTabularType checkEqual
+  ?? @varAbstractType otherType
+  -> @bool ok
+:
+  const @varTabularType typeCast := (cast otherType: @varTabularType);
+  ok := [selfcopy length] == [typeCast length];
+  ok := ok & [[selfcopy type] checkEqual ![typeCast type]];
+end reader;
+
+override reader @varDeviceType checkEqual
+  ?? @varAbstractType otherType
+  -> @bool ok
+:
+  const @varDeviceType typeCast := (cast otherType: @varDeviceType);
+  ok := [[selfcopy typeName] string] == [[typeCast typeName] string];
+end reader;
+
+override reader @varBaseType checkEqual
   ?? @varAbstractType otherType
   -> @bool ok
 :
@@ -206,8 +236,8 @@ reader @varBaseType checkEqual
   const @varBaseType typeCast := (cast otherType: @varBaseType);
   ok := [selfcopy kind] == [typeCast kind] & [selfcopy size] == [typeCast size];
   if not ok then
-    error [selfcopy location]:" the variable has not the same type has the one defined in ".[[typeCast location] locationString];
-    error [typeCast location]:" the variable has not the same type has the one defined in ".[[selfcopy location] locationString];
+    error [selfcopy location]:" the variable has not the same type than the one defined in ".[[typeCast location] locationString];
+    error [typeCast location]:" the variable has not the same type than the one defined in ".[[selfcopy location] locationString];
   end if;
 end reader;
 ###############################################################################

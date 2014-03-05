@@ -48,6 +48,7 @@ struct @Isa
 method @ASTIsa getIsa
   ?! @varIdfStruct idfStruct #TODO ou constant?
   ?? @lstring modelName
+  ?? @lstring exportDir
   ?! @TfieldMap templateStruct
   !  @Isa isa
 :
@@ -56,7 +57,7 @@ method @ASTIsa getIsa
   ##########################################################################################
   # format
   @instructionImplementationMap impMap;
-  instructionFormatPart ![modelName string] !defaultValues !?templateStruct !formatMap ?impMap; 
+  instructionFormatPart ![modelName string] !defaultValues !?templateStruct !formatMap !exportDir ?impMap; 
   generateInstConstructorAndDef !?templateStruct !impMap !formatMap;  
   # syntax
   instructionSyntaxPart !modelName !syntaxMap !impMap !?templateStruct !typeMap;

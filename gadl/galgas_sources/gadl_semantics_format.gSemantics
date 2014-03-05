@@ -393,7 +393,7 @@ routine printInstructionId
 end routine;
 
 routine outputFormatGraphViz
-  ?? @string modelName
+  ?? @lstring exportDir
   ?? @formatMap formatMap
   ?? @formatListWithSuffixList instructionList
 :
@@ -438,8 +438,8 @@ routine outputFormatGraphViz
 
   file .= "}\n";
   fileRef .= "}\n";
-  createFile !modelName !"format_all.dot" !file;
-  createFile !modelName !"format_ref.dot" !fileRef;
+  createFile ![exportDir string] !"format_all.dot" !file;
+  createFile ![exportDir string] !"format_ref.dot" !fileRef;
 end routine;
 
 ############################################################################
@@ -1266,6 +1266,7 @@ routine instructionFormatPart
   ?? @defaultSection defaultValues
   ?! @TfieldMap templateStruct
   ?? @formatMap formatMap
+  ?? @lstring exportDir
   !  @instructionImplementationMap impMap
 :
   @formatListWithSuffixList instructionList;
@@ -1322,7 +1323,7 @@ routine instructionFormatPart
   getInstructionSequences !instructionList ?instructionSeqList ?referenceSeqList;
   getBinaryFormat !instructionList !formatMap ! variableInstructionCodeList !instructionSize !referenceSeqList ?binaryCodeList;
   setInstructionImplementationNames !formatMap !binaryCodeList !instructionList !instructionSeqList !referenceSeqList !modelName !variableInstructionCodeList ?impMap;
-  outputFormatGraphViz !modelName !formatMap !instructionList;
+  outputFormatGraphViz !exportDir !formatMap !instructionList;
   generateDecoder !?templateStruct !impMap !defaultValues !fetchFunctionCondition;
 #  generateInstConstructorAndDef !templateDecoderMap !modelName !impMap !formatMap !instructionSize !hasAnArchitectureDefined;
 end routine;

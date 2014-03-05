@@ -126,7 +126,7 @@ void %!core::NAME%_core::reset()
 {
 	core::reset();
 
-	m_%!core::idfStruct::PC_NAME% = 0;
+	m_%!core::PC_NAME% = 0;
 	//TODO: no init of constant register.
 
 	//TODO: faire une fonction de reset -> le constructeur des periph.
@@ -416,11 +416,11 @@ int %!core::NAME%_core::emuInst(const unsigned int nb)
 std::string %!core::NAME%_core::disassemble(const unsigned int pcStart, const int nbBytes, bool verbose)
 {
 	stringstream result;
-	%!core::idfStruct::PC_C_TYPE% tempPC = (%!core::idfStruct::PC_C_TYPE%)pcStart;
-	const %!core::idfStruct::PC_C_TYPE% pcEnd = tempPC + (%!core::idfStruct::PC_C_TYPE%)nbBytes;
+	%!core::PC_C_TYPE% tempPC = (%!core::PC_C_TYPE%)pcStart;
+	const %!core::PC_C_TYPE% pcEnd = tempPC + (%!core::PC_C_TYPE%)nbBytes;
 	while(tempPC < pcEnd)
 	{
-		const %!core::idfStruct::PC_C_TYPE% pcOld = tempPC;
+		const %!core::PC_C_TYPE% pcOld = tempPC;
 		if(verbose) {
 			result << std::hex << "0x" << tempPC << " :";
 		}
@@ -484,7 +484,7 @@ void %!core::NAME%_core::doNotExececuteNextInstructions(const u32 val) {
 	{
 		//decode the instruction, and update the PC.
 		%!core::NAME%_instruction* next; 
-		next= m_decoder->decode(this, m_%!core::idfStruct::PC_NAME%);
+		next= m_decoder->decode(this, m_%!core::PC_NAME%);
 		next->release();
 	}
 }

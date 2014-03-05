@@ -21,11 +21,11 @@ class %!core::NAME%_instruction {
 	* when the instruction is read. It corresponds to the pipeline
 	* register of the instruction pointer.
 	*/
-	const %!core::idfStruct::PC_C_TYPE% m_pc;
+	const %!core::PC_C_TYPE% m_pc;
 
 	public:
 
-    %!core::NAME%_instruction(const %!core::idfStruct::PC_C_TYPE% instructionPointer);
+    %!core::NAME%_instruction(const %!core::PC_C_TYPE% instructionPointer);
     virtual ~%!core::NAME%_instruction() {};
 
 	/// this method is only used to know if an the instruction is a 
@@ -34,7 +34,7 @@ class %!core::NAME%_instruction {
 	virtual bool isInstAction() {return false;};
 
 	/// \return the value of the instruction pointer in the pipeline.
-	inline %!core::idfStruct::PC_C_TYPE% const getInstructionPointer() {return m_pc;};	
+	inline %!core::PC_C_TYPE% const getInstructionPointer() {return m_pc;};	
 	///mnemonic of the instruction
 	virtual const char* const mnemo() {return "MNEMO_NOT_DEFINED";};
 	
@@ -106,7 +106,7 @@ class %!core::NAME%_instructionStall : public %!core::NAME%_instruction
   const %!core::INST_DEFAULT_SIZE_C_STR% m_code; //code of the first chunk of the instruction.
   public:
 	///class code should be 0
-	%!core::NAME%_instructionStall(const %!core::idfStruct::PC_C_TYPE% instructionPointer=0, const %!core::INST_DEFAULT_SIZE_C_STR% code = 0)
+	%!core::NAME%_instructionStall(const %!core::PC_C_TYPE% instructionPointer=0, const %!core::INST_DEFAULT_SIZE_C_STR% code = 0)
 		: %!core::NAME%_instruction(instructionPointer), m_code(code) {};
 	virtual ~%!core::NAME%_instructionStall() {};
 	virtual void execute(%!core::NAME%_core *); // nop
