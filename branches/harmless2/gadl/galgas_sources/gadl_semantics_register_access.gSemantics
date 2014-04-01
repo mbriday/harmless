@@ -298,6 +298,7 @@ override method @instFunctionCall getRegisterUsage
     when memoryAccess:
       #register file (memory). This could be only a write (the instruction does not returns any value).
       checkForAccessInRegisterFile ![exp idfList] !false !memSpaceWithRegister !?registerFileAccess;  
+    when periphCall: #nothing here.
   end switch;
 end method;
 
@@ -338,7 +339,7 @@ override method @expIdf getRegisterUsage
   end foreach;
 
   switch detectedType
-    when unknown,structMember,localVar,tabularAccess: #nothing to do.
+    when unknown,structMember,localVar,tabularAccess,periphCall: #nothing to do.
     when registerAccess,registerBitField:
       @lstring regName := [idfList idfAtIndex !0]; #more than one idf in list for slices.
       if assignment then #from the left part of an assignment expression

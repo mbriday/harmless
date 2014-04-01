@@ -21,7 +21,7 @@ semantics gadl_types :
 #  * getBaseType    -> return the base type, and generate an error otherwise.
 #  * loc            -> return the location (for error generation).
 #  * sizeInBits     -> return the size in bits for a scalar, the size of one elt for a tab, an error for struct.
-#  * isVoid         -> return true for u0 (void) and false otherwise.
+#  * isVoid         -> return true for u0/s0/f0 (void) and false otherwise.
 #  * checkEqual     -> check if types are equals
 
 # readers for varBaseType:
@@ -121,6 +121,28 @@ end reader;
 override reader @varTabularType loc -> @location l:
   l := [type loc];
 end reader;
+###############################################################################
+## update location for type.
+###############################################################################
+abstract reader @varAbstractType changeLoc ?? @location l -> @varAbstractType newType;
+
+override reader @varBaseType changeLoc ?? @location l -> @varAbstractType newType:
+  newType := [@varBaseType new !kind !size !l];
+end reader;
+
+override reader @varStructType changeLoc ?? @location l -> @varAbstractType newType:
+  newType := [@varStructType new !kind ![@lstring new ![typeName string] !l]];
+end reader;
+
+override reader @varDeviceType changeLoc ?? @location l -> @varAbstractType newType:
+  newType := [@varDeviceType new !kind ![@lstring new ![typeName string] !l]];
+end reader;
+
+override reader @varTabularType changeLoc ?? @location l -> @varAbstractType newType:
+  newType := [@varTabularType new !kind ![type changeLoc !l] !length];
+end reader;
+
+
 ###############################################################################
 ## return the C type of a variable.
 ###############################################################################
@@ -432,7 +454,7 @@ reader @varAbstractType isVoid -> @bool result
 :
   cast selfcopy
   when == @varBaseType vbt :
-    result := ([vbt size] == 0) & ([vbt kind] == [@varKind unsigned]);
+    result := ([vbt size] == 0);
   else
     result := false;
   end cast;

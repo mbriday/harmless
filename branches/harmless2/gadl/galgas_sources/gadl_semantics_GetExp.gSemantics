@@ -27,12 +27,23 @@ semantics gadl_semantics_GetExp:
 # * typeBin
 # * typeBool
 # * typeCat
+#
+# * checkNoVoid -> expression with 'u0' or s0/f0 not allowed
 
 # * fieldListFromAST get a fieldList from its AST.
 
 #------------------------------------------------------------------------------
 # Type verification.
 #------------------------------------------------------------------------------
+
+routine checkNoVoid
+  ?? @varBaseType type
+:
+  if [type isVoid] then
+    error [type location]: "The expression should not return void";
+  end if;
+end routine;
+
 #multiplication: sum of sizes. Sign changed.
 function typeMult
   ?? @varBaseType leftType
@@ -374,7 +385,9 @@ end function;
 routine handleFirstIdf
   ?? @lstring idf
   ?? @idfItemType itemType
+  ?? @ASTExpressionlist ASTParamList
   ?? @varIdfStruct idfStruct
+  ?? @expressionContext ctx
   ?! @lstring itemName #name of the first item detected (register, struct, component, ..)
   ?! @bool shouldStop
   ?! @idfType detectedType
@@ -431,7 +444,19 @@ routine handleFirstIdf
     #try in the component Map
     itemName := idf;
     detectedType := [@idfType componentCall];
-    found := true;    
+    found := true;
+  elsif [idfStruct->currentPeriphMethods hasKey ![idf string]] then
+    #try in the method map of the current peripheral
+    detectedType := [@idfType periphCall];
+    found := true;
+    shouldStop := true;
+    isConst := true;
+    #return type.
+    [idfStruct->currentPeriphMethods searchKey !idf ?@parameterDefList param ?idfExpType ?*]; #outType is idfExpType
+    #check params expressions.
+    @location locDef := [idfStruct->currentPeriphMethods locationForKey ![idf string]];
+    @expressionlist paramList := [ASTParamList getExp !ctx ![@symbolValueMap emptyMap] !idfStruct];
+    [param checkParams !paramList ![idf location] !locDef];
   elsif [idfStruct->memSpaceMap hasKey ![idf string]] then
     #try in the memory map?
     itemName := idf;
@@ -480,12 +505,12 @@ routine handleIdf
       error idf: "The identifier cannot be determined.";
     end if;
     if first then
-      #first pass. Search in the varMap with the suffix
+      #first pass is a little tricky… Search in the varMap with the suffix
       @bool found;
       #First, search using both prefix and suffix...
       @lstring idfPrePost := [idfStruct getReplacedIdf ![idfStruct getIdfPrePost !idf]];
       #message "try with ".idfPrePost."\n";
-      handleFirstIdf !idfPrePost !itemType !idfStruct 
+      handleFirstIdf !idfPrePost !itemType !ASTParamList !idfStruct !ctx
                      !?itemName !?shouldStop !?detectedType 
                      !?idfExpType ?found !?isConst;
       if found then
@@ -494,7 +519,7 @@ routine handleIdf
         #not found: try without the prefix -> fields.
         @lstring idfPost := [idfStruct getReplacedIdf ![idfStruct getIdfPost !idf]];
         #message "then try with ".idfPost."\n";
-        handleFirstIdf !idfPost !itemType !idfStruct
+        handleFirstIdf !idfPost !itemType !ASTParamList !idfStruct !ctx
                        !?itemName !?shouldStop !?detectedType 
                        !?idfExpType ?found !?isConst;
         if found then
@@ -503,7 +528,7 @@ routine handleIdf
           #message "then try with ".idf."\n";
           #not found, try without the suffix (registers, global vars)
           @lstring idfUse := [idfStruct getReplacedIdf !idf];
-          handleFirstIdf !idfUse !itemType !idfStruct
+          handleFirstIdf !idfUse !itemType !ASTParamList !idfStruct !ctx
                          !?itemName !?shouldStop !?detectedType
                          !?idfExpType ?found !?isConst;
           if found then
@@ -568,6 +593,17 @@ routine handleIdf
         @expressionlist paramList := [ASTParamList getExp !ctx ![@symbolValueMap emptyMap] !idfStruct];
         [param checkParams !paramList ![idf location] !locDef];
         shouldStop := true;
+      when periphCall: #TODO.
+        message "I've just discover a peripheral ".itemName.".".idf."\n";
+#        @functionMap methodMap;
+#        [idfStruct->componentMap searchKey !itemName ?methodMap];
+#        @parameterDefList param;
+#        [methodMap searchKey !idf ?param ?idfExpType ?*]; #outType is idfExpType
+#        @location locDef := [methodMap locationForKey ![idf string]];
+#        #compute params expressions.
+#        @expressionlist paramList := [ASTParamList getExp !ctx ![@symbolValueMap emptyMap] !idfStruct];
+#        [param checkParams !paramList ![idf location] !locDef];
+        shouldStop := true;
       #elsif -> TODO: if first word was a component, should check that current idf is a function call.
       when unknown,localVar,tabularAccess,registerBitField:
         error here :"internal error: It should ot have more than 1 identifier here.";
@@ -589,6 +625,8 @@ routine handleIdf
   switch detectedType
     when structMember,unknown,localVar,tabularAccess:
       codePrefix := "";
+    when periphCall:
+      codePrefix := "method_";
     when registerAccess,registerBitField:
       codePrefix := idfStruct->idfPrefixCore;
     when componentCall:
@@ -621,7 +659,9 @@ override reader @ASTIdf getExp
       end foreach;
       itemList += !idf !itemType !paramList;  
     end foreach;
-    exp := [@expIdf new !idfExpType !itemList !detectedType !isConst !codePrefix];
+    #update location of idfExpType:
+    @varAbstractType idfExpTypeWithLoc := [idfExpType changeLoc !loc];
+    exp := [@expIdf new !idfExpTypeWithLoc !itemList !detectedType !isConst !codePrefix];
   else
     error loc: "unknown identifier: ".[idfList string] : exp;
     #message [idfStruct string];
@@ -689,6 +729,8 @@ override reader @ASTBinaryBasicOp getExp
   #first, binary ops are restricted to basic types.
   @varBaseType baseTypeLeft  := [[expLeft  type] getBaseType];
   @varBaseType baseTypeRight := [[expRight type] getBaseType];
+  checkNoVoid !baseTypeLeft;
+  checkNoVoid !baseTypeRight;
   @varBaseType type;
   if    id == 0  then type := typeMult[!baseTypeLeft !baseTypeRight]; #*
   elsif id == 1  then type := typeDiv[!baseTypeLeft !baseTypeRight];  #/

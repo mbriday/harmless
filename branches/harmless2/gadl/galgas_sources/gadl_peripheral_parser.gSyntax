@@ -74,7 +74,7 @@ rule <peripheral>
 :
   @ASTregisterPeriphDefMap ASTregDefMap [emptyMap];
   @ASTFunctionMap ASTFunctionMap [emptyMap];
-  @ASTInstructionList ASTInstDecList [emptyList];
+  @ASTInstructionList ASTDeviceDecList [emptyList];
 
   $peripheral$;
   $idf$ ?@lstring peripheralName;
@@ -91,10 +91,11 @@ rule <peripheral>
     while
       <deviceDeclaration> ? @varAbstractType deviceType;
       $idf$ ?@lstring deviceName;
-      ASTInstDecList += ![@ASTInstDeclaration new !here ![@varClass device] !deviceType !deviceName];
+      $maps$; $to$;  $unumber$ ?@luint64 address;
+      ASTDeviceDecList += ![@ASTInstDeclarationDevice new !here ![@varClass device] !deviceType !deviceName !address];
     end repeat;
   $}$;
-  [!?ASTperipheralMap insertKey !peripheralName !lsize !ASTregDefMap !ASTFunctionMap !ASTInstDecList];
+  [!?ASTperipheralMap insertKey !peripheralName !lsize !ASTregDefMap !ASTFunctionMap !ASTDeviceDecList];
 end rule;
 
 end syntax ;

@@ -160,7 +160,7 @@ override method @ASTInstFunctionCall getInst
     error loc: "The identifier is unknown";
   when structMember,localVar,tabularAccess,registerAccess,registerBitField:
     error loc: "This is not a function call, but it was excepted here.";
-  when componentCall,memoryAccess:
+  when componentCall,memoryAccess,periphCall:
     #checkCorrectAssignType ![expIdf type] !newExp ![expIdf lstring];
   end switch;
   inst := [@instFunctionCall new !loc !expIdf];
@@ -202,7 +202,7 @@ override method @ASTInstAssignment getInst
       error loc: errorStr;
     end if;
     checkCorrectAssignType ![expIdf type] !newExp ![expIdf lstring];
-  when componentCall,memoryAccess:
+  when componentCall,memoryAccess,periphCall:
     error loc: "Cannot assign a function call or a memory access";
   end switch;
   #get the intruction.

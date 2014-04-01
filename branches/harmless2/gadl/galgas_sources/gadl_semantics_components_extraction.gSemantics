@@ -90,7 +90,7 @@ override method @expIdf getComponents
 :
   rootNodeList := [@graphNodeList emptyList];
   switch detectedType
-    when unknown,registerAccess,registerBitField,localVar: #nothing.
+    when unknown,registerAccess,registerBitField,localVar,periphCall: #nothing.
     when structMember,tabularAccess: #maybe in parameter, or in the tab index.
       @graphNodeList currentNextNodeList := nextNodeList;
       foreach > idfList do

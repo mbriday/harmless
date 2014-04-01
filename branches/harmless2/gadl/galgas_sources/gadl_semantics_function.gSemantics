@@ -28,14 +28,8 @@ semantics gadl_semantics_function :
 # ->reader @functionMap getFunctionTemplate
 
  
-#used during parsing.
-map @ASTFunctionMap {
-  @parameterDefList param;
-  @varAbstractType outType;
-  @ASTInstructionList code;
-  insert insertKey error message "the '%K' component method is already defined in %L" ; 
-  search searchKey error message "the '%K' component method is not defined" ;
-}
+#used during parsing, not decorated… (defined in gadl_varIdfStruct.gSemantics)
+#map @ASTFunctionMap
 
 reader @ASTFunctionMap getFunctionMap
   ?? @expressionContext ctx
