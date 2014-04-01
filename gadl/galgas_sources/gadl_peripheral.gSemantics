@@ -20,7 +20,7 @@ map @peripheralMap
   @luint64 size;
   @registerPeriphDefMap registerPeriphDefMap;
   @functionMap functionMap;
-  @instructionList instDecList;
+  @instructionList instDeviceDecList;
   @varIdfStruct idfStruct;
 
   insert insertKey error message "the '%K' peripheral is already defined in %L" ; 
@@ -32,6 +32,7 @@ method @ASTregisterPeriphDefMap getRegisterPeriphDefMap
   ?? @symbolValueMap symbolMap
   ?! @varIdfStruct idfStruct
   ?? @ASTFunctionMap ASTFunctionMap
+  ?? @luint64 periphSize
   !  @registerPeriphDefMap registerPeriphDefMap
 :
   @expressionContext ctx := [@expressionContext peripheral];
@@ -41,6 +42,10 @@ method @ASTregisterPeriphDefMap getRegisterPeriphDefMap
     getInst !ASTregDecList !ctx !symbolMap !?idfStruct ?@instructionList regDecList;
     #check that type is a basic type.
     @varBaseType vbt := [type getBaseType];
+    #check that mapping is possible: map+size of reg <= peripheral mem size.
+    if [[address uint64] uint] + ([vbt size]/8) > [[periphSize uint64] uint] then
+      error address:"The peripheral memory size is not large enough to map this register.";
+    end if;
     #check that the Function call are defined.
     if [readFuncCall string] != "" then
       [ASTFunctionMap searchKey !readFuncCall ?@parameterDefList param ?@varAbstractType outType ?*];
@@ -80,13 +85,14 @@ reader @ASTperipheralMap getPeriphMap
 
   foreach selfcopy do
     @varIdfStruct idfStruct [default];
+    idfStruct->currentPeriphMethods := ASTFunctionMap; #methods defined for the current function.
     @symbolValueMap symbolMap [emptyMap];
     @registerPeriphDefMap registerPeriphDefMap;
-    [ASTregisterPeriphDef getRegisterPeriphDefMap !symbolMap !?idfStruct !ASTFunctionMap ?registerPeriphDefMap];
-    getInst !ASTInstDecList !ctx !symbolMap !?idfStruct ?@instructionList instDecList;
+    [ASTregisterPeriphDef getRegisterPeriphDefMap !symbolMap !?idfStruct !ASTFunctionMap !size ?registerPeriphDefMap];
+    getInst !ASTDeviceDecList !ctx !symbolMap !?idfStruct ?@instructionList instDeviceDecList;
     message "\nIdfStruct\n".[idfStruct string];
     @functionMap functionMap := [ASTFunctionMap getFunctionMap !ctx !idfStruct]; 
-    [!?peripheralMap insertKey !lkey !size !registerPeriphDefMap !functionMap !instDecList !idfStruct];
+    [!?peripheralMap insertKey !lkey !size !registerPeriphDefMap !functionMap !instDeviceDecList !idfStruct];
   end foreach;
 end reader;
 

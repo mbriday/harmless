@@ -53,6 +53,7 @@ struct @varIdfStruct {
   @string idfPrefixCore; #prefix to access a core (components, mem,..)
   @string idfPrefixLocal; #prefix for local vars only (to prevent same names when inlining).TODO remove.
   @componentMap componentMap;
+  @ASTFunctionMap currentPeriphMethods; #to get prototypes of methods defined in the current periph.
   #if an idf is in this map, it should be replaced in the code. This is used
   #when inlining a function with a 'out' parameter.
   @lstringMap replaceMap;
@@ -175,6 +176,15 @@ list @parameterDefList {
   @bool out; #true out, false in.
   @varAbstractType type;
   @lstring name;
+}
+
+#not yet decorated structure for a function.
+map @ASTFunctionMap {
+  @parameterDefList param;
+  @varAbstractType outType;
+  @ASTInstructionList code;
+  insert insertKey error message "the '%K' component method is already defined in %L" ; 
+  search searchKey error message "the '%K' component method is not defined" ;
 }
 
 #decorated structure for a function.

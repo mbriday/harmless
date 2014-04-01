@@ -111,6 +111,7 @@ enum @idfType
   registerAccess,   #(SP)
   registerBitField, #(CR.CR0)
   componentCall,    #(fetcher.fetch())
+  periphCall,       #(device.method() or method() inside a peripheral).
   memoryAccess      #(memSpace.read8())
 }
 
@@ -123,6 +124,7 @@ reader @idfType msg -> @string out :
     when registerAccess   : out := "a register access";
     when registerBitField : out := "a bitfield of a register";
     when componentCall    : out := "a component call";
+    when periphCall       : out := "a peripheral's method call";
     when memoryAccess     : out := "a memory access";
   end switch;
 end reader;

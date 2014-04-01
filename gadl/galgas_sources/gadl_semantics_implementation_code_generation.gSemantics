@@ -263,7 +263,7 @@ override reader @instAssignment generateCode
     when registerAccess,registerBitField: #register
       leftPart := [idf generateSetterCode !cgc]."(";
       postInstruction := ")";
-    when componentCall,memoryAccess:
+    when componentCall,memoryAccess,periphCall:
       error loc: "Cannot assign a function call or memory access.":leftPart;
     end switch;
 

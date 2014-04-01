@@ -231,7 +231,7 @@ override reader @expIdf generateCode
   switch detectedType
   when unknown:
     error [selfcopy lstring]: "The identifier is unknown".[selfcopy string];
-  when structMember,localVar,tabularAccess,componentCall,memoryAccess:
+  when structMember,localVar,tabularAccess,componentCall,memoryAccess,periphCall:
     #ok, nothing to add.
   when registerAccess,registerBitField:
     #registers are accessed through functions, but as normal var in description.

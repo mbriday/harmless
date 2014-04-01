@@ -67,6 +67,10 @@ class @ASTInstDeclarationRegSlice extends @ASTInstDeclaration {
   @ASTfieldList ASTfieldList;
 }
 
+class @ASTInstDeclarationDevice extends @ASTInstDeclaration {
+  @luint64 address;
+}
+
 class @ASTInstTypeDefinition extends @ASTInstruction {
   @lstring idf;
   @typedefMemberMap memberList;

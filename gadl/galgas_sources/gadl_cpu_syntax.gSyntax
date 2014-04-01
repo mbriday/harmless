@@ -90,20 +90,6 @@ rule <cpu>
   
   $}$;
   
-#  #tests.
-#  @peripheralMap peripheralMap := [ASTperipheralMap getPeriphMap];
-#
-#  @TfieldMap templateStruct := [@TfieldMap emptyMap];  
-#  [!?templateStruct initTemplate !lstringWith[!"cpu"] !lstringWith[!"export"]];
-#  [peripheralMap setInTemplate !?templateStruct];
-#  ###########################################################################
-#  # template generation
-#  ###########################################################################
-#  @string gadlLog := computeTemplate[!"" !templateStruct !"peripheral"];
-#  if [option gadl_options.templateLogFile value] then
-#    extractTemplateStructure !templateStruct !"templateLog.xml";
-#  end if;
-
   @lstring exportDir := cpuName;
 
   #Ok. Parsing done. Now apply semantic.

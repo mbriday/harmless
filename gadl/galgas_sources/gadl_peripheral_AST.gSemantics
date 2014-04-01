@@ -19,7 +19,7 @@ map @ASTperipheralMap
   @luint64 size;
   @ASTregisterPeriphDefMap ASTregisterPeriphDef;
   @ASTFunctionMap ASTFunctionMap;
-  @ASTInstructionList ASTInstDecList;
+  @ASTInstructionList ASTDeviceDecList;
 
   insert insertKey error message "the '%K' peripheral is already defined in %L" ; 
   search searchKey error message "the '%K' peripheral is not defined" ;

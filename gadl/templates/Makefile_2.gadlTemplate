@@ -77,7 +77,7 @@ endif
 
 # compiler optimisation
 CFLAGS_DEBUG = -O0 -g -Wall -fexceptions -Wno-deprecated #-ansi -pedantic
-CFLAGS_OPTIM = -O4 -funroll-loops -fomit-frame-pointer -fno-strict-aliasing -pipe -ffast-math -fexceptions
+CFLAGS_OPTIM = -O3 -funroll-loops -fomit-frame-pointer -fno-strict-aliasing -pipe -ffast-math -fexceptions
 
 ifeq ($(strip $(OPTIM)),1)
 	CFLAGS += $(CFLAGS_OPTIM)
