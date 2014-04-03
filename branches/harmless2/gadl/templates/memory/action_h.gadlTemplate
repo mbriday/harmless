@@ -40,7 +40,7 @@ class writeAction : public action
   public:
     writeAction() :action() {};  
 	virtual ~writeAction() {};  
-    virtual bool trigger(storage *,u8 data, spyInfo *s) = 0;
+    virtual bool trigger(storage *,u32 data, spyInfo *s) = 0;
 	virtual bool isSpyAction() {return false;};
 };
 
