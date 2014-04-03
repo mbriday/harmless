@@ -180,8 +180,8 @@ class dumStorage : public storage
   		void removeWriteActions();
   		
 		void resetActionFlags();
-		void triggerActionWhenRead8(const u32 address, spyInfo *s=NULL);
-		void triggerActionWhenWrite8(const u32 address, const u8 byte, spyInfo *s=NULL);
+		void triggerActionWhenRead(const u32 address, spyInfo *s=NULL);
+		void triggerActionWhenWrite(const u32 address, const u32 val, spyInfo *s=NULL);
     
 		#ifdef ACTION_FAST
 		// tab of execute actions. Tab size is m_size

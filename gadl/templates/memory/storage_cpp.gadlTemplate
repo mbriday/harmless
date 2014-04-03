@@ -262,7 +262,7 @@ bool dumStorage::matchAddress(const u32 address)
 		#endif
 	}
 
-	void dumStorage::triggerActionWhenRead8(const u32 address, spyInfo *s)
+	void dumStorage::triggerActionWhenRead(const u32 address, spyInfo *s)
 	{
 		#ifdef ACTION_FAST	
 		readAction *currentAction = m_readActionsTab[address];
@@ -324,7 +324,7 @@ bool dumStorage::matchAddress(const u32 address)
 		}
 	}
 	
-	void dumStorage::triggerActionWhenWrite8(const u32 address, const u8 data8, spyInfo *s)
+	void dumStorage::triggerActionWhenWrite(const u32 address, const u32 val, spyInfo *s)
 	{
 		#ifdef TRACK_VARIABLE
 			bool spyActionPresent = false;
@@ -348,7 +348,7 @@ bool dumStorage::matchAddress(const u32 address)
                 while(currentAction)
                 {
                     next = (writeAction *)(currentAction->next());
-                    if(currentAction->trigger(this,data8,s)) //call the trigger method
+                    if(currentAction->trigger(this,val,s)) //call the trigger method
                     {
                         //remove the execute action.
                         if(previous) //not first action, there is a previous
@@ -402,7 +402,7 @@ bool dumStorage::matchAddress(const u32 address)
 					map<u32,list<writeAction *> *>::const_iterator actionIterator = m_writeActions.find(address);
 					list<writeAction *> *writeActionList = (*actionIterator).second;
 					writeAction *last_wa = writeActionList -> back();
-					//spy action not present at end of list in dumStorage::triggerActionWhenWrite8"
+					//spy action not present at end of list in dumStorage::triggerActionWhenWrite"
 					SEGFAULTIF(!(last_wa -> isSpyAction()))
 					last_wa -> trigger(byte, s);
 				}
@@ -490,7 +490,7 @@ u32 dumStorage::read32AtAddress(const u32 address, spyInfo *s)
 		#else
 		if(m_readActionFlag) {
 		#endif
-			triggerActionWhenRead8(addressOff, s);
+			triggerActionWhenRead(addressOff, s);
 		}
 	}
 
@@ -505,8 +505,7 @@ u32 dumStorage::read32AtAddress(const u32 address, spyInfo *s)
 		#else
 		if(m_readActionFlag) {
 		#endif
-			triggerActionWhenRead8(addressOff, s);
-			triggerActionWhenRead8(addressOff + 1, NULL);
+			triggerActionWhenRead(addressOff, s);
 		}
 	}
 	
@@ -521,10 +520,7 @@ u32 dumStorage::read32AtAddress(const u32 address, spyInfo *s)
 		#else
 		if(m_readActionFlag) {
 		#endif
-			triggerActionWhenRead8(addressOff, s);
-			triggerActionWhenRead8(addressOff + 1, NULL);
-			triggerActionWhenRead8(addressOff + 2, NULL);
-			triggerActionWhenRead8(addressOff + 3, NULL);
+			triggerActionWhenRead(addressOff, s);
 		}
 	}
 #endif
@@ -551,7 +547,7 @@ void dumStorage::write8AtAddress(const u32 address, const u8 data8, spyInfo *s)
 		#else
 		if(m_writeActionFlag) {
 		#endif
-			triggerActionWhenWrite8(addressOff,data8, s);
+			triggerActionWhenWrite(addressOff,data8, s);
 		}
 	#endif
 }
@@ -579,8 +575,7 @@ void dumStorage::write16AtAddress(const u32 address, const u16 data16, spyInfo *
 		#else
 		if(m_writeActionFlag) {
 		#endif			
-			triggerActionWhenWrite8(addressOff, (u8)(data16 & 0x00FF), s);
-			triggerActionWhenWrite8(addressOff + 1,(u8)((data16 & 0xFF00) >> 8), NULL);
+			triggerActionWhenWrite(addressOff, data16 , s);
 		}
 	#endif
 }
@@ -610,10 +605,7 @@ void dumStorage::write32AtAddress(const u32 address, const u32 data32, spyInfo *
 		#else
 		if(m_writeActionFlag) {
 		#endif			
-			triggerActionWhenWrite8(addressOff,(u8)(data32 & 0x000000FF), s);
-			triggerActionWhenWrite8(addressOff + 1,(u8)((data32 & 0x0000FF00) >> 8), NULL);
-			triggerActionWhenWrite8(addressOff + 2,(u8)((data32 & 0x00FF0000) >> 16), NULL);
-			triggerActionWhenWrite8(addressOff + 3,(u8)((data32 & 0xFF000000) >> 24), NULL);
+			triggerActionWhenWrite(addressOff,data32, s);
 		}
 	#endif
 }
