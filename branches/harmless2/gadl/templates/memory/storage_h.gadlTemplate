@@ -38,7 +38,6 @@
 	#include "action.h"	//defines actions triggered by memory accesses
 #endif
 
-class spyInfo;
 /**
  * most generic storage class: May be used by any component 
  * that can have an address: 
@@ -59,21 +58,19 @@ class storage
 	/**
 	 * read in memory: may trigger an action. 
 	 * \param address is the address of the memory access.
-	 * \param spyInfo is used for data tracking.
 	 */
-	virtual u8  read8AtAddress(const u32 address, spyInfo *s=NULL) = 0;
-	virtual u16 read16AtAddress(const u32 address, spyInfo *s=NULL) = 0;
-	virtual u32 read32AtAddress(const u32 address, spyInfo *s=NULL) = 0;
+	virtual u8  read8AtAddress(const u32 address) = 0;
+	virtual u16 read16AtAddress(const u32 address) = 0;
+	virtual u32 read32AtAddress(const u32 address) = 0;
 
 
 	/**
 	 * write in memory: may trigger an action.
 	 * \param address is the address of the memory access.
-	 * \param spyInfo is used for data tracking.
 	 */
-	virtual void write8AtAddress(const u32 address, const u8 byte, spyInfo *s=NULL) = 0;
-	virtual void write16AtAddress(const u32 address, const u16 word, spyInfo *s=NULL) = 0;
-	virtual void write32AtAddress(const u32 address, const u32 dbl_word, spyInfo *s=NULL) = 0;
+	virtual void write8AtAddress(const u32 address, const u8 data8) = 0;
+	virtual void write16AtAddress(const u32 address, const u16 data16) = 0;
+	virtual void write32AtAddress(const u32 address, const u32 data32) = 0;
     
 	
 	#ifndef GADL_NO_ACTION
@@ -86,9 +83,9 @@ class storage
 		virtual void removeWriteActionAtAddress(const u32 address, writeAction* act) = 0;
 	
 		/// perform the action, but does not return value.
-		virtual void read8Action(const u32 address, spyInfo *s=NULL) = 0;
-		virtual void read16Action(const u32 address, spyInfo *s=NULL) = 0;
-		virtual void read32Action(const u32 address, spyInfo *s=NULL) = 0;
+		virtual void read8Action(const u32 address) = 0;
+		virtual void read16Action(const u32 address) = 0;
+		virtual void read32Action(const u32 address) = 0;
 	#endif
   
 	/// put a data but does not trigger any action 
@@ -127,13 +124,13 @@ class dumStorage : public storage
 	///an error is written on stderr and program exits (segfault for backtrace).
 	void checkForValidAddress(const u32 address);
     
-	virtual u8  read8AtAddress(const u32 address, spyInfo *s=NULL);
-	virtual u16 read16AtAddress(const u32 address, spyInfo *s=NULL);
-	virtual u32 read32AtAddress(const u32 address, spyInfo *s=NULL);
+	virtual u8  read8AtAddress(const u32 address);
+	virtual u16 read16AtAddress(const u32 address);
+	virtual u32 read32AtAddress(const u32 address);
 	
-	virtual void write8AtAddress(const u32 address, const u8 byte, spyInfo *s=NULL);
-	virtual void write16AtAddress(const u32 address, const u16 word, spyInfo *s=NULL);
-	virtual void write32AtAddress(const u32 address, const u32 dbl_word, spyInfo *s=NULL);
+	virtual void write8AtAddress(const u32 address, const u8 data8);
+	virtual void write16AtAddress(const u32 address, const u16 data16);
+	virtual void write32AtAddress(const u32 address, const u32 data32);
 	
 	#ifndef GADL_NO_ACTION
 		virtual void addReadActionAtAddress(const u32 address, readAction* act);
@@ -143,9 +140,9 @@ class dumStorage : public storage
 		virtual void removeWriteActionAtAddress(const u32 address, writeAction* act);
 
 		/** action but not read */
-		virtual void read8Action(const u32 address, spyInfo *s=NULL);
-		virtual void read16Action(const u32 address, spyInfo *s=NULL);
-		virtual void read32Action(const u32 address, spyInfo *s=NULL);
+		virtual void read8Action(const u32 address);
+		virtual void read16Action(const u32 address);
+		virtual void read32Action(const u32 address);
 	#endif
     
   protected:
@@ -172,8 +169,8 @@ class dumStorage : public storage
   		void removeWriteActions();
   		
 		void resetActionFlags();
-		void triggerActionWhenRead(const u32 address, spyInfo *s=NULL);
-		void triggerActionWhenWrite(const u32 address, const u32 val, spyInfo *s=NULL);
+		void triggerActionWhenRead(const u32 address);
+		void triggerActionWhenWrite(const u32 address, const u32 val);
     
 		#ifdef ACTION_FAST
 		// tab of execute actions. Tab size is m_size
@@ -229,9 +226,9 @@ class roStorage : public dumStorage
 	u16 get16AtAddr(const u32 addr);   
 	u32 get32AtAddr(const u32 addr);   
 	     
-	virtual u8  read8AtAddress(const u32 address, spyInfo *s=NULL);
-	virtual u16 read16AtAddress(const u32 address, spyInfo *s=NULL);
-	virtual u32 read32AtAddress(const u32 address, spyInfo *s=NULL);
+	virtual u8  read8AtAddress(const u32 address);
+	virtual u16 read16AtAddress(const u32 address);
+	virtual u32 read32AtAddress(const u32 address);
     
 	///if nbVal = 0; dump until end of memory chunk.
 	virtual void dump(const unsigned int min=0, const unsigned int nbVal=0);
@@ -258,9 +255,9 @@ class rwStorage : public roStorage
 	rwStorage(std::string name, u32 size, u32 offset, int alignment = 1);
 	rwStorage(const rwStorage &mem);
 
-	virtual void write8AtAddress(const u32 address, const u8 byte, spyInfo *s=NULL);
-	virtual void write16AtAddress(const u32 address, const u16 word, spyInfo *s=NULL);
-	virtual void write32AtAddress(const u32 address, const u32 dbl_word, spyInfo *s=NULL);
+	virtual void write8AtAddress(const u32 address, const u8 data8);
+	virtual void write16AtAddress(const u32 address, const u16 data16);
+	virtual void write32AtAddress(const u32 address, const u32 data32);
 };
 
 

@@ -11,7 +11,7 @@ constAction::constAction(const u32 address,const u8 val) {
 	m_const = val;
 }
 
-bool constAction::trigger(storage *sto, spyInfo *s)
+bool constAction::trigger(storage *sto)
 {
 	sto->put8AtAddr(m_address, m_const);
 	return false;

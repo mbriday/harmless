@@ -90,7 +90,7 @@ reader @ASTperipheralMap getPeriphMap
     @registerPeriphDefMap registerPeriphDefMap;
     [ASTregisterPeriphDef getRegisterPeriphDefMap !symbolMap !?idfStruct !ASTFunctionMap !size ?registerPeriphDefMap];
     getInst !ASTDeviceDecList !ctx !symbolMap !?idfStruct ?@instructionList instDeviceDecList;
-    message "\nIdfStruct\n".[idfStruct string];
+    #message "\nIdfStruct\n".[idfStruct string];
     @functionMap functionMap := [ASTFunctionMap getFunctionMap !ctx !idfStruct]; 
     [!?peripheralMap insertKey !lkey !size !registerPeriphDefMap !functionMap !instDeviceDecList !idfStruct];
   end foreach;

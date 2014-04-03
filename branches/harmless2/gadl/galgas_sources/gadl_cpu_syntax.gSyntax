@@ -17,6 +17,11 @@ nonterminal <memoryChunk>
   ?! @ASTmemoryParamMap ASTmemChunk 
   ?! @stringlist memChunkOrder
 ;
+nonterminal <deviceDeclaration>
+  ?? @bool memoryAccessIsLocal #true if a device is declared inside a peripheral (same mem chunk).
+  !  @ASTInstDeclarationDevice deviceDec
+;
+
 
 rule <importCore>
   ?!@lstringMap importCoreMap
@@ -44,10 +49,6 @@ rule <coreInstantiation>
     grammar gadl_core_grammar in coreFileName !?ASTcoreMap !?ASTmemSpaceMap;
     coreSet += ![coreType string];
   end if;
-  #tmp: core
-  #Ok. Parsing done. Now apply semantic.
-  #@memSpaceMap memSpaceMap := [ASTmemSpaceMap getMemSpaceMap];
-  #[ASTcoreMap coreSemantic !coreType !coreType !memSpaceMap];
 end rule;
 
 rule <cpu>
@@ -80,18 +81,25 @@ rule <cpu>
   @ASTCoreMap ASTcoreMap [emptyMap];
   #set of core types, to parse only one time each core type.
   @stringset coreSet [emptySet];
+  #cpu devices.
+  @ASTInstructionList ASTDeviceDecList [emptyList];
+  #map of cpu.
+  @ASTCpuMap ASTCpuMap [emptyMap];
+
   repeat
   while
     <memoryChunk> !?ASTmemChunk !?memChunkOrder;
     message "mem chunk in CPU not implemented!!\n";
   while
     <coreInstantiation> !?coreTypeMap !?ASTcoreMap !?coreSet !?ASTmemSpaceMap !importCoreMap;
+  while
+    <deviceDeclaration> !false ?@ASTInstDeclarationDevice deviceDec;
+    ASTDeviceDecList += !deviceDec;
   end repeat;
-  
+  [!?ASTCpuMap insertKey !cpuName !coreTypeMap !ASTcoreMap !ASTDeviceDecList];
   $}$;
   
   @lstring exportDir := cpuName;
-
   #Ok. Parsing done. Now apply semantic.
   ###########################################################################
   # init templates.
@@ -112,9 +120,9 @@ rule <cpu>
   [peripheralMap setInTemplate !?templateStruct];
 
   ###########################################################################
-  # core generation.
+  # cpu generation.
   ###########################################################################
-  [ASTcoreMap coreSemantic !cpuName !memSpaceMap !?templateStruct];
+  [ASTCpuMap cpuSemantic !memSpaceMap !?templateStruct];
 
   ###########################################################################
   # template generation

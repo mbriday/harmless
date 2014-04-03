@@ -27,11 +27,6 @@ class action
 	virtual std::string toString() {return std::string();};
 };
 
-//unused at this time.
-class spyInfo
-{
-};
-
 /** This class is used to connect an action with a write access to a specified
  * address
  **/
@@ -40,7 +35,7 @@ class writeAction : public action
   public:
     writeAction() :action() {};  
 	virtual ~writeAction() {};  
-    virtual bool trigger(storage *,u32 data, spyInfo *s) = 0;
+    virtual bool trigger(storage *,u32 data) = 0;
 	virtual bool isSpyAction() {return false;};
 };
 
@@ -52,7 +47,7 @@ class readAction : public action
   public:
     readAction() : action() {};  
     virtual ~readAction() {};  
-    virtual bool trigger(storage *, spyInfo *s) = 0;
+    virtual bool trigger(storage *) = 0;
 };
 
 //one execute action for any core

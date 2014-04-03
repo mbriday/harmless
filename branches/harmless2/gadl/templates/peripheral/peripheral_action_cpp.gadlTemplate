@@ -7,7 +7,7 @@ peripheralActionRead::peripheralActionRead(peripheral *periph, const u32 addr)
 {
 }
 
-bool peripheralActionRead::trigger(storage *, spyInfo *s)
+bool peripheralActionRead::trigger(storage *)
 {
 	return m_peripheral->readAction(m_addr);
 }
@@ -17,7 +17,7 @@ peripheralActionWrite::peripheralActionWrite(peripheral *periph, const u32 addr)
 {
 }
 
-bool peripheralActionWrite::trigger(storage *,u8 data, spyInfo *s)
+bool peripheralActionWrite::trigger(storage *,u8 data)
 {
 	return m_peripheral->writeAction(m_addr,data);
 }

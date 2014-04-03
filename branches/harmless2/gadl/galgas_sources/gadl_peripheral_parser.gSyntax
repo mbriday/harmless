@@ -2,13 +2,18 @@ syntax gadl_peripheral_parser ("gadl_lexique.gLexique") :
   import "gadl_peripheral_AST.gSemantics" ;
   import "gadl_variable.gSemantics" ; #varClass.
   import "gadl_semantics_AST_implementation.gSemantics" ; #varClass.
-  import "gadl_semantics_function.gSemantics" ;  
+  import "gadl_semantics_function.gSemantics";
+  import "gadl_semantics_AST_implementation.gSemantics"; #memoryMapping
+
 
 nonterminal <typeDeclaration> ! @varAbstractType type;
 nonterminal <registerBitAccessDef>
   ?? @lstring regName
   ?? @varAbstractType type
   ?! @ASTInstructionList ASTregDefList
+;
+nonterminal <memoryMapping>
+  ! @memoryMapping memoryMapping
 ;
 
 #from gadl_function_parser
@@ -56,8 +61,10 @@ rule <registerPeriphDef>
 end rule;
 
 rule <deviceDeclaration>
-  ! @varAbstractType type
+  ?? @bool memoryAccessIsLocal #true if a device is declared inside a peripheral (same mem chunk).
+  !  @ASTInstDeclarationDevice deviceDec
 :
+  @varAbstractType type;
   $device$; $idf$ ?@lstring deviceType;
   @varAbstractType typeBase := [@varDeviceType new ![@varKind custom] !deviceType];
   select #code extracted from rule <typeDeclaration>
@@ -67,6 +74,22 @@ rule <deviceDeclaration>
   or
     type := typeBase;
   end select;
+  $idf$ ?@lstring deviceName;
+  $maps$; $to$; 
+  @memoryMapping memoryMapping;
+  select
+    $unumber$ ?@luint64 address;
+    memoryMapping := [@memoryMapping new ![@lstring new !"__local" !here] !address];
+    if not memoryAccessIsLocal then
+      error here: "The device declaration is not local. The memory space should be given: mem:\\x..";
+    end if;
+  or
+    <memoryMapping> ?memoryMapping;
+    if memoryAccessIsLocal then
+      error here: "The device declaration is local. Only the memory address should be given (no memory space name).";
+    end if;
+  end select;
+  deviceDec := [@ASTInstDeclarationDevice new !here ![@varClass device] !type !deviceName !memoryMapping];
 end rule;
 
 rule <peripheral>
@@ -89,10 +112,8 @@ rule <peripheral>
       $idf$ ?@lstring idf;
       <functionDef> !type !idf !?ASTFunctionMap;
     while
-      <deviceDeclaration> ? @varAbstractType deviceType;
-      $idf$ ?@lstring deviceName;
-      $maps$; $to$;  $unumber$ ?@luint64 address;
-      ASTDeviceDecList += ![@ASTInstDeclarationDevice new !here ![@varClass device] !deviceType !deviceName !address];
+      <deviceDeclaration> !true ?@ASTInstDeclarationDevice deviceDec;
+      ASTDeviceDecList += !deviceDec;
     end repeat;
   $}$;
   [!?ASTperipheralMap insertKey !peripheralName !lsize !ASTregDefMap !ASTFunctionMap !ASTDeviceDecList];

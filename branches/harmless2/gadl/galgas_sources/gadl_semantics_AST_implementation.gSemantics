@@ -3,6 +3,12 @@ semantics gadl_semantics_AST_implementation:
   import "gadl_semantics_AST_expression.gSemantics" ;
   import "gadl_variable.gSemantics" ; #varClass
 
+class @memoryMapping
+{
+  @lstring memSpaceName;
+  @luint64 baseAddress;
+}
+
 abstract class @ASTInstruction {
   @location loc;
 }
@@ -68,7 +74,8 @@ class @ASTInstDeclarationRegSlice extends @ASTInstDeclaration {
 }
 
 class @ASTInstDeclarationDevice extends @ASTInstDeclaration {
-  @luint64 address;
+  @memoryMapping address;
+  #@luint64 address;
 }
 
 class @ASTInstTypeDefinition extends @ASTInstruction {

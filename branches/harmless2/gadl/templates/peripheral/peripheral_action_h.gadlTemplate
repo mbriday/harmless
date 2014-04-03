@@ -12,7 +12,7 @@ class peripheralActionRead : public readAction
 
 	public:
 	peripheralActionRead(peripheral *periph, const u32 addr);
-	virtual bool trigger(storage *, spyInfo *s);
+	virtual bool trigger(storage *);
 };
 
 class peripheralActionWrite : public writeAction
@@ -22,7 +22,7 @@ class peripheralActionWrite : public writeAction
 
 	public:
 	peripheralActionWrite(peripheral *periph, const u32 addr);
-	virtual bool trigger(storage *,u8 data, spyInfo *s);
+	virtual bool trigger(storage *,u8 data);
 };
 
 #endif
