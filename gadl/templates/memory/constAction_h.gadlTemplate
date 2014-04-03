@@ -10,7 +10,7 @@ class constAction : public readAction
 	u32 m_address;
 	public:
 	constAction(const u32 address, const u8 val);
-    bool trigger(storage *, spyInfo *s);
+    bool trigger(storage *);
 };
 
 #endif

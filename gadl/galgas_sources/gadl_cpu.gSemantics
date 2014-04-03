@@ -1,5 +1,30 @@
 semantics gadl_cpu :
   import "gadl_options.gOption" ;
+  import "gadl_core.gSemantics";
+  import "gadl_peripheral_AST.gSemantics";
+
+#key is cpu name. -> only one cpu for now..
+map @ASTCpuMap
+{
+  #associate core type and a name (TODO and constructor param).
+  @lstringMap coreTypeMap;
+  #map of cores, key is the type.
+  @ASTCoreMap ASTcoreMap;
+  #cpu devices.  
+  @ASTInstructionList ASTDeviceDecList;
+  insert insertKey error message "the '%K' cpu is already defined in %L" ; 
+  search searchKey error message "the '%K' cpu is not defined" ;
+}
+
+method @ASTCpuMap cpuSemantic
+  ?? @memSpaceMap memSpaceMap
+  ?! @TfieldMap templateStruct
+:
+  foreach selfcopy do #only one cpu at this date.
+    [ASTcoreMap coreSemantic !lkey !memSpaceMap !?templateStruct];
+
+  end foreach;
+end method;
 
 end semantics ;
 # vim:ft=ggs:ts=2:sw=2

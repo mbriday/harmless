@@ -33,11 +33,13 @@ enum @memType {
   rom,ram,register,GPR
 }
 
-class @memoryMapping
-{
-  @lstring memSpaceName;
-  @luint64 baseAddress;
-}
+#now defined in gadl_semantics_AST_implementation.gSemantics because
+#it should be used by some instructions.
+#class @memoryMapping
+#{
+#  @lstring memSpaceName;
+#  @luint64 baseAddress;
+#}
 
 map @ASTmemoryParamMap
 {
