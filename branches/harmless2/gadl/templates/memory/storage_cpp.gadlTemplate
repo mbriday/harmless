@@ -1,8 +1,5 @@
 %template headerC%
 #include "storage.h"
-#ifdef TRACK_VARIABLE
-	#include "C166_addr_mode.h" //to connect the spy_info... (need_action).
-#endif
 #include <stdlib.h>  //size_t
 #include <iomanip> //setioflags (setw)
 #include "utils.h" //SEGFAULTIF
@@ -21,25 +18,6 @@ using namespace std;
   #ifdef HOST_IS_BIG_ENDIAN
     #define __CHANGE_ENDIAN__  
   #endif  
-#endif
-
-#ifdef TRACK_VARIABLE
-	bool pef_storage::create_auto_spy_action(const u32 address, spy_info *s, const u8 byte)
-	{
-		bool result = false;
-		if(s)
-		{
-			//there is no spy_action, and s !=NULL	
-			if(s -> inst -> need_action()) 
-			{
-				//a spy_action is required.
-				//it stores itself in mem as read/write action. (auto spy)
-				new spy_action(address, s -> cpu,false, s -> length, spy_action::TRACK_FULL);
-				result = true;
-			}
-		}
-		return result;
-	}
 #endif
 
 #ifdef PRAGMA_MARK_ALLOWED
@@ -326,9 +304,6 @@ bool dumStorage::matchAddress(const u32 address)
 	
 	void dumStorage::triggerActionWhenWrite(const u32 address, const u32 val, spyInfo *s)
 	{
-		#ifdef TRACK_VARIABLE
-			bool spyActionPresent = false;
-		#endif
 		#ifdef ACTION_FAST	
 		writeAction *currentAction = m_writeActionsTab[address];
 		if(currentAction)
@@ -387,56 +362,7 @@ bool dumStorage::matchAddress(const u32 address)
 			}
 			#endif
 		}
-		#ifdef TRACK_VARIABLE
-			//if we have just read a byte that is followed, we have to add a spy
-			//action on the respective write action.
-			if(!spyActionPresent) 
-			{
-				if(createAutoSpyAction(address + m_offset, s, byte))
-				{
-					//a new spy action is created. We have to trigger this action. It
-					//must have been recorded at the last place of list<writeAction *>
-					//first get the list of action.
-					//TODO: not very efficient...
-					//TODO: will not compile with the new single linked list management. 
-					map<u32,list<writeAction *> *>::const_iterator actionIterator = m_writeActions.find(address);
-					list<writeAction *> *writeActionList = (*actionIterator).second;
-					writeAction *last_wa = writeActionList -> back();
-					//spy action not present at end of list in dumStorage::triggerActionWhenWrite"
-					SEGFAULTIF(!(last_wa -> isSpyAction()))
-					last_wa -> trigger(byte, s);
-				}
-				
-			}
-		#endif
 	}
-
-	#ifdef TRACK_VARIABLE
-	//TODO: will not compile with the new single linked list management. 
-	spy_action *dumStorage::getSpyAction(u32 address)
-	{
-		spy_action *result = NULL;
-		address -= m_offset;
-		u32 base = address >> 5;
-		u32 offset = address & 0x0000001F;
-		if (m_writeActionFlag[base] & (1 << offset)) {
-			map<u32,list<writeAction *> *>::const_iterator actionIterator = m_writeActions.find(address);
-			if (actionIterator != m_writeActions.end()) 
-			{
-				list<writeAction *> *writeActionList = (*actionIterator).second;
-				list<writeAction *>::iterator writeActionIterator = writeActionList -> begin();
-				list<writeAction *>::const_iterator writeActionIteratorEnd = writeActionList -> end();
-				while((writeActionIterator != writeActionIteratorEnd) && result == NULL)
-				{
-					writeAction *wa = (*i);
-					if(wa -> isSpyAction()) result = (((spy_action_trigger *)wa) -> get_sa());
-					writeActionIterator++;
-				}
-			}
-		}
-		return result;
-	}
-	#endif //TRACK_VARIABLE
 #endif //GADL_NO_ACTION
 
 u8 dumStorage::read8AtAddress(const u32 address, spyInfo *s)
@@ -480,10 +406,6 @@ u32 dumStorage::read32AtAddress(const u32 address, spyInfo *s)
 	void dumStorage::read8Action(const u32 address, spyInfo *s)
 	{
 		u32 addressOff = address - m_offset;
-		#ifdef TRACK_VARIABLE
-			if(s) s -> length = BYTE;
-		#endif
-
 
 		#ifdef ACTION_FAST	
 		if(m_readActionsTab) {
@@ -497,9 +419,6 @@ u32 dumStorage::read32AtAddress(const u32 address, spyInfo *s)
 	void dumStorage::read16Action(const u32 address, spyInfo *s)
 	{
 		u32 addressOff = address - m_offset;
-		#ifdef TRACK_VARIABLE
-			if(s) s -> length = WORD;
-		#endif
 		#ifdef ACTION_FAST	
 		if(m_readActionsTab) {
 		#else
@@ -512,9 +431,6 @@ u32 dumStorage::read32AtAddress(const u32 address, spyInfo *s)
 	void dumStorage::read32Action(const u32 address, spyInfo *s)
 	{
 		u32 addressOff = address - m_offset;
-		#ifdef TRACK_VARIABLE
-			if(s) s -> length = DBLWORD;
-		#endif
 		#ifdef ACTION_FAST	
 		if(m_readActionsTab) {
 		#else
@@ -535,13 +451,6 @@ void dumStorage::write8AtAddress(const u32 address, const u8 data8, spyInfo *s)
 	#endif
 	#ifndef GADL_NO_ACTION
 		u32 addressOff = address - m_offset;
-		#ifdef TRACK_VARIABLE
-			if(s) 
-			{
-				s -> length = BYTE;
-				s -> value = data8;
-			}
-		#endif
 		#ifdef ACTION_FAST	
 		if(m_writeActionsTab) {
 		#else
@@ -563,13 +472,6 @@ void dumStorage::write16AtAddress(const u32 address, const u16 data16, spyInfo *
 	#endif
 	#ifndef GADL_NO_ACTION
   		u32 addressOff = address - m_offset;
-	  	#ifdef TRACK_VARIABLE
-			if(s) 
-			{
-				s -> length = WORD;
-				s -> value = data16;
-			}
-		#endif
 		#ifdef ACTION_FAST	
 		if(m_writeActionsTab) {
 		#else
@@ -592,14 +494,7 @@ void dumStorage::write32AtAddress(const u32 address, const u32 data32, spyInfo *
 		checkForValidAddress(address+3);
 	#endif
 	#ifndef GADL_NO_ACTION
-  		u32 addressOff = address - m_offset;
-  		#ifdef TRACK_VARIABLE
-			if(s) 
-			{
-				s -> length = DBLWORD;
-				s -> value = data32;
-			}
-		#endif
+  		const u32 addressOff = address - m_offset;
 		#ifdef ACTION_FAST	
 		if(m_writeActionsTab) {
 		#else
@@ -935,8 +830,24 @@ u32 roStorage::get32AtAddr(const u32 address)
 
 u8 roStorage::read8AtAddress(const u32 address, spyInfo *s)
 {
-	dumStorage::read8AtAddress(address,s);
-	const unsigned char val = *((u8*)((size_t)m_storage + address - dumStorage::m_offset));
+  	const u32 addressOff = address - dumStorage::m_offset;
+	//duplicate some code (for dumStorage), because memory access
+	//needs efficiency.
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+	#endif
+	//actions
+	#ifndef GADL_NO_ACTION
+		#ifdef ACTION_FAST	
+		if(m_readActionsTab) {
+		#else
+		if(m_readActionFlag) {
+		#endif
+			triggerActionWhenRead(addressOff, s);
+		}
+	#endif
+	//read access.
+	const unsigned char val = *((u8*)((size_t)m_storage + addressOff));
 	#ifdef DEBUG_STORAGE_ACCESS
 		debugMemoryAccessRead(address, val, 1);
 	#endif
@@ -945,12 +856,29 @@ u8 roStorage::read8AtAddress(const u32 address, spyInfo *s)
 
 u16 roStorage::read16AtAddress(const u32 address, spyInfo *s)
 {
-	dumStorage::read16AtAddress(address,s);
+  	const u32 addressOff = address - dumStorage::m_offset;
+	//duplicate some code (for dumStorage), because memory access
+	//needs efficiency.
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+		checkForValidAddress(address+1);
+	#endif
+	//actions
+	#ifndef GADL_NO_ACTION
+		#ifdef ACTION_FAST	
+		if(m_readActionsTab) {
+		#else
+		if(m_readActionFlag) {
+		#endif
+			triggerActionWhenRead(addressOff, s);
+		}
+	#endif
+	//read access.
 	#ifdef __CHANGE_ENDIAN__
-		const u16 temp=*((u16*)((size_t)m_storage + address - dumStorage::m_offset));
+		const u16 temp=*((u16*)((size_t)m_storage + addressOff));
 		const u16 val = (((temp & 0x00FF) << 8) | ((temp & 0xFF00) >> 8));
 	#else
-		const u16 val = *((u16*)((size_t)m_storage + address - m_offset));
+		const u16 val = *((u16*)((size_t)m_storage + addressOff));
 	#endif
 	#ifdef DEBUG_STORAGE_ACCESS
 		debugMemoryAccessRead(address, val, 2);
@@ -960,16 +888,36 @@ u16 roStorage::read16AtAddress(const u32 address, spyInfo *s)
 
 u32 roStorage::read32AtAddress(const u32 address, spyInfo *s)
 {
-	dumStorage::read32AtAddress(address, s);
+  	const u32 addressOff = address - dumStorage::m_offset;
+	//duplicate some code (for dumStorage), because memory access
+	//needs efficiency.
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+		checkForValidAddress(address+1);
+		checkForValidAddress(address+2);
+		checkForValidAddress(address+3);
+	#endif
+	//actions
+	#ifndef GADL_NO_ACTION
+		#ifdef ACTION_FAST	
+		if(m_readActionsTab) {
+		#else
+		if(m_readActionFlag) {
+		#endif
+			triggerActionWhenRead(addressOff, s);
+		}
+	#endif
+	//read access.
 	#ifdef __CHANGE_ENDIAN__
-		const u32 temp=*((u32*)((size_t)m_storage + address - dumStorage::m_offset));
+		const u32 temp=*((u32*)((size_t)m_storage + addressOff));
 		const u32 val = (((temp & 0x000000FF) << 24) | 
 		                 ((temp & 0x0000FF00) <<  8) |
  		                 ((temp & 0x00FF0000) >>  8) |
 		                 ((temp & 0xFF000000) >> 24) );
 	#else
-		const u32 val = *((u32*)((size_t)m_storage + address - m_offset));
+		const u32 val = *((u32*)((size_t)m_storage + addressOff));
 	#endif
+	//debug.
 	#ifdef DEBUG_STORAGE_ACCESS
 		debugMemoryAccessRead(address, val, 4);
 	#endif
@@ -1017,42 +965,97 @@ roStorage(name, size,offset,alignment)
 {
 }
 
-void rwStorage::write8AtAddress(const u32 address, const u8 byte, spyInfo *s)
+void rwStorage::write8AtAddress(const u32 address, const u8 data8, spyInfo *s)
 {
 	#ifdef DEBUG_STORAGE
-		cout << "write8 0x" << hex << byte << " at @: 0x" << address << endl;
+		cout << "write8 0x" << hex << data8 << " at @: 0x" << address << endl;
 	#endif
-	*((u8*)((size_t)roStorage::m_storage + address - dumStorage::m_offset)) = byte;
-	dumStorage::write8AtAddress(address,byte,s);
+	const u32 addressOff = address - dumStorage::m_offset;
+	*((u8*)((size_t)roStorage::m_storage + addressOff)) = data8;
+	//duplicate some code (from dumStorage), because memory access
+	//needs efficiency.
+	#ifdef DEBUG_STORAGE_ACCESS
+		debugMemoryAccessWrite(address, data8, 1);
+	#endif
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+	#endif
+	#ifndef GADL_NO_ACTION
+		#ifdef ACTION_FAST	
+		if(m_writeActionsTab) {
+		#else
+		if(m_writeActionFlag) {
+		#endif
+			triggerActionWhenWrite(addressOff,data8, s);
+		}
+	#endif	
 }
 
-void rwStorage::write16AtAddress(const u32 address, const u16 word, spyInfo *s)
+void rwStorage::write16AtAddress(const u32 address, const u16 data16, spyInfo *s)
 {
 	#ifdef DEBUG_STORAGE
-		cout << "write16 0x" << hex << word << " at @: 0x" << address << endl;
+		cout << "write16 0x" << hex << data16 << " at @: 0x" << address << endl;
 	#endif
 	#ifdef __CHANGE_ENDIAN__
-		u16 temp =((word & 0x00FF) << 8) | ((word & 0xFF00) >> 8);
+		u16 temp =((data16 & 0x00FF) << 8) | ((data16 & 0xFF00) >> 8);
 	#else
-		u16 temp=word;
+		u16 temp=data16;
 	#endif
-	*((u16*)((size_t)roStorage::m_storage + address - dumStorage::m_offset)) = temp;
-	dumStorage::write16AtAddress(address,word,s);
+	const u32 addressOff = address - dumStorage::m_offset;
+	*((u16*)((size_t)roStorage::m_storage + addressOff)) = temp;
+	//duplicate some code (from dumStorage), because memory access
+	//needs efficiency.
+	#ifdef DEBUG_STORAGE_ACCESS
+		debugMemoryAccessWrite(address, data16, 2);
+	#endif
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+		checkForValidAddress(address+1);
+	#endif
+	#ifndef GADL_NO_ACTION
+		#ifdef ACTION_FAST	
+		if(m_writeActionsTab) {
+		#else
+		if(m_writeActionFlag) {
+		#endif
+			triggerActionWhenWrite(addressOff,data16, s);
+		}
+	#endif
 }
 
-void rwStorage::write32AtAddress(const u32 address, const u32 dbl_word, spyInfo *s)
+void rwStorage::write32AtAddress(const u32 address, const u32 data32, spyInfo *s)
 {
 	#ifdef DEBUG_STORAGE
-		cout << "write32 0x" << hex << dbl_word << " at @: 0x" << address << endl;
+		cout << "write32 0x" << hex << data32 << " at @: 0x" << address << endl;
 	#endif
 	#ifdef __CHANGE_ENDIAN__
-	u32 temp=  (	((dbl_word & 0x000000FF) << 24) | 
-		((dbl_word & 0x0000FF00) <<  8) |
-		((dbl_word & 0x00FF0000) >>  8) |
-		((dbl_word & 0xFF000000) >> 24) );
+	u32 temp=  (	((data32 & 0x000000FF) << 24) | 
+		((data32 & 0x0000FF00) <<  8) |
+		((data32 & 0x00FF0000) >>  8) |
+		((data32 & 0xFF000000) >> 24) );
 	#else
-		u32 temp=dbl_word;    
+		u32 temp=data32;    
 	#endif
-	*((u32*)((size_t)roStorage::m_storage + address - dumStorage::m_offset)) = temp;
-	dumStorage::write32AtAddress(address,dbl_word,s);
+	const u32 addressOff = address - dumStorage::m_offset;
+	*((u32*)((size_t)roStorage::m_storage + addressOff)) = temp;
+	//duplicate some code (from dumStorage), because memory access
+	//needs efficiency.
+	#ifdef DEBUG_STORAGE_ACCESS
+		debugMemoryAccessWrite(address, data32, 4);
+	#endif
+	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
+		checkForValidAddress(address);
+		checkForValidAddress(address+1);
+		checkForValidAddress(address+2);
+		checkForValidAddress(address+3);
+	#endif
+	#ifndef GADL_NO_ACTION
+		#ifdef ACTION_FAST	
+		if(m_writeActionsTab) {
+		#else
+		if(m_writeActionFlag) {
+		#endif
+			triggerActionWhenWrite(addressOff,data32, s);
+		}
+	#endif
 }
