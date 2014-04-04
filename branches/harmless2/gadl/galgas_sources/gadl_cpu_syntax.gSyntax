@@ -89,14 +89,13 @@ rule <cpu>
   repeat
   while
     <memoryChunk> !?ASTmemChunk !?memChunkOrder;
-    message "mem chunk in CPU not implemented!!\n";
   while
     <coreInstantiation> !?coreTypeMap !?ASTcoreMap !?coreSet !?ASTmemSpaceMap !importCoreMap;
   while
     <deviceDeclaration> !false ?@ASTInstDeclarationDevice deviceDec;
     ASTDeviceDecList += !deviceDec;
   end repeat;
-  [!?ASTCpuMap insertKey !cpuName !coreTypeMap !ASTcoreMap !ASTDeviceDecList];
+  [!?ASTCpuMap insertKey !cpuName !coreTypeMap !ASTcoreMap !ASTDeviceDecList !ASTmemChunk !memChunkOrder];
   $}$;
   
   @lstring exportDir := cpuName;

@@ -1,0 +1,39 @@
+%template headerC%
+#include <iostream>
+#include "cpu.h"
+%foreach core in coreTypeList do
+  %#include "%!core::str%_core.h"\n%
+end foreach
+%
+cpu::cpu()
+{
+	///cpu memory chunks
+%  foreach memInCpu in cpu::memInCpuList do
+    let storageName := memInCpu::name."_memChunk"
+    %	%!storageName% = new % 
+    if memInCpu::type == 0 then %roStorage% #ROM
+    else %rwStorage%
+    end if
+    %("%!storageName%", % #name
+    !memInCpu::size%, %!memInCpu::baseAddress%);\n%
+  end foreach
+%	///cpu cores
+%
+let nbCores := 0
+foreach core in coreTypeList do
+  %\tm_%!core::name% = new %!core::str%_core(this);\n%
+  let nbCores := nbCores+1
+end foreach
+%	unsigned int coreId = 0;\n%
+foreach core in coreTypeList do
+%	m_coreTab[coreId++] = m_%!core::name%;\n%
+end foreach
+%
+}
+
+void cpu::run(u64 nbCycle)
+{
+	for(u64 i=0;i<nbCycle;i++)
+		for(int coreId=0;coreId<%!nbCores%;coreId++)
+			m_coreTab[coreId]->execInst(1);
+}

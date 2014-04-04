@@ -79,6 +79,20 @@ method @varIdfStruct setProgramCounterInTemplate
   addStringValue !?templateStruct !lstringWith[!"PC_NAME"] ![PCname string];
 end method;
 
+method @lstringMap setInTemplate
+  ?? @lstring name #name of the lstringMap export
+  ?! @TfieldMap templateStruct
+:
+  @TfieldMapList lstringMapTpl [emptyList];
+  foreach selfcopy do
+    @TfieldMap lstringMapTplBody [emptyMap];
+    addLStringValue !?lstringMapTplBody !"name" !lkey;
+    addLStringValue !?lstringMapTplBody !"str"  !lstr;
+    lstringMapTpl += !lstringMapTplBody;    
+  end foreach;
+  addListValue !?templateStruct !name !lstringMapTpl;  
+end method;
+
 method @varIdfStruct setInTemplate
   ?! @TfieldMap templateStruct
 :

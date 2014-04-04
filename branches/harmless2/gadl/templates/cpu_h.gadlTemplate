@@ -1,0 +1,128 @@
+%template headerC%
+#ifndef __%!cpu::NAME%_CPU_H__
+#define __%!cpu::NAME%_CPU_H__
+
+#include "core.h"
+#include "types.h"
+#include "storage.h"
+#include "macro.h"
+
+%foreach core in coreTypeList do
+  %class %!core::str%_core;\n%
+end foreach
+
+%
+class cpu
+{
+	///cpu memory chunks declaration.
+%foreach memInCpu in cpu::memInCpuList do
+  let storageName := memInCpu::name."_memChunk"
+  %\t%
+  if memInCpu::type == 0 then %roStorage% #ROM
+  else %rwStorage%
+  end if
+  % *%!storageName%;\n%
+ end foreach
+%
+	///core instances
+%
+let nbCores := 0
+foreach core in coreTypeList do
+  %\t%!core::str%_core *m_%!core::name%;\n%
+  let nbCores := nbCores+1
+end foreach	
+
+%	///tabular for easy access to many cores
+	core *m_coreTab[%!nbCores%];
+
+	public:
+	///constructor
+	cpu();
+
+	void run(u64 nbCycle);
+	/*******************************************************************
+	 * Automatically generated functions.
+	*******************************************************************/
+	/** core Access */
+%foreach core in coreTypeList do
+  %\tinline %!core::str%_core *%!core::name%() {return m_%!core::name%;};\n%
+end foreach
+%	inline unsigned int nbCores() {return %!nbCores%;};
+	inline core *core(unsigned int id) {
+		if(id < nbCores()) return m_coreTab[id];
+		else return NULL;
+	};
+
+	/** Memory Access */
+%
+foreach mem in memSpaceList do
+  #one getChunk for each mem space.
+  %\tinline storage *get_%!mem::name%_chunk(const u32 address)\n\t{\n%
+  let addr := "address"
+  if mem::stride != 0 then
+    let addr := "addressWithStride"
+    %\t\tconst u32 %!addr% = address << %!mem::stride%;\n%
+  end if
+  let first := True
+  let nbMemChunks := 0 #can optimize if there is only one.
+  let storageName := ""
+  foreach memChunk in cpu::memInCpuList do
+    if mem::name == memChunk::memSpaceName then #chunk in same address space
+      let nbMemChunks := nbMemChunks + 1
+      %\t\t%
+      if not first then %else % else let first := False end if
+      let max := memChunk::baseAddress + memChunk::size -1
+      let storageName := memChunk::name."_memChunk"
+      %if(%
+      if memChunk::baseAddress != 0 then
+        !addr% >= %!memChunk::baseAddress% && %
+      end if
+      !addr% <= %!max%) return %!storageName%;\n%
+    end if
+  end foreach
+    %\t\tstd::cerr << "Memory Access Error: invalid access at address 0x"\n%
+    %\t\t          << std::hex << %!addr% << ", in memory space \'%!mem::name%\'." << std::endl;\n%
+    %\t\treturn 0;\n%
+  %\t}\n%
+  foreach methodSize in mem::methodSizeList do
+    #R/W access
+    let type := CType(methodSize::size)
+    let addressWithStride := "address"
+    if mem::stride != 0 then let addressWithStride := "address << ".[mem::stride string] end if
+    #read access.
+    %\tvirtual u%!type% %!mem::name%_read%!methodSize::size%(const u32 address)\n\t\t{\n%
+    let storageNameOptim := "sto"
+    if nbMemChunks != 1 then
+      %\t\troStorage *sto = (roStorage *)get_%!mem::name%_chunk(%!addressWithStride%);\n%
+      %\t\t#ifdef DEBUG_MEM\n%
+      %\t\t\tassert(sto);\n%
+      %\t\t#endif //DEBUG_MEM\n%
+    else #optimisation
+      %\t\t#ifdef DEBUG_MEM\n%
+      %\t\t\tassert(get_%!mem::name%_chunk(%!addressWithStride%));\n%
+      %\t\t#endif //DEBUG_MEM\n%
+      let storageNameOptim := storageName
+    end if
+    %\t\treturn %!storageNameOptim%->read%!type%AtAddress(%!addressWithStride%);\n%
+    %\t}\n%
+    #write access.
+    %\tvirtual void %!mem::name%_write%!methodSize::size%(const u32 address, const u%!type% value)\n\t\t{\n%
+    let storageNameOptim := "sto"
+    if nbMemChunks != 1 then
+      %\t\trwStorage *sto = (rwStorage *)get_%!mem::name%_chunk(%!addressWithStride%);\n%
+      %\t\t#ifdef DEBUG_MEM\n%
+      %\t\t\tassert(sto);\n%
+      %\t\t#endif //DEBUG_MEM\n%
+    else
+      %\t\t#ifdef DEBUG_MEM\n%
+      %\t\t\tassert(get_%!mem::name%_chunk(%!addressWithStride%));\n%
+      %\t\t#endif //DEBUG_MEM\n%
+      let storageNameOptim := storageName
+    end if
+    %\t\t%!storageNameOptim%->write%!type%AtAddress(%!addressWithStride%, value);\n%
+    %\t}\n%
+  end foreach
+end foreach
+%
+};
+#endif 

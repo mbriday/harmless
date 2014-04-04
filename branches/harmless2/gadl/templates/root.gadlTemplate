@@ -10,7 +10,20 @@ let useCounters := false
 #get the list of all .cpp files for compilation.
 let cppFileList := emptyList #files common to each target.
 
-#main header.
+#generate the cpu main file.
+if exists cpuList then
+  foreach cpu in cpuList do
+    write to exportDir."/cpu.h":
+      template cpu_h
+    end write
+    write to exportDir."/cpu.cpp":
+      template cpu_cpp
+    end write
+    %cpu.cpp \\\n%
+  end foreach
+end if
+
+#generate each core
 foreach core in coreList do
   template coreRoot
 end foreach

@@ -1,12 +1,14 @@
 %template headerC%
 #include "utils.h"
-%
+%if exists cpuList then #is there a cpu?
+  %#include "cpu.h"\n%
+end if
 foreach core in coreList do
+  %#include "%!core::NAME%_instructionBase.h"\n%
+  %#include "%!core::NAME%_core.h"\n%
+  %#include "%!core::NAME%_instDecoder.h"\n%
+end foreach
 %
-#include "%!core::NAME%_instructionBase.h"
-#include "%!core::NAME%_core.h"
-#include "%!core::NAME%_instDecoder.h"
-%end foreach%
 #include <iostream>
 #include <stdlib.h>
 using namespace std;
@@ -14,34 +16,53 @@ using namespace std;
 /// debug in progress.
 int main(int argc, char *argv[])
 { 
+%if exists cpuList then #is there a cpu?
+%	cpu *simulator = new cpu();\n
+	if(argc != (simulator->nbCores()+2))
+		cout << "please specify a code file foreach core and a number of instruction to execute. " << endl;
+	else
+	{
+		unsigned int id;
+		for(id=0;id<simulator->nbCores();id++)
+			if(!(simulator->core(id)->readCodeFile(argv[id+1]))) exit(1);
+		simulator->run(atoi(argv[id+1]));
+
+		for(id=0;id<simulator->nbCores();id++)
+		{
+			core *c=simulator->core(id);
+			const unsigned int nbInst = c->getNBInstructions();
+			cout << "** core : " << id << "**" << endl;
+			cout << "PC : " << c->programCounter() << endl;
+			cout << nbInst << " instructions executed" << endl;
+			cout << c->getNBCycles() << " cycles executed" << endl;
+		}
+	}
+%
+ else
+%
 	//this example only starts the first core.
 %	let first := true
 	foreach core in coreList do
 		if first  then
-			%	%!core::NAME%_core *ZeCore = new %!core::NAME%_core();\n%
+			%	%!core::NAME%_core *simulator = new %!core::NAME%_core();\n%
 			let first := false
 		end if
 	end foreach
 %
 	if(argc != 3) cout << "please specify a code file and a number of instruction to execute. " << endl;
-	else 
+	else
 	{
-		#ifdef GADL_WITH_PIPELINE_TRACE
-			ZeCore->usePipelineTrace();
-		#endif
-		if(!(ZeCore->readCodeFile(argv[1]))) exit(1);
-		ZeCore->setExecutionMode(core::CAS);
-        
-        ZeCore->execInst(atoi(argv[2]));
-
-		const unsigned int nbInst = ZeCore->getNBInstructions();
-		cout << "PC : " << ZeCore->programCounter() << endl;
-		cout << nbInst << " instructions executed" << endl;
-		cout << ZeCore->getNBCycles() << " cycles executed" << endl;
-		#ifdef GADL_WITH_PIPELINE_TRACE
-			ZeCore->outputPipelineTrace("test1.ptr");
-		#endif
+//		if(!(ZeCore->readCodeFile(argv[1]))) exit(1);
+//		simulator->setExecutionMode(core::CAS);
+//        
+//       simulator->execInst(atoi(argv[2]));
+//
+//		const unsigned int nbInst = ZeCore->getNBInstructions();
+//		cout << "PC : " << ZeCore->programCounter() << endl;
+//		cout << nbInst << " instructions executed" << endl;
+//		cout << ZeCore->getNBCycles() << " cycles executed" << endl;
 	}
-	return 0;
+%	end if #cpu
+%	return 0;
 }
 

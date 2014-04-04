@@ -206,7 +206,6 @@ map @memSpaceMap
   search searchKey error message "the '%K' memory chunk is not defined." ;
 }
 
-
 method @componentMap checkComponentMethod
   ?? @lstring componentName
   ?? @lstring methodName
