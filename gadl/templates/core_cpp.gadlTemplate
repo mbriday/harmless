@@ -37,7 +37,8 @@ if core::useCAS then
 
 using namespace std;
 
-%!core::NAME%_core::%!core::NAME%_core() : core()
+%!core::NAME%_core::%!core::NAME%_core(%if exists cpuList then %cpu *_cpu%end if%) : core()%
+if exists cpuList then %,m_cpu(_cpu)%end if%
 {
 	//m_context = new context();
 	m_decoder = new %!core::NAME%_instDecoder();

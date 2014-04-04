@@ -8,6 +8,10 @@
 #include "macro.h"
 #include "%!core::NAME%_instructionBase.h"
 #include "fifo.h"
+%if exists cpuList then #is there a cpu?
+  %#include "cpu.h"\n%
+end if
+%
 #include <vector> 
 #include <string>
 #include <string.h> //required by Linux for memcpy...
@@ -63,7 +67,11 @@ end if
 %
 
 class %!core::NAME%_core : public core
-{	
+{
+%if exists cpuList then #is there a cpu?
+  %\t\t///a pointer to the CPU (required for shared memory access)\n%
+  %\t\tcpu *m_cpu;\n%
+end if%
 		///core memory chunks declaration.
 %foreach memInCore in core::memInCoreList do
   let storageName := memInCore::name."_memChunk"
@@ -376,9 +384,28 @@ foreach mem in memSpaceMap do
       !addr% <= %!max%) return %!storageName%;\n%
     end if
   end foreach
-  %\t\t\tstd::cerr << "Memory Access Error: invalid access at address 0x"\n%
-  %\t\t\t          << std::hex << %!addr% << ", in memory space \'%!mem::name%\'." << std::endl;\n%
-  %\t\t\treturn 0;\n\t\t}\n%
+  #check for shared memory (defined in cpu).
+  let hasSharedMem := false
+  if exists cpuList then #is there a cpu?
+    foreach cpu in cpuList do
+      foreach memInCpu in cpu::memInCpuList do
+        if memInCpu::memSpaceName == mem::name then
+          #there is a mem chunk defined in the cpu
+          #with the same memory space -> shared mem.
+          let hasSharedMem := true
+        end if
+      end foreach
+    end foreach
+  end if
+  if hasSharedMem then
+    %\t\t\t//not found. maybe shared memory\n%
+    %\t\t\treturn m_cpu->get_%!mem::name%_chunk(address);\n%
+  else
+    %\t\t\tstd::cerr << "Memory Access Error: invalid access at address 0x"\n%
+    %\t\t\t          << std::hex << %!addr% << ", in memory space \'%!mem::name%\'." << std::endl;\n%
+    %\t\t\treturn 0;\n%
+  end if
+  %\t\t}\n%
   foreach methodSize in mem::methodSizeList do
     #R/W access
     let type := CType(methodSize::size)
@@ -387,7 +414,10 @@ foreach mem in memSpaceMap do
     #read access.
     %\t\tvirtual u%!type% %!mem::name%_read%!methodSize::size%(const u32 address)\n\t\t{\n%
     let storageNameOptim := "sto"
-    if nbMemChunks > 1 then
+    if nbMemChunks == 0 & hasSharedMem==false then
+      error mem::name : "no memory chunk defined for memory space ".mem::name
+    end if
+    if nbMemChunks != 1 | hasSharedMem then
       %\t\t\troStorage *sto = (roStorage *)get_%!mem::name%_chunk(%!addressWithStride%);\n%
       %\t\t\t#ifdef DEBUG_MEM\n%
       %\t\t\t\tassert(sto);\n%
@@ -409,7 +439,7 @@ foreach mem in memSpaceMap do
     #write access.
     %\t\tvirtual void %!mem::name%_write%!methodSize::size%(const u32 address, const u%!type% value)\n\t\t{\n%
     let storageNameOptim := "sto"
-    if nbMemChunks > 1 then
+    if nbMemChunks != 1 | hasSharedMem then
       %\t\t\trwStorage *sto = (rwStorage *)get_%!mem::name%_chunk(%!addressWithStride%);\n%
       %\t\t\t#ifdef DEBUG_MEM\n%
       %\t\t\t\tassert(sto);\n%
@@ -434,8 +464,7 @@ end foreach
 %
 		/** constructors */
 		///default constructor
-		%!core::NAME%_core();
-
+		%!core::NAME%_core(%if exists cpuList then %cpu *_cpu%end if%);
 %
 	foreach method in core::coreConstructorList
 	do

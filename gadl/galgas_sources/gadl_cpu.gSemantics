@@ -12,6 +12,9 @@ map @ASTCpuMap
   @ASTCoreMap ASTcoreMap;
   #cpu devices.  
   @ASTInstructionList ASTDeviceDecList;
+  #memory defined in cpu.
+  @ASTmemoryParamMap ASTmemChunk;
+  @stringlist memChunkOrder;
   insert insertKey error message "the '%K' cpu is already defined in %L" ; 
   search searchKey error message "the '%K' cpu is not defined" ;
 }
@@ -20,10 +23,34 @@ method @ASTCpuMap cpuSemantic
   ?? @memSpaceMap memSpaceMap
   ?! @TfieldMap templateStruct
 :
+  @expressionContext ctx := [@expressionContext peripheral]; #context cpu?
+  @TfieldMapList cpuTpl [emptyList];
   foreach selfcopy do #only one cpu at this date.
+    @TfieldMap cpuTplBody [emptyMap];
+    @lstring cpuName := lkey;
+    addLStringValue !?cpuTplBody !"NAME" !cpuName;
+    ###########################################################################
+    # local memory definition
+    ###########################################################################
+    @memoryParamMap memChunk := [ASTmemChunk getMemMap];
+    [memChunk setInTemplate !lstringWith[!"memInCpuList"] !?cpuTplBody];
+    ###########################################################################
+    # cores
+    ###########################################################################
+    #cores defined as global, not inside a cpu.
     [ASTcoreMap coreSemantic !lkey !memSpaceMap !?templateStruct];
-
+    [coreTypeMap setInTemplate !lstringWith[!"coreTypeList"] !?templateStruct];
+    ###########################################################################
+    # devices
+    ###########################################################################
+    #TODO in templates.
+    @symbolValueMap symbolMap [emptyMap];
+    @varIdfStruct idfStruct [default];
+    getInst !ASTDeviceDecList !ctx !symbolMap !?idfStruct ?@instructionList instDeviceDecList;
+    #end.
+    cpuTpl += !cpuTplBody;
   end foreach;
+  addListValue !?templateStruct !lstringWith[!"cpuList"] !cpuTpl;  
 end method;
 
 end semantics ;
