@@ -30,9 +30,9 @@ end modifier;
 map @lstringMap
 {
   @lstring lstr;
-  insert insertKey error message "the '%K' component is already defined in %L" ; 
-  search searchKey error message "the '%K' component is not defined" ;
-  remove removeKey error message "the '%K' component is not defined and cannot be removed." ;
+  insert insertKey error message "the '%K' element is already defined in %L" ; 
+  search searchKey error message "the '%K' element is not defined" ;
+  remove removeKey error message "the '%K' element is not defined and cannot be removed." ;
 }
 
 #structure that store information that can be accessed

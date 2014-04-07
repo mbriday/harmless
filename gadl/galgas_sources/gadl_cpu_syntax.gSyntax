@@ -17,6 +17,7 @@ nonterminal <memoryChunk>
   ?! @ASTmemoryParamMap ASTmemChunk 
   ?! @stringlist memChunkOrder
 ;
+nonterminal <paramCall> ! @ASTExpressionlist idfExpList; #gadl_expression_parser.gSyntax
 nonterminal <deviceDeclaration>
   ?? @bool memoryAccessIsLocal #true if a device is declared inside a peripheral (same mem chunk).
   !  @ASTInstDeclarationDevice deviceDec
@@ -34,21 +35,24 @@ rule <importCore>
 end rule;
 
 rule <coreInstantiation>
-  ?! @lstringMap coreTypeMap
+  ?! @ASTcoreInstanceMap ASTcoreInstanceMap
   ?! @ASTCoreMap ASTcoreMap
   ?! @stringset coreSet
   ?! @ASTmemSpaceMap ASTmemSpaceMap
+  ?! @uint coreId
   ?? @lstringMap importCoreMap
 :
   $core$; $idf$ ?@lstring coreType;
   $idf$ ?@lstring coreName;
-  [!?coreTypeMap insertKey !coreName !coreType];
+  <paramCall> ?@ASTExpressionlist coreParamExpList;
+  [!?ASTcoreInstanceMap insertKey !coreName !coreType !coreId !coreParamExpList]; 
   if not [coreSet hasKey ![coreType string]] then
     #core type not parsed yet.
     [importCoreMap searchKey !coreType ?@lstring coreFileName];
     grammar gadl_core_grammar in coreFileName !?ASTcoreMap !?ASTmemSpaceMap;
     coreSet += ![coreType string];
   end if;
+  coreId := coreId+1;
 end rule;
 
 rule <cpu>
@@ -75,10 +79,12 @@ rule <cpu>
 
   $cpu$; $idf$ ?@lstring cpuName;
   ${$;
-  #associate core type and a name (TODO and constructor param).
-  @lstringMap coreTypeMap [emptyMap];
+  #associate core type and a name 
+  @ASTcoreInstanceMap ASTcoreInstanceMap [emptyMap];
   #map of cores, key is the type.
   @ASTCoreMap ASTcoreMap [emptyMap];
+  #core id.
+  @uint coreId := 0;
   #set of core types, to parse only one time each core type.
   @stringset coreSet [emptySet];
   #cpu devices.
@@ -90,12 +96,12 @@ rule <cpu>
   while
     <memoryChunk> !?ASTmemChunk !?memChunkOrder;
   while
-    <coreInstantiation> !?coreTypeMap !?ASTcoreMap !?coreSet !?ASTmemSpaceMap !importCoreMap;
+    <coreInstantiation> !?ASTcoreInstanceMap !?ASTcoreMap !?coreSet !?ASTmemSpaceMap !?coreId !importCoreMap;
   while
     <deviceDeclaration> !false ?@ASTInstDeclarationDevice deviceDec;
     ASTDeviceDecList += !deviceDec;
   end repeat;
-  [!?ASTCpuMap insertKey !cpuName !coreTypeMap !ASTcoreMap !ASTDeviceDecList !ASTmemChunk !memChunkOrder];
+  [!?ASTCpuMap insertKey !cpuName !ASTcoreInstanceMap !ASTcoreMap !ASTDeviceDecList !ASTmemChunk !memChunkOrder];
   $}$;
   
   @lstring exportDir := cpuName;
