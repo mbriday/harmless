@@ -7,8 +7,8 @@
 #include "storage.h"
 #include "macro.h"
 
-%foreach core in coreTypeList do
-  %class %!core::str%_core;\n%
+%foreach core in coreInstanceList do
+  %class %!core::type%_core;\n%
 end foreach
 
 %
@@ -27,8 +27,8 @@ class cpu
 	///core instances
 %
 let nbCores := 0
-foreach core in coreTypeList do
-  %\t%!core::str%_core *m_%!core::name%;\n%
+foreach core in coreInstanceList do
+  %\t%!core::type%_core *m_%!core::name%;\n%
   let nbCores := nbCores+1
 end foreach	
 
@@ -44,8 +44,8 @@ end foreach
 	 * Automatically generated functions.
 	*******************************************************************/
 	/** core Access */
-%foreach core in coreTypeList do
-  %\tinline %!core::str%_core *%!core::name%() {return m_%!core::name%;};\n%
+%foreach core in coreInstanceList do
+  %\tinline %!core::type%_core *%!core::name%() {return m_%!core::name%;};\n%
 end foreach
 %	inline unsigned int nbCores() {return %!nbCores%;};
 	inline core *core(unsigned int id) {

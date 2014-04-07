@@ -169,7 +169,8 @@ if [core::timingList length] > 0 then
 		void manageTiming();
 %end if
 end if #exists timingList
-%public:
+%		void init(); //init data structures. called by constructor.
+public:
 
 		/*******************************************************************
 		 *  status
@@ -468,8 +469,10 @@ end foreach
 %
 	foreach method in core::coreConstructorList
 	do
-		%\t\t%!core::NAME%_core(%!method::paramStr%) {\n%
-		%\t\t\t%!core::NAME%_core(); //call default constructor first\n% 
+		%\t\t%!core::NAME%_core(%!method::paramStr if exists cpuList then %, cpu *_cpu%end if%) :\n%
+		%\t\t\tcore(), %if exists cpuList then %m_cpu(_cpu)%end if 
+		%\n\t\t{\n%
+		%\n\t\t\tinit(); //common init part.\n%
 		!method::codeStr
 		%\n\t\t}\n%
     end foreach

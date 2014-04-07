@@ -40,6 +40,11 @@ using namespace std;
 %!core::NAME%_core::%!core::NAME%_core(%if exists cpuList then %cpu *_cpu%end if%) : core()%
 if exists cpuList then %,m_cpu(_cpu)%end if%
 {
+	init();
+}
+
+void %!core::NAME%_core::init()
+{
 	//m_context = new context();
 	m_decoder = new %!core::NAME%_instDecoder();
 	#ifdef GADL_WITH_PIPELINE_TRACE
