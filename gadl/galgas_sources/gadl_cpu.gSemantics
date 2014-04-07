@@ -20,7 +20,7 @@ map @ASTCpuMap
   #associate core type and a name
   @ASTcoreInstanceMap ASTcoreInstanceMap;
   #map of cores, key is the type.
-  @ASTCoreMap ASTcoreMap;
+  @ASTCoreMap ASTCoreMap;
   #cpu devices.  
   @ASTInstructionList ASTDeviceDecList;
   #memory defined in cpu.
@@ -99,9 +99,17 @@ method @ASTCpuMap cpuSemantic
     # cores
     ###########################################################################
     #cores defined as global, not inside a cpu.
-    [ASTcoreMap coreSemantic !lkey !memSpaceMap !?templateStruct];
+    [ASTCoreMap coreSemantic !lkey !memSpaceMap !?templateStruct];
     @coreInstanceMap coreInstanceMap := [ASTcoreInstanceMap getCoreInstanceMap !ctx !symbolMap !idfStruct];
     [coreInstanceMap setInTemplate !lstringWith[!"coreInstanceList"] !?templateStruct];
+    #check constructor parameters.
+    foreach coreInstanceMap do
+      @lstring coreInstanceName := lkey;
+      [ASTCoreMap searchKey !type ?* ?* ?* ?* ?* ?* ?@ASTFunctionMap ASTCoreConstructorMap];
+      foreach ASTCoreConstructorMap do
+        [param checkParams !coreParamExpList ![coreInstanceName location] ![lkey location]];
+      end foreach;
+    end foreach;
     ###########################################################################
     # devices
     ###########################################################################
