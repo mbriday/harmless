@@ -260,12 +260,25 @@ override method @ASTInstDeclaration getInst
     [!?idfStruct->varMap insertKey !idf !type !false !access !instDec];
     inst := instDec;
   when device:
-    message "TODO: method @ASTInstDeclaration getInst with device :".[idf string]."\n";
-    inst := [@instDeclaration new !loc !type !idf !access !""];
+    error loc: "internal error: instanciation of a device not allowed here" : inst;
   when registerSlice:    
     error loc: "internal error in @ASTInstDeclaration should not be use in this ".
                "context -> @ASTInstDeclarationRegSlice" :inst;
   end switch;
+end method;
+
+override method @ASTInstDeclarationDevice getInst
+  ?? @expressionContext unused ctx
+  ?! @symbolValueMap unused symbolMap
+  ?! @varIdfStruct idfStruct
+  !  @instruction inst
+:
+  if access != [@varClass device] then
+    error loc: "internal error: a device varClass is expected in @ASTInstDeclarationDevice";
+  end if;
+  @instDeclarationDevice instDec := [@instDeclarationDevice new !loc !type !idf !access !"" !address];
+  [!?idfStruct->varMap insertKey !idf !type !true !access !instDec];
+  inst := instDec;
 end method;
 
 override method @ASTInstDeclarationRegSlice getInst

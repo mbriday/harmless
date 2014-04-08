@@ -23,6 +23,7 @@ semantics gadl_types :
 #  * sizeInBits     -> return the size in bits for a scalar, the size of one elt for a tab, an error for struct.
 #  * isVoid         -> return true for u0/s0/f0 (void) and false otherwise.
 #  * checkEqual     -> check if types are equals
+#  * getFinalType   -> used for tabulars. Return the type of an element (recursively in case of tab of tabs…).
 
 # readers for varBaseType:
 #  * getCSize       -> return the size of the corresponding C var.
@@ -100,6 +101,22 @@ map @varBaseTypeMap {
   insert insertKey error message "the '%K' data field is declared twice in the instruction" ; 
   search searchKey error message "the '%K' data field is not defined in the instruction" ;
 }
+
+###############################################################################
+## get final type -> for a tabular, give the type of elements.
+## result should not be a tabular.
+###############################################################################
+reader @varAbstractType getFinalType
+  -> @varAbstractType finalType
+:
+  finalType := selfcopy;
+end reader;
+
+override reader @varTabularType getFinalType
+  -> @varAbstractType finalType
+:
+  finalType := [[selfcopy type] getFinalType]; #recursive way.
+end reader;
 
 ###############################################################################
 ## get location of type

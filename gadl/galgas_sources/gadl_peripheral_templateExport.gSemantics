@@ -35,6 +35,10 @@ method @peripheralMap setInTemplate
     [idfStruct setInTemplate !?peripheralBody];
     addListValue !?peripheralBody !lstringWith[!"methodList"] ![functionMap getFunctionTemplate];
     [registerPeriphDefMap setInTemplate !?peripheralBody];
+    #@TfieldMapList deviceDecListTpl [emptyList];
+    #foreach instDeviceDecList do
+    #@TfieldMap peripheralBody [emptyMap];
+
     peripheralList += !peripheralBody;
   end foreach;
   addListValue !?templateStruct !lstringWith[!"peripheralList"] !peripheralList;
