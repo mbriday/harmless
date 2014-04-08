@@ -93,6 +93,10 @@ reader @ASTperipheralMap getPeriphMap
     #message "\nIdfStruct\n".[idfStruct string];
     @functionMap functionMap := [ASTFunctionMap getFunctionMap !ctx !idfStruct]; 
     [!?peripheralMap insertKey !lkey !size !registerPeriphDefMap !functionMap !instDeviceDecList !idfStruct];
+    #tmp
+    foreach instDeviceDecList do
+      message "-> ".[inst generateCode !1 ![@codeCtx C]]."\n";
+    end foreach;
   end foreach;
 end reader;
 

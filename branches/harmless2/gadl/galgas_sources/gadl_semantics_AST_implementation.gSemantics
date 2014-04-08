@@ -75,7 +75,6 @@ class @ASTInstDeclarationRegSlice extends @ASTInstDeclaration {
 
 class @ASTInstDeclarationDevice extends @ASTInstDeclaration {
   @memoryMapping address;
-  #@luint64 address;
 }
 
 class @ASTInstTypeDefinition extends @ASTInstruction {

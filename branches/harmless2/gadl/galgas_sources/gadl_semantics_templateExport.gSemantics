@@ -3,6 +3,12 @@ semantics gadl_semantics_templateExport :
   import "gadl_semantics_implementation_code_generation.gSemantics" ;
   import "gadl_semantics_implementation.gSemantics" ;
 
+# reader @instDeclaration setter
+# reader @instDeclaration getter
+# method @varIdfStruct setProgramCounterInTemplate
+# method @varIdfStruct setInTemplate
+
+
 ## setter for instDeclaration (for getter function in generated code).
 reader @instDeclaration setter
   -> @string str
@@ -103,8 +109,13 @@ method @varIdfStruct setInTemplate
   foreach varMap do
     @TfieldMap varMapRegBody [emptyMap];
     addLStringValue !?varMapRegBody !"name" !lkey;
-    @string typeStr := [[type getBaseType] getCType]; #only base types supported for now.
-    addStringValue !?varMapRegBody !lstringWith[!"type"] !typeStr;
+    if varClass == [@varClass device] then
+      const @varDeviceType typeCast := (cast [type getFinalType]: @varDeviceType);
+      addLStringValue !?varMapRegBody !"type" ![typeCast typeName];
+    else
+      @string typeStr := [[type getBaseType] getCType];
+      addStringValue !?varMapRegBody !lstringWith[!"type"] !typeStr;
+    end if;
     addBoolValue !?varMapRegBody !lstringWith[!"constant"] !constant;
     addUnsignedValue !?varMapRegBody !lstringWith[!"varClassId"] ![varClass id];
     @lstring baseName := lkey;
@@ -121,12 +132,13 @@ method @varIdfStruct setInTemplate
     end if;
     addUnsignedValue !?varMapRegBody !lstringWith[!"size"] ![size uint64]; #size in bits.
 
-    #getter code.
-    addStringValue !?varMapRegBody !lstringWith[!"getter"] ![inst getter !true];
-    addStringValue !?varMapRegBody !lstringWith[!"getterNoLocal"] ![inst getter !false];
-    
-    #setter code.
-    addStringValue !?varMapRegBody !lstringWith[!"setter"] ![inst setter];
+    if varClass != [@varClass device] then
+      #getter code.
+      addStringValue !?varMapRegBody !lstringWith[!"getter"] ![inst getter !true];
+      addStringValue !?varMapRegBody !lstringWith[!"getterNoLocal"] ![inst getter !false];
+      #setter code.
+      addStringValue !?varMapRegBody !lstringWith[!"setter"] ![inst setter];
+    end if;
 
     varListTpl += !varMapRegBody;
   end foreach;

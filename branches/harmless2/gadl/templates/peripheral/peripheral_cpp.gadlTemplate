@@ -4,5 +4,13 @@
 
 peripheral_%!peripheral::name%::peripheral_%!peripheral::name%(const u32 address) : peripheral("%!peripheral::name%", %!peripheral::memSize%, address)
 {
-
+%
+foreach dev in peripheral::idfStruct::varList
+before %\t//device instantiation.\n%
+do
+  if dev::varClassId == 6 then     #device
+    %\t%!dev::name% = new %!dev::type%(address+0);\n%
+  end if
+end foreach
+%
 }
