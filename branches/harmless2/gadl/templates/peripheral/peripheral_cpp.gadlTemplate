@@ -1,16 +1,93 @@
 %template headerC%
+% #include definition of devices defined inside.
+foreach dev in peripheral::idfStruct::varList do
+  if dev::varClassId == 6 then     #device
+    %#include "periph_%!dev::type%.h"\n%
+  end if
+end foreach
+%
 
 #include "periph_%!peripheral::name%.h"
+
+typedef void (peripheral_%!peripheral::name%::*__func_%!peripheral::name%_w)(u32);
+typedef void (peripheral_%!peripheral::name%::*__func_%!peripheral::name%_r)();
+
+#include "action.h"
+
+//internal object used by peripheral
+//connexion between memory and handler.
+class peripheralActionWrite_%!peripheral::name% : public writeAction
+{
+	peripheral_%!peripheral::name% *m_peripheral;
+	const u32 m_addr;
+	__func_%!peripheral::name%_w m_func;
+
+	public:
+	peripheralActionWrite_%!peripheral::name%(peripheral_%!peripheral::name% *periph, const u32 addr, __func_%!peripheral::name%_w func);
+	virtual bool trigger(storage *,u32 data);
+};
+
+peripheralActionWrite_%!peripheral::name%::peripheralActionWrite_%!peripheral::name%(peripheral_%!peripheral::name% *periph, const u32 addr, __func_%!peripheral::name%_w func)
+: m_peripheral(periph),m_addr(addr), m_func(func)
+{
+	m_peripheral->addWriteActionAtAddress(m_addr,this);
+}
+
+bool peripheralActionWrite_%!peripheral::name%::trigger(storage *,u32 data)
+{
+	(m_peripheral->*m_func)(data);
+	return false;
+}
+
+class peripheralActionRead_%!peripheral::name% : public readAction
+{
+	peripheral_%!peripheral::name% *m_peripheral;
+	const u32 m_addr;
+	__func_%!peripheral::name%_r m_func;
+
+	public:
+	peripheralActionRead_%!peripheral::name%(peripheral_%!peripheral::name% *periph, const u32 addr, __func_%!peripheral::name%_r func);
+	virtual bool trigger(storage *);
+};
+
+peripheralActionRead_%!peripheral::name%::peripheralActionRead_%!peripheral::name%(peripheral_%!peripheral::name% *periph, const u32 addr, __func_%!peripheral::name%_r func)
+: m_peripheral(periph),m_addr(addr), m_func(func)
+{
+	m_peripheral->addReadActionAtAddress(m_addr,this);
+}
+
+bool peripheralActionRead_%!peripheral::name%::trigger(storage *)
+{
+	(m_peripheral->*m_func)();
+    return false;
+}
 
 peripheral_%!peripheral::name%::peripheral_%!peripheral::name%(const u32 address) : peripheral("%!peripheral::name%", %!peripheral::memSize%, address)
 {
 %
-foreach dev in peripheral::idfStruct::varList
+foreach dev in peripheral::deviceList
 before %\t//device instantiation.\n%
 do
-  if dev::varClassId == 6 then     #device
-    %\t%!dev::name% = new %!dev::type%(address+0);\n%
+  if dev::nb == 1 then #only one.
+    %\t%!dev::name% = new peripheral_%!dev::type%(address+%!dev::baseAddress%);\n%
+  else #tabular
+  	%\tfor(unsigned int i=0, offset = 0; i < %!dev::nb%; i++)\n%
+	%\t{\n%
+	%\t\t%!dev::name%[i] = new peripheral_%!dev::type%(address+%!dev::baseAddress%+offset);\n%
+	%\t\toffset += %!dev::name%[i]->size();\n%
+	%\t}\n%
   end if
 end foreach
+foreach reg in peripheral::regList
+before %\t//associate an action to a function handler\n%
+do
+  if exists reg::writeFunc then
+    %\tnew peripheralActionWrite_%!peripheral::name%(this,%!reg::address%,&peripheral_%!peripheral::name%::method_%!reg::writeFunc%);\n%
+  end if
+  if exists reg::readFunc then
+    %\tnew peripheralActionRead_%!peripheral::name%(this,%!reg::address%,&peripheral_%!peripheral::name%::method_%!reg::readFunc%);\n%
+  end if
+end foreach
+
 %
 }

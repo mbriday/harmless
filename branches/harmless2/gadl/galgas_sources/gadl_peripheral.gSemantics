@@ -56,7 +56,7 @@ method @ASTregisterPeriphDefMap getRegisterPeriphDefMap
       end if;
       #check return type.
       if not [outType isVoid] then
-        error [writeFuncCall location] : "The 'write' should not return any value";
+        error [readFuncCall location] : "The 'read' should not return any value";
       end if;
     end if;
     if [writeFuncCall string] != "" then
