@@ -52,7 +52,7 @@ rule <registerPeriphDef>
     hasReadFuncCall := true;
   while
     if hasWriteFuncCall then
-      error here: "A function has already been declared for the read access";
+      error here: "A function has already been declared for the write access";
     end if;
     $write$; $is$; $idf$? writeFuncCall;
     hasWriteFuncCall := true;

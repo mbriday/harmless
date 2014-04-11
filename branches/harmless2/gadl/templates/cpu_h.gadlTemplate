@@ -7,8 +7,16 @@
 #include "storage.h"
 #include "macro.h"
 
-%foreach core in coreInstanceList do
+%
+#define core classes
+foreach core in coreInstanceList do
   %class %!core::type%_core;\n%
+end foreach
+
+#includes related to devices
+let periphMap := mapof peripheralList by name
+foreach dev in cpu::deviceList do
+  %#include "periph_%!dev::type%.h"\n%
 end foreach
 
 %
@@ -23,6 +31,12 @@ class cpu
   end if
   % *%!storageName%;\n%
  end foreach
+
+#declare devices
+foreach dev in cpu::deviceList do
+  !dev::declare%\n%
+end foreach
+
 %
 	///core instances
 %
@@ -66,6 +80,20 @@ foreach mem in memSpaceList do
   let first := True
   let nbMemChunks := 0 #can optimize if there is only one.
   let storageName := ""
+  foreach dev in cpu::deviceList do
+    if mem::name == dev::memSpaceName then #chunk in same address space
+      let nbMemChunks := nbMemChunks + 1
+      %\t\t%
+      if not first then %else % else let first := False end if
+      let max := dev::baseAddress + (periphMap[dev::type]::memSize)*dev::nb -1
+      let storageName := dev::name
+      %if(%
+      if dev::baseAddress != 0 then
+        !addr% >= %!dev::baseAddress% && %
+      end if
+      !addr% <= %!max%) return %!storageName%->chunk(%!addr%);\n%
+    end if
+  end foreach
   foreach memChunk in cpu::memInCpuList do
     if mem::name == memChunk::memSpaceName then #chunk in same address space
       let nbMemChunks := nbMemChunks + 1

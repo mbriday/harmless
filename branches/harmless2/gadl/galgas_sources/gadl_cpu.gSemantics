@@ -2,6 +2,7 @@ semantics gadl_cpu :
   import "gadl_options.gOption" ;
   import "gadl_core.gSemantics";
   import "gadl_peripheral_AST.gSemantics";
+  import "gadl_peripheral_templateExport.gSemantics"; #setDeviceInTemplate
 
 #key is the name of the core
 map @ASTcoreInstanceMap
@@ -60,6 +61,7 @@ method @coreInstanceMap setInTemplate
     between code .= ", ";
     end foreach;
     addStringValue !?coreInstanceMapTplBody !lstringWith[!"paramCall"] !code;
+
     coreInstanceMapTpl += !coreInstanceMapTplBody;    
   end foreach;
   addListValue !?templateStruct !name !coreInstanceMapTpl;  
@@ -115,6 +117,7 @@ method @ASTCpuMap cpuSemantic
     ###########################################################################
     #TODO in templates.
     getInst !ASTDeviceDecList !ctx !symbolMap !?idfStruct ?@instructionList instDeviceDecList;
+    [instDeviceDecList setDeviceInTemplate !?cpuTplBody]; #devices.
     #end.
     cpuTpl += !cpuTplBody;
   end foreach;
