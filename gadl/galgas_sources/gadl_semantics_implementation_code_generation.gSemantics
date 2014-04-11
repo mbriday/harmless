@@ -287,16 +287,13 @@ override reader @instDeclaration generateCode
   -> @string code
 :
   switch access
-  when localVar:
+  when localVar,device:
     code := tabs[!nbTabulation];
     @string name := prefixLocal.[idf string];
     code .= [type getDeclaration !name !cgc];
     code .= "; // ".[type string];
   when field,programCounter,GPR,SFR,registerSlice:
     #nothing.
-    code := "";
-  when device:
-    message "TODO: override reader @instDeclaration generateCode -> device";
     code := "";
   end switch;
 end reader;
@@ -308,7 +305,6 @@ override reader @instDeclarationRegSlice generateCode
 :
   code := "";
 end reader;
-
 
 override reader @instTypeDefinition generateCode
   ?? @uint unused nbTabulation

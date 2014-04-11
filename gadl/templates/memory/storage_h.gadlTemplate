@@ -99,6 +99,8 @@ class storage
 	virtual u16 get16AtAddr(const u32 addr) {return 0;};
 	virtual u32 get32AtAddr(const u32 addr) {return 0;};
     
+    //size of the chunk.
+    virtual u32 size() = 0;
 	//debug
 	virtual void dump(const unsigned int min, const unsigned int nbVal) {};
 	void debugMemoryAccessRead(const u32 address, const unsigned int value, const unsigned char sizeInBytes);
@@ -205,8 +207,12 @@ class dumStorage : public storage
 		std::map<u32,writeAction *> m_writeActions;
 		#endif
 	#endif
-};      
-    
+
+   public:
+	//size of the chunk.
+	virtual u32 size() {return m_size;};
+};
+
 class roStorage : public dumStorage
 {
 	public:

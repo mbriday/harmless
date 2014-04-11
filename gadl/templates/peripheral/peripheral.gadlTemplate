@@ -11,13 +11,13 @@ end write
 %peripheral.cpp \\\n%
 
 #action (-> called by a memory acces).
-write to exportDir."/peripheral_action.h":
-  template peripheral_action_h
-end write
-write to exportDir."/peripheral_action.cpp":
-  template peripheral_action_cpp
-end write
-%peripheral_action.cpp \\\n%
+#write to exportDir."/peripheral_action.h":
+#  template peripheral_action_h
+#end write
+#write to exportDir."/peripheral_action.cpp":
+#  template peripheral_action_cpp
+#end write
+#%peripheral_action.cpp \\\n%
 
 
 #each peripheral has its own class.

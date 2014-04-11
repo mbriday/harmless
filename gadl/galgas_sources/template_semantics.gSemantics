@@ -496,12 +496,13 @@ function extractMapTemplateStructureRec
   ?? @uint nbTab
   -> @string str
 :
-  str := "";
+  str := "<item key=\"item\">";
   foreach templateVariableMap (@lstring key @Ttype mType @Tvalue mValue) do
     str .= "\n".tabsTpl[!nbTab]."<item key=\"".[key string]."\" type=\"".[mType messageGoilTemplateType]."\">";
     str .= printValue[!mType !mValue !nbTab];
     str .= "</item>";
   end foreach;
+  str .= "</item>\n";
 end function;
 
 #list type (recursive)
@@ -514,7 +515,6 @@ function extractListTemplateStructureRec
   foreach templateVariableList (@TfieldMap fieldMap) do
     str .= extractMapTemplateStructureRec[!fieldMap !nbTab];
   end foreach;
-  str .= "\n";
 end function;
 
 routine extractTemplateStructure

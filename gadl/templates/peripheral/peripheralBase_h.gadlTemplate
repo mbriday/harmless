@@ -12,11 +12,11 @@ class peripheral : public rwStorage
 	
 	//should only be called by an action 
 	//(in response to a read access to memory).
-	virtual bool readAction(u32 address) = 0;
+	//virtual bool readAction(u32 address) = 0;
 
 	//should only be called by an action 
 	//(in response to a read access to memory).
-	virtual bool writeAction(u32 address, u8 data) = 0;
+	//virtual bool writeAction(u32 address, u8 data) = 0;
 };
 
 #endif
