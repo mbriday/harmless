@@ -24,6 +24,9 @@ end foreach
 	public:
 		peripheral_%!peripheral::name%(const u32 address);
 
+%if [peripheral::deviceList length] > 0 then
+	%\tvirtual peripheral *chunk(u32 address);\n%
+end if%
 		///register accessors (-> remap in memory for 'actions').
 %
 let regMap := mapof peripheral::regList by name

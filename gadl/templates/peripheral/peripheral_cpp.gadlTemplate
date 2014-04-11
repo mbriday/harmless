@@ -61,7 +61,8 @@ bool peripheralActionRead_%!peripheral::name%::trigger(storage *)
 	(m_peripheral->*m_func)();
     return false;
 }
-
+%# constructor part.
+%
 peripheral_%!peripheral::name%::peripheral_%!peripheral::name%(const u32 address) : peripheral("%!peripheral::name%", %!peripheral::memSize%, address)
 {
 %
@@ -82,12 +83,34 @@ foreach reg in peripheral::regList
 before %\t//associate an action to a function handler\n%
 do
   if exists reg::writeFunc then
-    %\tnew peripheralActionWrite_%!peripheral::name%(this,%!reg::address%,&peripheral_%!peripheral::name%::method_%!reg::writeFunc%);\n%
+    %\tnew peripheralActionWrite_%!peripheral::name%(this,address+%!reg::address%,&peripheral_%!peripheral::name%::method_%!reg::writeFunc%);\n%
   end if
   if exists reg::readFunc then
-    %\tnew peripheralActionRead_%!peripheral::name%(this,%!reg::address%,&peripheral_%!peripheral::name%::method_%!reg::readFunc%);\n%
+    %\tnew peripheralActionRead_%!peripheral::name%(this,address+%!reg::address%,&peripheral_%!peripheral::name%::method_%!reg::readFunc%);\n%
   end if
 end foreach
-
 %
 }
+%# get Chunk part, only if there are included devices (else use default).
+%
+%if [peripheral::deviceList length] > 0 then
+%peripheral *peripheral_%!peripheral::name%::chunk(const u32 address)
+{
+\tperipheral *result;
+%foreach dev in peripheral::deviceList do
+  if dev::nb == 1 then #only one.
+    %\tresult = %!dev::name%->chunk(address);\n%
+    %\tif(result) return result;\n%
+  else
+	%\tfor(int i=0;i < %!dev::nb%; i++)
+	{
+		result = %!dev::name%[i]->chunk(address);
+		if(result) return result;
+	}
+% end if
+end foreach
+%	//not found in included devices
+	if(matchAddress(address)) return this;
+	else return NULL;
+}%
+end if
