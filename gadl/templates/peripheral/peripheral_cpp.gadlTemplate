@@ -30,7 +30,9 @@ class peripheralActionWrite_%!peripheral::name% : public writeAction
 peripheralActionWrite_%!peripheral::name%::peripheralActionWrite_%!peripheral::name%(peripheral_%!peripheral::name% *periph, const u32 addr, __func_%!peripheral::name%_w func)
 : m_peripheral(periph),m_addr(addr), m_func(func)
 {
-	m_peripheral->addWriteActionAtAddress(m_addr,this);
+	#ifndef GADL_NO_ACTION
+		m_peripheral->addWriteActionAtAddress(m_addr,this);
+	#endif
 }
 
 bool peripheralActionWrite_%!peripheral::name%::trigger(storage *,u32 &data, u32 oldData)
@@ -55,7 +57,9 @@ class peripheralActionRead_%!peripheral::name% : public readAction
 peripheralActionRead_%!peripheral::name%::peripheralActionRead_%!peripheral::name%(peripheral_%!peripheral::name% *periph, const u32 addr, __func_%!peripheral::name%_r func)
 : m_peripheral(periph),m_addr(addr), m_func(func)
 {
-	m_peripheral->addReadActionAtAddress(m_addr,this);
+	#ifndef GADL_NO_ACTION
+		m_peripheral->addReadActionAtAddress(m_addr,this);
+	#endif
 }
 
 bool peripheralActionRead_%!peripheral::name%::trigger(storage *, u32 &data)
