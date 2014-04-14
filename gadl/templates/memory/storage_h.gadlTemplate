@@ -68,9 +68,9 @@ class storage
 	 * write in memory: may trigger an action.
 	 * \param address is the address of the memory access.
 	 */
-	virtual void write8AtAddress(const u32 address, const u8 data8) = 0;
-	virtual void write16AtAddress(const u32 address, const u16 data16) = 0;
-	virtual void write32AtAddress(const u32 address, const u32 data32) = 0;
+	virtual void write8AtAddress(const u32 address, u8 data8) = 0;
+	virtual void write16AtAddress(const u32 address, u16 data16) = 0;
+	virtual void write32AtAddress(const u32 address, u32 data32) = 0;
     
 	
 	#ifndef GADL_NO_ACTION
@@ -130,9 +130,9 @@ class dumStorage : public storage
 	virtual u16 read16AtAddress(const u32 address);
 	virtual u32 read32AtAddress(const u32 address);
 	
-	virtual void write8AtAddress(const u32 address, const u8 data8);
-	virtual void write16AtAddress(const u32 address, const u16 data16);
-	virtual void write32AtAddress(const u32 address, const u32 data32);
+	virtual void write8AtAddress(const u32 address, u8 data8);
+	virtual void write16AtAddress(const u32 address, u16 data16);
+	virtual void write32AtAddress(const u32 address, u32 data32);
 	
 	#ifndef GADL_NO_ACTION
 		virtual void addReadActionAtAddress(const u32 address, readAction* act);
@@ -171,8 +171,8 @@ class dumStorage : public storage
   		void removeWriteActions();
   		
 		void resetActionFlags();
-		void triggerActionWhenRead(const u32 address);
-		void triggerActionWhenWrite(const u32 address, const u32 val);
+		void triggerActionWhenRead(const u32 address, u32 &val);
+		void triggerActionWhenWrite(const u32 address, u32 &val, const u32 oldVal);
     
 		#ifdef ACTION_FAST
 		// tab of execute actions. Tab size is m_size
@@ -261,9 +261,9 @@ class rwStorage : public roStorage
 	rwStorage(std::string name, u32 size, u32 offset, int alignment = 1);
 	rwStorage(const rwStorage &mem);
 
-	virtual void write8AtAddress(const u32 address, const u8 data8);
-	virtual void write16AtAddress(const u32 address, const u16 data16);
-	virtual void write32AtAddress(const u32 address, const u32 data32);
+	virtual void write8AtAddress(const u32 address, u8 data8);
+	virtual void write16AtAddress(const u32 address, u16 data16);
+	virtual void write32AtAddress(const u32 address, u32 data32);
 };
 
 

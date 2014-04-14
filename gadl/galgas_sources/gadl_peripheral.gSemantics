@@ -49,27 +49,29 @@ method @ASTregisterPeriphDefMap getRegisterPeriphDefMap
     #check that the Function call are defined.
     if [readFuncCall string] != "" then
       [ASTFunctionMap searchKey !readFuncCall ?@parameterDefList param ?@varAbstractType outType ?*];
-      #no parameter for read.
+      #one parameter valued with the current data in mem.
       @parameterDefList paramExpected [emptyList];
+      paramExpected += !false !vbt ![@lstring new !"data" !here];
       if not [param checkEqual !paramExpected ![readFuncCall location]] then
         error [readFuncCall location] : "The 'read' callback does not have correct parameters";
       end if;
-      #check return type.
-      if not [outType isVoid] then
-        error [readFuncCall location] : "The 'read' should not return any value";
+      #check return type. 
+      if not [outType checkEqual !vbt] then
+        error [readFuncCall location] : "The 'read' should return the value updated by the read handler";
       end if;
     end if;
     if [writeFuncCall string] != "" then
       [ASTFunctionMap searchKey !writeFuncCall ?@parameterDefList param ?@varAbstractType outType ?*];
-      #param: only 1 parameter, same type as the register size.
+      #param: 2 parameters (data and old data), same type as the register size.
       @parameterDefList paramExpected [emptyList];
       paramExpected += !false !vbt ![@lstring new !"data" !here];
+      paramExpected += !false !vbt ![@lstring new !"oldData" !here];
       if not [param checkEqual !paramExpected ![writeFuncCall location]] then
         error [writeFuncCall location] : "The 'write' callback does not have correct parameters";
       end if;
       #check return type.
-      if not [outType isVoid] then
-        error [writeFuncCall location] : "The 'write' should not return any value";
+      if not [outType checkEqual !vbt] then
+        error [writeFuncCall location] : "The 'write' should return the value updated by the write handler";
       end if;
     end if;
     #insert in map.
