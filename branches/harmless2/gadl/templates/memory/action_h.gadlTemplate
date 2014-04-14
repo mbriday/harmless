@@ -35,7 +35,7 @@ class writeAction : public action
   public:
     writeAction() :action() {};  
 	virtual ~writeAction() {};  
-    virtual bool trigger(storage *,u32 data) = 0;
+    virtual bool trigger(storage *,u32 &data, u32 oldData) = 0;
 	virtual bool isSpyAction() {return false;};
 };
 
@@ -47,7 +47,7 @@ class readAction : public action
   public:
     readAction() : action() {};  
     virtual ~readAction() {};  
-    virtual bool trigger(storage *) = 0;
+    virtual bool trigger(storage *,u32 &data) = 0;
 };
 
 //one execute action for any core

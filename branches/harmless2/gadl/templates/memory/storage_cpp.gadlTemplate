@@ -240,7 +240,7 @@ bool dumStorage::matchAddress(const u32 address)
 		#endif
 	}
 
-	void dumStorage::triggerActionWhenRead(const u32 address)
+	void dumStorage::triggerActionWhenRead(const u32 address, u32 &data32)
 	{
 		#ifdef ACTION_FAST	
 		readAction *currentAction = m_readActionsTab[address];
@@ -261,7 +261,7 @@ bool dumStorage::matchAddress(const u32 address)
                 while(currentAction)
                 {
                     next = (readAction *)(currentAction->next());
-                    if(currentAction->trigger(this)) //call the trigger method
+                    if(currentAction->trigger(this,data32)) //call the trigger method
                     {
                         //remove read action.
                         if(previous) //not first action, there is a previous
@@ -302,9 +302,9 @@ bool dumStorage::matchAddress(const u32 address)
 		}
 	}
 	
-	void dumStorage::triggerActionWhenWrite(const u32 address, const u32 val)
+	void dumStorage::triggerActionWhenWrite(const u32 address, u32 &val, const u32 oldVal)
 	{
-		#ifdef ACTION_FAST	
+		#ifdef ACTION_FAST
 		writeAction *currentAction = m_writeActionsTab[address];
 		if(currentAction)
 		{			
@@ -323,7 +323,7 @@ bool dumStorage::matchAddress(const u32 address)
                 while(currentAction)
                 {
                     next = (writeAction *)(currentAction->next());
-                    if(currentAction->trigger(this,val)) //call the trigger method
+                    if(currentAction->trigger(this,val,oldVal)) //call the trigger method
                     {
                         //remove the execute action.
                         if(previous) //not first action, there is a previous
@@ -412,7 +412,8 @@ u32 dumStorage::read32AtAddress(const u32 address)
 		#else
 		if(m_readActionFlag) {
 		#endif
-			triggerActionWhenRead(addressOff);
+			u32 dummy = 0;
+			triggerActionWhenRead(addressOff, dummy);
 		}
 	}
 
@@ -424,7 +425,8 @@ u32 dumStorage::read32AtAddress(const u32 address)
 		#else
 		if(m_readActionFlag) {
 		#endif
-			triggerActionWhenRead(addressOff);
+			u32 dummy = 0;
+			triggerActionWhenRead(addressOff, dummy);
 		}
 	}
 	
@@ -436,12 +438,13 @@ u32 dumStorage::read32AtAddress(const u32 address)
 		#else
 		if(m_readActionFlag) {
 		#endif
-			triggerActionWhenRead(addressOff);
+			u32 dummy = 0;
+			triggerActionWhenRead(addressOff, dummy);
 		}
 	}
 #endif
 
-void dumStorage::write8AtAddress(const u32 address, const u8 data8)
+void dumStorage::write8AtAddress(const u32 address, u8 data8)
 {
 	#ifdef DEBUG_STORAGE_ACCESS
 		debugMemoryAccessWrite(address, data8, 1);
@@ -456,12 +459,13 @@ void dumStorage::write8AtAddress(const u32 address, const u8 data8)
 		#else
 		if(m_writeActionFlag) {
 		#endif
-			triggerActionWhenWrite(addressOff,data8);
+			u32 data32 = data8;
+			triggerActionWhenWrite(addressOff,data32,data8);
 		}
 	#endif
 }
 
-void dumStorage::write16AtAddress(const u32 address, const u16 data16)
+void dumStorage::write16AtAddress(const u32 address, u16 data16)
 {
 	#ifdef DEBUG_STORAGE_ACCESS
 		debugMemoryAccessWrite(address, data16, 2);
@@ -476,13 +480,14 @@ void dumStorage::write16AtAddress(const u32 address, const u16 data16)
 		if(m_writeActionsTab) {
 		#else
 		if(m_writeActionFlag) {
-		#endif			
-			triggerActionWhenWrite(addressOff, data16);
+		#endif
+			u32 data32 = data16;
+			triggerActionWhenWrite(addressOff, data32,data16);
 		}
 	#endif
 }
 
-void dumStorage::write32AtAddress(const u32 address, const u32 data32)
+void dumStorage::write32AtAddress(const u32 address, u32 data32)
 {
 	#ifdef DEBUG_STORAGE_ACCESS
 		debugMemoryAccessWrite(address, data32, 4);
@@ -500,7 +505,7 @@ void dumStorage::write32AtAddress(const u32 address, const u32 data32)
 		#else
 		if(m_writeActionFlag) {
 		#endif			
-			triggerActionWhenWrite(addressOff,data32);
+			triggerActionWhenWrite(addressOff,data32, data32);
 		}
 	#endif
 }
@@ -836,18 +841,25 @@ u8 roStorage::read8AtAddress(const u32 address)
 	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
 		checkForValidAddress(address);
 	#endif
+	//read access.
+	unsigned char val = *((u8*)((size_t)m_storage + addressOff));
 	//actions
 	#ifndef GADL_NO_ACTION
+		const u8 oldVal = val;
 		#ifdef ACTION_FAST	
 		if(m_readActionsTab) {
 		#else
 		if(m_readActionFlag) {
 		#endif
-			triggerActionWhenRead(addressOff);
+			u32 data32 = val;
+			triggerActionWhenRead(addressOff,data32);
+			val = (u8)data32;
+		}
+		//may be updated.
+		if(oldVal != val) {
+			*((u8*)((size_t)roStorage::m_storage + addressOff)) = val;
 		}
 	#endif
-	//read access.
-	const unsigned char val = *((u8*)((size_t)m_storage + addressOff));
 	#ifdef DEBUG_STORAGE_ACCESS
 		debugMemoryAccessRead(address, val, 1);
 	#endif
@@ -863,22 +875,35 @@ u16 roStorage::read16AtAddress(const u32 address)
 		checkForValidAddress(address);
 		checkForValidAddress(address+1);
 	#endif
+	//read access.
+	#ifdef __CHANGE_ENDIAN__
+		const u16 temp=*((u16*)((size_t)m_storage + addressOff));
+		u16 val = (((temp & 0x00FF) << 8) | ((temp & 0xFF00) >> 8));
+	#else
+		u16 val = *((u16*)((size_t)m_storage + addressOff));
+	#endif
 	//actions
 	#ifndef GADL_NO_ACTION
+		const u16 oldVal = val;
 		#ifdef ACTION_FAST	
 		if(m_readActionsTab) {
 		#else
 		if(m_readActionFlag) {
 		#endif
-			triggerActionWhenRead(addressOff);
+			u32 data32 = val;
+			triggerActionWhenRead(addressOff,data32);
+			val = (u16)data32;
 		}
-	#endif
-	//read access.
-	#ifdef __CHANGE_ENDIAN__
-		const u16 temp=*((u16*)((size_t)m_storage + addressOff));
-		const u16 val = (((temp & 0x00FF) << 8) | ((temp & 0xFF00) >> 8));
-	#else
-		const u16 val = *((u16*)((size_t)m_storage + addressOff));
+		//may be updated.
+		if(oldVal != val) {
+			#ifdef __CHANGE_ENDIAN__
+				u16 temp =((val & 0x00FF) << 8) | ((val & 0xFF00) >> 8);
+			#else
+				u16 temp=val;
+			#endif
+			//mem update
+			*((u16*)((size_t)roStorage::m_storage + addressOff)) = temp;
+		}
 	#endif
 	#ifdef DEBUG_STORAGE_ACCESS
 		debugMemoryAccessRead(address, val, 2);
@@ -897,25 +922,39 @@ u32 roStorage::read32AtAddress(const u32 address)
 		checkForValidAddress(address+2);
 		checkForValidAddress(address+3);
 	#endif
+	//read access.
+	#ifdef __CHANGE_ENDIAN__
+		const u32 temp=*((u32*)((size_t)m_storage + addressOff));
+		u32 val = (((temp & 0x000000FF) << 24) | 
+		           ((temp & 0x0000FF00) <<  8) |
+ 		           ((temp & 0x00FF0000) >>  8) |
+	               ((temp & 0xFF000000) >> 24) );
+	#else
+		u32 val = *((u32*)((size_t)m_storage + addressOff));
+	#endif
 	//actions
 	#ifndef GADL_NO_ACTION
+		const u32 oldVal = val;
 		#ifdef ACTION_FAST	
 		if(m_readActionsTab) {
 		#else
 		if(m_readActionFlag) {
 		#endif
-			triggerActionWhenRead(addressOff);
+			triggerActionWhenRead(addressOff,val);
 		}
-	#endif
-	//read access.
-	#ifdef __CHANGE_ENDIAN__
-		const u32 temp=*((u32*)((size_t)m_storage + addressOff));
-		const u32 val = (((temp & 0x000000FF) << 24) | 
-		                 ((temp & 0x0000FF00) <<  8) |
- 		                 ((temp & 0x00FF0000) >>  8) |
-		                 ((temp & 0xFF000000) >> 24) );
-	#else
-		const u32 val = *((u32*)((size_t)m_storage + addressOff));
+		//may be updated.
+		if(oldVal != val) {
+			#ifdef __CHANGE_ENDIAN__
+				const u32 temp=(((val & 0x000000FF) << 24) | 
+								((val & 0x0000FF00) <<  8) |
+								((val & 0x00FF0000) >>  8) |
+								((val & 0xFF000000) >> 24) );
+			#else
+				const u32 temp=val;
+			#endif
+			//mem update
+			*((u32*)((size_t)roStorage::m_storage + addressOff)) = temp;
+		}
 	#endif
 	//debug.
 	#ifdef DEBUG_STORAGE_ACCESS
@@ -965,13 +1004,25 @@ roStorage(name, size,offset,alignment)
 {
 }
 
-void rwStorage::write8AtAddress(const u32 address, const u8 data8)
+void rwStorage::write8AtAddress(const u32 address, u8 data8)
 {
+	const u32 addressOff = address - dumStorage::m_offset;
+	//debug
 	#ifdef DEBUG_STORAGE
 		cout << "write8 0x" << hex << data8 << " at @: 0x" << address << endl;
 	#endif
-	const u32 addressOff = address - dumStorage::m_offset;
-	*((u8*)((size_t)roStorage::m_storage + addressOff)) = data8;
+	#ifndef GADL_NO_ACTION
+		//get old value
+		const unsigned char oldVal = *((u8*)((size_t)m_storage + addressOff));
+		#ifdef ACTION_FAST	
+		if(m_writeActionsTab) {
+		#else
+		if(m_writeActionFlag) {
+		#endif
+			u32 data32 = data8;
+			triggerActionWhenWrite(addressOff,data32,oldVal);
+		}
+	#endif	
 	//duplicate some code (from dumStorage), because memory access
 	//needs efficiency.
 	#ifdef DEBUG_STORAGE_ACCESS
@@ -980,29 +1031,41 @@ void rwStorage::write8AtAddress(const u32 address, const u8 data8)
 	#ifdef DEBUG_STORAGE_ADDRESS_RANGE
 		checkForValidAddress(address);
 	#endif
+	//effective mem update
+	*((u8*)((size_t)roStorage::m_storage + addressOff)) = data8;
+}
+
+void rwStorage::write16AtAddress(const u32 address, u16 data16)
+{
+	const u32 addressOff = address - dumStorage::m_offset;
+	//debug
+	#ifdef DEBUG_STORAGE
+		cout << "write16 0x" << hex << data16 << " at @: 0x" << address << endl;
+	#endif
 	#ifndef GADL_NO_ACTION
+		//get old value
+		#ifdef __CHANGE_ENDIAN__
+			const u16 oldTemp = *((u16*)((size_t)m_storage + addressOff));
+			const u16 oldVal = (((oldTemp & 0x00FF) << 8) | ((oldTemp & 0xFF00) >> 8));
+		#else
+			const u16 oldVal = *((u16*)((size_t)m_storage + addressOff));
+		#endif
+		//action trigger.
 		#ifdef ACTION_FAST	
 		if(m_writeActionsTab) {
 		#else
 		if(m_writeActionFlag) {
 		#endif
-			triggerActionWhenWrite(addressOff,data8);
+			u32 data32 = data16;
+			triggerActionWhenWrite(addressOff,data32,oldVal);
 		}
-	#endif	
-}
-
-void rwStorage::write16AtAddress(const u32 address, const u16 data16)
-{
-	#ifdef DEBUG_STORAGE
-		cout << "write16 0x" << hex << data16 << " at @: 0x" << address << endl;
 	#endif
+	//endianness
 	#ifdef __CHANGE_ENDIAN__
 		u16 temp =((data16 & 0x00FF) << 8) | ((data16 & 0xFF00) >> 8);
 	#else
 		u16 temp=data16;
 	#endif
-	const u32 addressOff = address - dumStorage::m_offset;
-	*((u16*)((size_t)roStorage::m_storage + addressOff)) = temp;
 	//duplicate some code (from dumStorage), because memory access
 	//needs efficiency.
 	#ifdef DEBUG_STORAGE_ACCESS
@@ -1012,32 +1075,47 @@ void rwStorage::write16AtAddress(const u32 address, const u16 data16)
 		checkForValidAddress(address);
 		checkForValidAddress(address+1);
 	#endif
+	//effective mem update
+	*((u16*)((size_t)roStorage::m_storage + addressOff)) = temp;
+}
+
+void rwStorage::write32AtAddress(const u32 address, u32 data32)
+{
+	const u32 addressOff = address - dumStorage::m_offset;
+	//debug
+	#ifdef DEBUG_STORAGE
+		cout << "write32 0x" << hex << data32 << " at @: 0x" << address << endl;
+	#endif
 	#ifndef GADL_NO_ACTION
+		//get old value
+		#ifdef __CHANGE_ENDIAN__
+			const u32 oldTemp = *((u32*)((size_t)m_storage + addressOff));
+			const u32 oldVal = (((oldTemp & 0x000000FF) << 24) | 
+			                    ((oldTemp & 0x0000FF00) <<  8) |
+ 			                    ((oldTemp & 0x00FF0000) >>  8) |
+			                    ((oldTemp & 0xFF000000) >> 24) );
+		#else
+			const u32 oldVal = *((u32*)((size_t)m_storage + addressOff));
+		#endif
+		//action trigger.
 		#ifdef ACTION_FAST	
 		if(m_writeActionsTab) {
 		#else
 		if(m_writeActionFlag) {
 		#endif
-			triggerActionWhenWrite(addressOff,data16);
+			//data32 may be modified.
+			triggerActionWhenWrite(addressOff,data32,oldVal);
 		}
 	#endif
-}
-
-void rwStorage::write32AtAddress(const u32 address, const u32 data32)
-{
-	#ifdef DEBUG_STORAGE
-		cout << "write32 0x" << hex << data32 << " at @: 0x" << address << endl;
-	#endif
+	//endianness
 	#ifdef __CHANGE_ENDIAN__
 	u32 temp=  (	((data32 & 0x000000FF) << 24) | 
 		((data32 & 0x0000FF00) <<  8) |
 		((data32 & 0x00FF0000) >>  8) |
 		((data32 & 0xFF000000) >> 24) );
 	#else
-		u32 temp=data32;    
+		u32 temp=data32;
 	#endif
-	const u32 addressOff = address - dumStorage::m_offset;
-	*((u32*)((size_t)roStorage::m_storage + addressOff)) = temp;
 	//duplicate some code (from dumStorage), because memory access
 	//needs efficiency.
 	#ifdef DEBUG_STORAGE_ACCESS
@@ -1049,13 +1127,6 @@ void rwStorage::write32AtAddress(const u32 address, const u32 data32)
 		checkForValidAddress(address+2);
 		checkForValidAddress(address+3);
 	#endif
-	#ifndef GADL_NO_ACTION
-		#ifdef ACTION_FAST	
-		if(m_writeActionsTab) {
-		#else
-		if(m_writeActionFlag) {
-		#endif
-			triggerActionWhenWrite(addressOff,data32);
-		}
-	#endif
+	//effective mem update
+	*((u32*)((size_t)roStorage::m_storage + addressOff)) = temp;
 }

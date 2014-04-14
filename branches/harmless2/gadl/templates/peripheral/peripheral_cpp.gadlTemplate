@@ -9,8 +9,8 @@ end foreach
 
 #include "periph_%!peripheral::name%.h"
 
-typedef void (peripheral_%!peripheral::name%::*__func_%!peripheral::name%_w)(u32);
-typedef void (peripheral_%!peripheral::name%::*__func_%!peripheral::name%_r)();
+typedef u32 (peripheral_%!peripheral::name%::*__func_%!peripheral::name%_w)(u32 ,u32);
+typedef u32 (peripheral_%!peripheral::name%::*__func_%!peripheral::name%_r)(u32);
 
 #include "action.h"
 
@@ -24,7 +24,7 @@ class peripheralActionWrite_%!peripheral::name% : public writeAction
 
 	public:
 	peripheralActionWrite_%!peripheral::name%(peripheral_%!peripheral::name% *periph, const u32 addr, __func_%!peripheral::name%_w func);
-	virtual bool trigger(storage *,u32 data);
+	virtual bool trigger(storage *,u32 &data, u32 oldData);
 };
 
 peripheralActionWrite_%!peripheral::name%::peripheralActionWrite_%!peripheral::name%(peripheral_%!peripheral::name% *periph, const u32 addr, __func_%!peripheral::name%_w func)
@@ -33,9 +33,11 @@ peripheralActionWrite_%!peripheral::name%::peripheralActionWrite_%!peripheral::n
 	m_peripheral->addWriteActionAtAddress(m_addr,this);
 }
 
-bool peripheralActionWrite_%!peripheral::name%::trigger(storage *,u32 data)
+bool peripheralActionWrite_%!peripheral::name%::trigger(storage *,u32 &data, u32 oldData)
 {
-	(m_peripheral->*m_func)(data);
+	u32 baseValue = data;
+	u32 updatedValue = (m_peripheral->*m_func)(baseValue, oldData);
+	data = updatedValue;
 	return false;
 }
 
@@ -47,7 +49,7 @@ class peripheralActionRead_%!peripheral::name% : public readAction
 
 	public:
 	peripheralActionRead_%!peripheral::name%(peripheral_%!peripheral::name% *periph, const u32 addr, __func_%!peripheral::name%_r func);
-	virtual bool trigger(storage *);
+	virtual bool trigger(storage *, u32 &data);
 };
 
 peripheralActionRead_%!peripheral::name%::peripheralActionRead_%!peripheral::name%(peripheral_%!peripheral::name% *periph, const u32 addr, __func_%!peripheral::name%_r func)
@@ -56,9 +58,11 @@ peripheralActionRead_%!peripheral::name%::peripheralActionRead_%!peripheral::nam
 	m_peripheral->addReadActionAtAddress(m_addr,this);
 }
 
-bool peripheralActionRead_%!peripheral::name%::trigger(storage *)
+bool peripheralActionRead_%!peripheral::name%::trigger(storage *, u32 &data)
 {
-	(m_peripheral->*m_func)();
+	u32 baseValue = data;
+	u32 updatedValue = (m_peripheral->*m_func)(baseValue);
+	data = updatedValue;
     return false;
 }
 %# constructor part.
