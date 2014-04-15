@@ -675,7 +675,7 @@ override reader @ASTIdf getExp
       foreach ASTparamList(@ASTExpression ASTexp) do
         paramList += ![ASTexp getExp !ctx !symbolMap !idfStruct];
       end foreach;
-      itemList += !idf !itemType !paramList;  
+      itemList += !idf !itemType !paramList ![@idfItemSpecificType unknown];
     end foreach;
     #update location of idfExpType:
     @varAbstractType idfExpTypeWithLoc := [idfExpType changeLoc !loc];

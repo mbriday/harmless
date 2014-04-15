@@ -198,7 +198,7 @@ reader @expIdf generateIdfListCode
   -> @string code
 :
   code := "";
-  foreach idfList (@lstring idf @idfItemType type @expressionlist paramList) do
+  foreach idfList (@lstring idf @idfItemType type @expressionlist paramList *) do
     #TODO: should be corrected for complex types, inlining, @..
     if type == [@idfItemType basic] then
       code .= [idf string];
