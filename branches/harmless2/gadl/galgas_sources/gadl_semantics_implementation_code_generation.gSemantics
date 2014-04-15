@@ -240,7 +240,7 @@ override reader @instAssignment generateCode
   -> @string code
 :
   code := tabs[!nbTabulation];
-  @varKind kind := [[idf type] kind]; #unsigned, signed, float, custom, tabular
+  @varKind kind := [[idfAssign type] kind]; #unsigned, signed, float, custom, tabular
   if kind ==  [@varKind custom] then #specific case (memcopy)
     code := "TODO Struct";
   else
@@ -250,18 +250,16 @@ override reader @instAssignment generateCode
     @string rightPart;
     @string rightExp := [exp generateCode !cgc];
     @string leftPart;
-    @string idfReadAccess  := ""; #used for field access.
-    maskStr := getMaskFor[![[idf type] sizeInBits] ![[idf type] loc] !cgc];
+    maskStr := getMaskFor[![[idfAssign type] sizeInBits] ![[idfAssign type] loc] !cgc];
 
     #left part.
-    idfReadAccess := [idf generateCode !cgc];
-    switch [idf detectedType]
+    switch [idfAssign detectedType]
     when unknown:
-      error loc: "The identifier is unknown":leftPart;
+      error loc: "The identifier is unknown in assignment (code generation) ":leftPart;
     when structMember,localVar,tabularAccess: #variable access.
-      leftPart := idfReadAccess." = ";  
+      leftPart := [idfAssign generateCode !cgc]." = ";  
     when registerAccess,registerBitField: #register
-      leftPart := [idf generateSetterCode !cgc]."(";
+      leftPart := [idfAssign generateSetterCode !cgc]."(";
       postInstruction := ")";
     when componentCall,memoryAccess,periphCall:
       error loc: "Cannot assign a function call or memory access.":leftPart;
@@ -271,7 +269,7 @@ override reader @instAssignment generateCode
     if [flist length] == 0 then
       rightPart := rightExp;
     else
-      rightPart := [flist getAssignCode !cgc !idfReadAccess !rightExp];
+      rightPart := [flist getAssignCode !cgc ![idfRead generateCode !cgc] !rightExp];
     end if;
 
     code .= leftPart;

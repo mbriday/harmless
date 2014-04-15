@@ -54,21 +54,24 @@ struct @varIdfStruct {
   @string idfPrefixCore; #prefix to access a core (components, mem,..)
   @string idfPrefixLocal; #prefix for local vars only (to prevent same names when inlining).TODO remove.
   @componentMap componentMap;
-  @ASTFunctionMap currentPeriphMethods; #to get prototypes of methods defined in the current periph.
+  @lstring currentPeriphName; #to get prototypes of methods defined in the current periph.
+  #@ASTFunctionMap currentPeriphMethods; #to get prototypes of methods defined in the current periph.
   @ASTperipheralMap ASTperipheralMap; #peripheral map.
   #if an idf is in this map, it should be replaced in the code. This is used
   #when inlining a function with a 'out' parameter.
   @lstringMap replaceMap;
   @memSpaceMap memSpaceMap; #memory space (not defined in isa).
+  @bool assign; #true for left side of an assignment.
 }
 
 reader @varIdfStruct string
   -> @string str
 :
+  #base.
   str := "varMap ".[varMap string]."\n";
   str .= "prefix ".idfprefix."\n";
   str .= "suffix ".idfSuffixName."\n";
-  #str .= "componentMap ".[componentMap string]."\n"; #TODO
+  #components
   foreach componentMap 
   before str .= "componentMap:\n";  
   do
@@ -77,12 +80,16 @@ reader @varIdfStruct string
       str.= "\t\t".[lkey string]."\n";
     end foreach;
   end foreach;
+  #peripherals
   str .= [ASTperipheralMap string];
+  #replace Map
+  str .= "replaceMap:\n";  
+  
   foreach replaceMap 
   before str .= "replaceMap:\n";  
   do str .= "\t".[lkey string]." -> ".[lstr string]."\n";
   end foreach;
-
+  #mem spaces
   foreach memSpaceMap 
   before str .= "mem space map :\n";  
   do

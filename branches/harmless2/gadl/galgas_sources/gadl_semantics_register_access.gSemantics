@@ -236,7 +236,7 @@ override method @instAssignment getRegisterUsage
   #right part of assignment.
   [exp getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false];
   #left part are written.
-  [idf getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !true];
+  [idfAssign getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !true];
 end method;
 
 routine checkForAccessInRegisterFile
@@ -289,7 +289,7 @@ override method @instFunctionCall getRegisterUsage
   end foreach;
   switch [exp detectedType]
     when unknown,structMember,localVar,tabularAccess,registerAccess,registerBitField:
-      error loc: "invalid detected type for a function call".[[exp detectedType] msg];
+      error loc: "invalid detected type for a function call".[[exp detectedType] string];
     when componentCall:
       @instructionList instList := [varIdfStruct->componentMap getInstList ![exp idfList]];
       foreach instList do
