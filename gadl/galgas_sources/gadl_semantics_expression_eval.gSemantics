@@ -117,7 +117,7 @@ override reader @expIdf eval
   #not for tabulars nor function calls.
   @bool mayBeInSymbolMap := true;
   @string key := "";
-  foreach idfList(@lstring idf @idfItemType type @expressionlist paramList) while mayBeInSymbolMap do
+  foreach idfList(@lstring idf @idfItemType type @expressionlist paramList *) while mayBeInSymbolMap do
     key .= [idf string];
     if type != [@idfItemType basic] then 
       mayBeInSymbolMap := false;

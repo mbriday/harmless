@@ -87,6 +87,7 @@ list @idfItemList
   @lstring idf;
   @idfItemType type; #see gadl_semantics_AST_expression.gSemantics: basic, tabular, function call.
   @expressionlist paramList; #for a function call, or 1 item for tabular.
+  @idfItemSpecificType specificType; #specific type (register, peripheral method, …)
 }
 
 reader @idfItemList string -> @string name :
@@ -129,6 +130,25 @@ reader @idfType msg -> @string out :
   end switch;
 end reader;
 
+#define the type of the idf item that have been 
+#determined during 'getExp' method (build of expIdf).
+enum @idfItemSpecificType
+{
+  unknown,          #should not be determined -> error
+  register,         #->access through a function in code generation
+  periphMethod,     #
+  standard          #basic item (nothing special).
+}
+
+reader @idfItemSpecificType msg -> @string out :
+  switch selfcopy
+    when unknown          : out := "an unknown item type";
+    when register         : out := "a register access";
+    when periphMethod     : out := "a peripheral method";
+    when standard         : out := "a standard item";
+  end switch;
+end reader;
+
 reader @expIdf string -> @string name :
   name := [idfList string];
 end reader;
@@ -138,7 +158,7 @@ reader @expIdf lstring -> @lstring name :
   @location loc := here;
   if [idfList length] > 0 then
     @lstring first;
-    [idfList first ?first ?* ?*];
+    [idfList first ?first ?* ?* ?*];
     loc := [first location];
   end if;
   name := [@lstring new !str !loc];
@@ -193,7 +213,7 @@ reader @expression getLocalVar
     const @expIdf expIdf := (cast selfcopy : @expIdf);
     if [expIdf detectedType] == [@idfType localVar] then
       #ok, only one item.
-      [[expIdf idfList] first ?idf ?* ?*];
+      [[expIdf idfList] first ?idf ?* ?* ?*];
     else
       error expLoc: "The expression should be a local variable" : idf;
     end if;
