@@ -436,6 +436,12 @@ routine handleFirstIdf
         #only the reg_slice is in the varMap, and idf here is only 'reg' (from 'reg.slice').
         error idf: "internal error got a register slice here, not allowed";
       end switch;
+    when == @varDeviceType vdt:
+      #got a peripheral access -> return the type of the device (peripheral name)
+      itemName := [vdt typeName];
+      detectedType := [@idfType periphCall];
+      shouldStop := false;
+      found := true;    
     else
       error here : "internal error: invalid type in handleIdf";
       #ok := false;
@@ -595,6 +601,18 @@ routine handleIdf
         shouldStop := true;
       when periphCall: #TODO.
         message "I've just discover a peripheral ".itemName.".".idf."\n";
+        @ASTregisterPeriphDefMap ASTregisterPeriphDefMap;
+        @ASTFunctionMap ASTFunctionMap;
+        message [idfStruct string];
+        [idfStruct->ASTperipheralMap searchKey !itemName ?* ?ASTregisterPeriphDefMap ?ASTFunctionMap ?*];
+        #search for a register.
+        if [ASTregisterPeriphDefMap hasKey ![idf string]] then
+          message "this is a register\n";
+        elsif [ASTFunctionMap hasKey ![idf string]] then
+          message "This is a function call\n";
+        else
+          message [idf string]." not found…\n";
+        end if;
 #        @functionMap methodMap;
 #        [idfStruct->componentMap searchKey !itemName ?methodMap];
 #        @parameterDefList param;
@@ -606,7 +624,7 @@ routine handleIdf
         shouldStop := true;
       #elsif -> TODO: if first word was a component, should check that current idf is a function call.
       when unknown,localVar,tabularAccess,registerBitField:
-        error here :"internal error: It should ot have more than 1 identifier here.";
+        error here :"internal error: It should not have more than 1 identifier here.";
       when memoryAccess:
         @functionMap methodMap;
         [idfStruct->memSpaceMap searchKey !itemName ?* ?methodMap ?* ?*];

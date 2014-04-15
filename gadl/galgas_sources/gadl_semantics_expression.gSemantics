@@ -120,7 +120,7 @@ reader @idfType msg -> @string out :
     when unknown          : out := "an unknown type";
     when structMember     : out := "a member of a defined type";
     when localVar         : out := "a local variable";
-    when tabularAccess    : out := "a value to a tabular";
+    when tabularAccess    : out := "a value of a tabular";
     when registerAccess   : out := "a register access";
     when registerBitField : out := "a bitfield of a register";
     when componentCall    : out := "a component call";
