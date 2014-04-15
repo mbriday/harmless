@@ -84,7 +84,7 @@ list @ASTidfItemList
 {
   @lstring idf;
   @idfItemType type;
-  @ASTExpressionlist paramList; #for a function call, or 1 item for tabular.
+  @ASTExpressionlist ASTparamList; #for a function call, or 1 item for tabular.
 }
 
 reader @ASTidfItemList string -> @string name :

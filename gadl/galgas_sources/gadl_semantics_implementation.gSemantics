@@ -91,7 +91,9 @@ class @instFunctionCall extends @instruction {
 }
 
 class @instAssignment extends @instruction {
-  @expIdf idf;
+  #got 2 idf, because the code may be different to access the idf for writting and reading.
+  @expIdf idfAssign;
+  @expIdf idfRead; #for fieldLists, we have also to read the left side idf.
   @fieldList flist;
   @expression exp;
 }

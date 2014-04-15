@@ -198,14 +198,14 @@ routine getInstructionComponentGraph
     #we add the implicit fetch.
     @idfItemList idfList [emptyList];
     if not isThereAUserFetch[!defaultValues] then
-      idfList += !lstringWith[!"__fetch_component"] ![@idfItemType basic] ![@expressionlist emptyList] ![@idfItemSpecificType standard];
-      idfList += !lstringWith[!"__implicit_fetch"] ![@idfItemType functionCall] ![@expressionlist emptyList] ![@idfItemSpecificType standard];
+      idfList += !lstringWith[!"__fetch_component"] ![@idfItemType basic] ![@expressionlist emptyList] ![@idfItemSpecType standard] !"" !"";
+      idfList += !lstringWith[!"__implicit_fetch"] ![@idfItemType functionCall] ![@expressionlist emptyList] ![@idfItemSpecType standard] !"" !"";
     else
-      idfList += ![defaultValues fetchComponentName] ![@idfItemType basic] ![@expressionlist emptyList] ![@idfItemSpecificType standard];
-      idfList += ![defaultValues fetchMethodName] ![@idfItemType functionCall] ![@expressionlist emptyList] ![@idfItemSpecificType standard];
+      idfList += ![defaultValues fetchComponentName] ![@idfItemType basic] ![@expressionlist emptyList] ![@idfItemSpecType standard] !"" !"";
+      idfList += ![defaultValues fetchMethodName] ![@idfItemType functionCall] ![@expressionlist emptyList] ![@idfItemSpecType standard] !"" !"";
     end if;
     @varBaseType dummyType := [@varBaseType new ![@varKind unsigned] !0 !here];
-    @expIdf idf := [@expIdf new !dummyType !idfList ![@idfType componentCall] !false !""];
+    @expIdf idf := [@expIdf new !dummyType !idfList ![@idfType componentCall] !false];
 
     @instruction fetch := [@instFunctionCall new !here !idf];
     [!?instList insertAtIndex !fetch !0];

@@ -114,9 +114,12 @@ method @parameterDefList getInlinedInsts
       instList += !instDec;
       #get the expression related to the idf.
       @ASTIdf ASTidf := [name getASTExp];
-      @expIdf expIdf := (cast [ASTidf getExp !ctx !symbolValueMap !toIdfStruct] : @expIdf);    
+      toIdfStruct->assign := true;
+      @expIdf expIdfAssign := (cast [ASTidf getExp !ctx !symbolValueMap !toIdfStruct] : @expIdf);    
+      toIdfStruct->assign := false;
+      @expIdf expIdfRead := (cast [ASTidf getExp !ctx !symbolValueMap !toIdfStruct] : @expIdf);    
       #then assign
-      instList += ![@instAssignment new ![name location] !expIdf ![@fieldList emptyList] !exp];
+      instList += ![@instAssignment new ![name location] !expIdfAssign !expIdfRead ![@fieldList emptyList] !exp];
     end if;
   end foreach;
 end method;

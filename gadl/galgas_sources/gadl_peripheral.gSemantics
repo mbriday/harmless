@@ -88,7 +88,8 @@ reader @ASTperipheralMap getPeriphMap
 
   foreach selfcopy do
     @varIdfStruct idfStruct [default];
-    idfStruct->currentPeriphMethods := ASTFunctionMap; #methods defined for the current function.
+    #idfStruct->currentPeriphMethods := ASTFunctionMap; #methods defined for the current function.
+    idfStruct->currentPeriphName := lkey; #methods defined for the current function.
     idfStruct->ASTperipheralMap := selfcopy;
     @symbolValueMap symbolMap [emptyMap];
     @registerPeriphDefMap registerPeriphDefMap;

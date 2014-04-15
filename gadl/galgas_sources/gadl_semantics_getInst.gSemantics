@@ -157,7 +157,7 @@ override method @ASTInstFunctionCall getInst
   @expIdf expIdf := (cast newIdf : @expIdf);
   switch [expIdf detectedType]
   when unknown:
-    error loc: "The identifier is unknown";
+    error loc: "The identifier is unknown in function call";
   when structMember,localVar,tabularAccess,registerAccess,registerBitField:
     error loc: "This is not a function call, but it was excepted here.";
   when componentCall,memoryAccess,periphCall:
@@ -177,7 +177,10 @@ override method @ASTInstAssignment getInst
   #check that value asigned is not of type 'void' (in case of scalar).
   #check that left operand is an idf expression.
   #check for type compatibility (cannot assign a tabular to a scalar..) TODO
-  @expression newIdf := [idf getExp !ctx !symbolMap !idfStruct];
+  idfStruct->assign := true;
+  @expression newIdfAssign := [idf getExp !ctx !symbolMap !idfStruct];
+  idfStruct->assign := false;
+  @expression newIdfRead := [idf getExp !ctx !symbolMap !idfStruct];
   @expression newExp := [exp getExp !ctx !symbolMap !idfStruct];
   
   cast [newExp type]
@@ -188,26 +191,27 @@ override method @ASTInstAssignment getInst
   else
   end cast;
 
-  if not (newIdf is == @expIdf) then
+  if not (newIdfAssign is == @expIdf) then
     error loc:"the left expression in assignment does not refer to an identifier.";
   end if;
-  @expIdf expIdf := (cast newIdf : @expIdf);
-  #TODO: checkCorrectAssignType
-  switch [expIdf detectedType]
+  @expIdf expIdfAssign := (cast newIdfAssign : @expIdf);
+  @expIdf expIdfRead   := (cast newIdfRead : @expIdf);
+  #various checks.
+  switch [expIdfAssign detectedType]
   when unknown:
-    error loc: "The identifier is unknown";
+    error loc: "The identifier is unknown in assignment (left side)";
   when structMember,localVar,tabularAccess,registerAccess,registerBitField:
-    if [expIdf isConst] then
-      @string errorStr := "Variable \'".[expIdf string]."\' is declared constant. It should not be assigned.";
+    if [expIdfAssign isConst] then
+      @string errorStr := "Variable \'".[expIdfAssign string]."\' is declared constant. It should not be assigned.";
       error loc: errorStr;
     end if;
-    checkCorrectAssignType ![expIdf type] !newExp ![expIdf lstring];
+    checkCorrectAssignType ![expIdfAssign type] !newExp ![expIdfAssign lstring];
   when componentCall,memoryAccess,periphCall:
     error loc: "Cannot assign a function call or a memory access";
   end switch;
   #get the intruction.
   @fieldList flist := fieldListFromAST[!ctx !symbolMap !idfStruct !astFList];  
-  inst := [@instAssignment new !loc !expIdf !flist !newExp];
+  inst := [@instAssignment new !loc !expIdfAssign !expIdfRead !flist !newExp];
 end method;
 
 override method @ASTInstDeclaration getInst

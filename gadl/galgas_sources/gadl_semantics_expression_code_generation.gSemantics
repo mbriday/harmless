@@ -198,19 +198,20 @@ reader @expIdf generateIdfListCode
   -> @string code
 :
   code := "";
-  foreach idfList (@lstring idf @idfItemType type @expressionlist paramList *) do
+  foreach idfList (@lstring idf @idfItemType type @expressionlist paramList * @string prefix @string suffix) do
     #TODO: should be corrected for complex types, inlining, @..
+    @string fullIdf := prefix.[idf string].suffix;
     if type == [@idfItemType basic] then
-      code .= [idf string];
+      code .= fullIdf;
     elsif type == [@idfItemType functionCall] then
-      code .= [idf string]."(";
+      code .= fullIdf."(";
       foreach paramList(@expression exp)
       do code .= [exp generateCode !cgc];
       between code .= ", ";
       end foreach;
       code .= ")";
     elsif type == [@idfItemType tabular] then
-      code .= [idf string]."[";
+      code .= fullIdf."[";
       if [paramList length] != 1 then error idf: "tabular index not handled correctly"; end if;
       foreach paramList(@expression exp) do
         code .= [exp generateCode !cgc];
@@ -218,7 +219,7 @@ reader @expIdf generateIdfListCode
       code .= "]";
     else error idf: "internal error: unknown idf type"; #should not happen.
     end if;
-  between code .= "_";
+  between code .= "_"; #TODO: a revoir…
   end foreach;
 end reader;
 
@@ -226,11 +227,12 @@ override reader @expIdf generateCode
   ?? @codeCtx cgc
   -> @string code
 :
-  code := codePrefix.[selfcopy generateIdfListCode !cgc];
+  #code := codePrefix.[selfcopy generateIdfListCode !cgc];
+  code := [selfcopy generateIdfListCode !cgc]; #TODO
   #suffix
   switch detectedType
   when unknown:
-    error [selfcopy lstring]: "The identifier is unknown".[selfcopy string];
+    error [selfcopy lstring]: "The identifier is unknown (code generation) :".[selfcopy string];
   when structMember,localVar,tabularAccess,componentCall,memoryAccess,periphCall:
     #ok, nothing to add.
   when registerAccess,registerBitField:
@@ -244,8 +246,7 @@ reader @expIdf generateSetterCode
   ?? @codeCtx cgc
   -> @string code
 :
-  code := codePrefix."set".[selfcopy generateIdfListCode !cgc];
-  #no suffix here for now.
+  code := [selfcopy generateIdfListCode !cgc];
 end reader;
 
 

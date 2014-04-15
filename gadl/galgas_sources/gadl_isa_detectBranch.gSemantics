@@ -254,7 +254,7 @@ reader @varMap isProgramCounter
   result := false;
   if [idf detectedType] == [@idfType registerAccess] then
     @lstring name;
-    [[idf idfList] first ?name ?* ?* ?*];
+    [[idf idfList] first ?name ?* ?* ?* ?* ?*];
     if [selfcopy hasKey ![name string]] then
       @varClass varClass;
       [selfcopy searchKey !name ?* ?* ?varClass ?*];
@@ -273,12 +273,12 @@ override method  @instAssignment processBranchTarget
   ?! @bool unused unknownStaticTarget
   ?! @symbolValueMap symbolValueMap
 :
-  if [idfStruct->varMap isProgramCounter !idf] then
+  if [idfStruct->varMap isProgramCounter !idfAssign] then
     isABranch := true;
   end if;
-  if [idf detectedType] == [@idfType registerAccess] |
-     [idf detectedType] == [@idfType localVar] then
-     [[idf idfList] first ?@lstring name ?* ?* ?*];
+  if [idfAssign detectedType] == [@idfType registerAccess] |
+     [idfAssign detectedType] == [@idfType localVar] then
+     [[idfAssign idfList] first ?@lstring name ?* ?* ?* ?* ?*];
      updateSymbolMap !?symbolValueMap !name !exp;
   end if;
 end method;
@@ -303,10 +303,10 @@ method @varIdfStruct getComponentMethodCode
   @idfItemList idfListCopy := [idf idfList];
   #first item  -> component name
   #second item -> method name
-  [!?idfListCopy popFirst ?@lstring componentName ?@idfItemType CompType ?@expressionlist compParamList ?*];
+  [!?idfListCopy popFirst ?@lstring componentName ?@idfItemType CompType ?@expressionlist compParamList ?* ?* ?*];
   if [selfcopy->componentMap hasKey ![componentName string]] then 
     #ok, it is a component call.
-    [!?idfListCopy popFirst ?@lstring methodName ?@idfItemType methType ?methParamList ?*];
+    [!?idfListCopy popFirst ?@lstring methodName ?@idfItemType methType ?methParamList ?* ?* ?*];
     #and only 2 items.
     if [idfListCopy length] != 0 then
       error componentName: "a component call should have bot the component name and the associated method name";
