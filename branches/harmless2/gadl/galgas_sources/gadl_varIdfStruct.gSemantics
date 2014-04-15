@@ -4,6 +4,7 @@ semantics gadl_varIdfStruct :
   import "gadl_semantics.gSemantics" ;
   import "gadl_semantics_instruction.gSemantics" ;
   import "gadl_semantics_implementation.gSemantics" ;
+  import "gadl_peripheral_AST.gSemantics" ;
   
 ##
 #modifier @lstring cat
@@ -54,6 +55,7 @@ struct @varIdfStruct {
   @string idfPrefixLocal; #prefix for local vars only (to prevent same names when inlining).TODO remove.
   @componentMap componentMap;
   @ASTFunctionMap currentPeriphMethods; #to get prototypes of methods defined in the current periph.
+  @ASTperipheralMap ASTperipheralMap; #peripheral map.
   #if an idf is in this map, it should be replaced in the code. This is used
   #when inlining a function with a 'out' parameter.
   @lstringMap replaceMap;
@@ -75,7 +77,7 @@ reader @varIdfStruct string
       str.= "\t\t".[lkey string]."\n";
     end foreach;
   end foreach;
-
+  str .= [ASTperipheralMap string];
   foreach replaceMap 
   before str .= "replaceMap:\n";  
   do str .= "\t".[lkey string]." -> ".[lstr string]."\n";
@@ -196,6 +198,19 @@ map @functionMap {
   search searchKey error message "the '%K' component method is not defined" ;
 }
 
+#not yet decorated map for a peripheral (see gadl_peripheral_AST.gSemantics)
+map @ASTperipheralMap
+{
+  @luint64 size;
+  @ASTregisterPeriphDefMap ASTregisterPeriphDef;
+  @ASTFunctionMap ASTFunctionMap;
+  @ASTInstructionList ASTDeviceDecList;
+
+  insert insertKey error message "the '%K' peripheral is already defined in %L" ; 
+  search searchKey error message "the '%K' peripheral is not defined" ;
+  remove removeKey error message "the '%K' peripheral is not defined. Can't remove it." ;
+}
+
 map @memSpaceMap 
 {
   @uint width;
@@ -216,6 +231,28 @@ method @componentMap checkComponentMethod
   end if;
 end method;
 
+reader @ASTperipheralMap string
+  -> @string str
+:
+  str := "";
+  foreach selfcopy
+  before str .= "AST peripheral Map:\n";  
+  do
+    str.= "\t".[lkey string]." (".[size string]." bytes):\n";
+    foreach ASTregisterPeriphDef 
+    before
+    str.= "\t\tregisters :\n";
+    do
+      str.= "\t\t\t".[lkey string]."\n";
+    end foreach;
+    foreach ASTFunctionMap 
+    before
+    str.= "\t\tmethods :\n";
+    do
+      str.= "\t\t\t".[lkey string]."\n";
+    end foreach;
+  end foreach;
+end reader;
 
 end semantics ;
 # vim:ft=ggs:ts=2:sw=2

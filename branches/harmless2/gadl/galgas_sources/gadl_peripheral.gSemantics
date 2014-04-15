@@ -2,6 +2,7 @@ semantics gadl_peripheral :
   import "gadl_options.gOption" ;
   import "gadl_peripheral_AST.gSemantics" ;
   import "gadl_semantics_getInst.gSemantics" ; #getInst
+  import "gadl_semantics_function.gSemantics" ; #paramDefList checkEqual…
 
 map @registerPeriphDefMap
 {
@@ -88,6 +89,7 @@ reader @ASTperipheralMap getPeriphMap
   foreach selfcopy do
     @varIdfStruct idfStruct [default];
     idfStruct->currentPeriphMethods := ASTFunctionMap; #methods defined for the current function.
+    idfStruct->ASTperipheralMap := selfcopy;
     @symbolValueMap symbolMap [emptyMap];
     @registerPeriphDefMap registerPeriphDefMap;
     [ASTregisterPeriphDef getRegisterPeriphDefMap !symbolMap !?idfStruct !ASTFunctionMap !size ?registerPeriphDefMap];

@@ -1,6 +1,6 @@
 semantics gadl_peripheral_AST :
   import "gadl_options.gOption" ;
-  import "gadl_semantics_function.gSemantics" ; # @ASTFunctionMap
+  import "gadl_semantics_AST_implementation.gSemantics" ;
 
 map @ASTregisterPeriphDefMap
 {
@@ -14,17 +14,19 @@ map @ASTregisterPeriphDefMap
   remove removeKey error message "the '%K' peripheral register is not defined. Can't remove it." ;
 }
 
-map @ASTperipheralMap
-{
-  @luint64 size;
-  @ASTregisterPeriphDefMap ASTregisterPeriphDef;
-  @ASTFunctionMap ASTFunctionMap;
-  @ASTInstructionList ASTDeviceDecList;
+#defined in gadl_varIdfStruct.gSemantics
 
-  insert insertKey error message "the '%K' peripheral is already defined in %L" ; 
-  search searchKey error message "the '%K' peripheral is not defined" ;
-  remove removeKey error message "the '%K' peripheral is not defined. Can't remove it." ;
-}
+#map @ASTperipheralMap
+#{
+#  @luint64 size;
+#  @ASTregisterPeriphDefMap ASTregisterPeriphDef;
+#  @ASTFunctionMap ASTFunctionMap;
+#  @ASTInstructionList ASTDeviceDecList;
+#
+#  insert insertKey error message "the '%K' peripheral is already defined in %L" ; 
+#  search searchKey error message "the '%K' peripheral is not defined" ;
+#  remove removeKey error message "the '%K' peripheral is not defined. Can't remove it." ;
+#}
 
 end semantics ;
 # vim:ft=ggs:ts=2:sw=2
