@@ -8,7 +8,7 @@
 % #declare class of included devices.
 foreach dev in peripheral::idfStruct::varList do
   if dev::varClassId == 6 then     #device
-    %class peripheral_%!dev::type%;\n%
+    %#include "periph_%!dev::type%.h"\n%
   end if
 end foreach
 %

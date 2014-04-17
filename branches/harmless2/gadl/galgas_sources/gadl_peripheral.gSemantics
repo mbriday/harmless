@@ -87,21 +87,20 @@ reader @ASTperipheralMap getPeriphMap
   @expressionContext ctx := [@expressionContext peripheral];
 
   foreach selfcopy do
+    #for each peripheral
     @varIdfStruct idfStruct [default];
-    #idfStruct->currentPeriphMethods := ASTFunctionMap; #methods defined for the current function.
     idfStruct->currentPeriphName := lkey; #methods defined for the current function.
     idfStruct->ASTperipheralMap := selfcopy;
     @symbolValueMap symbolMap [emptyMap];
     @registerPeriphDefMap registerPeriphDefMap;
+    #extract register code.
     [ASTregisterPeriphDef getRegisterPeriphDefMap !symbolMap !?idfStruct !ASTFunctionMap !size ?registerPeriphDefMap];
+    #declare internal devices
     getInst !ASTDeviceDecList !ctx !symbolMap !?idfStruct ?@instructionList instDeviceDecList;
-    #message "\nIdfStruct\n".[idfStruct string];
+    #generate methods.
     @functionMap functionMap := [ASTFunctionMap getFunctionMap !ctx !idfStruct]; 
+    #add in the final object.
     [!?peripheralMap insertKey !lkey !size !registerPeriphDefMap !functionMap !instDeviceDecList !idfStruct];
-    #tmp
-    foreach instDeviceDecList do
-      message "-> ".[inst generateCode !1 ![@codeCtx C]]."\n";
-    end foreach;
   end foreach;
 end reader;
 

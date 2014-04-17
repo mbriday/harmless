@@ -202,24 +202,24 @@ reader @expIdf generateIdfListCode
     #TODO: should be corrected for complex types, inlining, @..
     @string fullIdf := prefix.[idf string].suffix;
     if type == [@idfItemType basic] then
-      code .= fullIdf;
+      code .= prefix.[idf string].suffix;
     elsif type == [@idfItemType functionCall] then
-      code .= fullIdf."(";
+      code .= prefix.[idf string]."(";
       foreach paramList(@expression exp)
       do code .= [exp generateCode !cgc];
       between code .= ", ";
       end foreach;
-      code .= ")";
+      code .= ")".suffix;
     elsif type == [@idfItemType tabular] then
-      code .= fullIdf."[";
+      code .= prefix.[idf string]."[";
       if [paramList length] != 1 then error idf: "tabular index not handled correctly"; end if;
       foreach paramList(@expression exp) do
         code .= [exp generateCode !cgc];
       end foreach;
-      code .= "]";
+      code .= "]".suffix;
     else error idf: "internal error: unknown idf type"; #should not happen.
     end if;
-  between code .= "_"; #TODO: a revoir…
+ # between code .= "_"; #TODO: a revoir…
   end foreach;
 end reader;
 
