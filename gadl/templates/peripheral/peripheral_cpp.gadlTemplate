@@ -1,11 +1,4 @@
 %template headerC%
-% #include definition of devices defined inside.
-foreach dev in peripheral::idfStruct::varList do
-  if dev::varClassId == 6 then     #device
-    %#include "periph_%!dev::type%.h"\n%
-  end if
-end foreach
-%
 
 #include "periph_%!peripheral::name%.h"
 

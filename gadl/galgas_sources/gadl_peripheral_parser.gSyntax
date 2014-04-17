@@ -116,7 +116,17 @@ rule <peripheral>
       ASTDeviceDecList += !deviceDec;
     end repeat;
   $}$;
-  [!?ASTperipheralMap insertKey !peripheralName !lsize !ASTregDefMap !ASTFunctionMap !ASTDeviceDecList];
+  #problem:
+  #We need a varMap for register slices access (in other peripherals)
+  #and ASTperipheralMap (embedded in the idfStruct) does not have it.
+  #-> we extract it here from the registers definitions.  
+  @expressionContext ctx := [@expressionContext peripheral];
+  @symbolValueMap symbolMap [emptyMap];
+  @varIdfStruct idfStruct [default];
+  foreach ASTregDefMap do
+    getInst !ASTregDecList !ctx !symbolMap !?idfStruct ?*;
+  end foreach;
+  [!?ASTperipheralMap insertKey !peripheralName !lsize !ASTregDefMap !ASTFunctionMap !ASTDeviceDecList !idfStruct->varMap];
 end rule;
 
 end syntax ;

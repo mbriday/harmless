@@ -381,311 +381,6 @@ function removeTabInIdf
   #end if;
 end function;
 
-
-#routine handleFirstIdf
-#  ?? @lstring idf
-#  ?? @idfItemType itemType
-#  ?? @ASTExpressionlist ASTParamList
-#  ?? @varIdfStruct idfStruct
-#  ?? @expressionContext ctx
-#  ?! @lstring itemName #name of the first item detected (register, struct, component, ..)
-#  ?! @bool shouldStop
-#  ?! @idfType detectedType
-#  ?! @varAbstractType idfExpType
-#  !  @bool found
-#  ?! @bool isConst
-#:
-#  #message "idf is ".idf."\n";
-#  #message [idfStruct->varMap string];
-#  #first pass. Search in the varMap
-#  if [idfStruct->varMap hasKey ![idf string]] then
-#    found := true;
-#    @varAbstractType type;
-#    @varClass varClass;
-#    [idfStruct->varMap searchKey !idf ?type ?isConst ?varClass ?*];
-#    @varAbstractType typeWithoutTab := removeTabInIdf[!type];
-#    cast typeWithoutTab
-#    when == @varStructType vst : #struct type.
-#      #Ok, first item is a struct.
-#      itemName := [vst typeName];
-#      detectedType := [@idfType structMember]; 
-#    when == @varBaseType :
-#      #Ok, first item a base type (or a tab of base type).
-#      switch varClass
-#      when localVar,field,device: #TODO: update for devices.
-#        switch itemType
-#        when basic   : shouldStop := true; 
-#          detectedType := [@idfType localVar]; 
-#          idfExpType := typeWithoutTab;
-#        when tabular : shouldStop := true; 
-#          detectedType := [@idfType tabularAccess];
-#          idfExpType := typeWithoutTab;
-#        when functionCall:
-#          error idf: "The identifier is set as a function call, while it is a local variable";
-#        end switch;
-#      when programCounter,GPR,SFR: #varMap reported a register.
-#        switch itemType
-#        when basic   : 
-#          itemName := idf;  #may not stop -> slices.
-#          detectedType := [@idfType registerAccess];
-#          idfExpType := typeWithoutTab;
-#        when tabular : error idf: "Cannot use a register as a tabular.";
-#        when functionCall: error idf: "The register is used like a function.";
-#        end switch;
-#      when registerSlice:
-#        #only the reg_slice is in the varMap, and idf here is only 'reg' (from 'reg.slice').
-#        error idf: "internal error got a register slice here, not allowed";
-#      end switch;
-#    when == @varDeviceType vdt:
-#      #got a peripheral access -> return the type of the device (peripheral name)
-#      itemName := [vdt typeName];
-#      detectedType := [@idfType periphCall];
-#      shouldStop := false;
-#      found := true;    
-#    else
-#      error here : "internal error: invalid type in handleIdf";
-#      #ok := false;
-#    end cast;
-#  elsif [idfStruct->componentMap hasKey ![idf string]] then
-#    #try in the component Map
-#    itemName := idf;
-#    detectedType := [@idfType componentCall];
-#    found := true;
-#  elsif [idfStruct->currentPeriphMethods hasKey ![idf string]] then
-#    #try in the method map of the current peripheral
-#    detectedType := [@idfType periphCall];
-#    found := true;
-#    shouldStop := true;
-#    isConst := true;
-#    #return type.
-#    [idfStruct->currentPeriphMethods searchKey !idf ?@parameterDefList param ?idfExpType ?*]; #outType is idfExpType
-#    #check params expressions.
-#    @location locDef := [idfStruct->currentPeriphMethods locationForKey ![idf string]];
-#    @expressionlist paramList := [ASTParamList getExp !ctx ![@symbolValueMap emptyMap] !idfStruct];
-#    [param checkParams !paramList ![idf location] !locDef];
-#  elsif [idfStruct->memSpaceMap hasKey ![idf string]] then
-#    #try in the memory map?
-#    itemName := idf;
-#    detectedType := [@idfType memoryAccess];
-#    found := true;    
-#  else
-#    found := false;
-#  end if;
-#end routine;
-
-##This routine try to determine what is the identifier
-##(struct access, register bitfield access, memory access, ...)
-#routine handleIdfOld
-#  ?? @ASTidfItemList idfList
-#  ?? @varIdfStruct idfStruct
-#  ?? @expressionContext ctx
-#  !  @varAbstractType idfExpType #the final type of idf (the one returned by the exp)
-#  !  @idfType detectedType
-#  !  @ASTidfItemList idfListOut
-#  !  @bool isConst
-#  !  @string codePrefix #prefix used only for code generation ("_core->" for instance)
-#:
-#  #returned idfList: may change the first idf name.
-#  idfListOut := [@ASTidfItemList emptyList];
-#  #the type of the idf we have to find... 
-#  detectedType := [@idfType unknown];
-#  idfExpType   := [@varBaseType new ![@varKind unsigned] !0 !here]; #dummy u0.
-#  #@idfItemList idfList; #may be idf1.idf2.idf3
-#  #this routine can handle:
-#  # 1 struct.member (toto.titi.tata)  -> toto defined as type.
-#  # 2 simple var (idf)
-#  # 3 tabular access (tab[<exp>]), -> tab defined as tabular.
-#  # 4 register access (SP)
-#  # 5 register bitfield (CR.CR0) -> CR defined as register, CR0 as slice.
-#  # 6 component call (comp.method()) -> comp as container, method as function call
-#  # 7 memory access -> set of related functions (read8, read16, .. write8, ..)
-#  @bool ok := true;    #is set to false is an error is detected -> invalid idf.
-#  @bool first := true; #set to true only for the first word
-#  @lstring itemName := [@lstring new !"" !here]; #used to get first item name (register, struct, component,..)
-#  isConst := false; #this information is important when expression is used in assignment.
-##  @lstring currentRegister := [@lstring new !"" !here]; #used for reg slices.
-#  @bool shouldStop := false; #set to true when no other word in idfList awaited.
-#  foreach idfList(@lstring idf @idfItemType itemType @ASTExpressionlist ASTParamList) while ok do
-#    #message "try to determine idf:".idf."\n";
-#    if shouldStop then
-#      error idf: "The identifier cannot be determined :".[idfList string];
-#    end if;
-#    if first then
-#      #first pass is a little tricky… Search in the varMap with the suffix
-#      @bool found;
-#      #First, search using both prefix and suffix...
-#      @lstring idfPrePost := [idfStruct getReplacedIdf ![idfStruct getIdfPrePost !idf]];
-#      #message "try with ".idfPrePost."\n";
-#      handleFirstIdf !idfPrePost !itemType !ASTParamList !idfStruct !ctx
-#                     !?itemName !?shouldStop !?detectedType 
-#                     !?idfExpType ?found !?isConst;
-#      if found then
-#        idfListOut += !idfPrePost !itemType !ASTParamList;
-#      else
-#        #not found: try without the prefix -> fields.
-#        @lstring idfPost := [idfStruct getReplacedIdf ![idfStruct getIdfPost !idf]];
-#        #message "then try with ".idfPost."\n";
-#        handleFirstIdf !idfPost !itemType !ASTParamList !idfStruct !ctx
-#                       !?itemName !?shouldStop !?detectedType 
-#                       !?idfExpType ?found !?isConst;
-#        if found then
-#          idfListOut += !idfPost !itemType !ASTParamList;
-#        else  
-#          #message "then try with ".idf."\n";
-#          #not found, try without the suffix (registers, global vars)
-#          @lstring idfUse := [idfStruct getReplacedIdf !idf];
-#          handleFirstIdf !idfUse !itemType !ASTParamList !idfStruct !ctx
-#                         !?itemName !?shouldStop !?detectedType
-#                         !?idfExpType ?found !?isConst;
-#          if found then
-#            idfListOut += !idfUse !itemType !ASTParamList;
-#          end if;
-#        end if;
-#      end if;
-#      if not found then #not found with both pre/post , post and without modification.
-#        #not found in varMap. -> TODO: should search in method map for local methods.
-#        #TODO: check in memory map TODO:> nothing here-> all in handleFirstItem.
-#        ok := false;
-#        idfListOut += !idf !itemType !ASTParamList; #TODO: il faudra le mettre si on trouve un truc.
-#      else #message "**ok -> found\n";
-#      end if;
-#    else #not first word.
-#      #copy items without any modification.
-#      idfListOut += !idf !itemType !ASTParamList;
-#      switch detectedType
-#      when structMember:
-#        #it should be defined as a member.
-#        @typedefMemberMap memberMap;
-#        [idfStruct->typedefMap searchKey !itemName ?memberMap];
-#        #ok, we check that current item is a member.
-#        @varAbstractType memberType;
-#        [memberMap searchKey !idf ?memberType];
-#        @varAbstractType memberTypeWithoutTab := removeTabInIdf[!memberType];
-#        cast memberTypeWithoutTab
-#        when == @varStructType vst : #struct type.
-#          #nested struct members.
-#          itemName := [vst typeName];
-#        else
-#          #not a struct. It should be the last item.
-#          shouldStop := true;
-#          detectedType := [@idfType structMember];
-#          idfExpType := memberTypeWithoutTab;
-#        end cast;
-#      when registerAccess:
-#        #we detected a register acces, while it may be a register slice access.
-#        @string regSlice := getRegSliceName[![itemName string] ![idf string]];
-#        if [idfStruct->varMap hasKey !regSlice] then
-#          #message "I've just discover a reg slice ".regSlice."\n";
-#          #got a register slice.
-#          #check that type is Ok.
-#          @varAbstractType type;
-#          @varClass varClass;
-#          [idfStruct->varMap searchKey ![@lstring new !regSlice !here] ?type ?isConst ?varClass ?*];
-#          if varClass != [@varClass registerSlice] then
-#            error idf : "internal error: detect a register slice, while variable map does not have the same type";
-#          end if;
-#          shouldStop := true;
-#          detectedType := [@idfType registerBitField];
-#          idfExpType := type;
-#        end if; #reg slice
-#      when componentCall:
-#        #message "I've just discover a component ".itemName.".".idf."\n";
-#        @functionMap methodMap;
-#        [idfStruct->componentMap searchKey !itemName ?methodMap];
-#        @parameterDefList param;
-#        [methodMap searchKey !idf ?param ?idfExpType ?*]; #outType is idfExpType
-#        @location locDef := [methodMap locationForKey ![idf string]];
-#        #compute params expressions.
-#        @expressionlist paramList := [ASTParamList getExp !ctx ![@symbolValueMap emptyMap] !idfStruct];
-#        [param checkParams !paramList ![idf location] !locDef];
-#        shouldStop := true;
-#      when periphCall: #TODO.
-#        message "I've just discover a peripheral ".itemName.".".idf."\n";
-#        @ASTregisterPeriphDefMap ASTregisterPeriphDefMap;
-#        @ASTFunctionMap ASTFunctionMap;
-#        message [idfStruct string];
-#        [idfStruct->ASTperipheralMap searchKey !itemName ?* ?ASTregisterPeriphDefMap ?ASTFunctionMap ?*];
-#        #search for a register.
-#        if [ASTregisterPeriphDefMap hasKey ![idf string]] then
-#          message "this is a register\n";
-#        elsif [ASTFunctionMap hasKey ![idf string]] then
-#          message "This is a function call\n";
-#        else
-#          message [idf string]." not found…\n";
-#        end if;
-##        @functionMap methodMap;
-##        [idfStruct->componentMap searchKey !itemName ?methodMap];
-##        @parameterDefList param;
-##        [methodMap searchKey !idf ?param ?idfExpType ?*]; #outType is idfExpType
-##        @location locDef := [methodMap locationForKey ![idf string]];
-##        #compute params expressions.
-##        @expressionlist paramList := [ASTParamList getExp !ctx ![@symbolValueMap emptyMap] !idfStruct];
-##        [param checkParams !paramList ![idf location] !locDef];
-#        shouldStop := true;
-#      #elsif -> TODO: if first word was a component, should check that current idf is a function call.
-#      when unknown,localVar,tabularAccess,registerBitField:
-#        error here :"internal error: It should not have more than 1 identifier here.";
-#      when memoryAccess:
-#        @functionMap methodMap;
-#        [idfStruct->memSpaceMap searchKey !itemName ?* ?methodMap ?* ?*];
-#        @location locDef := [idfStruct->memSpaceMap locationForKey ![itemName string]];
-#        @parameterDefList param;        
-#        [methodMap searchKey !idf ?param ?idfExpType ?*]; #outType is idfExpType
-#        #compute params expressions.
-#        @expressionlist paramList := [ASTParamList getExp !ctx ![@symbolValueMap emptyMap] !idfStruct];
-#        [param checkParams !paramList ![idf location] !locDef];
-#        shouldStop := true;
-#      end switch; #testing next words (not the first).
-#    end if;
-#    first := false;
-#  end foreach;
-#  #code prefix.
-#  switch detectedType
-#    when structMember,unknown,localVar,tabularAccess:
-#      codePrefix := "";
-#    when periphCall:
-#      codePrefix := "method_";
-#    when registerAccess,registerBitField:
-#      codePrefix := idfStruct->idfPrefixCore;
-#    when componentCall:
-#      codePrefix := idfStruct->idfPrefixCore;
-#    when memoryAccess:
-#      codePrefix := idfStruct->idfPrefixCore;
-#  end switch;
-#end routine;
-
-#override reader @ASTIdf getExp
-#  ?? @expressionContext ctx
-#  ?? @symbolValueMap symbolMap
-#  ?? @varIdfStruct idfStruct
-#  -> @expression exp
-#:
-#  @varAbstractType idfExpType; #the final type of idf (the one returned by the exp)
-#  @idfType detectedType;
-#  #detect the type.
-#  @ASTidfItemList idfListOut;
-#  @bool isConst;
-#  handleIdf !idfList !idfStruct !ctx ?idfExpType ?detectedType ?idfListOut ?isConst ?@string codePrefix;
-#  if detectedType != [@idfType unknown] then
-#    @idfItemList itemList [emptyList];
-#    #Ok. Type detected. generate the expression.
-#    foreach idfListOut(@lstring idf @idfItemType itemType @ASTExpressionlist ASTparamList) do
-#      #message "found ".idf."\n";
-#      @expressionlist paramList [emptyList];
-#      foreach ASTparamList(@ASTExpression ASTexp) do
-#        paramList += ![ASTexp getExp !ctx !symbolMap !idfStruct];
-#      end foreach;
-#      itemList += !idf !itemType !paramList ![@idfItemSpecType unknown];
-#    end foreach;
-#    #update location of idfExpType:
-#    @varAbstractType idfExpTypeWithLoc := [idfExpType changeLoc !loc];
-#    exp := [@expIdf new !idfExpTypeWithLoc !itemList !detectedType !isConst !codePrefix];
-#  else
-#    error loc: "unknown identifier: ".[idfList string] : exp;
-#    #message [idfStruct string];
-#  end if;
-#end reader;
-
 #The type is unknown only for the first item of an idf list.
 routine handleUnknownType
   ?? @lstring idf 
@@ -693,10 +388,12 @@ routine handleUnknownType
   ?? @varIdfStruct idfStruct
   ?! @bool isConst  
   ?! @idfType detectedType
-  ?! @lstring itemName #name of the item or struct detected (to further search into structures).
+  ?? @bool lastIdf
+  ?! @lstring typeName #name of the item or struct detected (to further search into structures).
   ?! @varAbstractType outType
   ?! @bool shouldStop
   ?! @string prefix
+  ?! @string suffix
   ?! @parameterDefList paramDef #param definition to check.
   ?! @location locDef #location of parameters to check (if any).
 :
@@ -709,8 +406,9 @@ routine handleUnknownType
     cast typeWithoutTab
     when == @varStructType vst : #struct type.
       #Ok item is a struct.
-      itemName := [vst typeName];
+      typeName := [vst typeName];
       detectedType := [@idfType structMember];
+      suffix := ".";
       shouldStop := false;
     when == @varBaseType :
       #Ok, item is a base type (or a tab of base type).
@@ -731,8 +429,10 @@ routine handleUnknownType
       when programCounter,GPR,SFR: #varMap reported a register.
         switch idfItemType
         when basic   :
-          itemName := idf;  #may not stop -> slices.
           detectedType := [@idfType registerAccess];
+          if not lastIdf then #case for a register slice.
+            suffix := "_";
+          end if;
           shouldStop := false;
           prefix := idfStruct->idfPrefixCore;
           if idfStruct->assign then prefix .= "set"; end if;
@@ -746,29 +446,31 @@ routine handleUnknownType
       end switch;
     when == @varDeviceType vdt:
       #got a peripheral access -> return the type of the device (peripheral name)
-      itemName := [vdt typeName];
+      typeName := [vdt typeName];
       detectedType := [@idfType periphCall];
       shouldStop := false;
+      suffix := "->";
     else
       error here : "internal error: invalid type in handleIdf";
       #ok := false;
     end cast;
   elsif [idfStruct->componentMap hasKey ![idf string]] then
     #try in the component Map
-    itemName := idf;
     detectedType := [@idfType componentCall];
     prefix := idfStruct->idfPrefixCore;
     shouldStop := false;
+    suffix := "_";
   elsif [idfStruct->memSpaceMap hasKey ![idf string]] then
     #try in the memory map?
-    itemName := idf;
     detectedType := [@idfType memoryAccess];
     prefix := idfStruct->idfPrefixCore;
     shouldStop := false;
+    suffix := "_";
   elsif [idfStruct->ASTperipheralMap hasKey ![idfStruct->currentPeriphName string]] then
+    #current peripheral. Can call a method.
     [idfStruct->ASTperipheralMap searchKey !idfStruct->currentPeriphName ?* ?*
        ?@ASTFunctionMap ASTFunctionMap
-       ?*];
+       ?* ?*];
     if [ASTFunctionMap hasKey ![idf string]] then
       [ASTFunctionMap searchKey !idf ?paramDef ?outType ?*];
       locDef := [ASTFunctionMap locationForKey ![idf string]];    
@@ -789,13 +491,14 @@ routine handleStructMember
   ?? @lstring idf 
   ?? @varIdfStruct idfStruct
   ?! @idfType detectedType
-  ?! @lstring itemName #name of the item or struct detected (to further search into structures).
+  ?! @lstring typeName #name of the item or struct detected (to further search into structures).
   ?! @varAbstractType outType
+  ?! @string suffix
   ?! @bool shouldStop
 :
   #it should be defined as a member.
   @typedefMemberMap memberMap;
-  [idfStruct->typedefMap searchKey !itemName ?memberMap];
+  [idfStruct->typedefMap searchKey !typeName ?memberMap];
   #ok, we check that current item is a member.
   @varAbstractType memberType;
   [memberMap searchKey !idf ?memberType];
@@ -803,8 +506,9 @@ routine handleStructMember
   cast memberTypeWithoutTab
   when == @varStructType vst : #struct type.
     #nested struct members.
-    itemName := [vst typeName];
+    typeName := [vst typeName];
     detectedType := [@idfType structMember];
+    suffix := ".";
   else
     #not a struct. It should be the last item.
     shouldStop := true;
@@ -814,44 +518,53 @@ routine handleStructMember
 end routine;
 
 routine handleRegisterType
+  ?? @idfItemList currentItemList #items already parsed.
   ?? @lstring idf 
   ?? @varIdfStruct idfStruct
   ?! @bool isConst  
   ?! @idfType detectedType
-  ?! @lstring itemName #name of the item or struct detected (to further search into structures).
+  ?! @lstring typeName #name of the item or struct detected (to further search into structures).
   ?! @varAbstractType outType
   ?! @bool shouldStop
 :
+  @idfItemList currentItemListCopy := currentItemList;
+  [!?currentItemListCopy popLast ?@lstring regName ?* ?* ?* ?* ?*];
   #we detected a register access, while it may be a register slice access.
-  @string regSlice := getRegSliceName[![itemName string] ![idf string]];
-  if [idfStruct->varMap hasKey !regSlice] then
+  @string regSlice := getRegSliceName[![regName string] ![idf string]];
+  if [idfStruct->varMap hasKey !regSlice] then #register slice inside varMap
     #message "I've just discover a reg slice ".regSlice."\n";
     #got a register slice.
-    #check that type is Ok.
-    @varAbstractType type;
-    @varClass varClass;
-    [idfStruct->varMap searchKey ![@lstring new !regSlice !here] ?type ?isConst ?varClass ?*];
+    [idfStruct->varMap searchKey ![@lstring new !regSlice !here] ?outType ?isConst ?@varClass varClass ?*];
     if varClass != [@varClass registerSlice] then
       error idf : "internal error: detect a register slice, while variable map does not have the same type";
     end if;
     shouldStop := true;
     detectedType := [@idfType registerBitField];
-    outType := type;
-  end if; #reg slice
+  elsif [idfStruct->ASTperipheralMap hasKey ![typeName string]] then #register slice inside a peripheral
+    [idfStruct->ASTperipheralMap searchKey !typeName ?* ?* ?* ?* ?@varMap regMap];
+    [regMap searchKey ![@lstring new !regSlice !here] ?outType ?isConst ?@varClass varClass ?*];
+    if varClass != [@varClass registerSlice] then
+      error idf : "internal error: detect a register slice, while variable map does not have the same type";
+    end if;    
+    detectedType := [@idfType registerBitField];    
+    shouldStop := true;
+  end if;
 end routine;
 
 routine handleComponentType
+  ?? @idfItemList currentItemList #items already parsed.
   ?? @lstring idf 
   ?? @varIdfStruct idfStruct
   ?! @bool isConst  
-  ?! @lstring itemName #name of the item or struct detected (to further search into structures).
   ?! @varAbstractType outType
   ?! @bool shouldStop
   ?! @parameterDefList paramDef #param definition to check.
   ?! @location locDef #location of parameters to check (if any).
 :
-  #message "I've just discover a component ".itemName.".".idf."\n";
-  [idfStruct->componentMap searchKey !itemName ?@functionMap methodMap];
+  @idfItemList currentItemListCopy := currentItemList;
+  [!?currentItemListCopy popLast ?@lstring compName ?* ?* ?* ?* ?*];
+  #message "I've just discover a component ".compName .".".idf."\n";
+  [idfStruct->componentMap searchKey !compName ?@functionMap methodMap];
   [methodMap searchKey !idf ?paramDef ?outType ?*];
   locDef := [methodMap locationForKey ![idf string]];
   shouldStop := true;
@@ -859,18 +572,20 @@ routine handleComponentType
 end routine;
 
 routine handleMemoryType
+  ?? @idfItemList currentItemList #items already parsed.
   ?? @lstring idf 
   ?? @varIdfStruct idfStruct
   ?! @bool isConst  
-  ?! @lstring itemName #name of the item or struct detected (to further search into structures).
   ?! @varAbstractType outType
   ?! @bool shouldStop
   ?! @parameterDefList paramDef #param definition to check.
   ?! @location locDef #location of parameters to check (if any).
 :
+  @idfItemList currentItemListCopy := currentItemList;
+  [!?currentItemListCopy popLast ?@lstring memSpaceName ?* ?* ?* ?* ?*];
   @functionMap methodMap;
-  [idfStruct->memSpaceMap searchKey !itemName ?* ?methodMap ?* ?*];
-  locDef := [idfStruct->memSpaceMap locationForKey ![itemName string]];
+  [idfStruct->memSpaceMap searchKey !memSpaceName ?* ?methodMap ?* ?*];
+  locDef := [idfStruct->memSpaceMap locationForKey ![memSpaceName string]];
   [methodMap searchKey !idf ?paramDef ?outType ?*];
   shouldStop := true;
   isConst := true;
@@ -878,76 +593,86 @@ end routine;
 
 routine handlePeriphCallType
   ?? @lstring idf 
-  ?? @idfItemType idfItemType 
+  ?? @idfItemType unused idfItemType 
   ?? @varIdfStruct idfStruct
   ?! @bool isConst  
   ?! @idfType detectedType
-  ?! @lstring itemName #name of the item or struct detected (to further search into structures).
+  ?? @bool lastIdf
+  ?! @lstring typeName #name of the item or struct detected (to further search into structures).
   ?! @varAbstractType outType
   ?! @bool shouldStop
   ?! @string prefix
+  ?! @string suffix
   ?! @parameterDefList paramDef #param definition to check.
   ?! @location locDef #location of parameters to check (if any).
 :
-  #TODO
   @ASTregisterPeriphDefMap ASTregisterPeriphDefMap;
   @ASTFunctionMap ASTFunctionMap;
-  [idfStruct->ASTperipheralMap searchKey !itemName ?* ?ASTregisterPeriphDefMap ?ASTFunctionMap ?*];
+  [idfStruct->ASTperipheralMap searchKey !typeName ?* ?ASTregisterPeriphDefMap ?ASTFunctionMap ?* ?*];
   #search for a register.
   if [ASTregisterPeriphDefMap hasKey ![idf string]] then
-    message "this is a register\n";
+    [ASTregisterPeriphDefMap searchKey !idf ?* ?* ?* ?* ?outType];
+    detectedType := [@idfType registerAccess];
+    if not lastIdf then #case for a register slice.
+      suffix := "_";
+    end if;
+    isConst := false;
+    shouldStop := false;
+    if idfStruct->assign then prefix .= "set"; end if;
   elsif [ASTFunctionMap hasKey ![idf string]] then
-    message "This is a function call\n";
+    #message "This is a function call\n";
     [ASTFunctionMap searchKey !idf ?paramDef ?outType ?*];
     locDef := [ASTFunctionMap locationForKey ![idf string]];
     shouldStop := true;
     isConst := true;
+    prefix := "method_";
   else
-    message [idf string]." not found…\n";
+    error idf: "in peripheral ".[typeName string].", the identifier ".idf." is not found";
   end if;
-  shouldStop := true;
 end routine;
 
 routine handleIdf 
-  ?? @lstring idf 
-  ?? @idfItemType idfItemType 
-  ?? @varIdfStruct idfStruct
+  ?? @idfItemList currentItemList #items already parsed.
+  ?? @lstring idf                 #current idf to parse
+  ?? @idfItemType idfItemType     #item type (from AST)
+  ?? @varIdfStruct idfStruct      #all symbol maps
   ?? @expressionContext unused ctx
-  ?! @idfType detectedType
-  ?! @bool isConst 
-  !  @varAbstractType outType 
+  ?! @idfType detectedType        #current detected type (unknown for the first item)
+  ?! @bool isConst                #can be written? (assignment check)
+  !  @varAbstractType outType     #returned type
+  ?? @bool lastIdf                #is it the last item (to differentiate register from reg slice)
   ?! @idfItemSpecType unused specificType
-  ?! @string prefix
-  ?! @string unused suffix
-  ?! @lstring itemName
-  !  @bool shouldStop
-  ?! @parameterDefList paramDef #param definition to check.
-  ?! @location locDef #location of parameters to check (if any).
+  ?! @string prefix               #for code generation
+  ?! @string suffix               #for code generation
+  ?! @lstring typeName            #type detected in the previous item.
+  !  @bool shouldStop             #the previous item should be the last of the list.
+  ?! @parameterDefList paramDef   #param definition to check.
+  ?! @location locDef             #location of parameters to check (if any).
 :
   shouldStop := true; #default.
   outType := [@varBaseType new ![@varKind unsigned] !0 !here]; #dummy u0.
   switch detectedType
     when unknown          : #first pass
-      handleUnknownType !idf !idfItemType !idfStruct !?isConst !?detectedType
-                        !?itemName !?outType !?shouldStop !?prefix !?paramDef !?locDef;
+      handleUnknownType !idf !idfItemType !idfStruct !?isConst !?detectedType !lastIdf
+                        !?typeName !?outType !?shouldStop !?prefix !?suffix !?paramDef !?locDef;
     when structMember     :
       handleStructMember !idf !idfStruct !?detectedType
-                        !?itemName !?outType !?shouldStop;
+                        !?typeName !?outType !?suffix !?shouldStop;
     
     when localVar,tabularAccess,registerBitField: 
       error here :"internal error: Identifier should not have more than 1 part here.";
     when registerAccess   :
-      handleRegisterType !idf !idfStruct !?isConst !?detectedType
-                        !?itemName !?outType !?shouldStop;
+      handleRegisterType !currentItemList !idf !idfStruct !?isConst !?detectedType
+                         !?typeName !?outType !?shouldStop;
     when componentCall    :
-      handleComponentType !idf !idfStruct !?isConst 
-                        !?itemName !?outType !?shouldStop !?paramDef !?locDef;    
+      handleComponentType !currentItemList !idf !idfStruct !?isConst 
+                          !?outType !?shouldStop !?paramDef !?locDef;    
     when periphCall       :
-      handlePeriphCallType !idf !idfItemType !idfStruct !?isConst !?detectedType
-                        !?itemName !?outType !?shouldStop !?prefix !?paramDef !?locDef;
+      handlePeriphCallType !idf !idfItemType !idfStruct !?isConst !?detectedType !lastIdf
+                        !?typeName !?outType !?shouldStop !?prefix  !?suffix !?paramDef !?locDef;
     when memoryAccess     :
-      handleMemoryType !idf !idfStruct !?isConst 
-                        !?itemName !?outType !?shouldStop !?paramDef !?locDef;
+      handleMemoryType !currentItemList !idf !idfStruct !?isConst 
+                       !?outType !?shouldStop !?paramDef!?locDef;
   end switch;
 end routine;
 
@@ -967,10 +692,15 @@ override reader @ASTIdf getExp
   @idfItemList itemList [emptyList];
   @bool shouldStop := false;
   @bool first := true;
-  @lstring itemName := [@lstring new !"SHOULD-NOT-HAPPEN" !here];
+  @lstring typeName := [@lstring new !"SHOULD-NOT-HAPPEN" !here];
   @parameterDefList paramDef [emptyList]; #param definition to check.
   @location locDef := here; #location of parameters to check (if any).
+  @uint idfId := 0;
+  @bool lastIdf := false;
   foreach idfList do
+    #detect the last item
+    idfId := idfId+1;
+    lastIdf := (idfId == [idfList length]);
     if shouldStop then
       error idf: "The identifier cannot be determined (too long):".[idfList string];
     end if;
@@ -985,23 +715,23 @@ override reader @ASTIdf getExp
       #first pass is a little tricky… Search in the varMap with the suffix
       #First, search using both prefix and suffix...
       finalIdf := [idfStruct getReplacedIdf ![idfStruct getIdfPrePost !idf]];
-      handleIdf !finalIdf !type !idfStruct !ctx !?detectedType !?isConst ?outType 
-                !?specificType !?prefix !?suffix !?itemName ?shouldStop !?paramDef !?locDef;
+      handleIdf !itemList !finalIdf !type !idfStruct !ctx !?detectedType !?isConst ?outType !lastIdf
+                !?specificType !?prefix !?suffix !?typeName ?shouldStop !?paramDef !?locDef;
       if detectedType == [@idfType unknown] then #not found
         #not found: try without the prefix -> fields.
         finalIdf := [idfStruct getReplacedIdf ![idfStruct getIdfPost !idf]];
-        handleIdf !finalIdf !type !idfStruct !ctx !?detectedType !?isConst ?outType 
-                  !?specificType !?prefix !?suffix !?itemName ?shouldStop !?paramDef !?locDef;
+        handleIdf !itemList !finalIdf !type !idfStruct !ctx !?detectedType !?isConst ?outType !lastIdf 
+                  !?specificType !?prefix !?suffix !?typeName ?shouldStop !?paramDef !?locDef;
         if detectedType == [@idfType unknown] then #not found
           #then without anything.
           finalIdf := [idfStruct getReplacedIdf !idf];        
-          handleIdf !finalIdf !type !idfStruct !ctx !?detectedType !?isConst ?outType
-                    !?specificType !?prefix !?suffix !?itemName ?shouldStop !?paramDef !?locDef;
+          handleIdf !itemList !finalIdf !type !idfStruct !ctx !?detectedType !?isConst ?outType !lastIdf
+                    !?specificType !?prefix !?suffix !?typeName ?shouldStop !?paramDef !?locDef;
         end if;
       end if;
     else #not first
-      handleIdf !finalIdf !type !idfStruct !ctx !?detectedType !?isConst ?outType
-                !?specificType !?prefix !?suffix !?itemName ?shouldStop !?paramDef !?locDef;
+      handleIdf !itemList !finalIdf !type !idfStruct !ctx !?detectedType !?isConst ?outType !lastIdf
+                !?specificType !?prefix !?suffix !?typeName ?shouldStop !?paramDef !?locDef;
     end if;
     #message "type detected is ".[detectedType string]." <--\n";
     #error detection

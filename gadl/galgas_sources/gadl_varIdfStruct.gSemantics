@@ -212,7 +212,7 @@ map @ASTperipheralMap
   @ASTregisterPeriphDefMap ASTregisterPeriphDef;
   @ASTFunctionMap ASTFunctionMap;
   @ASTInstructionList ASTDeviceDecList;
-
+  @varMap varMap; #registers and register slices.
   insert insertKey error message "the '%K' peripheral is already defined in %L" ; 
   search searchKey error message "the '%K' peripheral is not defined" ;
   remove removeKey error message "the '%K' peripheral is not defined. Can't remove it." ;
