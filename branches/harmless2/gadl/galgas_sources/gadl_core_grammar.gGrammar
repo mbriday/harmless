@@ -1,6 +1,7 @@
 indexing grammar gadl_core_grammar "LL1":
 with "gadl_core_syntax.gSyntax";
 with "gadl_memory_parser.gSyntax";
+with "gadl_memory_mapping_parser.gSyntax";
 with "gadl_expression_parser.gSyntax";
 with "gadl_hard_arch_parser.gSyntax";
 with "gadl_hard_pipeline_parser.gSyntax";

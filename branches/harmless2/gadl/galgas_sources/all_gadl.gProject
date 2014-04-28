@@ -109,7 +109,9 @@ project all_gadl (0:8:1) -> "gadl" :
 #semantics "gadl_semantics_timingSimulationStep.gSemantics" ;
 #semantics "gadl_semantics_signalSection.gSemantics" ;
 
+  grammar   "gadl_peripheral_grammar.gGrammar" ;
   syntax    "gadl_peripheral_parser.gSyntax" ;
+  syntax    "gadl_peripheral_set_parser.gSyntax" ; #only for included files: define more than 1 peripheral.
   semantics "gadl_peripheral_AST.gSemantics" ;
   semantics "gadl_peripheral.gSemantics" ;     #decorated structures
   semantics "gadl_peripheral_templateExport.gSemantics" ; #various template export
@@ -184,6 +186,7 @@ semantics "gadl_micro_architecture.gSemantics" ;
 #******************************************************
 
   syntax    "gadl_memory_parser.gSyntax" ;
+  syntax    "gadl_memory_mapping_parser.gSyntax" ;
   semantics "gadl_memory.gSemantics" ;
 
 #******************************************************

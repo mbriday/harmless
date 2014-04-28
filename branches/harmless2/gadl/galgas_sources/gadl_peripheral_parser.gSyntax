@@ -62,10 +62,12 @@ end rule;
 
 rule <deviceDeclaration>
   ?? @bool memoryAccessIsLocal #true if a device is declared inside a peripheral (same mem chunk).
+  ?? @ASTperipheralMap ASTperipheralMap
   !  @ASTInstDeclarationDevice deviceDec
 :
   @varAbstractType type;
   $device$; $idf$ ?@lstring deviceType;
+  [ASTperipheralMap searchKey !deviceType ?* ?* ?* ?* ?*]; #check that peripheral is defined.
   @varAbstractType typeBase := [@varDeviceType new ![@varKind custom] !deviceType];
   select #code extracted from rule <typeDeclaration>
     @luint64 tabLength;
@@ -92,6 +94,7 @@ rule <deviceDeclaration>
   deviceDec := [@ASTInstDeclarationDevice new !here ![@varClass device] !type !deviceName !memoryMapping];
 end rule;
 
+#entry point of the gadl_peripheral_grammar
 rule <peripheral>
   ?! @ASTperipheralMap ASTperipheralMap
 :
@@ -112,7 +115,7 @@ rule <peripheral>
       $idf$ ?@lstring idf;
       <functionDef> !type !idf !?ASTFunctionMap;
     while
-      <deviceDeclaration> !true ?@ASTInstDeclarationDevice deviceDec;
+      <deviceDeclaration> !true !ASTperipheralMap ?@ASTInstDeclarationDevice deviceDec;
       ASTDeviceDecList += !deviceDec;
     end repeat;
   $}$;
