@@ -4,6 +4,8 @@ syntax gadl_memory_parser ("gadl_lexique.gLexique") :
   import "gadl_semantics.gSemantics" ; #intMap
 
 nonterminal <expression> !@ASTExpression exp;
+nonterminal <memoryMapping> ! @memoryMapping memoryMapping;
+
 
 #allow a memory space to be defined more than one time
 #(useful when using a core only description).
@@ -107,17 +109,6 @@ rule <memoryChunk>
   <memoryMapping> ?memoryMapping;
   [!?memChunk insertKey !name !width !expSize !access !memoryMapping];
   memChunkOrder += ![name string]; 
-end rule;
-
-rule <memoryMapping>
-  ! @memoryMapping memoryMapping
-:
-  @lstring memSpaceName;
-  $idf$ ?memSpaceName;
-  $:$;
-  @luint64 address;
-  $unumber$ ?address;
-  memoryMapping := [@memoryMapping new !memSpaceName !address];
 end rule;
 
 end syntax ;

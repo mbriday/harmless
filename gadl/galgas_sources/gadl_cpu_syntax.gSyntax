@@ -3,6 +3,7 @@ import "gadl_options.gOption" ;
 import "gadl_memory.gSemantics";
 import "gadl_core.gSemantics";
 import "gadl_core_grammar.gGrammar";
+import "gadl_peripheral_grammar.gGrammar";
 import "gadl_varIdfStruct.gSemantics"; #lstringMap
 import "gadl_cpu.gSemantics";
 import "gadl_peripheral_AST.gSemantics";
@@ -20,18 +21,33 @@ nonterminal <memoryChunk>
 nonterminal <paramCall> ! @ASTExpressionlist idfExpList; #gadl_expression_parser.gSyntax
 nonterminal <deviceDeclaration>
   ?? @bool memoryAccessIsLocal #true if a device is declared inside a peripheral (same mem chunk).
+  ?? @ASTperipheralMap ASTperipheralMap
   !  @ASTInstDeclarationDevice deviceDec
 ;
 
 
 rule <importCore>
-  ?!@lstringMap importCoreMap
+  ?! @lstringMap importCoreMap
+  ?! @ASTperipheralMap ASTperipheralMap
 :
-  $import$; $core$;
-  $idf$ ?@lstring coreName;
+  $import$;
+  @bool isCore;
+  @lstring itemName := [@lstring new !"" !here];
+  select
+    $core$;
+    $idf$ ?itemName;
+    isCore := true;
+  or
+    $peripheral$;
+    isCore := false;
+  end select;
   $from$;
-  $caracterStr$ ?@lstring srcFile;  
-  [!?importCoreMap insertKey !coreName !srcFile];
+  $caracterStr$ ?@lstring srcFile;
+  if isCore then
+    [!?importCoreMap insertKey !itemName !srcFile];
+  else #periph
+    grammar gadl_peripheral_grammar in srcFile !?ASTperipheralMap;
+  end if;
 end rule;
 
 rule <coreInstantiation>
@@ -59,7 +75,7 @@ rule <cpu>
 :
   @ASTmemSpaceMap ASTmemSpaceMap [emptyMap];
   @ASTperipheralMap ASTperipheralMap [emptyMap];
-  #importing core
+  #import (cores and peripherals)
   @lstringMap importCoreMap [emptyMap];
   #memory stuff
   @ASTmemoryParamMap ASTmemChunk [emptyMap];
@@ -73,8 +89,8 @@ rule <cpu>
     #peripheral def
     <peripheral> !?ASTperipheralMap;
   while
-    #Core importation
-    <importCore> !?importCoreMap;
+    #Core or peripheral importation
+    <importCore> !?importCoreMap !?ASTperipheralMap;
   end repeat;
 
   $cpu$; $idf$ ?@lstring cpuName;
@@ -98,7 +114,7 @@ rule <cpu>
   while
     <coreInstantiation> !?ASTcoreInstanceMap !?ASTcoreMap !?coreSet !?ASTmemSpaceMap !?coreId !importCoreMap;
   while
-    <deviceDeclaration> !false ?@ASTInstDeclarationDevice deviceDec;
+    <deviceDeclaration> !false !ASTperipheralMap ?@ASTInstDeclarationDevice deviceDec;
     ASTDeviceDecList += !deviceDec;
   end repeat;
   [!?ASTCpuMap insertKey !cpuName !ASTcoreInstanceMap !ASTcoreMap !ASTDeviceDecList !ASTmemChunk !memChunkOrder];
