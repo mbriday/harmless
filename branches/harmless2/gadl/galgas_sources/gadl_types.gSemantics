@@ -24,10 +24,10 @@ semantics gadl_types :
 #  * isVoid         -> return true for u0/s0/f0 (void) and false otherwise.
 #  * checkEqual     -> check if types are equals
 #  * getFinalType   -> used for tabulars. Return the type of an element (recursively in case of tab of tabs…).
+#  * getCType       -> return the string of the C type (for tabulars, the type of the base type).
 
 # readers for varBaseType:
 #  * getCSize       -> return the size of the corresponding C var.
-#  * getCType       -> return the string of the C type
 #  * getUppaalType  -> return the size for Uppaal TODO: define a more realistic 'max'.
 
 # other useful functions/methods:
@@ -182,7 +182,9 @@ reader @varBaseType getCSize -> @uint Csize :
   end if; 
 end reader;
 
-reader @varBaseType getCType
+abstract reader @varAbstractType getCType -> @string str;
+
+override reader @varBaseType getCType
   -> @string str
 :
   if kind == [@varKind unsigned] & (size == 0) then str := "void";
@@ -202,16 +204,22 @@ reader @varBaseType getCType
   end if; 
 end reader;
 
-reader @varStructType getCType
+override reader @varStructType getCType
   -> @string str
 :
-  str := "gadl_struct_TODO_".[typeName string]; #TODO: not a unique name!!!
+  str := "gadl_struct_".[typeName string];
 end reader;
 
-reader @varDeviceType getCType
+override reader @varDeviceType getCType
   -> @string str
 :
   str := "periph_".[typeName string];
+end reader;
+
+override reader @varTabularType getCType
+  -> @string str
+:
+  str := [type getCType];
 end reader;
 
 ###############################################################################

@@ -93,6 +93,10 @@ reader @ASTperipheralMap getPeriphMap
     idfStruct->ASTperipheralMap := selfcopy;
     @symbolValueMap symbolMap [emptyMap];
     @registerPeriphDefMap registerPeriphDefMap;
+    #get type definitions (update idfStruct).
+    getInst !ASTTypeDefList !ctx !symbolMap !?idfStruct ?*;
+    #definition of locals.
+    getInst !ASTLocalVarList !ctx !symbolMap !?idfStruct ?*; #TODO: get declaration code.
     #extract register code.
     [ASTregisterPeriphDef getRegisterPeriphDefMap !symbolMap !?idfStruct !ASTFunctionMap !size ?registerPeriphDefMap];
     #declare internal devices

@@ -151,7 +151,7 @@ routine checkTypeExists
   ?? @varAbstractType type
   ?? @varIdfStruct idfStruct
 :
-  cast type
+  cast [type getFinalType] #get final type -> tabulars.
   when == @varStructType vst : #struct type.
     @lstring typeName := [vst typeName];
     @typedefMemberMap memberList;
@@ -212,7 +212,9 @@ map @ASTperipheralMap
   @ASTregisterPeriphDefMap ASTregisterPeriphDef;
   @ASTFunctionMap ASTFunctionMap;
   @ASTInstructionList ASTDeviceDecList;
-  @varMap varMap; #registers and register slices.
+  @ASTInstructionList ASTTypeDefList;#type defs.
+  @ASTInstructionList ASTLocalVarList;
+  @varMap varMap; #registers and register slices only!
   insert insertKey error message "the '%K' peripheral is already defined in %L" ; 
   search searchKey error message "the '%K' peripheral is not defined" ;
   remove removeKey error message "the '%K' peripheral is not defined. Can't remove it." ;

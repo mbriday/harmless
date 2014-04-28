@@ -113,8 +113,7 @@ method @varIdfStruct setInTemplate
       const @varDeviceType typeCast := (cast [type getFinalType]: @varDeviceType);
       addLStringValue !?varMapRegBody !"type" ![typeCast typeName];
     else
-      @string typeStr := [[type getBaseType] getCType];
-      addStringValue !?varMapRegBody !lstringWith[!"type"] !typeStr;
+      addStringValue !?varMapRegBody !lstringWith[!"type"] ![type getCType];
     end if;
     addBoolValue !?varMapRegBody !lstringWith[!"constant"] !constant;
     addUnsignedValue !?varMapRegBody !lstringWith[!"varClassId"] ![varClass id];
