@@ -235,6 +235,7 @@ override method @ASTInstDeclaration getInst
     end if;
   else
     #exists.
+    #message "check type: ".[type string]."\n";
     checkTypeExists !type !idfStruct;
   end cast;
   #next depends of the type of data.
