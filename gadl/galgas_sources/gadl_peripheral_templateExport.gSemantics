@@ -30,12 +30,24 @@ method @peripheralMap setInTemplate
   @TfieldMapList peripheralList [emptyList];
   foreach selfcopy do
     @TfieldMap peripheralBody [emptyMap];
+    #name
     addLStringValue !?peripheralBody !"name" !lkey;
+    #memory size
     addUnsignedValue !?peripheralBody !lstringWith[!"memSize"] ![size uint64];
+    #idfStruct related -> varMap only.
     [idfStruct setInTemplate !?peripheralBody];
+    #methods
     addListValue !?peripheralBody !lstringWith[!"methodList"] ![functionMap getFunctionTemplate];
+    #internal registers
     [registerPeriphDefMap setInTemplate !?peripheralBody];
-    [instDeviceDecList setDeviceInTemplate !?peripheralBody]; #devices.
+    #devices.
+    [instDeviceDecList setDeviceInTemplate !?peripheralBody];
+    #typedef (type definitions)
+    message "periph : ".[lkey string]."\n";
+    foreach idfStruct->typedefMap do
+      message "\t".[lkey string]."\n";
+    end foreach;
+    message [idfStruct->typedefMap generateCode !1 ![@codeCtx C]];
     peripheralList += !peripheralBody;
   end foreach;
   addListValue !?templateStruct !lstringWith[!"peripheralList"] !peripheralList;
@@ -63,7 +75,8 @@ method @instructionList setDeviceInTemplate
       end if;
       nbDev := [tabType length];
     end if;
-    addUnsignedValue !?deviceDecListTplBody !lstringWith[!"nb"] ![nbDev uint64]; 
+    addUnsignedValue !?deviceDecListTplBody !lstringWith[!"nb"] ![nbDev uint64];
+    #this information is also present in the IdfStruct, if any.
     addStringValue !?deviceDecListTplBody !lstringWith[!"declare"] ![inst generateCode !1 ![@codeCtx C]];
     deviceDecListTpl += !deviceDecListTplBody;
   end foreach;

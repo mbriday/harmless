@@ -136,9 +136,8 @@ rule <assignmentLeft>
   or
     <bitField> ?fieldList; 
   end select;
-  @ASTExpression exp;
   $:=$;
-  <expression> ?exp;
+  <expression> ?@ASTExpression exp;
   instList += ![@ASTInstAssignment new !here !idf !fieldList !exp];
 end rule;
 

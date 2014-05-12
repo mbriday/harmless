@@ -240,15 +240,15 @@ override reader @instAssignment generateCode
   -> @string code
 :
   code := tabs[!nbTabulation];
+  @string rightExp := [exp generateCode !cgc];
   @varKind kind := [[idfAssign type] kind]; #unsigned, signed, float, custom, tabular
   if kind ==  [@varKind custom] then #specific case (memcopy)
-    code := "TODO Struct";
+    code .= "memcpy(&(".[idfAssign generateCode !cgc]."), &(".rightExp."),sizeof(".[[exp type] getCType]."));";
   else
     #this is a scalar (local or reg or tab value).
     @string postInstruction := "";
     @string maskStr := "";
     @string rightPart;
-    @string rightExp := [exp generateCode !cgc];
     @string leftPart;
     maskStr := getMaskFor[![[idfAssign type] sizeInBits] ![[idfAssign type] loc] !cgc];
 
@@ -311,6 +311,26 @@ override reader @instTypeDefinition generateCode
 :
   #no code associated. Type definition is done elsewhere.
   code := "";
+end reader;
+
+#This is not an instruction, however code generation is similar.
+reader @typedefMap generateCode
+  ?? @uint nbTabulation
+  ?? @codeCtx cgc
+  -> @string code
+:
+  #TODO: gestion de l'ordre des définitions!!
+  code := "";
+  foreach selfcopy do
+    code .= tabs[!nbTabulation];
+    code .= "typedef struct {\n";
+    foreach typedefMemberMap do
+      code .= tabs[!nbTabulation+1];
+      code .= [type getDeclaration ![lkey string] !cgc].";\n";
+    end foreach;
+    code .= tabs[!nbTabulation];
+    code .= "} gadl_struct_".[lkey string].";\n\n";
+  end foreach;
 end reader;
 
 end semantics;

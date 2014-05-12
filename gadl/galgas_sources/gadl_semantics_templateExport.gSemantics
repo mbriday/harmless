@@ -139,10 +139,15 @@ method @varIdfStruct setInTemplate
       addStringValue !?varMapRegBody !lstringWith[!"setter"] ![inst setter];
     end if;
 
+    #declaration (if appropriate).
+    addStringValue !?varMapRegBody !lstringWith[!"declare"] ![inst generateCode !1 ![@codeCtx C]];
+
     varListTpl += !varMapRegBody;
   end foreach;
   addListValue !?idfStructBody !lstringWith[!"varList"] !varListTpl;
   
+  addStringValue !?idfStructBody !lstringWith[!"typeDefCode"] ![typedefMap generateCode !1 ![@codeCtx C]];
+
   #do not export memSpaceMap to the idfStruct (which is embedded into a core).
   #because a memSpace is global. There is a copy in idfStruct for easy access.
   addStructValue !?templateStruct !lstringWith[!"idfStruct"] !idfStructBody;
