@@ -24,12 +24,12 @@ int main(int argc, char *argv[])
 	{
 		unsigned int id;
 		for(id=0;id<simulator->nbCores();id++)
-			if(!(simulator->core(id)->readCodeFile(argv[id+1]))) exit(1);
+			if(!(simulator->getCore(id)->readCodeFile(argv[id+1]))) exit(1);
 		simulator->run(atoi(argv[id+1]));
 
 		for(id=0;id<simulator->nbCores();id++)
 		{
-			core *c=simulator->core(id);
+			core *c=simulator->getCore(id);
 			const unsigned int nbInst = c->getNBInstructions();
 			cout << "** core : " << id << "**" << endl;
 			cout << "PC : " << c->programCounter() << endl;
