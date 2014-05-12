@@ -187,6 +187,8 @@ override method @ASTInstAssignment getInst
   when == @varBaseType vbt : #basic type.
     if [vbt size] == 0 then
       error loc: "The expression in assignment returns void";
+      log newExp;
+      log exp;
     end if;
   else
   end cast;

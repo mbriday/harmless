@@ -408,8 +408,11 @@ routine handleUnknownType
       #Ok item is a struct.
       typeName := [vst typeName];
       detectedType := [@idfType structMember];
-      suffix := ".";
+      if not lastIdf then
+        suffix := ".";
+      end if;
       shouldStop := false;
+      outType := typeWithoutTab;
     when == @varBaseType :
       #Ok, item is a base type (or a tab of base type).
       switch varClass
@@ -491,6 +494,7 @@ routine handleStructMember
   ?? @lstring idf 
   ?? @varIdfStruct idfStruct
   ?! @idfType detectedType
+  ?? @bool lastIdf
   ?! @lstring typeName #name of the item or struct detected (to further search into structures).
   ?! @varAbstractType outType
   ?! @string suffix
@@ -503,17 +507,20 @@ routine handleStructMember
   @varAbstractType memberType;
   [memberMap searchKey !idf ?memberType];
   @varAbstractType memberTypeWithoutTab := removeTabInIdf[!memberType];
+  outType := memberTypeWithoutTab;
   cast memberTypeWithoutTab
   when == @varStructType vst : #struct type.
+    shouldStop := false;
     #nested struct members.
     typeName := [vst typeName];
     detectedType := [@idfType structMember];
-    suffix := ".";
+    if not lastIdf then
+      suffix := ".";
+    end if;
   else
     #not a struct. It should be the last item.
     shouldStop := true;
     detectedType := [@idfType structMember];
-    outType := memberTypeWithoutTab;
   end cast;
 end routine;
 
@@ -640,7 +647,7 @@ routine handleIdf
   ?! @idfType detectedType        #current detected type (unknown for the first item)
   ?! @bool isConst                #can be written? (assignment check)
   !  @varAbstractType outType     #returned type
-  ?? @bool lastIdf                #is it the last item (to differentiate register from reg slice)
+  ?? @bool lastIdf                #is it the last item (to differentiate register from reg slice, manage suffix)
   ?! @idfItemSpecType unused specificType
   ?! @string prefix               #for code generation
   ?! @string suffix               #for code generation
@@ -656,7 +663,7 @@ routine handleIdf
       handleUnknownType !idf !idfItemType !idfStruct !?isConst !?detectedType !lastIdf
                         !?typeName !?outType !?shouldStop !?prefix !?suffix !?paramDef !?locDef;
     when structMember     :
-      handleStructMember !idf !idfStruct !?detectedType
+      handleStructMember !idf !idfStruct !?detectedType !lastIdf
                         !?typeName !?outType !?suffix !?shouldStop;
     
     when localVar,tabularAccess,registerBitField: 
@@ -907,7 +914,17 @@ routine checkCorrectAssignType
       error [idf location] : errorStr;
     end if;
   when == @varStructType vst:
-    message "no checkCorrectAssignType for varStructType implemented\n";
+    if (toType is == @varStructType) then
+      @varStructType toTypeStruct :=  (cast toType : @varStructType);
+      if [[vst typeName] string] != [[toTypeStruct typeName] string] then
+        error [idf location]: "try to assign a variable of type structure ".[[vst typeName] string]." to ".
+          "an identifier of type ".[toTypeStruct string];
+      end if;
+    else
+      error [idf location]: "try to assign a variable of type structure ".[[vst typeName] string]." to ".
+          "an identifier that is not a structure.";
+          log toType;
+    end if;
   when == @varTabularType vtt:
     message "no checkCorrectAssignType for varTabularType implemented\n";
   else
