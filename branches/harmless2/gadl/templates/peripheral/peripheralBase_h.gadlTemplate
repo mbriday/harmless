@@ -3,6 +3,7 @@
 #define __PERIPHERAL_H__
 
 #include "storage.h"
+#include <string.h> //required by Linux for memcpy...
 
 class peripheral : public rwStorage
 {

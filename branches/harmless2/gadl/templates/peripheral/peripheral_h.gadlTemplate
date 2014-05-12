@@ -16,10 +16,20 @@ end foreach
 class peripheral_%!peripheral::name% : public peripheral
 {
 %
-foreach dev in peripheral::deviceList
-before %\t\t//Devices defined inside this one.\n%
-do %\t%!dev::declare%\n%
+#define internal typedefs.
+!peripheral::idfStruct::typeDefCode
+
+#local var instantiation (and devices).
+foreach var in peripheral::idfStruct::varList
+before %\t//local variables and devices defined inside this peripheral.\n%
+do
+  #if var::varClassId == 4 then #local var
+  if var::declare != "" then
+    !var::declare%\n%
+  end if
+  #end if
 end foreach
+
 %
 	public:
 		peripheral_%!peripheral::name%(const u32 address);

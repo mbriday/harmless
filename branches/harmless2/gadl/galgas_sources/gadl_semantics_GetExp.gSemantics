@@ -555,6 +555,8 @@ routine handleRegisterType
     end if;    
     detectedType := [@idfType registerBitField];    
     shouldStop := true;
+  else
+    error idf : "Unknown identifier ".[currentItemList string].".".[idf string];
   end if;
 end routine;
 
