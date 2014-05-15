@@ -94,29 +94,6 @@ routine addStringset
   addListValue !?ioTemplateVariableMap !inListName !itemMapList;
 end routine;
 
-#this function fills template structure related to var declaration code.
-function varMapDeclaration
-  ?? @varMap varMap
-  ?? @codeCtx cgc              ## generation code context (C, Uppaal, ..)
-  -> @TfieldMapList varMapTplList
-:
-  varMapTplList := [@TfieldMapList emptyList];
-  #local var declaration.
-  foreach varMap (@lstring varName @abstractVar var) do
-    @TfieldMap varMapTplBody [emptyMap];
-    addLStringValue !?varMapTplBody !"name" !varName;
-    cast var
-    when == @classicVar cVar :
-      @cDeclareVar inst := [@cDeclareVar new !here !varName !cVar];
-      @string declare := [inst generateImplementation !0 !"" !"" !cgc];
-      addStringValue !?varMapTplBody !lstringWith[!"declare"] !declare;
-    else error [varName location]: "internal error: the variable should be a classic var";
-    end cast;
-    #end
-    varMapTplList += !varMapTplBody;
-  end foreach;
-end function;
-
 end semantics ;
 
 # vim:ft=ggs:ts=2:sw=2

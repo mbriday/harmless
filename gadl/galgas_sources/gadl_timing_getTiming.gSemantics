@@ -1,0 +1,183 @@
+semantics gadl_timing_getTiming:
+  import "gadl_options.gOption" ;
+  import "gadl_timing.gSemantics" ;
+  import "gadl_timing_AST.gSemantics" ;
+  import "gadl_semantics_GetExp.gSemantics" ;
+  import "gadl_semantics_getInst.gSemantics" ;
+
+reader @ASTTimingMap getTimingMap
+  ?? @symbolValueMap symbolMap
+  ?? @varIdfStruct idfStruct  
+  -> @timingMap timingMap
+:
+  timingMap := [@timingMap emptyMap];
+  foreach selfcopy do
+    message "timing map ".[lkey string]."\n";
+    @symbolValueMap symbolMapCopy := symbolMap;
+    @varIdfStruct idfStructCopy := idfStruct;
+    @uint timingInternalId := 0;
+    [ASTTinstList getTimingList !signalIn !signalOut !?symbolMapCopy !?idfStructCopy
+                  !?timingInternalId ?@timingInstructionList tInstList];
+    [!?timingMap insertKey !lkey !externalActivation !signalIn !signalOut !tInstList];
+  end foreach;
+end reader;
+
+abstract method @ASTTimingInstruction getTiming
+  ?? @boolMap signalIn
+  ?? @boolMap signalOut
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  ?! @uint internalId #to declare internal var (for loops)
+  !  @timingInstruction Tinst
+;
+
+method @ASTTimingInstructionList getTimingList
+  ?? @boolMap signalIn
+  ?? @boolMap signalOut
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  ?! @uint internalId
+  !  @timingInstructionList tInstList
+:
+  tInstList := [@timingInstructionList emptyList];
+  foreach selfcopy do
+    [ASTTinst getTiming !signalIn !signalOut !?symbolMap !?idfStruct !?internalId ?@timingInstruction Tinst];
+    tInstList += !Tinst;
+  end foreach;
+end method;
+
+override method @ASTTEmit getTiming
+  ?? @boolMap unused signalIn
+  ?? @boolMap signalOut
+  ?! @symbolValueMap unused symbolMap
+  ?! @varIdfStruct unused idfStruct
+  ?! @uint unused internalId
+  !  @timingInstruction Tinst
+:
+  #check that signal can be emitted (defined as 'out').
+  if not [signalOut hasKey ![name string]] then
+    error loc:"try to emit signal ".[name string].", but this signal is not declared.";
+  end if;
+  Tinst := [@tEmit new !loc !name !broadcast];
+end method;
+
+override method @ASTTWaitSignal getTiming
+  ?? @boolMap signalIn
+  ?? @boolMap unused signalOut
+  ?! @symbolValueMap unused symbolMap
+  ?! @varIdfStruct unused idfStruct
+  ?! @uint unused internalId
+  !  @timingInstruction Tinst
+:
+  #check that signal can be received (defined as 'in').
+  if not [signalIn hasKey ![name string]] then
+    error here:"try to wait for signal ".[name string].", but it is not declared.";
+  end if;
+  Tinst := [@tWaitSignal new !loc !name];
+end method;
+
+override method @ASTTWaitCycle getTiming
+  ?? @boolMap unused signalIn
+  ?? @boolMap unused signalOut
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  ?! @uint unused internalId
+  !  @timingInstruction Tinst
+:
+  @expressionContext ctx := [@expressionContext timing];
+  @expression expCycle := [ASTExpCycle getExp !ctx !symbolMap !idfStruct];
+  Tinst := [@tWaitCycle new !loc !expCycle];
+end method;
+
+override method @ASTTIf getTiming
+  ?? @boolMap signalIn
+  ?? @boolMap signalOut
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  ?! @uint internalId
+  !  @timingInstruction Tinst
+:
+  @expressionContext ctx := [@expressionContext timing];
+  @expression expIf := [ASTExpIf getExp !ctx !symbolMap !idfStruct];
+  #check that it is a boolean.
+  [[expIf type] checkBool];
+
+  [ASTTinstListThen getTimingList !signalIn !signalOut !?symbolMap
+                    !?idfStruct !?internalId ?@timingInstructionList tInstThenList];
+  [ASTTinstListElse getTimingList !signalIn !signalOut !?symbolMap
+                    !?idfStruct !?internalId ?@timingInstructionList tInstListElse];
+  Tinst := [@tIf new !loc !expIf !tInstThenList !tInstListElse];
+end method;
+
+override method @ASTTLoop getTiming
+  ?? @boolMap signalIn
+  ?? @boolMap signalOut
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  ?! @uint internalId  
+  !  @timingInstruction Tinst
+:
+  @expressionContext ctx := [@expressionContext timing];
+  @expression expLoopValue := [ASTexpLoopValue getExp !ctx !symbolMap !idfStruct];
+  @expression expLoopValueEval := [expLoopValue eval !symbolMap];
+  @uint64 loopValue := 0L;
+  if not forever then
+    if (expLoopValueEval is == @expIntConst) then
+      const @expIntConst expIntConst := (cast expLoopValueEval : @expIntConst);
+      if [expIntConst negative] then
+        error loc: "The loop value should be positive";
+      end if;
+      loopValue := [expIntConst value];
+    else
+      error loc: "the loop value should be constant.";
+    end if;
+  end if;
+  @expression expCondValue := [ASTexpCondValue getExp !ctx !symbolMap !idfStruct];
+  [ASTTinstLoopList getTimingList !signalIn !signalOut !?symbolMap !?idfStruct
+                    !?internalId ?@timingInstructionList tInstLoopList];
+  Tinst := [@tLoop new !loc !forever !loopValue !expCondValue !tInstLoopList !internalId];
+  #insert internal var into varMap
+  @lstring idf :=  [@lstring new !"invLoop_".internalId !loc];
+  @varBaseType type := [@varBaseType new ![@varKind unsigned] !32 !here];
+  @instDeclaration instDec := [@instDeclaration new !loc !type !idf ![@varClass localVar] !""];
+  message "insert id ".[internalId string]." - ".[idf string]."\n";
+  [!?idfStruct->varMap insertKey !idf !type !false ![@varClass localVar] !instDec];
+  internalId := internalId+1;
+end method;
+
+override method @ASTTAssignOrCall getTiming
+  ?? @boolMap unused signalIn
+  ?? @boolMap unused signalOut
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  ?! @uint unused internalId    
+  !  @timingInstruction Tinst
+:
+  @expressionContext ctx := [@expressionContext timing];
+  @instructionList instList [emptyList];
+  foreach ASTinstList (@ASTInstruction ASTinst) do
+    [ASTinst getInst !ctx !?symbolMap !?idfStruct ?@instruction inst];
+    instList += !inst;
+  end foreach;
+  Tinst := [@tAssignOrCall new !loc !instList];  
+end method;
+
+override method @ASTTDeclaration getTiming
+  ?? @boolMap unused signalIn
+  ?? @boolMap unused signalOut
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  ?! @uint unused internalId
+  !  @timingInstruction Tinst
+:
+  @expressionContext ctx := [@expressionContext timing];
+  @instructionList instList [emptyList];
+  foreach ASTinstList (@ASTInstruction ASTinst) do
+    [ASTinst getInst !ctx !?symbolMap !?idfStruct ?@instruction inst];
+    instList += !inst;
+  end foreach;
+  Tinst := [@tDeclaration new !loc !instList]; 
+end method;
+
+end semantics;
+# vim:ft=ggs:ts=2:sw=2

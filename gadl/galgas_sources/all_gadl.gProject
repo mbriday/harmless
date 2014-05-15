@@ -119,6 +119,7 @@ project all_gadl (0:8:1) -> "gadl" :
   semantics "gadl_timing_AST.gSemantics";
   semantics "gadl_timing.gSemantics";           #decorated structures.
   semantics "gadl_timing_getTiming.gSemantics"; #AST -> decorated.
+  semantics "gadl_semantics_timingSectionAutomata.gSemantics"; #
 
 #####################################################################
 # new template management, included from galgas SVN (common with goil)
@@ -133,6 +134,7 @@ project all_gadl (0:8:1) -> "gadl" :
   semantics "template_functions.gSemantics";
   
   semantics "gadl_templates.gSemantics" ;
+  semantics "gadl_template_data_preparation.gSemantics";
 
 #####################################################################
 # Core part.

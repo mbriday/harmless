@@ -1,0 +1,71 @@
+semantics gadl_timing:
+  import "gadl_options.gOption" ;
+  import "gadl_semantics.gSemantics" ; #boolMap
+  import "gadl_semantics_expression.gSemantics" ; #expression
+
+#Timing instructions
+#timingInstruction
+#|-> @tLoop
+#|-> @tIf
+#|-> @tEmit
+#|-> @tWaitSignal
+#|-> @tWaitCycle
+#|-> @tDeclaration
+#|-> @tAssignOrCall -> assignment or method call.
+
+list @timingInstructionList {
+  @timingInstruction inst;
+}
+
+abstract class @timingInstruction {
+  @location loc;
+}
+
+map @timingMap
+{
+  @bool externalActivation; #deprecated?
+  @boolMap signalIn;
+  @boolMap signalOut;
+  @timingInstructionList instList;
+  
+  insert insertKey error message "the '%K' timing is already defined in %L" ; 
+  search searchKey error message "the '%K' timing is not defined" ;
+}
+
+class @tEmit extends @timingInstruction {
+  @lstring name;
+  @bool broadcast;
+}
+
+class @tWaitSignal extends @timingInstruction {
+  @lstring name;
+}
+
+class @tWaitCycle extends @timingInstruction {
+  @expression expCycle;
+}
+
+class @tIf extends  @timingInstruction {
+  @expression expIf;
+  @timingInstructionList tInstListThen;
+  @timingInstructionList tInstListElse;
+}
+
+class @tLoop extends  @timingInstruction {
+  @bool forever;     #no max loop.
+  @uint64 loopValue; #max loops.
+  @expression conditionExp;  
+  @timingInstructionList tInstLoopList;
+  @uint internalId;
+}
+
+class @tAssignOrCall extends @timingInstruction {
+  @instructionList instList;
+}
+
+class @tDeclaration extends @timingInstruction {
+  @instructionList instList;
+}
+
+end semantics;
+# vim:ft=ggs:ts=2:sw=2
