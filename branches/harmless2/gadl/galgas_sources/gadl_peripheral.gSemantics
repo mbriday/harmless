@@ -5,6 +5,7 @@ semantics gadl_peripheral :
   import "gadl_semantics_function.gSemantics" ; #paramDefList checkEqual…
   import "gadl_timing.gSemantics" ; #timings
   import "gadl_timing_getTiming.gSemantics" ; #timings
+  import "gadl_semantics_timingSectionAutomata.gSemantics" ; #TODO: tmp, test.
 
 map @registerPeriphDefMap
 {
@@ -108,6 +109,16 @@ reader @ASTperipheralMap getPeriphMap
     @functionMap functionMap := [ASTFunctionMap getFunctionMap !ctx !idfStruct];
     #timing part.
     @timingMap timingMap := [ASTTimingMap getTimingMap !symbolMap !idfStruct];
+    foreach timingMap do #TODO: tmp
+      @adjMat harmlessAutomata := computeMatAdj[!instList !externalActivation !false];
+      @adjMat uppaalAutomata   := computeMatAdj[!instList !externalActivation !true];
+      @string dotFileU := [uppaalAutomata getGraphVizExport];
+      const @string filenameU := "timing_".[lkey string]."_uppaal.dot";
+      createFile !"." !filenameU !dotFileU;
+      @string dotFileH := [harmlessAutomata getGraphVizExport];
+      const @string filenameH := "timing_".[lkey string]."_harmless.dot";
+      createFile !"." !filenameH !dotFileH;
+    end foreach;
     #add in the final object.
     [!?peripheralMap insertKey !lkey !size !registerPeriphDefMap !functionMap !instDeviceDecList !idfStruct !timingMap];
   end foreach;

@@ -1,0 +1,62 @@
+semantics gadl_timing_AST:
+  import "gadl_options.gOption" ;
+  import "gadl_semantics_AST_expression.gSemantics" ;
+  import "gadl_variable.gSemantics" ; #varClass
+  import "gadl_semantics_AST_implementation.gSemantics" ; #ASTInstructionList
+
+list @ASTTimingInstructionList {
+  @ASTTimingInstruction ASTTinst;
+}
+
+abstract class @ASTTimingInstruction {
+  @location loc;
+}
+
+map @ASTTimingMap
+{
+  @bool externalActivation; #deprecated?
+  @boolMap signalIn;
+  @boolMap signalOut;
+  @ASTTimingInstructionList ASTTinstList;
+  
+  insert insertKey error message "the '%K' timing is already defined in %L" ; 
+  search searchKey error message "the '%K' timing is not defined" ;
+  remove removeKey error message "the '%K' timing is not defined. Can't remove it." ;
+}
+
+class @ASTTEmit extends @ASTTimingInstruction {
+  @lstring name;
+  @bool broadcast;
+}
+
+class @ASTTWaitSignal extends @ASTTimingInstruction {
+  @lstring name;
+}
+
+class @ASTTWaitCycle extends @ASTTimingInstruction {
+  @ASTExpression ASTExpCycle;
+}
+
+class @ASTTIf extends  @ASTTimingInstruction {
+  @ASTExpression ASTExpIf;
+  @ASTTimingInstructionList ASTTinstListThen;
+  @ASTTimingInstructionList ASTTinstListElse;
+}
+
+class @ASTTLoop extends  @ASTTimingInstruction {
+  @bool forever;
+  @ASTExpression ASTexpLoopValue;
+  @ASTExpression ASTexpCondValue;
+  @ASTTimingInstructionList ASTTinstLoopList;
+}
+
+class @ASTTAssignOrCall extends  @ASTTimingInstruction {
+  @ASTInstructionList ASTinstList;
+}
+
+class @ASTTDeclaration extends  @ASTTimingInstruction {
+  @ASTInstructionList ASTinstList;
+}
+
+end semantics;
+# vim:ft=ggs:ts=2:sw=2
