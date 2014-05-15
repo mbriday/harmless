@@ -4,6 +4,7 @@ syntax gadl_peripheral_parser ("gadl_lexique.gLexique") :
   import "gadl_semantics_AST_implementation.gSemantics" ; #varClass.
   import "gadl_semantics_function.gSemantics";
   import "gadl_semantics_AST_implementation.gSemantics"; #memoryMapping
+  import "gadl_timing_AST.gSemantics"; #@ASTTimingMap
 
 #from gadl_implementation_parser.gSyntax
 nonterminal <typeDefinition> ?! @ASTInstructionList instList;
@@ -16,6 +17,11 @@ nonterminal <registerBitAccessDef>
 nonterminal <memoryMapping>
   ! @memoryMapping memoryMapping
 ;
+
+nonterminal <timing>
+  ?! @ASTTimingMap ASTTimingMap
+;
+
 
 #from gadl_function_parser
 #not the outType and functionName in the rule due to grammar LL1 restrictions.
@@ -68,7 +74,7 @@ rule <deviceDeclaration>
 :
   @varAbstractType type;
   $device$; $idf$ ?@lstring deviceType;
-  [ASTperipheralMap searchKey !deviceType ?* ?* ?* ?* ?* ?* ?*]; #check that peripheral is defined.
+  [ASTperipheralMap searchKey !deviceType ?* ?* ?* ?* ?* ?* ?* ?*]; #check that peripheral is defined.
   @varAbstractType typeBase := [@varDeviceType new ![@varKind custom] !deviceType];
   select #code extracted from rule <typeDeclaration>
     @luint64 tabLength;
@@ -103,6 +109,7 @@ rule <peripheral>
   @ASTInstructionList ASTDeviceDecList [emptyList];
   @ASTInstructionList ASTTypeDefList [emptyList];
   @ASTInstructionList ASTLocalVarList [emptyList];
+  @ASTTimingMap ASTTimingMap [emptyMap];
   $peripheral$;
   $idf$ ?@lstring peripheralName;
   $memory$; $size$; $unumber$ ?@luint64 lsize;
@@ -126,6 +133,8 @@ rule <peripheral>
       ASTDeviceDecList += !deviceDec;
     while
       <typeDefinition> !? ASTTypeDefList;
+    while
+      <timing> !?ASTTimingMap;
     end repeat;
   $}$;
   #problem:
@@ -138,7 +147,7 @@ rule <peripheral>
   foreach ASTregDefMap do
     getInst !ASTregDecList !ctx !symbolMap !?idfStruct ?*;
   end foreach;
-  [!?ASTperipheralMap insertKey !peripheralName !lsize !ASTregDefMap !ASTFunctionMap !ASTDeviceDecList !ASTTypeDefList !ASTLocalVarList !idfStruct->varMap];
+  [!?ASTperipheralMap insertKey !peripheralName !lsize !ASTregDefMap !ASTFunctionMap !ASTDeviceDecList !ASTTypeDefList !ASTLocalVarList !idfStruct->varMap !ASTTimingMap];
 
 end rule;
 

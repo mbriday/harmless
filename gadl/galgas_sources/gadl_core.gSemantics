@@ -6,7 +6,6 @@ semantics gadl_core :
   import "gadl_templates.gSemantics" ;
   import "gadl_semantics_templateExport.gSemantics" ;
   import "gadl_micro_architecture.gSemantics" ;
-  import "gadl_timing_parser.gSyntax";
 
 #key is core name.
 map @ASTCoreMap

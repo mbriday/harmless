@@ -6,6 +6,7 @@ with "gadl_register_parser.gSyntax";
 with "gadl_expression_parser.gSyntax";
 with "gadl_implementation_parser.gSyntax";
 with "gadl_function_parser.gSyntax";
+with "gadl_timing_parser.gSyntax";
 
 root <peripheralSet> ?! @ASTperipheralMap ASTperipheralMap;
 

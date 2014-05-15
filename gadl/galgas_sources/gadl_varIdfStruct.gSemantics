@@ -215,6 +215,7 @@ map @ASTperipheralMap
   @ASTInstructionList ASTTypeDefList;#type defs.
   @ASTInstructionList ASTLocalVarList;
   @varMap varMap; #registers and register slices only!
+  @ASTTimingMap ASTTimingMap;
   insert insertKey error message "the '%K' peripheral is already defined in %L" ; 
   search searchKey error message "the '%K' peripheral is not defined" ;
   remove removeKey error message "the '%K' peripheral is not defined. Can't remove it." ;
