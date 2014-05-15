@@ -99,8 +99,6 @@ project all_gadl (0:8:1) -> "gadl" :
 # This part does not model the pipeline.
 #******************************************************************** 
 
-#syntax "gadl_timing_parser.gSyntax";
-#semantics "gadl_timing_AST.gSemantics";
 
 #semantics "gadl_semantics_timingSection.gSemantics" ; #main file
 #automata generation routines (both Harmless and Uppaal)
@@ -116,6 +114,11 @@ project all_gadl (0:8:1) -> "gadl" :
   semantics "gadl_peripheral.gSemantics" ;     #decorated structures
   semantics "gadl_peripheral_templateExport.gSemantics" ; #various template export
 
+  #timing related part.
+  syntax    "gadl_timing_parser.gSyntax";
+  semantics "gadl_timing_AST.gSemantics";
+  semantics "gadl_timing.gSemantics";           #decorated structures.
+  semantics "gadl_timing_getTiming.gSemantics"; #AST -> decorated.
 
 #####################################################################
 # new template management, included from galgas SVN (common with goil)

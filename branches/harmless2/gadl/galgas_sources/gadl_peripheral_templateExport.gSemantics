@@ -43,11 +43,6 @@ method @peripheralMap setInTemplate
     #devices.
     [instDeviceDecList setDeviceInTemplate !?peripheralBody];
     #typedef (type definitions)
-    message "periph : ".[lkey string]."\n";
-    foreach idfStruct->typedefMap do
-      message "\t".[lkey string]."\n";
-    end foreach;
-    message [idfStruct->typedefMap generateCode !1 ![@codeCtx C]];
     peripheralList += !peripheralBody;
   end foreach;
   addListValue !?templateStruct !lstringWith[!"peripheralList"] !peripheralList;

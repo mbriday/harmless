@@ -3,6 +3,8 @@ semantics gadl_peripheral :
   import "gadl_peripheral_AST.gSemantics" ;
   import "gadl_semantics_getInst.gSemantics" ; #getInst
   import "gadl_semantics_function.gSemantics" ; #paramDefList checkEqual…
+  import "gadl_timing.gSemantics" ; #timings
+  import "gadl_timing_getTiming.gSemantics" ; #timings
 
 map @registerPeriphDefMap
 {
@@ -23,6 +25,7 @@ map @peripheralMap
   @functionMap functionMap;
   @instructionList instDeviceDecList;
   @varIdfStruct idfStruct;
+  @timingMap timingMap;
 
   insert insertKey error message "the '%K' peripheral is already defined in %L" ; 
   search searchKey error message "the '%K' peripheral is not defined" ;
@@ -102,9 +105,11 @@ reader @ASTperipheralMap getPeriphMap
     #declare internal devices
     getInst !ASTDeviceDecList !ctx !symbolMap !?idfStruct ?@instructionList instDeviceDecList;
     #generate methods.
-    @functionMap functionMap := [ASTFunctionMap getFunctionMap !ctx !idfStruct]; 
+    @functionMap functionMap := [ASTFunctionMap getFunctionMap !ctx !idfStruct];
+    #timing part.
+    @timingMap timingMap := [ASTTimingMap getTimingMap !symbolMap !idfStruct];
     #add in the final object.
-    [!?peripheralMap insertKey !lkey !size !registerPeriphDefMap !functionMap !instDeviceDecList !idfStruct];
+    [!?peripheralMap insertKey !lkey !size !registerPeriphDefMap !functionMap !instDeviceDecList !idfStruct !timingMap];
   end foreach;
 end reader;
 

@@ -1,6 +1,7 @@
 semantics gadl_peripheral_AST :
   import "gadl_options.gOption" ;
   import "gadl_semantics_AST_implementation.gSemantics" ;
+  import "gadl_timing_AST.gSemantics" ;
 
 map @ASTregisterPeriphDefMap
 {
