@@ -119,7 +119,11 @@ project all_gadl (0:8:1) -> "gadl" :
   semantics "gadl_timing_AST.gSemantics";
   semantics "gadl_timing.gSemantics";           #decorated structures.
   semantics "gadl_timing_getTiming.gSemantics"; #AST -> decorated.
+
+  semantics "gadl_semantics_timingSection.gSemantics" ; #main file (timing)
   semantics "gadl_semantics_timingSectionAutomata.gSemantics"; #
+  #transform Harmless automata into simulation steps.
+  semantics "gadl_semantics_timingSimulationStep.gSemantics" ;
 
 #####################################################################
 # new template management, included from galgas SVN (common with goil)
