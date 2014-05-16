@@ -3,6 +3,7 @@ semantics gadl_peripheral_templateExport:
   import "gadl_peripheral.gSemantics" ;
   import "gadl_semantics_implementation_code_generation.gSemantics" ;
   import "gadl_semantics_templateExport.gSemantics" ;
+  import "gadl_semantics_timingSection.gSemantics" ;
 
 method @registerPeriphDefMap setInTemplate
   ?! @TfieldMap templateStruct
@@ -42,6 +43,8 @@ method @peripheralMap setInTemplate
     [registerPeriphDefMap setInTemplate !?peripheralBody];
     #devices.
     [instDeviceDecList setDeviceInTemplate !?peripheralBody];
+    #timings. TODO: tmp!!!
+    timingPart !templateStruct !?peripheralBody !timingMap !lstringWith[!"leopard"]; 
     #typedef (type definitions)
     peripheralList += !peripheralBody;
   end foreach;

@@ -1,0 +1,598 @@
+semantics gadl_semantics_timingSimulationStep:
+  import "gadl_semantics_timingSectionAutomata.gSemantics" ; #addStringlist
+ 
+#################################################################################
+# generate simulation steps from the Harmless automata.
+# entry is the Harmless automata (@adjMat harmlessAutomata)
+# output is a timingStep list (in a one dim array): @timingStepArray
+# generation is done in 2 passes:
+#  *The first one split states/transition info into simulation steps 
+#   (getSimulationStepsRec)
+#  * The second one reduces the number of simulation steps to preserve
+#    simulation speed.
+# All is called in "getSimulationSteps" routine.
+# debug routines in timingStepLog and timingStepArrayLog
+#################################################################################
+
+
+#this structure embedds all that may be need to generate one simulation step
+#(a simulation code chunk).
+class @timingStep {
+  @uintlist nextStepList feature setter;      #as many values as there are output transitions.
+  #transition related stuff
+  @instructionList updateList feature setter; #code that should be executed
+  @stringlist guardList feature setter;       #condition list.
+  @stringlist synchroInList feature setter;   #synchronization (wait for)
+  @stringlist synchroOutList feature setter;  #synchronization (emit)
+  @stringlist synchroOutBroadcastList feature setter;  #synchronization (emit broadcast)
+  #state related stuff
+  @expressionlist waitCycle feature setter;
+}
+
+modifier @timingStep addUpdate
+  ?? @instruction inst
+:
+  updateList += !inst;
+end modifier;
+
+array @timingStepArray : @timingStep[2] ;
+
+function getEmptyStep
+  -> @timingStep step
+:
+  step := [ @timingStep new ![@uintlist emptyList] ![@instructionList emptyList] ![@stringlist emptyList]
+         ![@stringlist emptyList]  ![@stringlist emptyList] ![@stringlist emptyList] ![@expressionlist emptyList]];
+end function;
+
+routine setNextStepId
+  ?! @timingStepArray stepArray
+  ?? @uint fromStepId
+  ?? @uint toStepId
+:
+  #get the source step.
+  @bool valid :=  [stepArray isValueValidAtIndex !fromStepId !0];
+  if valid then
+    @timingStep srcStep := [stepArray valueAtIndex !fromStepId !0];
+    [!?srcStep addNextStepId !toStepId];
+    [!?stepArray setValueAtIndex !srcStep !fromStepId !0];
+  else
+    #no link the first call (no transition to the init state).
+    if fromStepId != 0 then
+      error here: "internal error step ".[fromStepId string]." does not exists\n";
+    end if;
+  end if;
+end routine;
+
+#end of step, start of a new one.
+# * update link from the previous step
+# * store the step in the array
+# * return a new empty step.
+routine changeToNextStep
+  ?! @uint previousStepId
+  ?! @uint currentStepId
+  ?! @timingStepArray stepArray  
+  ?! @timingStep currentStep
+:
+  setNextStepId !?stepArray !previousStepId !currentStepId;      #update previous step (link)
+  [!?stepArray forceValueAtIndex !currentStep !currentStepId !0];  #insert new step (partial)
+  previousStepId := currentStepId;                                 #update previous and current step id.
+  currentStepId++;
+  currentStep := getEmptyStep[];
+end routine;
+
+#nothing useful in the timingStep
+#-> do not take into account nextStepList, but it should be with:
+#   * 0 value : invalid timingStep (not complete)
+#   * 1 value : the next step id (as there are no conditions)
+reader @timingStep isEmpty
+  -> @bool empty
+:
+  empty := [updateList length] == 0;
+  empty := empty & [guardList length] == 0;
+  empty := empty & [synchroInList length] == 0;
+  empty := empty & [synchroOutList length] == 0;
+  empty := empty & [synchroOutBroadcastList length] == 0;
+  empty := empty & [waitCycle length] == 0;
+end reader;
+
+modifier @timingStep addGuard
+  ?? @string guardCode
+:
+  guardList += !guardCode;
+end modifier;
+
+modifier @timingStep addNextStepId
+  ?? @uint nextStepId
+:
+  nextStepList += !nextStepId;
+end modifier;
+
+#this routine formulates the Harmless automata into simulation steps.
+routine getSimulationSteps
+  ?? @adjMat harmlessAutomata
+  ?! @TfieldMap timingTplBody
+  ?? @bool externalActivation
+:
+  @uint currentStepId := 0;
+  @uint previousStepId := 0;
+  @timingStepArray tmpStepArray := [@timingStepArray new !1 !1]; #only one step.
+  @intMap statesDone [emptyMap]; #value is the corresponding step.
+  #first generate simulation steps from a Harmless automata.
+  getSimulationStepsRec !harmlessAutomata !0 !?currentStepId !?previousStepId !?tmpStepArray !?statesDone;
+  #Then 'compress' simulation steps (reduce the number of steps to preserve computation time)
+  @timingStepArray stepArray := compressSimulationSteps[!tmpStepArray !externalActivation];
+  #for stepArrays with 'externalActivation', one can add another optimization
+  if externalActivation then 
+    stepArray := timingStepOptimWithAutomataActivation[!stepArray];
+  end if;
+  #@timingStepArray stepArray := tmpStepArray;
+  #and finally export to templates.
+  @TfieldMapList timingStepTpl [emptyList];  
+  @range dimSteps:= [stepArray rangeForAxis !0];
+  @uint stepId := 0;
+  for stepId in dimSteps do
+    @TfieldMap timingStepTplBody [emptyMap];  
+    @timingStep currentStep := [stepArray valueAtIndex !stepId !0];
+    #export one timing step.
+    exportTimingStep !currentStep !?timingStepTplBody;
+    addStringValue   !?timingStepTplBody !lstringWith[!"id"] ![stepId string];
+    #done
+    timingStepTpl += !timingStepTplBody;
+    stepId := stepId + 1;
+  end for;
+  addListValue !?timingTplBody !lstringWith[!"timingStepList"] !timingStepTpl;
+  #timingStepArrayLog !stepArray;
+end routine;
+
+routine exportTimingStep
+  ?? @timingStep currentStep
+  ?! @TfieldMap timingStepTplBody
+:
+  #update
+  @stringlist updateList [emptyList];
+  foreach [currentStep updateList] (@instruction inst) do
+    updateList += ![inst generateCode !0 ![@codeCtx C]];
+  end foreach;
+  addStringlist !?timingStepTplBody !lstringWith[!"updateList"] !lstringWith[!"str"] !updateList;
+  #update uppaal -> .dot export.
+  @stringlist updateUppaalList [emptyList];
+  foreach [currentStep updateList] (@instruction inst) do
+    updateUppaalList += ![inst generateCode !0 ![@codeCtx Uppaal]];
+  end foreach;
+  addStringlist !?timingStepTplBody !lstringWith[!"updateListUppaal"] !lstringWith[!"str"] !updateUppaalList;
+  #merge condition and next step id (guard and nextStepList)
+  if [[currentStep nextStepList] length] > 1 then #more than one condition
+    @TfieldMapList nextStepMapList [emptyList];
+    foreach [currentStep nextStepList] (@uint next),[currentStep guardList] (@string guardCode) do
+      @TfieldMap itemMap [emptyMap];
+      addStringValue   !?itemMap !lstringWith[!"guard"]  !guardCode;
+      addUnsignedValue !?itemMap !lstringWith[!"nextId"] ![next uint64];    
+      nextStepMapList += !itemMap;
+    end foreach;
+    addListValue !?timingStepTplBody !lstringWith[!"nextList"] !nextStepMapList;
+  else #one condition only.
+    @uint nextId;
+    [[currentStep nextStepList] first ?nextId];
+    addUnsignedValue !?timingStepTplBody !lstringWith[!"singleDest"] ![nextId uint64];
+  end if;  
+  #synchro
+  addStringlist !?timingStepTplBody !lstringWith[!"synchroInList"] !lstringWith[!"str"] ![currentStep synchroInList];
+  addStringlist !?timingStepTplBody !lstringWith[!"synchroOutList"] !lstringWith[!"str"] ![currentStep synchroOutList];
+  addStringlist !?timingStepTplBody !lstringWith[!"synchroOutBroadcastList"] !lstringWith[!"str"] ![currentStep synchroOutBroadcastList];
+  #wait
+  addListValue !?timingStepTplBody !lstringWith[!"waitCycles"] !getTemplateExpList[![currentStep waitCycle] !false];
+end routine;
+
+function compressSimulationSteps
+  ?? @timingStepArray stepArray
+  ?? @bool externalActivation
+  -> @timingStepArray compressedStepArray
+:
+  @uint currentStepId := 0; #index of the step that is generated of the compressed step array
+  @range dimSteps:= [stepArray rangeForAxis !0];
+  #This map stores steps that are targets of more than one step.
+  #(these steps should be a step in the compressed array.)
+  #key is the step id of destinations
+  #value is the number of times it is called.
+  @intMap destinationSteps [emptyMap];
+  for stepId in dimSteps do
+    @timingStep currentStep := [stepArray valueAtIndex !stepId !0];
+    foreach [currentStep nextStepList] (@uint nextId) do
+      if [destinationSteps hasKey ![nextId string]] then
+        #one entry. add one and update
+        @uint nbDst;
+        #[destinationSteps searchKey !lstringWith[![nextId string]] ?nbDst];
+        [!?destinationSteps removeKey !lstringWith[![nextId string]] ?nbDst];
+        [!?destinationSteps insertKey !lstringWith[![nextId string]] !nbDst+1];
+      else
+        #no entry, init with 1.
+        [!?destinationSteps insertKey !lstringWith[![nextId string]] !1];
+      end if;
+    end foreach;
+  end for;
+  #log destinationSteps;
+  @timingStep firstStep := [stepArray valueAtIndex !0 !0];
+  @intMap oldToNewStepId [emptyMap];
+  compressedStepArray := [@timingStepArray new !0 !1]; #only one step.
+  [!?oldToNewStepId insertKey !lstringWith[!"0"] !0];
+  mergeStepsInAutomata !firstStep !stepArray !?compressedStepArray !destinationSteps !?oldToNewStepId !externalActivation;
+  #update nextStepList using map:oldToNewStepId
+  @range dimCompressedSteps:= [compressedStepArray rangeForAxis !0];
+  for stepId in dimCompressedSteps do
+    @timingStep currentStep := [compressedStepArray valueAtIndex !stepId !0];
+    @uintlist nextStepList [emptyList];
+    foreach [currentStep nextStepList] (@uint oldId) do
+      @uint newId;
+      [oldToNewStepId searchKey !lstringWith[![oldId string]] ?newId];
+      nextStepList += !newId;
+    end foreach;
+    [!?currentStep setNextStepList !nextStepList];
+    [!?compressedStepArray setValueAtIndex !currentStep !stepId !0];
+  end for;
+end function;
+
+#this function returns true if the simulation may be stopped after this step:
+#this occurs if:
+# * step has to wait for a nb of cycles or
+# * step has to synchronize using a signal
+function simMayStop
+  ?? @timingStep step
+  -> @bool simulationMayStop
+:
+  simulationMayStop := [[step waitCycle] length] > 0;
+  simulationMayStop := simulationMayStop | [[step synchroInList]  length] > 0;
+  simulationMayStop := simulationMayStop | [[step synchroOutList] length] > 0;
+end function;
+
+#this function merge stepA and stepB
+#if stepA -> stepB and all contraints are OK (checked by mergeSteps routine).
+#
+function mergeSteps
+  ?? @timingStep stepA
+  ?? @timingStep stepB
+  -> @timingStep mergedStep
+:
+  mergedStep := stepA;
+  #next step list is the one of stepB.
+  if [[stepA nextStepList] length] > 1 then
+    error here: "internal error: nextStepList size should be one exactly.";
+  end if;
+  [!?mergedStep setNextStepList ![stepB nextStepList]];
+  foreach [stepB updateList] (@instruction inst) do
+    [!?mergedStep addUpdate !inst];
+  end foreach;
+  #guard list
+  if [[stepA guardList] length] > 0 then
+    error here : "internal error: guardList should be empty to merge steps!";
+  end if;
+  [!?mergedStep setGuardList ![stepB guardList]];
+  #synchro
+  if [[stepA synchroInList] length] > 0 |  [[stepA synchroOutList] length] > 0  then
+    error here : "internal error: sychro lists should be empty to merge steps!";
+  end if;
+  [!?mergedStep setSynchroInList  ![stepB synchroInList]];
+  [!?mergedStep setSynchroOutList ![stepB synchroOutList]];
+  #synchro broadcast (should merge step A and step B)
+  @stringlist mergedSynchroBCList := [stepA synchroOutBroadcastList];
+  foreach [stepB synchroOutBroadcastList] (@string emitBC) do
+    mergedSynchroBCList += !emitBC;
+  end foreach;
+  [!?mergedStep setSynchroOutBroadcastList !mergedSynchroBCList];
+  #wait for.
+  if [[stepA waitCycle] length] > 0 then
+    error here : "internal error: wait cycle should be 0 to merge steps!";
+  end if;
+  [!?mergedStep setWaitCycle ![stepB waitCycle]];
+end function;
+
+#recursive routine to merge steps.
+routine mergeStepsInAutomata
+  ?? @timingStep stepA
+  ?? @timingStepArray stepArray
+  ?! @timingStepArray compressedStepArray
+  ?? @intMap destinationSteps
+  ?! @intMap oldToNewStepId
+  ?? @bool externalActivation
+:
+  #we can merge stepA and stepB if:
+  # * stepA has only one transition (no condition)
+  # * stepB follows stepA
+  # * stepB has not been processed, except if stepA is Empty
+  # * stepB is NOT an entry point of another step, except if stepA is empty: 
+  #         exception: stepB is step 0 and 'externalActivation' is set => can't merge
+  # * stepA does not set a "wait" -> wait for cycle or synchro
+  if [[stepA nextStepList] length] > 1 then
+    #stepA does not have only one transition. Can't merge stepA and stepB.
+    #save stepA into the compressed step array.
+    @uint sizeOfCompressedArray := [compressedStepArray sizeForAxis !0];
+    [!?compressedStepArray forceValueAtIndex !stepA !sizeOfCompressedArray !0];
+    #start to merge from each step following the current one.
+    foreach [stepA nextStepList] (@uint nextStepId) do
+      @timingStep nextStepA := [stepArray valueAtIndex !nextStepId !0];    
+      [!?oldToNewStepId insertKey !lstringWith[![nextStepId string]] ![compressedStepArray sizeForAxis !0]];
+      mergeStepsInAutomata !nextStepA !stepArray !?compressedStepArray !destinationSteps !?oldToNewStepId !externalActivation;
+    end foreach;
+  else
+    #only one condition. Get stepB.
+    @uint stepBId;
+    [[stepA nextStepList] first ?stepBId];
+    @timingStep stepB := [stepArray valueAtIndex !stepBId !0];
+    if [oldToNewStepId hasKey ![stepBId string]] then
+      @bool exception := externalActivation & (stepBId==0);
+      #stepB has been processed. However, we can still merge if stepA is empty.
+      if [stepA isEmpty] & not exception then
+        #this part less simple, has we have to update the compressedStepArray that is build...
+        #get the already generated step (in compressedStepArray), and not the old stepB.
+        @uint newStepBId;
+        [oldToNewStepId searchKey !lstringWith[![stepBId string]] ?newStepBId];
+        stepB := [compressedStepArray valueAtIndex !newStepBId !0];     
+        #.. and merge...
+        @timingStep mergedStep := mergeSteps[!stepA !stepB];
+        #..and re save updated step...
+        [!?compressedStepArray setValueAtIndex !mergedStep !newStepBId !0];
+        #and update oldToNewStepId, because links has alreaydy been done.
+        @uint currentIndex:= [compressedStepArray sizeForAxis !0]; #index to update.
+        @intMap oldToNewStepIdUpdated [emptyMap];
+        foreach oldToNewStepId (@lstring key @uint newId) do
+          @uint newIdUpdated;
+          if newId == currentIndex then newIdUpdated := newStepBId;
+          else newIdUpdated := newId;
+          end if;
+          [!?oldToNewStepIdUpdated insertKey !key !newIdUpdated];
+        end foreach;
+        oldToNewStepId := oldToNewStepIdUpdated;
+      else
+        #save stepA into the compressed step array.
+        @uint sizeOfCompressedArray := [compressedStepArray sizeForAxis !0];
+        [!?compressedStepArray forceValueAtIndex !stepA !sizeOfCompressedArray !0];  
+      end if;
+      #stepB has been done. Stop recursion.
+    else
+      #check that stepB is NOT an entry point of another step
+      #i.e. stepB has only one predecessor.
+      @uint nbPreds;
+      [destinationSteps searchKey !lstringWith[![stepBId string]] ?nbPreds];
+      if nbPreds > 1 then
+        #more than one predecessor
+        #we can still merge if stepA is empty.
+        if [stepA isEmpty] then
+          #OK. Merge.
+          @timingStep mergedStep := mergeSteps[!stepA !stepB];
+          [!?oldToNewStepId insertKey !lstringWith[![stepBId string]] ![compressedStepArray sizeForAxis !0]];
+          mergeStepsInAutomata !mergedStep !stepArray !?compressedStepArray !destinationSteps !?oldToNewStepId !externalActivation;
+        else
+          #-> can't merge stepA and stepB.
+          #save stepA into the compressed step array.
+          @uint sizeOfCompressedArray := [compressedStepArray sizeForAxis !0];
+          [!?compressedStepArray forceValueAtIndex !stepA !sizeOfCompressedArray !0];
+          #start from new stepB.
+          [!?oldToNewStepId insertKey !lstringWith[![stepBId string]] ![compressedStepArray sizeForAxis !0]];
+          mergeStepsInAutomata !stepB !stepArray !?compressedStepArray !destinationSteps !?oldToNewStepId !externalActivation;
+        end if;
+      else
+        if simMayStop[!stepA] then
+          #can't merge. Simulation may stop.
+          @uint sizeOfCompressedArray := [compressedStepArray sizeForAxis !0];
+          [!?compressedStepArray forceValueAtIndex !stepA !sizeOfCompressedArray !0];
+          #start from new stepB.
+          [!?oldToNewStepId insertKey !lstringWith[![stepBId string]] ![compressedStepArray sizeForAxis !0]];
+          mergeStepsInAutomata !stepB !stepArray !?compressedStepArray !destinationSteps !?oldToNewStepId !externalActivation;
+        else
+          #Ok. Merging.
+          @timingStep mergedStep := mergeSteps[!stepA !stepB];
+          [!?oldToNewStepId insertKey !lstringWith[![stepBId string]] ![compressedStepArray sizeForAxis !0]];
+          mergeStepsInAutomata !mergedStep !stepArray !?compressedStepArray !destinationSteps !?oldToNewStepId !externalActivation;
+        end if;
+      end if;
+    end if;
+  end if;
+end routine;
+
+#recursive routine that builds simulations steps from Harmless automata.
+#this routine generate at least one step for each state,
+routine getSimulationStepsRec
+  ?? @adjMat harmlessAutomata
+  ?? @uint currentState
+  ?! @uint currentStepId
+  ?! @uint previousStepId
+  ?! @timingStepArray stepArray
+  ?! @intMap statesDone
+:
+  @timingStep currentStep := getEmptyStep[];
+  #should check that state have not been done.
+  #to generate code only once for each automata state.
+  if not [statesDone hasKey ![currentState string]] then
+    #add an empty step that is associated to that state.
+    changeToNextStep !?previousStepId !?currentStepId !?stepArray !?currentStep;
+    #Save stepId related to that state in the case of more than one incoming transition.
+    #the currentStepId gives the index of the next step to insert,
+    #previousStepId gives the index of the last inserted. That's the one required here.
+    [!?statesDone insertKey !lstringWith[![currentState string]] !previousStepId];
+    #is current state have a wait?
+    @expressionlist waitCycleList := [[harmlessAutomata stateList] waitCycleListAtIndex !currentState];
+    if [waitCycleList length] > 0 then #there is a wait, add a step.
+      [!?currentStep setWaitCycle !waitCycleList];
+      changeToNextStep !?previousStepId !?currentStepId !?stepArray !?currentStep;
+    end if;
+    #search for output Transitions
+    @uintlist nextStateList := [harmlessAutomata getOutputTransitions !currentState];
+    if [nextStateList length] == 1 then
+      #ok, only one, get it.
+      @uint nextState;
+      [nextStateList first ?nextState];
+      @timingTransition transition := [harmlessAutomata getTransition !nextState !currentState];
+      #check that there is no condition (as there is only one transition):
+      if [[transition guardList] length] > 0 then
+        error here: "internal error in timing. As there is only one transition from one state".
+                    " to another, it should not have any condition.";
+      end if;
+      #check for synchro => imply a new step
+      if [[transition synchroInList] length] > 0 then
+        [!?currentStep setSynchroInList ![transition synchroInList]];
+        changeToNextStep !?previousStepId !?currentStepId !?stepArray !?currentStep;
+      end if;
+      if [[transition synchroOutList] length] > 0 then
+        [!?currentStep setSynchroOutList ![transition synchroOutList]];
+        changeToNextStep !?previousStepId !?currentStepId !?stepArray !?currentStep;
+      end if;
+      if [[transition synchroOutBroadcastList] length] > 0 then
+        [!?currentStep setSynchroOutBroadcastList ![transition synchroOutBroadcastList]];
+        changeToNextStep !?previousStepId !?currentStepId !?stepArray !?currentStep;
+      end if;
+      #update
+      if [[transition updateList] length] > 0 then
+        [!?currentStep setUpdateList ![transition updateList]];      
+        changeToNextStep !?previousStepId !?currentStepId !?stepArray !?currentStep;
+      end if;
+      #done. recursive call.
+      getSimulationStepsRec !harmlessAutomata !nextState !?currentStepId !?previousStepId !?stepArray !?statesDone;
+    else
+      #more than one output condition (as there are many output transitions)
+      foreach nextStateList (@uint dst) do
+        #transform condition list into one condition code string
+        @timingTransition transition := [harmlessAutomata getTransition !dst !currentState];
+        @string guardCode := "";
+        foreach [transition guardList] (@expression exp)
+        do guardCode .= "(".[exp generateCode ![@codeCtx C]].")";
+        between guardCode .= "&&";
+        end foreach;
+        #add the guard.
+        [!?currentStep addGuard !guardCode];
+      end foreach;
+      changeToNextStep !?previousStepId !?currentStepId !?stepArray !?currentStep;
+      #save the previousStepId (state that have conditions).
+      @uint previousStepIdSav := previousStepId;
+      foreach nextStateList (@uint dst) do
+        previousStepId := previousStepIdSav;
+        getSimulationStepsRec !harmlessAutomata !dst !?currentStepId !?previousStepId !?stepArray !?statesDone;    
+      end foreach;
+    end if;
+  else # we are on a done state.
+    #link that previous step (the new one won't be used) to the one corresponding to the 
+    #state's step.
+    @uint dst;
+    [statesDone searchKey !lstringWith[![currentState string]] ?dst];
+    setNextStepId !?stepArray !previousStepId !dst;      #update previous step (link)  
+  end if;
+end routine;
+
+#debugging routines.
+routine timingStepLog
+  ?? @timingStep step
+:
+  #update
+  foreach [step updateList] (@instruction inst) 
+  before message "update: ";
+  do message [inst generateCode !0 ![@codeCtx C]];
+  between message ", ";
+  after message "\n";
+  end foreach;
+  #synchro in
+  foreach [step synchroInList] (@string sig) 
+  before message "synchro wait: ";
+  do message sig;
+  between message ", ";
+  after message "\n";
+  end foreach;
+  #synchro out
+  foreach [step synchroOutList] (@string sig) 
+  before message "synchro emit: ";
+  do message sig;
+  between message ", ";
+  after message "\n";
+  end foreach;
+  #synchro out broadcast
+  foreach [step synchroOutBroadcastList] (@string sig) 
+  before message "synchro broadcast emit: ";
+  do message sig;
+  between message ", ";
+  after message "\n";
+  end foreach;  
+  #wait
+  foreach [step waitCycle] (@expression exp)
+  before message "wait:";
+  do 
+    @string waitStr := [exp generateCode ![@codeCtx Uppaal]];
+    message waitStr;
+  between message " + ";
+  after message "\n";
+  end foreach;
+  #next.
+  if [[step guardList] length] == 0 then #one next only
+    @string nextStr;
+    if [[step nextStepList] length] > 0 then
+      @uint next;
+      [[step nextStepList] first ?next];
+      nextStr := [next string];
+    else nextStr := "unknown";
+    end if;
+    message "next step:".nextStr."\n";
+  else #more than one output transition
+    foreach [step nextStepList] (@uint next),[step guardList] (@string guardCode) 
+    do message "condition ".guardCode." -> step ".[next string]."\n";
+    end foreach;
+    if [[step nextStepList] length] != [[step guardList] length] then
+      message "ERROR: not the same nb of conditions/next steps.\n";
+    end if;
+  end if;
+end routine;
+
+# With the 'activation', one last step cannot be merged with the first step.
+# This is done to easily know if the automata has done one loop.
+# We can optimze if the step just before (the last stage) should not wait.
+# * the transition is updated.
+function timingStepOptimWithAutomataActivation
+  ?? @timingStepArray stepArray
+  -> @timingStepArray optimStepArray
+:
+  optimStepArray := stepArray;
+  #determine last step (the only that points to step 0)
+  @uint lastStepId := 0;
+  @range dimSteps:= [stepArray rangeForAxis !0];
+  @uint stepId := 0;
+  for stepId in dimSteps do
+    @timingStep currentStep := [stepArray valueAtIndex !stepId !0];
+    if [[currentStep nextStepList] length] == 1 then #one condition
+      foreach [currentStep nextStepList] (@uint next) do
+        if next == 0 then # found
+          if lastStepId != 0 then error here : "internal error in timingStepOptimWithAutomataActivation"; end if;
+          lastStepId := stepId;
+        end if;
+      end foreach;
+    end if;
+  end for;
+  #ok. Then get all steps that points to this lastStepId, and update their transition id steps does not wait.
+  for stepId in dimSteps do
+    @timingStep currentStep := [stepArray valueAtIndex !stepId !0];
+    if not simMayStop[!currentStep] then
+      @uintlist nextStepList [emptyList];
+      foreach [currentStep nextStepList] (@uint next) do
+        if next == lastStepId then
+          nextStepList += !0;
+        else
+          nextStepList += !next;
+        end if;
+      end foreach;
+      [!?currentStep setNextStepList !nextStepList];
+    end if;
+    [!?optimStepArray setValueAtIndex !currentStep !stepId !0];
+  end for;
+end function;
+
+
+routine timingStepArrayLog
+  ?? @timingStepArray stepArray
+:
+  @range dimSteps:= [stepArray rangeForAxis !0];
+  for stepId in dimSteps do
+    @bool valid :=  [stepArray isValueValidAtIndex !stepId !0];
+    if valid then
+      @timingStep currentStep := [stepArray valueAtIndex !stepId !0];
+      message "****** step ".[stepId string]." *****\n";
+      timingStepLog !currentStep;
+      message "------ step ".[stepId string]." ------\n";
+    end if;
+  end for;
+end routine;
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2
