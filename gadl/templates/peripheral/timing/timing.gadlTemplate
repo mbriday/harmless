@@ -1,77 +1,82 @@
 %
-if exists signalDefinedInTiming then
-  #generate the Uppaal output of timed automata (for model check).
-  write to MODELNAME."/timingUppaal.xml":
-    template timingUppaal_xml in timing
-  end write
-
-  #generate simulation code for these automatas .cpp/.h
-  write to MODELNAME."/timingBase.h":
-    template timingBase_h in timing
-  end write
-
-  foreach timingPart in timingList
+#if exists signalDefinedInTiming then
+#  #generate the Uppaal output of timed automata (for model check).
+#  write to MODELNAME."/timingUppaal.xml":
+#    template timingUppaal_xml in timing
+#  end write
+#
+#  #generate simulation code for these automatas .cpp/.h
+#  write to MODELNAME."/timingBase.h":
+#    template timingBase_h in timing
+#  end write
+#
+  foreach timingPart in peripheral::timingList
   do
-    write to MODELNAME."/timing_".timingPart::name.".cpp":
-      template timing_cpp in timing
+    let className := baseName."_timing_".timingPart::name
+    #.cpp file
+    write to exportDir."/".className.".cpp":
+       #generation Ok, mais manque timingSignal.h
+#      template timing_cpp in "peripheral/timing" 
     end write
-    %timing_%!timingPart::name%.cpp \\\n%
-    write to MODELNAME."/timing_".timingPart::name.".h":
-      template timing_h in timing
-    end write  
-    write to MODELNAME."/timing_".timingPart::name.".dot":
-      template timing_dot in timing
+    !className%.cpp \\\n%
+    #.h file
+    write to exportDir."/".className.".h":
+#      template timing_h in "peripheral/timing"
+    end write
+    #.dot (graphviz) file
+    write to exportDir."/".className.".dot":
+      template timing_dot in "peripheral/timing"
     end write  
   end foreach
-
-  ############################################################
-  #signal association.
-  ############################################################
-
-  #create an index for each signal
-  let timingMap := mapOf timingList by name
-  #compute some stuff related to signals ids for connexions. Used by both arch.cpp and timingSignal.h
-  #Associate an offset for each device.
-  let signalWaitDevOffsetList := emptyMap  #device offset associated to input  signals
-  let signalEmitDevOffsetList := emptyMap #device offset associated to output signals
-  let signalWaitDevMap := emptyMap  #input  signal id inside one timing
-  let signalEmitDevMap := emptyMap #output signal id inside one timing
-  let offsetEmit := 0
-  let offsetWait := 1 #0 is reserved for 'all' (*) 
-  let timingsInUseMap := emptyMap #store the timings used (no data)
-  foreach timingName in deviceToTimingMap do
-    let idWait := 0 #current id of signal
-    let idEmit := 0
-    #timing and component should have the same name (checked by gadl)
-    if not exists timingsInUseMap[timingName] then
-      let timingsInUseMap[timingName] := true
-      #only one time for each component/timing.
-      foreach sigWait in timingMap[timingName]::signalWait do
-        let key := timingName."_".sigWait::name
-        let signalWaitDevMap[key] := idWait
-        let idWait := idWait + 1
-      end foreach
-      foreach sigEmit in timingMap[timingName]::signalEmit do
-        let key := timingName."_".sigEmit::name
-        let signalEmitDevMap[key] := idEmit
-        let idEmit := idEmit + 1
-      end foreach
-    end if #exists timingsInUseMap
-    let signalWaitDevOffsetList[KEY] := offsetWait
-    let signalEmitDevOffsetList[KEY] := offsetEmit
-    let nbSigWait := [timingMap[timingName]::signalWait length]
-    let nbSigEmit := [timingMap[timingName]::signalEmit length]
-    let offsetWait := offsetWait + nbSigWait
-    let offsetEmit := offsetEmit + nbSigEmit
-  end foreach
-  let nbSigEmit := offsetEmit #as offset is post-incremented..
-  let nbSigWait := offsetWait #as offset is post-incremented..
-
-  write to MODELNAME."/timingSignal.h":
-    template timingSignal_h in timing
-  end write
-  write to MODELNAME."/timingSignal.cpp":
-    template timingSignal_cpp in timing
-  end write
-  %timingSignal.cpp \\\n%
-end if
+#
+#  ############################################################
+#  #signal association.
+#  ############################################################
+#
+#  #create an index for each signal
+#  let timingMap := mapOf timingList by name
+#  #compute some stuff related to signals ids for connexions. Used by both arch.cpp and timingSignal.h
+#  #Associate an offset for each device.
+#  let signalWaitDevOffsetList := emptyMap  #device offset associated to input  signals
+#  let signalEmitDevOffsetList := emptyMap #device offset associated to output signals
+#  let signalWaitDevMap := emptyMap  #input  signal id inside one timing
+#  let signalEmitDevMap := emptyMap #output signal id inside one timing
+#  let offsetEmit := 0
+#  let offsetWait := 1 #0 is reserved for 'all' (*) 
+#  let timingsInUseMap := emptyMap #store the timings used (no data)
+#  foreach timingName in deviceToTimingMap do
+#    let idWait := 0 #current id of signal
+#    let idEmit := 0
+#    #timing and component should have the same name (checked by gadl)
+#    if not exists timingsInUseMap[timingName] then
+#      let timingsInUseMap[timingName] := true
+#      #only one time for each component/timing.
+#      foreach sigWait in timingMap[timingName]::signalWait do
+#        let key := timingName."_".sigWait::name
+#        let signalWaitDevMap[key] := idWait
+#        let idWait := idWait + 1
+#      end foreach
+#      foreach sigEmit in timingMap[timingName]::signalEmit do
+#        let key := timingName."_".sigEmit::name
+#        let signalEmitDevMap[key] := idEmit
+#        let idEmit := idEmit + 1
+#      end foreach
+#    end if #exists timingsInUseMap
+#    let signalWaitDevOffsetList[KEY] := offsetWait
+#    let signalEmitDevOffsetList[KEY] := offsetEmit
+#    let nbSigWait := [timingMap[timingName]::signalWait length]
+#    let nbSigEmit := [timingMap[timingName]::signalEmit length]
+#    let offsetWait := offsetWait + nbSigWait
+#    let offsetEmit := offsetEmit + nbSigEmit
+#  end foreach
+#  let nbSigEmit := offsetEmit #as offset is post-incremented..
+#  let nbSigWait := offsetWait #as offset is post-incremented..
+#
+#  write to MODELNAME."/timingSignal.h":
+#    template timingSignal_h in timing
+#  end write
+#  write to MODELNAME."/timingSignal.cpp":
+#    template timingSignal_cpp in timing
+#  end write
+#  %timingSignal.cpp \\\n%
+#end if

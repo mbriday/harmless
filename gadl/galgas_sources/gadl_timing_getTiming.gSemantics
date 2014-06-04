@@ -12,7 +12,7 @@ reader @ASTTimingMap getTimingMap
 :
   timingMap := [@timingMap emptyMap];
   foreach selfcopy do
-    message "timing map ".[lkey string]."\n";
+    #message "timing map ".[lkey string]."\n";
     @symbolValueMap symbolMapCopy := symbolMap;
     @varIdfStruct idfStructCopy := idfStruct;
     @uint timingInternalId := 0;
@@ -140,7 +140,7 @@ override method @ASTTLoop getTiming
   @lstring idf :=  [@lstring new !"invLoop_".internalId !loc];
   @varBaseType type := [@varBaseType new ![@varKind unsigned] !32 !here];
   @instDeclaration instDec := [@instDeclaration new !loc !type !idf ![@varClass localVar] !""];
-  message "insert id ".[internalId string]." - ".[idf string]."\n";
+  #message "insert id ".[internalId string]." - ".[idf string]."\n";
   [!?idfStruct->varMap insertKey !idf !type !false ![@varClass localVar] !instDec];
   internalId := internalId+1;
 end method;

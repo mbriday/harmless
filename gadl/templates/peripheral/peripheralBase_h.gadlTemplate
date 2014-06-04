@@ -4,6 +4,7 @@
 
 #include "storage.h"
 #include <string.h> //required by Linux for memcpy...
+class timingBase;
 
 class peripheral : public rwStorage
 {
@@ -17,6 +18,12 @@ class peripheral : public rwStorage
 		if(matchAddress(address)) return this;
 		else return NULL;
 	};
+
+	//TODO
+	void timingWaitForCycles(timingBase *,const u64 nbCycles) {};
+	bool timingSynchroEmit(timingBase *,unsigned int sigName, const bool broadcast) {return true;};
+	bool timingSynchroWait(timingBase *,unsigned int sigName) {return true;};
+
 };
 
 #endif

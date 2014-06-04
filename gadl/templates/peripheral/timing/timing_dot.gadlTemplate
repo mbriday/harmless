@@ -1,4 +1,4 @@
-digraph timingSimulationStep_%!timingPart::name% {
+digraph timingSimulationStep_%!className% {
 %
 #define nodes
 let id := 0

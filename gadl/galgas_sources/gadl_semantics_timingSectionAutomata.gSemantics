@@ -811,16 +811,16 @@ list @pointList {
 # * call the external 'dot' program to get back state coordinates
 # * return coordinates of each states.
 routine getAutomataCoordinates
-  ?? @string modelName
+  ?? @string exportDir
   ?? @adjMat automata
   ?? @lstring timingName
   !  @pointList pointList
 :
   pointList := [@pointList emptyList];
   @string dotFile := [automata getGraphVizExport];
-  const @string filename := modelName."/log/timing_".[timingName string]."Uppaal.dot";
-  createFile !modelName."/log/" !"timing_".[timingName string]."Uppaal.dot" !dotFile;
-  const @string command := "python ".modelName."/getCoordFromDot.py ".filename ;
+  const @string filename := exportDir."/log/timing_".[timingName string]."Uppaal.dot";
+  createFile !exportDir."/log/" !"timing_".[timingName string]."Uppaal.dot" !dotFile;
+  const @string command := "python ".exportDir."/getCoordFromDot.py ".filename ;
   #run script
   @string result := [command popen];
   #result format for each line:%d %d %d //-> 'state id' 'x location' 'y location'

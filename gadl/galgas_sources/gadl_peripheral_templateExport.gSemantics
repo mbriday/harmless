@@ -26,6 +26,7 @@ method @registerPeriphDefMap setInTemplate
 end method;
 
 method @peripheralMap setInTemplate
+  ?? @string exportDir
   ?! @TfieldMap templateStruct
 :
   @TfieldMapList peripheralList [emptyList];
@@ -43,8 +44,8 @@ method @peripheralMap setInTemplate
     [registerPeriphDefMap setInTemplate !?peripheralBody];
     #devices.
     [instDeviceDecList setDeviceInTemplate !?peripheralBody];
-    #timings. TODO: tmp!!!
-    timingPart !?peripheralBody !timingMap !lstringWith[!"leopard"]; 
+    #timing
+    [timingMap setInTemplate !exportDir !?peripheralBody];
     #typedef (type definitions)
     peripheralList += !peripheralBody;
   end foreach;

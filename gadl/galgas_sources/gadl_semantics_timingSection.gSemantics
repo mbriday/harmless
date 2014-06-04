@@ -1,14 +1,14 @@
 semantics gadl_semantics_timingSection:
   import "gadl_semantics_timingSimulationStep.gSemantics" ;
 
-routine timingPart
+#in fact, not only setInTemplate -> do most of the job.
+method @timingMap setInTemplate
+  ?? @string exportDir
   ?! @TfieldMap templateStruct
-  ?? @timingMap timingMap
-  ?? @lstring modelName
 :
   @TfieldMapList timingTpl [emptyList];
   @stringset signalSet [emptySet];
-  foreach timingMap (@lstring name 
+  foreach selfcopy (@lstring name 
                      @bool externalActivation
                      @boolMap SignalIn
                      @boolMap SignalOut
@@ -25,12 +25,12 @@ routine timingPart
     @adjMat uppaalAutomata   := computeMatAdj[!instList !externalActivation !true];
     
     @pointList stateCoordinateList;
-    getAutomataCoordinates ![modelName string] !uppaalAutomata !name ?stateCoordinateList;
+    getAutomataCoordinates !exportDir !uppaalAutomata !name ?stateCoordinateList;
     #add name
     addLStringValue !?timingTplBody !"name" !name;
     #add local vars
-#    addListValue !?timingTplBody !lstringWith[!"localVarUppaal"] !varMapDeclaration[!varMap ![@codeCtx Uppaal]];    
-#    addListValue !?timingTplBody !lstringWith[!"localVar"] !varMapDeclaration[!varMap ![@codeCtx C]];    
+    addListValue !?timingTplBody !lstringWith[!"localVarUppaal"] ![instList getDeclarationList ![@codeCtx Uppaal]];
+    addListValue !?timingTplBody !lstringWith[!"localVar"]  ![instList getDeclarationList ![@codeCtx C]];
     #add automata (Uppaal and simulation ones).
     adjacencyMatrixTemplate !uppaalAutomata   !?timingTplBody !true !stateCoordinateList;  #Uppaal
     adjacencyMatrixTemplate !harmlessAutomata !?timingTplBody !false !stateCoordinateList; #sim
@@ -42,7 +42,32 @@ routine timingPart
   addListValue !?templateStruct !lstringWith[!"timingList"] !timingTpl;
   addListValue !?templateStruct !lstringWith[!"signalDefinedInTiming"] !stringSetToList[!signalSet !"name"];;
   #testCopy;
-end routine;
+end method;
+
+reader @timingInstructionList getDeclarationList
+  ?? @codeCtx cgc              ## generation code context (C, Uppaal, ..)
+  -> @TfieldMapList varMapTplList
+:
+  varMapTplList := [@TfieldMapList emptyList];
+  foreach selfcopy do
+    if (inst is >=  @tDeclaration) then
+      @TfieldMap varMapTplBody [emptyMap];  
+      #Ok, get a declaration inst.
+      const @tDeclaration tDecInst := (cast inst: @tDeclaration);
+      foreach [tDecInst instList] do
+        if (inst is >= @instDeclaration) then #inst is a @instruction here.
+        const @instDeclaration instDec := (cast inst: @instDeclaration);
+         addLStringValue !?varMapTplBody !"name" ![instDec name];     
+          #OK, generate code.
+          @string declare := [inst generateCode !1 !cgc];
+          addStringValue !?varMapTplBody !lstringWith[!"declare"] !declare;      
+        end if;
+      end foreach;
+      #end
+      varMapTplList += !varMapTplBody;    
+    end if;
+  end foreach;
+end reader;
 
 routine addBoolMap
   ?? @boolMap boolmap

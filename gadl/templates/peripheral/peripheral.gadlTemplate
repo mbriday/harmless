@@ -1,6 +1,4 @@
 % 
-#test
-
 #super class.
 write to exportDir."/peripheral.h":
   template peripheralBase_h
@@ -10,16 +8,26 @@ write to exportDir."/peripheral.cpp":
 end write
 %peripheral.cpp \\\n%
 
+#generate simulation base class for timings.
+write to exportDir."/timingBase.h":
+  template timingBase_h in "peripheral/timing"
+end write
+
 #each peripheral has its own class.
 if exists peripheralList then
   foreach peripheral in peripheralList do
     let baseName := "periph_".peripheral::name
+    #.h file
     write to exportDir."/".baseName.".h":
       template peripheral_h
     end write
+    # .cpp file
     write to exportDir."/".baseName.".cpp":
       template peripheral_cpp
     end write
     !baseName%.cpp \\\n%
+    #timings. One class for each timing.
+    template timing in "peripheral/timing"
   end foreach
 end if
+

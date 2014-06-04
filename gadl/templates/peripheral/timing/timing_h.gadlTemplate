@@ -1,15 +1,15 @@
 %template headerC%
-#ifndef __TIMING_%!timingPart::name%_H__
-#define __TIMING_%!timingPart::name%_H__
+#ifndef __TIMING_%!className%_H__
+#define __TIMING_%!className%_H__
 
 #include <iostream>
 #include "timingBase.h"
 #include "types.h"
 #include "fifo.h"
 
-class arch;
+class peripheral;
 
-class timing%!timingPart::name% : public timingBase {\n
+class %!className% : public timingBase {\n
 	const unsigned int m_inOffset;
 	const unsigned int m_outOffset;
 %foreach var in timingPart::localVar do
@@ -21,11 +21,11 @@ foreach step in timingPart::timingStepList do
 %	bool step_%!id%(arch *);
 %let id := id + 1
 end foreach
-%	typedef bool (timing%!timingPart::name%::* stepPtr)(arch *);
+%	typedef bool (%!className%::* stepPtr)(peripheral *);
 	stepPtr nextStep; //points to the next step
 	fifo<u32> *m_accessFifo;
 	public:
-	timing%!timingPart::name%(const unsigned int inOffset, const unsigned int outOffset) : 
+	%!className%(const unsigned int inOffset, const unsigned int outOffset) : 
 	m_inOffset(inOffset), m_outOffset(outOffset) {init();};
 	virtual void run(arch *arch) {
 		while((this->*nextStep)(arch));
@@ -41,14 +41,14 @@ end foreach
 %end if
 %	}
 	virtual void init() {
-		nextStep = &timing%!timingPart::name%::step_0;
-		m_accessFifo = new fifo<u32>("timing %!timingPart::name% fifo",16); //arbitrary max val
+		nextStep = &%!className%::step_0;
+		m_accessFifo = new fifo<u32>("timing %!className% fifo",16); //arbitrary max val
 	};
-	bool isInit() {return nextStep == &timing%!timingPart::name%::step_0;};
-	virtual std::string toString() {return std::string("timing%!timingPart::name%");};
+	bool isInit() {return nextStep == &%!className%::step_0;};
+	virtual std::string toString() {return std::string("%!className%");};
 	void insertInDataCacheFifo(const u32 addr)
 	{
 		m_accessFifo->write(addr);
 	}	
 };
-#endif // __TIMING_%!timingPart::name%_H__
+#endif // __TIMING_%!className%_H__
