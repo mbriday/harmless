@@ -1,5 +1,5 @@
 %#This 'tool' template is NOT called by the root template.
 
 write to exportDir."/getCoordFromDot.py":
-  template getCoordFromDot_py in timing
+  template getCoordFromDot_py in "peripheral/timing"
 end write

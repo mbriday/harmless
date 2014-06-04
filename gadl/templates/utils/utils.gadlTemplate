@@ -3,27 +3,27 @@
 #utils for simulation.
 write to exportDir."/macro.h":
   template headerC
-  template macro_h in utils
+  template macro_h in "utils"
 end write
 
 write to exportDir."/types.cpp":
-  template types_cpp in utils
+  template types_cpp in "utils"
 end write
 %types.cpp \\\n%
 
 write to exportDir."/types.h":
-  template types_h in utils
+  template types_h in "utils"
 end write
 
 write to exportDir."/utils.cpp":
-  template utils_cpp in utils
+  template utils_cpp in "utils"
 end write
 %utils.cpp \\\n%
 
 write to exportDir."/utils.h":
-  template utils_h in utils
+  template utils_h in "utils"
 end write
 
 write to exportDir."/fifo.h":
-  template fifo_h in utils
+  template fifo_h in "utils"
 end write

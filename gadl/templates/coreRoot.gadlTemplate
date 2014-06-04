@@ -2,13 +2,13 @@
   #Should be called for each core definition.
 
 #Instruction Set Architecture related files.
-template isa in isa
+template isa in "isa"
 
 #logs..
-template log in log
+template log in "log"
 #
 ##Cycle accurate related files
-template cas in cas
+template cas in "cas"
 
 #casC -> compiled CAS specific files.
 #template casC in casC

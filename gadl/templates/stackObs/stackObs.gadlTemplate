@@ -1,50 +1,50 @@
 %
 #stackObs for simulation.
 write to exportDir."/stackController.cpp":
-  template stackController_cpp in stackObs
+  template stackController_cpp in "stackObs"
 end write
 %stackController.cpp \\\n%
 
 write to exportDir."/stackController.h":
-  template stackController_h in stackObs
+  template stackController_h in "stackObs"
 end write
 
 write to exportDir."/stackList.cpp":
-  template stackList_cpp in stackObs
+  template stackList_cpp in "stackObs"
 end write
 %stackList.cpp \\\n%
 
 write to exportDir."/stackList.h":
-  template stackList_h in stackObs
+  template stackList_h in "stackObs"
 end write
 
 write to exportDir."/stackObserver.cpp":
-  template stackObserver_cpp in stackObs
+  template stackObserver_cpp in "stackObs"
 end write
 %stackObserver.cpp \\\n%
 
 write to exportDir."/stackObserver.h":
-  template stackObserver_h in stackObs
+  template stackObserver_h in "stackObs"
 end write
 
 write to exportDir."/stackSpyAction.cpp":
-  template stackSpyAction_cpp in stackObs
+  template stackSpyAction_cpp in "stackObs"
 end write
 %stackSpyAction.cpp \\\n%
 
 write to exportDir."/stackSpyAction.h":
-  template stackSpyAction_h in stackObs
+  template stackSpyAction_h in "stackObs"
 end write
 
 write to exportDir."/stackSwitchList.cpp":
-  template stackSwitchList_cpp in stackObs
+  template stackSwitchList_cpp in "stackObs"
 end write
 %stackSwitchList.cpp \\\n%
 
 write to exportDir."/stackSwitchList.h":
-  template stackSwitchList_h in stackObs
+  template stackSwitchList_h in "stackObs"
 end write
 
 write to exportDir."/stackTypes.h":
-  template stackTypes_h in stackObs
+  template stackTypes_h in "stackObs"
 end write

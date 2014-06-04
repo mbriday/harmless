@@ -1,32 +1,32 @@
 %
 #reading binary code for the simulator.
 write to exportDir."/codeReader.h":
-  template codeReader_h in codeReader
+  template codeReader_h in "codeReader"
 end write
 
 write to exportDir."/elfReader.cpp":
-  template elfReader_cpp in codeReader
+  template elfReader_cpp in "codeReader"
 end write
 %elfReader.cpp \\\n%
 
 write to exportDir."/elfReader.h":
-  template elfReader_h in codeReader
+  template elfReader_h in "codeReader"
 end write
 
 write to exportDir."/iHexReader.cpp":
-  template iHexReader_cpp in codeReader
+  template iHexReader_cpp in "codeReader"
 end write
 %iHexReader.cpp \\\n%
 
 write to exportDir."/iHexReader.h":
-  template iHexReader_h in codeReader
+  template iHexReader_h in "codeReader"
 end write
 
 write to exportDir."/sRecordReader.cpp":
-  template sRecordReader_cpp in codeReader
+  template sRecordReader_cpp in "codeReader"
 end write
 %sRecordReader.cpp \\\n%
 
 write to exportDir."/sRecordReader.h":
-  template sRecordReader_h in codeReader
+  template sRecordReader_h in "codeReader"
 end write

@@ -4,21 +4,21 @@
 #log related to instruction components usage.
 if core::useCAS then
   write to exportDir."/".core::NAME."_instDDCLock.cpp":
-    template instDDCLock_cpp in cas
+    template instDDCLock_cpp in "cas"
   end write
   !core::NAME%_instDDCLock.cpp \\\n%
 
   write to exportDir."/".core::NAME."_instDDCRequired.cpp":
-    template instDDCRequired_cpp in cas
+    template instDDCRequired_cpp in "cas"
   end write
   !core::NAME%_instDDCRequired.cpp \\\n%
 
   write to exportDir."/".core::NAME."_pipelineTraceDebug.h":
-    template pipelineTraceDebug_h in cas
+    template pipelineTraceDebug_h in "cas"
   end write
 
   write to exportDir."/".core::NAME."_pipelineTraceDebug.cpp":
-    template pipelineTraceDebug_cpp in cas
+    template pipelineTraceDebug_cpp in "cas"
   end write
   #source not added to Makefile, as it is compiled only if necessary.
 end if

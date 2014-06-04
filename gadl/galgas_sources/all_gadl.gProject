@@ -98,15 +98,6 @@ project all_gadl (0:8:1) -> "gadl" :
 # **
 # This part does not model the pipeline.
 #******************************************************************** 
-
-
-#semantics "gadl_semantics_timingSection.gSemantics" ; #main file
-#automata generation routines (both Harmless and Uppaal)
-#semantics "gadl_semantics_timingSectionAutomata.gSemantics" ; 
-#transform Harmless automata into simulation steps.
-#semantics "gadl_semantics_timingSimulationStep.gSemantics" ;
-#semantics "gadl_semantics_signalSection.gSemantics" ;
-
   grammar   "gadl_peripheral_grammar.gGrammar" ;
   syntax    "gadl_peripheral_parser.gSyntax" ;
   syntax    "gadl_peripheral_set_parser.gSyntax" ; #only for included files: define more than 1 peripheral.

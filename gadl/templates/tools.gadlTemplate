@@ -3,6 +3,6 @@
 #some file should be used by gadl itself (the root templates is
 #only executed at the end of gadl computation).
 
-#new timing part (memory hierarchy)
-template timingTools in timing
+#required for timing tools (inside a peripheral).
+template timingTools in "peripheral/timing"
 %

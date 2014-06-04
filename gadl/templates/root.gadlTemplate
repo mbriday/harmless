@@ -37,25 +37,25 @@ end write
 %core.cpp \\\n%
 
 #peripherals
-template peripheral in peripheral
+template peripheral in "peripheral"
 
 #utils to generate code (types, macro, ..)
-template utils in utils
+template utils in "utils"
 
 #memory related files
-template memory in memory
+template memory in "memory"
 
 #read a binary file and store it in simulator memory (sRecord, H86, elf)
-template codeReader in codeReader
+template codeReader in "codeReader"
 
 #task and stack observation
-template stackObs in stackObs
+template stackObs in "stackObs"
 
 ##TODO: work in progress.
 #template peripherals in peripherals
 
 #Makefile targets (standalone, python and gdb).
-template target in target
+template target in "target"
 
 #############################################################
 ##timings:
