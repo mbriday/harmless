@@ -7,14 +7,14 @@
 #include <iostream>
 #include <string>
 
-class arch;
+class peripheral;
 
 class timingBase {
 	private:
 	timingBase *m_next; //single link list
 	u64 m_nextWakeUpDate; //single link list sorting value
 	public:
-	virtual void run(arch *_arch) = 0;
+	virtual void run(peripheral *_peripheral) = 0;
 	virtual void init() = 0 ;
 	virtual std::string toString() = 0;
 

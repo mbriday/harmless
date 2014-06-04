@@ -140,7 +140,7 @@ rule <cpu>
   # peripherals
   ###########################################################################
   @peripheralMap peripheralMap := [ASTperipheralMap getPeriphMap];
-  [peripheralMap setInTemplate !?templateStruct];
+  [peripheralMap setInTemplate ![cpuName string] !?templateStruct];
 
   ###########################################################################
   # cpu generation.
