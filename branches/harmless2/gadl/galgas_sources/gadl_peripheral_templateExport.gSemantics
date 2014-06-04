@@ -44,7 +44,7 @@ method @peripheralMap setInTemplate
     #devices.
     [instDeviceDecList setDeviceInTemplate !?peripheralBody];
     #timings. TODO: tmp!!!
-    timingPart !templateStruct !?peripheralBody !timingMap !lstringWith[!"leopard"]; 
+    timingPart !?peripheralBody !timingMap !lstringWith[!"leopard"]; 
     #typedef (type definitions)
     peripheralList += !peripheralBody;
   end foreach;

@@ -15,37 +15,37 @@ end foreach
 
 #memory related files (including actions).
 write to exportDir."/storage.h":
-  template storage_h in memory
+  template storage_h in "memory"
 end write
 
 write to exportDir."/storage.cpp":
-  template storage_cpp in memory
+  template storage_cpp in "memory"
 end write
 %storage.cpp \\\n%
 
 write to exportDir."/action.h":
-  template action_h in memory
+  template action_h in "memory"
 end write
 
 write to exportDir."/action.cpp":
-  template action_cpp in memory
+  template action_cpp in "memory"
 end write
 %action.cpp \\\n%
 
 write to exportDir."/breakpointAction.h":
-  template breakpointAction_h in memory
+  template breakpointAction_h in "memory"
 end write
 
 write to exportDir."/breakpointAction.cpp":
-  template breakpointAction_cpp in memory
+  template breakpointAction_cpp in "memory"
 end write
 %breakpointAction.cpp \\\n%
 
 write to exportDir."/constAction.h":
-  template constAction_h in memory
+  template constAction_h in "memory"
 end write
 
 write to exportDir."/constAction.cpp":
-  template constAction_cpp in memory
+  template constAction_cpp in "memory"
 end write
 %constAction.cpp \\\n%

@@ -10,18 +10,18 @@ end if
 
 #decoder related files -> format
 write to exportDir."/".core::NAME."_instDecoder.h":
-  template instDecoder_h in isa
+  template instDecoder_h in "isa"
 end write
 write to exportDir."/".core::NAME."_instDecoder.cpp":
-  template instDecoder_cpp in isa
+  template instDecoder_cpp in "isa"
 end write
 !core::NAME%_instDecoder.cpp \\\n%
 
 write to exportDir."/".core::NAME."_instDecoderCache.h":
-  template instDecoderCache_h in isa
+  template instDecoderCache_h in "isa"
 end write
 write to exportDir."/".core::NAME."_instDecoderCache.cpp":
-  template instDecoderCache_cpp in isa
+  template instDecoderCache_cpp in "isa"
 end write
 !core::NAME%_instDecoderCache.cpp \\\n%
 
@@ -41,7 +41,7 @@ foreach inst in core::INST_CONSTRUCTOR do
 end foreach
 
 write to exportDir."/".core::NAME."_instConstruct.cpp":
-  template instConstruct_cpp in isa
+  template instConstruct_cpp in "isa"
 end write
 !core::NAME%_instConstruct.cpp \\\n%
 
@@ -64,14 +64,14 @@ end if
 
 #instruction class definition -> most parts from format.
 write to exportDir."/".core::NAME."_instructionBase.h":
-  template instructionBase_h in isa
+  template instructionBase_h in "isa"
 end write
 write to exportDir."/".core::NAME."_instructionBase.cpp":
-  template instructionBase_cpp in isa
+  template instructionBase_cpp in "isa"
 end write
 !core::NAME%_instructionBase.cpp \\\n%
 write to exportDir."/".core::NAME."_instruction.h":
-  template instruction_h in isa
+  template instruction_h in "isa"
 end write
 
 #timing instruction (i.e. timing associated to one instruction, independant of the u-arch)
@@ -93,7 +93,7 @@ if exists core::instCodeList then #not defined for 'no behavior' option.
     if nb == nbInstMax then
       #generate in a file.
       write to exportDir."/".core::NAME."_instExec-".[nbFile string].".cpp":
-        template instExec_cpp in isa
+        template instExec_cpp in "isa"
       end write
       !core::NAME%_instExec-%![nbFile string]%.cpp \\\n%
       #reinit
@@ -104,13 +104,13 @@ if exists core::instCodeList then #not defined for 'no behavior' option.
   end foreach
   #final part.
   write to exportDir."/".core::NAME."_instExec-".[nbFile string].".cpp":
-    template instExec_cpp in isa
+    template instExec_cpp in "isa"
   end write
   !core::NAME%_instExec-%![nbFile string]%.cpp \\\n%
 end if #'no behavior' option.
 #instruction that do not have any behavior.
 write to exportDir."/".core::NAME."_instWithoutExec.cpp":
-  template instWithoutExec_cpp in isa
+  template instWithoutExec_cpp in "isa"
 end write
 !core::NAME%_instWithoutExec.cpp \\\n%
 
@@ -128,7 +128,7 @@ if exists core::instMnemoList then #not defined for 'no disassemble' option.
     if nb == nbInstMax then
       #generate in a file.
       write to exportDir."/".core::NAME."_instMnemo-".[nbFile string].".cpp":
-        template instMnemo_cpp in isa
+        template instMnemo_cpp in "isa"
       end write
       !core::NAME%_instMnemo-%![nbFile string]%.cpp \\\n%
       #reinit
@@ -139,12 +139,12 @@ if exists core::instMnemoList then #not defined for 'no disassemble' option.
   end foreach
   #final part.
   write to exportDir."/".core::NAME."_instMnemo-".[nbFile string].".cpp":
-    template instMnemo_cpp in isa
+    template instMnemo_cpp in "isa"
   end write
   !core::NAME%_instMnemo-%![nbFile string]%.cpp \\\n%
 end if #'no disassemble' option.
 #instruction that do not have any syntax
 write to exportDir."/".core::NAME."_instWithoutMnemo.cpp":
-  template instWithoutMnemo_cpp in isa
+  template instWithoutMnemo_cpp in "isa"
 end write
 !core::NAME%_instWithoutMnemo.cpp \\\n%

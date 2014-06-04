@@ -3,15 +3,15 @@
 #log related to instruction components usage.
 if core::useCAS then
   write to exportDir."/log/".core::NAME."_instructionMapping.html":
-    template instructionMapping_html in log
+    template instructionMapping_html in "log"
   end write
 
   write to exportDir."/log/".core::NAME."_instructionClass.html":
-    template instructionClass_html in log
+    template instructionClass_html in "log"
   end write
 end if
 
 #ISA log (the format part)
 write to exportDir."/log/".core::NAME."_logISA.txt":
-  template logISA in log
+  template logISA in "log"
 end write

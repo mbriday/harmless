@@ -127,6 +127,8 @@ rule <cpu>
   ###########################################################################
   @TfieldMap templateStruct := [@TfieldMap emptyMap];
   [!?templateStruct initTemplate !cpuName !exportDir];
+  #compile the tools templates (-> generate tools required during compilation)
+  @string templateLog := computeTemplate[!"" !templateStruct !"tools"];
 
   ###########################################################################
   # memory space.

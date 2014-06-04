@@ -2,14 +2,10 @@ semantics gadl_semantics_timingSection:
   import "gadl_semantics_timingSimulationStep.gSemantics" ;
 
 routine timingPart
-  ?? @TfieldMap mainTemplateStruct
   ?! @TfieldMap templateStruct
   ?? @timingMap timingMap
   ?? @lstring modelName
 :
-  #compute template tools to build the required 'python script' that gets automata
-  #coordinates from a dot file (see getAutomataCoordinates function).
-  @string templateLog := computeTemplate[!"" !mainTemplateStruct !"tools"];
   @TfieldMapList timingTpl [emptyList];
   @stringset signalSet [emptySet];
   foreach timingMap (@lstring name 

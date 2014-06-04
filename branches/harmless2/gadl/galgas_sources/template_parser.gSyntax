@@ -188,7 +188,7 @@ rule <template_instruction>
     $identifier$ ? @lstring templateName;
     @bool found;
     select
-      $in$; $identifier$ ?@lstring prefix;
+      $in$; $string$ ?@lstring prefix;
       nextPrefix := fullPrefix[!ioTemplateVariableMap !prefix];
     or
     end select;
@@ -224,7 +224,7 @@ rule <template_instruction>
   or
     $identifier$ ? @lstring templateName;
     select
-      $in$; $identifier$ ?@lstring prefix;
+      $in$; $string$ ?@lstring prefix;
       nextPrefix := fullPrefix[!ioTemplateVariableMap !prefix];
     or
     end select;
