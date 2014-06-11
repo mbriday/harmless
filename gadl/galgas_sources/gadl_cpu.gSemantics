@@ -107,7 +107,7 @@ method @ASTCpuMap cpuSemantic
     #check constructor parameters.
     foreach coreInstanceMap do
       @lstring coreInstanceName := lkey;
-      [ASTCoreMap searchKey !type ?* ?* ?* ?* ?* ?* ?@ASTFunctionMap ASTCoreConstructorMap];
+      [ASTCoreMap searchKey !type ?* ?* ?* ?* ?* ?* ?@ASTFunctionMap ASTCoreConstructorMap ?*];
       foreach ASTCoreConstructorMap do
         [param checkParams !coreParamExpList ![coreInstanceName location] ![lkey location]];
       end foreach;

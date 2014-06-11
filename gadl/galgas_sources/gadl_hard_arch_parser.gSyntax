@@ -3,6 +3,8 @@ syntax gadl_hard_arch_parser ("gadl_lexique.gLexique") :
 import "gadl_options.gOption" ;
 import "gadl_semantics_hard_arch.gSemantics" ;
 
+nonterminal <signalConnect>;
+
 rule <architecture>
   ?! @architectureMap archMap
 :
@@ -16,14 +18,18 @@ rule <architecture>
   while
     <device> !?deviceMap !?fetchFound;
   end repeat;
-  @signalConnectionList signalConnectionList;  
-  @sharedPortActivationList sharedPortActivationList;
   select
-    <signalSection> !deviceMap ?signalConnectionList ?sharedPortActivationList;
+    <signalConnect>;
   or
-    signalConnectionList := [@signalConnectionList emptyList];
-    sharedPortActivationList := [@sharedPortActivationList emptyList];
   end select;
+  @signalConnectionList signalConnectionList [emptyList];  
+  @sharedPortActivationList sharedPortActivationList [emptyList];
+#  select
+#    <signalSection> !deviceMap ?signalConnectionList ?sharedPortActivationList;
+#  or
+#    signalConnectionList := [@signalConnectionList emptyList];
+#    sharedPortActivationList := [@sharedPortActivationList emptyList];
+#  end select;
   $}$;
   if not fetchFound then
     error here : "\nThe port named : 'fetch', is not found\n";
@@ -131,32 +137,6 @@ rule <readOrWriteOrFetchOrIdf>
   end select;
 end rule;
 
-#rule <aliasFunction> #deprecated
-#  ?! @aliasMap readAliasMap
-#  ?! @aliasMap writeAliasMap
-#:
-#  @bool isRead;
-#  select
-#    $read$;
-#    isRead := true;
-#  or
-#    $write$;
-#    isRead := false;
-#  end select;
-#  $is$;
-#  repeat
-#    @lstring methodName;
-#    $idf$ ?methodName;
-#      if isRead then
-#        [!?readAliasMap insertKey !methodName];
-#      else
-#        [!?writeAliasMap insertKey !methodName]; 
-#    end if;
-#  while
-#    $|$;
-#  end repeat;
-#end rule;
-
 #this rule allows to write ":x (2)" or ":x or y or z (2)" or ": except x,y,z".
 rule <functionAllowed>
   ! @functionAllowedToAPort functionAllowedToAPort  
@@ -214,74 +194,75 @@ end rule;
 ################################################################################
 # association of signals for timing sections.
 ################################################################################
-rule <signalSection>
-  ?? @deviceMap deviceMap
-  !  @signalConnectionList signalConnectionList
-  !  @sharedPortActivationList sharedPortActivationList
-:
-  sharedPortActivationList := [@sharedPortActivationList emptyList];
-  signalConnectionList := [@signalConnectionList emptyList];
-  $signal$; ${$;
-  repeat
-  while
-    select
-      <signalConnection> !?signalConnectionList;
-    or
-      <sharedPortConnection> !deviceMap !?sharedPortActivationList;
-    end select;
-  end repeat;
-  $}$;
-end rule;
 
-rule <sharedPortConnection>
-  ?? @deviceMap deviceMap
-  ?! @sharedPortActivationList sharedPortActivationList
-:
-  @lstring deviceSrc;
-  @lstring portSrc;
-  @lstring deviceName;
-  $shared$; $port$;
-  $idf$ ?deviceSrc; $.$; 
-  select
-    $idf$ ?portSrc;
-  or
-    $fetch$; portSrc := [@lstring new !"fetch" !here];
-  end select;
-  #Check that port and devices are defined, and port is shared.
-  @portMap portMap;
-  @bool isShared;
-  [deviceMap searchKey !deviceSrc ?* ?portMap ?* ?*];
-  [portMap searchKey !portSrc ?isShared ?*];
-  if not isShared then
-    error here : "The port associated to a signal should be declared as \"shared\"";
-  end if;
-  $->$;
-  $idf$ ?deviceName;
-  sharedPortActivationList += !deviceSrc !portSrc !deviceName;
-end rule;
-
-rule <signalConnection>
-  ?! @signalConnectionList signalConnectionList
-:
-  @lstring devNameSrc;
-  @lstring devNameDst;
-  @lstring sigNameSrc;
-  @lstring sigNameDst;
-  @bool noDst;
-  $idf$ ?devNameSrc; $.$; $idf$ ?sigNameSrc;
-  $->$;
-  select
-    $idf$ ?devNameDst; $.$; $idf$ ?sigNameDst;
-    noDst := false;
-  or
-    devNameDst := [@lstring new !"" !here];
-    sigNameDst := [@lstring new !"" !here];
-    $*$;
-    noDst := true;
-  end select;
-  signalConnectionList += !devNameSrc !devNameDst !sigNameSrc !sigNameDst !noDst;
-
-end rule;
+#rule <signalSection>
+#  ?? @deviceMap deviceMap
+#  !  @signalConnectionList signalConnectionList
+#  !  @sharedPortActivationList sharedPortActivationList
+#:
+#  sharedPortActivationList := [@sharedPortActivationList emptyList];
+#  signalConnectionList := [@signalConnectionList emptyList];
+#  $signal$; ${$;
+#  repeat
+#  while
+#    select
+#      <signalConnection> !?signalConnectionList;
+#    or
+#      <sharedPortConnection> !deviceMap !?sharedPortActivationList;
+#    end select;
+#  end repeat;
+#  $}$;
+#end rule;
+#
+#rule <sharedPortConnection>
+#  ?? @deviceMap deviceMap
+#  ?! @sharedPortActivationList sharedPortActivationList
+#:
+#  @lstring deviceSrc;
+#  @lstring portSrc;
+#  @lstring deviceName;
+#  $shared$; $port$;
+#  $idf$ ?deviceSrc; $.$; 
+#  select
+#    $idf$ ?portSrc;
+#  or
+#    $fetch$; portSrc := [@lstring new !"fetch" !here];
+#  end select;
+#  #Check that port and devices are defined, and port is shared.
+#  @portMap portMap;
+#  @bool isShared;
+#  [deviceMap searchKey !deviceSrc ?* ?portMap ?* ?*];
+#  [portMap searchKey !portSrc ?isShared ?*];
+#  if not isShared then
+#    error here : "The port associated to a signal should be declared as \"shared\"";
+#  end if;
+#  $->$;
+#  $idf$ ?deviceName;
+#  sharedPortActivationList += !deviceSrc !portSrc !deviceName;
+#end rule;
+#
+#rule <signalConnection>
+#  ?! @signalConnectionList signalConnectionList
+#:
+#  @lstring devNameSrc;
+#  @lstring devNameDst;
+#  @lstring sigNameSrc;
+#  @lstring sigNameDst;
+#  @bool noDst;
+#  $idf$ ?devNameSrc; $.$; $idf$ ?sigNameSrc;
+#  $->$;
+#  select
+#    $idf$ ?devNameDst; $.$; $idf$ ?sigNameDst;
+#    noDst := false;
+#  or
+#    devNameDst := [@lstring new !"" !here];
+#    sigNameDst := [@lstring new !"" !here];
+#    $*$;
+#    noDst := true;
+#  end select;
+#  signalConnectionList += !devNameSrc !devNameDst !sigNameSrc !sigNameDst !noDst;
+#
+#end rule;
 
 end syntax;
 # vim:ft=ggs:ts=2:sw=2

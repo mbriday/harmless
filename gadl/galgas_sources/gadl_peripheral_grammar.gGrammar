@@ -7,9 +7,9 @@ with "gadl_expression_parser.gSyntax";
 with "gadl_implementation_parser.gSyntax";
 with "gadl_function_parser.gSyntax";
 with "gadl_timing_parser.gSyntax";
+with "gadl_deviceAndSignal_syntax.gSyntax";
 
 root <peripheralSet> ?! @ASTperipheralMap ASTperipheralMap;
-
 
 end grammar ;
 # vim:ft=ggs:ts=2:sw=2
