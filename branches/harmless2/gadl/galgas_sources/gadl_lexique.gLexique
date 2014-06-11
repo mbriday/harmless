@@ -239,7 +239,7 @@ list keyWordList error message "the '%K' keyword" style keywordsStyle:
 "hexadecimal","binary","suffix","prefix",          
 "jumpTaken","add","cycle","use",                         #cycles 
 "timing","signal","emit","wait","for",                   #timing        
-"broadcast","activation","forever",                      #timing        
+"broadcast","activation","forever","enabled","export",   #timing        
 "return","print",                                        #implementation
 "if","then","elseif","else","end",                       #conditional
 "loop","while",                                          #loops 

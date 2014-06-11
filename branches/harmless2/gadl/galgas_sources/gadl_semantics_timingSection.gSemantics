@@ -12,7 +12,7 @@ method @timingMap setInTemplate
                      @bool externalActivation
                      @boolMap SignalIn
                      @boolMap SignalOut
-                     @timingInstructionList instList) do
+                     @timingInstructionList instList ...) do
 
     @TfieldMap timingTplBody [emptyMap];
     foreach SignalIn  (@lstring sigName) do signalSet += ![sigName string]; end foreach;

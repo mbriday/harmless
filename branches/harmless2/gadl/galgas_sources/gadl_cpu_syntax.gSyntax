@@ -3,7 +3,6 @@ import "gadl_options.gOption" ;
 import "gadl_memory.gSemantics";
 import "gadl_core.gSemantics";
 import "gadl_core_grammar.gGrammar";
-import "gadl_peripheral_grammar.gGrammar";
 import "gadl_varIdfStruct.gSemantics"; #lstringMap
 import "gadl_cpu.gSemantics";
 import "gadl_peripheral_AST.gSemantics";
@@ -24,31 +23,14 @@ nonterminal <deviceDeclaration>
   ?? @ASTperipheralMap ASTperipheralMap
   !  @ASTInstDeclarationDevice deviceDec
 ;
+nonterminal <signalConnect>;
 
-
-rule <importCore>
+nonterminal <import>
+  ?? @bool fromCPU
   ?! @lstringMap importCoreMap
+  ?! @lstringMap importIsaMap
   ?! @ASTperipheralMap ASTperipheralMap
-:
-  $import$;
-  @bool isCore;
-  @lstring itemName := [@lstring new !"" !here];
-  select
-    $core$;
-    $idf$ ?itemName;
-    isCore := true;
-  or
-    $peripheral$;
-    isCore := false;
-  end select;
-  $from$;
-  $caracterStr$ ?@lstring srcFile;
-  if isCore then
-    [!?importCoreMap insertKey !itemName !srcFile];
-  else #periph
-    grammar gadl_peripheral_grammar in srcFile !?ASTperipheralMap;
-  end if;
-end rule;
+;
 
 rule <coreInstantiation>
   ?! @ASTcoreInstanceMap ASTcoreInstanceMap
@@ -90,7 +72,8 @@ rule <cpu>
     <peripheral> !?ASTperipheralMap;
   while
     #Core or peripheral importation
-    <importCore> !?importCoreMap !?ASTperipheralMap;
+    @lstringMap importIsaMap [emptyMap]; #unused here.
+    <import> !true !?importCoreMap !?importIsaMap !?ASTperipheralMap;
   end repeat;
 
   $cpu$; $idf$ ?@lstring cpuName;
@@ -116,6 +99,8 @@ rule <cpu>
   while
     <deviceDeclaration> !false !ASTperipheralMap ?@ASTInstDeclarationDevice deviceDec;
     ASTDeviceDecList += !deviceDec;
+  while
+    <signalConnect>;
   end repeat;
   [!?ASTCpuMap insertKey !cpuName !ASTcoreInstanceMap !ASTcoreMap !ASTDeviceDecList !ASTmemChunk !memChunkOrder];
   $}$;

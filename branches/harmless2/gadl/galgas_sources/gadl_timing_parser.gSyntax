@@ -13,14 +13,22 @@ rule  <timing>
   $timing$;
   @lstring timingName;
   $idf$ ?timingName;
-  @bool externalActivation; #deprecated?
-  select
-    externalActivation := false;
-  or
+  @bool externalActivation := false;
+  @bool enabledDefined := false;
+  @ASTExpression ASTExpEnable := [@ASTIntConst new !here !1L !false ![@varKind unsigned]]; #true: 1
+  repeat
+  while
     $on$;
     $activation$;
     externalActivation := true;
-  end select;
+  while
+    $enabled$;    
+    $($; <expression> ?ASTExpEnable; $)$;
+    if enabledDefined then
+      error here: "The 'enabled' condition should only be set one time for a timing";
+    end if;
+    enabledDefined := true;
+  end repeat;
   @boolMap signalIn [emptyMap];
   @boolMap signalOut [emptyMap];
   <signal> !?signalIn !?signalOut;
@@ -33,15 +41,16 @@ rule  <timing>
     "It should wait either for a number of cycles or for a synchronisation (wait for signal/emit signal)";
   end if;
   $}$;
-  [!?ASTTimingMap insertKey !timingName !externalActivation !signalIn !signalOut !ASTTinstList];
+  [!?ASTTimingMap insertKey !timingName !externalActivation !signalIn !signalOut !ASTTinstList !ASTExpEnable];
 end rule;
 
 #Signal Rule for in and out signal
-rule <signal> 
+rule <signal>
   ?! @boolMap signalIn
   ?! @boolMap signalOut
 :
   repeat
+  while
     @bool isIn;
     $signal$; 
     select 
@@ -61,7 +70,6 @@ rule <signal>
     while
       $,$;
     end repeat;
-  while
   end repeat;
 end rule;
 

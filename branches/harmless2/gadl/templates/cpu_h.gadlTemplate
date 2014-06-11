@@ -85,7 +85,11 @@ foreach mem in memSpaceList do
       let nbMemChunks := nbMemChunks + 1
       %\t\t%
       if not first then %else % else let first := False end if
-      let max := dev::baseAddress + (periphMap[dev::type]::memSize)*dev::nb -1
+      let fullSize := (periphMap[dev::type]::memSize)*dev::nb
+      let max := dev::baseAddress
+      if fullSize > 0 then
+        let max := dev::baseAddress + fullSize -1
+      end if
       let storageName := dev::name
       %if(%
       if dev::baseAddress != 0 then

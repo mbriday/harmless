@@ -27,6 +27,7 @@ map @timingMap
   @boolMap signalIn;
   @boolMap signalOut;
   @timingInstructionList instList;
+  @expression expEnable;  
   
   insert insertKey error message "the '%K' timing is already defined in %L" ; 
   search searchKey error message "the '%K' timing is not defined" ;

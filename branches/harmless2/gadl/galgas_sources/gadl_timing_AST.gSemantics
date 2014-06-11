@@ -18,7 +18,8 @@ map @ASTTimingMap
   @boolMap signalIn;
   @boolMap signalOut;
   @ASTTimingInstructionList ASTTinstList;
-  
+  @ASTExpression ASTExpEnable; 
+
   insert insertKey error message "the '%K' timing is already defined in %L" ; 
   search searchKey error message "the '%K' timing is not defined" ;
   remove removeKey error message "the '%K' timing is not defined. Can't remove it." ;
