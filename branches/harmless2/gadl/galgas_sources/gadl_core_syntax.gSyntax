@@ -42,6 +42,12 @@ nonterminal <import>
   ?! @ASTperipheralMap ASTperipheralMap
 ;
 
+nonterminal <deviceDeclaration>
+  ?? @bool memoryAccessIsLocal #true if a device is declared inside a peripheral (same mem chunk).
+  ?? @ASTperipheralMap ASTperipheralMap
+  !  @ASTInstDeclarationDevice deviceDec
+;
+
 #called from a cpu part.
 rule <core> 
   ?! @ASTCoreMap ASTcoreMap
@@ -70,9 +76,9 @@ rule <core>
   [importIsaMap searchKey !isaNameInCore ?@lstring isaFileName];
   grammar gadl_isa_grammar in isaFileName ??@ASTIsa ASTIsa;
   ${$;
-    <coreBody> !?ASTmemChunk !?memChunkOrder ?@architectureMap archMap ?@pipelineMap pipelineMap ?@machineMap machineMap ?@ASTFunctionMap ASTCoreConstructorMap !coreName;
+    <coreBody> !?ASTmemChunk !?memChunkOrder ?@architectureMap archMap ?@pipelineMap pipelineMap ?@machineMap machineMap ?@ASTFunctionMap ASTCoreConstructorMap ?@ASTInstructionList ASTDeviceDecList !coreName !ASTperipheralMap;
   $}$;
-  [!?ASTcoreMap insertKey !coreName !ASTIsa !ASTmemChunk !memChunkOrder !archMap !pipelineMap !machineMap !ASTCoreConstructorMap];
+  [!?ASTcoreMap insertKey !coreName !ASTIsa !ASTmemChunk !memChunkOrder !archMap !pipelineMap !machineMap !ASTCoreConstructorMap !ASTDeviceDecList];
 end rule ;
 
 rule <coreBody>
@@ -82,12 +88,16 @@ rule <coreBody>
   !  @pipelineMap pipelineMap
   !  @machineMap machineMap
   !  @ASTFunctionMap ASTCoreConstructorMap
+  !  @ASTInstructionList ASTDeviceDecList
   ?? @lstring coreName
+  ?? @ASTperipheralMap ASTperipheralMap
 :
   archMap := [@architectureMap emptyMap];
   pipelineMap := [@pipelineMap emptyMap];
   machineMap := [@machineMap emptyMap];
   ASTCoreConstructorMap := [@ASTFunctionMap emptyMap];
+  #core internal devices.
+  ASTDeviceDecList := [@ASTInstructionList emptyList];
   repeat
   while
     <memoryChunk> !?ASTmemChunk !?memChunkOrder;
@@ -107,6 +117,9 @@ rule <coreBody>
       error idf: "the constructor should have the same name than the core :".[coreName string];
     end if;
     <functionDef> !type !idf !?ASTCoreConstructorMap;
+  while
+    <deviceDeclaration> !false !ASTperipheralMap ?@ASTInstDeclarationDevice deviceDec;
+    ASTDeviceDecList += !deviceDec;
   end repeat;
 end rule;
 

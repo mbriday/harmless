@@ -17,6 +17,7 @@ map @ASTCoreMap
   @pipelineMap pipelineMap;
   @machineMap machineMap;
   @ASTFunctionMap ASTCoreConstructorMap;
+  @ASTInstructionList ASTDeviceDecList;
   insert insertKey error message "the '%K' core is already defined in %L" ; 
   search searchKey error message "the '%K' core is not defined" ;
 }

@@ -7,44 +7,6 @@ syntax gadl_core_alone_syntax ("gadl_lexique.gLexique") :
   import "gadl_varIdfStruct.gSemantics"; #lstringMap
   import "gadl_templates.gSemantics" ;
 
-nonterminal <memoryChunk>
-  ?! @ASTmemoryParamMap ASTmemChunk 
-  ?! @stringlist memChunkOrder
-;
-nonterminal <memorySpace> ?! @ASTmemSpaceMap ASTmemSpaceMap;
-nonterminal  <architecture> ?! @architectureMap archMap;
-#for constructor.
-nonterminal <typeDeclaration> ! @varAbstractType type;
-#from gadl_function_parser
-#not the outType and functionName in the rule due to grammar LL1 restrictions.
-nonterminal <functionDef> 
-  ?? @varAbstractType outType
-  ?? @lstring functionName
-  ?! @ASTFunctionMap ASTFunctionMap
-;
-
-#pipeline
-nonterminal  <pipeline> 
-  ?? @architectureMap architectureMap
-  ?! @pipelineMap pipelineMap
-;
-
-#assembly of global pipeline
-nonterminal <machine>
-  ?! @machineMap machineMap
-  ?? @pipelineMap pipelineMap
-;
-
-nonterminal <coreBody>
-  ?! @ASTmemoryParamMap ASTmemChunk
-  ?! @stringlist memChunkOrder
-  !  @architectureMap archMap
-  !  @pipelineMap pipelineMap
-  !  @machineMap machineMap
-  !  @ASTFunctionMap ASTCoreConstructorMap
-  ?? @lstring coreName
-;
-
 nonterminal <core>
   ?! @ASTCoreMap ASTcoreMap
   ?! @ASTmemSpaceMap ASTmemSpaceMap
