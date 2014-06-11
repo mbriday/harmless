@@ -228,7 +228,7 @@ list keyWordList error message "the '%K' keyword" style keywordsStyle:
 "register","stride","read","program","counter",
 "pipeline","stage","machine",                            #pipeline
 "bypass","release","in","maps","to","stall",
-"default","fetch","debug",                               #global
+"default","debug",                                       #global
 "big","little","endian",                                 #global (endianness)
 "typedef",                                               # structured types.
                                                          # 'in' expression.

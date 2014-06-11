@@ -64,17 +64,13 @@ rule <device>
       isShared := true;
     end select;
     $port$;
-    @lstring portName;
-    select 
-      $fetch$;
-      portName := [@lstring new !"fetch" !here];
+    $idf$ ?@lstring portName;
+    if [portName string] == "fetch" then
       if fetchFound then
         error here: "The fetch port must be used only once.";
       end if;
       fetchFound := true;
-    or
-      $idf$ ?portName;
-    end select;
+    end if;
     @functionAllowedToAPort functionAllowedToAPort;
     select
       #all functions allowed
@@ -123,17 +119,6 @@ rule <readOrWriteOrIdf>
     $idf$ ?idf;
   or
     <readOrWrite> ?idf;
-  end select;
-end rule;
-
-rule <readOrWriteOrFetchOrIdf>
-  ! @lstring idf
-:
-  select
-    $fetch$;
-    idf := [@lstring new !"fetch" !here];
-  or
-    <readOrWriteOrIdf> ? idf;
   end select;
 end rule;
 

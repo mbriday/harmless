@@ -28,7 +28,10 @@ rule <default>
     $unumber$ ?temp;
     instructionSize := [@luint new ![[temp uint64] uint] ![temp location]];
   while
-    $fetch$;
+    $idf$ ?@lstring fetchStr;
+    if [fetchStr string] != "fetch" then
+      error here: "The 'fetch' keyword is awaited here";
+    end if;
     select
       $:=$;
       $idf$ ?fetchComponentName ; 

@@ -48,9 +48,13 @@ rule <signalConnect>
     $shared$; $port$;
     <idf> ?@ASTExpression ASTExpPortName;
     $->$;
-    <idf> ?@ASTExpression ASTExpToSignal;
-    $wait$;
-    <idf> ?@ASTExpression ASTExpWaitSignal;
+    select
+      <idf> ?@ASTExpression ASTExpToSignal;
+      $wait$;
+      <idf> ?@ASTExpression ASTExpWaitSignal;  
+    or
+      $*$; #joker
+    end select;
   while
     <idf> ?@ASTExpression ASTExpFromSignal;
     $->$;
