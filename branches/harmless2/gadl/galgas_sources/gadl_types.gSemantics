@@ -234,10 +234,10 @@ reader @varBaseType getUppaalType
   end if;
   str := "int[0,";
   @uint max := (1 << size) - 1;
-  if size > 8 then
-    warning location: "The variable size may be difficult to handle by the ".
-              "Uppaal model checker. Consider using variables of smaller size";
-  end if;
+#  if size > 8 then
+#    warning location: "The variable size may be difficult to handle by the ".
+#              "Uppaal model checker. Consider using variables of smaller size";
+#  end if;
   str .= [max string]."]";
 end reader;
 
