@@ -5,6 +5,7 @@ import "gadl_memory.gSemantics";
 import "gadl_isa.gSemantics";
 import "gadl_isa_grammar.gGrammar";
 import "gadl_varIdfStruct.gSemantics"; #lstringMap
+import "gadl_peripheral_grammar.gGrammar";
 
 nonterminal <memoryChunk>
   ?! @ASTmemoryParamMap ASTmemChunk 
@@ -34,15 +35,12 @@ nonterminal <machine>
   ?? @pipelineMap pipelineMap
 ;
 
-rule <importIsa>
-  ?!@lstringMap importIsaMap
-:
-  $import$; $isa$;
-  $idf$ ?@lstring isaName;
-  $from$;
-  $caracterStr$ ?@lstring srcFile;  
-  [!?importIsaMap insertKey !isaName !srcFile];
-end rule;
+nonterminal <import>
+  ?? @bool fromCPU
+  ?! @lstringMap importCoreMap
+  ?! @lstringMap importIsaMap
+  ?! @ASTperipheralMap ASTperipheralMap
+;
 
 #called from a cpu part.
 rule <core> 
@@ -54,14 +52,17 @@ rule <core>
   @stringlist memChunkOrder [emptyList];
   #importing isa
   @lstringMap importIsaMap [emptyMap];
+  #peripherals
+  @ASTperipheralMap ASTperipheralMap [emptyMap];
  
   repeat
   while
     #local mem space definition.
     <memorySpace> !?ASTmemSpaceMap;
   while
-    #ISA importation
-    <importIsa> !?importIsaMap;
+    #ISA or periph importation
+    @lstringMap importCoreMap [emptyMap]; #unused.
+    <import> !false !?importCoreMap !?importIsaMap !?ASTperipheralMap;
   end repeat;
 
   $core$; $idf$ ?@lstring coreName;

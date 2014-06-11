@@ -14,13 +14,9 @@ nonterminal <registerBitAccessDef>
   ?? @varAbstractType type
   ?! @ASTInstructionList ASTregDefList
 ;
-nonterminal <memoryMapping>
-  ! @memoryMapping memoryMapping
-;
-
-nonterminal <timing>
-  ?! @ASTTimingMap ASTTimingMap
-;
+nonterminal <memoryMapping> !@memoryMapping memoryMapping;
+nonterminal <timing> ?! @ASTTimingMap ASTTimingMap;
+nonterminal <idf> !@ASTExpression exp;
 
 
 #from gadl_function_parser
@@ -101,6 +97,40 @@ rule <deviceDeclaration>
   deviceDec := [@ASTInstDeclarationDevice new !here ![@varClass device] !type !deviceName !memoryMapping];
 end rule;
 
+rule <signalConnect>
+:
+  $signal$; ${$;
+  repeat
+  while
+    $shared$; $port$;
+    <idf> ?@ASTExpression ASTExpPortName;
+    $->$;
+    <idf> ?@ASTExpression ASTExpToSignal;
+    $wait$;
+    <idf> ?@ASTExpression ASTExpWaitSignal;
+  while
+    <idf> ?@ASTExpression ASTExpFromSignal;
+    $->$;
+    select
+      <idf> ?@ASTExpression ASTExpToSignal;
+    or
+      $*$; #joker
+    end select;
+  while
+    $export$;
+    select
+      $in$;
+    or
+      $out$;
+    end select;
+    repeat
+      <idf> ?@ASTExpression ASTExpSignal;
+    while $,$;
+    end repeat;
+  end repeat;
+  $}$;
+end rule;
+
 rule <peripheral>
   ?! @ASTperipheralMap ASTperipheralMap
 :
@@ -135,6 +165,8 @@ rule <peripheral>
       <typeDefinition> !? ASTTypeDefList;
     while
       <timing> !?ASTTimingMap;
+    while
+      <signalConnect>;
     end repeat;
   $}$;
   #problem:

@@ -13,12 +13,14 @@ reader @ASTTimingMap getTimingMap
   timingMap := [@timingMap emptyMap];
   foreach selfcopy do
     #message "timing map ".[lkey string]."\n";
+    @expressionContext ctx := [@expressionContext timing];  
     @symbolValueMap symbolMapCopy := symbolMap;
     @varIdfStruct idfStructCopy := idfStruct;
     @uint timingInternalId := 0;
     [ASTTinstList getTimingList !signalIn !signalOut !?symbolMapCopy !?idfStructCopy
                   !?timingInternalId ?@timingInstructionList tInstList];
-    [!?timingMap insertKey !lkey !externalActivation !signalIn !signalOut !tInstList];
+    @expression expEnable := [ASTExpEnable getExp !ctx !symbolMap !idfStructCopy];
+    [!?timingMap insertKey !lkey !externalActivation !signalIn !signalOut !tInstList !expEnable];
   end foreach;
 end reader;
 

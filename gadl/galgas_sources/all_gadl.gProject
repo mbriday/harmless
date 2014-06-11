@@ -105,6 +105,7 @@ project all_gadl (0:8:1) -> "gadl" :
   semantics "gadl_peripheral.gSemantics" ;     #decorated structures
   semantics "gadl_peripheral_templateExport.gSemantics" ; #various template export
 
+  syntax    "gadl_import_syntax.gSyntax";
   #timing related part.
   syntax    "gadl_timing_parser.gSyntax";
   semantics "gadl_timing_AST.gSemantics";
@@ -137,6 +138,7 @@ project all_gadl (0:8:1) -> "gadl" :
 #******************************************************
 # Core root main file
 #****************************************************** 
+
   grammar   "gadl_core_grammar.gGrammar" ;
   syntax    "gadl_core_syntax.gSyntax";
   semantics "gadl_core.gSemantics";

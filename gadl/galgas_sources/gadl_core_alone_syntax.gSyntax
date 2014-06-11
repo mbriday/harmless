@@ -35,10 +35,6 @@ nonterminal <machine>
   ?? @pipelineMap pipelineMap
 ;
 
-nonterminal <importIsa>
-  ?!@lstringMap importIsaMap
-;
-
 nonterminal <coreBody>
   ?! @ASTmemoryParamMap ASTmemChunk
   ?! @stringlist memChunkOrder
@@ -49,7 +45,7 @@ nonterminal <coreBody>
   ?? @lstring coreName
 ;
 
-nonterminal <core> 
+nonterminal <core>
   ?! @ASTCoreMap ASTcoreMap
   ?! @ASTmemSpaceMap ASTmemSpaceMap
 ;
