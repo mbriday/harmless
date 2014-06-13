@@ -1,0 +1,63 @@
+peripheral STM_Channel memory size 16 {
+  --STM Channel 0 Control Register (R/W)
+  register u32 STM_CCR maps to \x0 {
+    CEN := slice{0} -- R/W Channel ENable
+  }
+  --STM Channel 0 Interrupt Register (R/W)
+  register u32 STM_CIR maps to \x4 {
+    CIF:= slice{0} -- R/W Channel Interrupt Flag (w1c)
+  } write is w1c -- applied on the whole register
+  
+  --STM Channel 1 Compare Register (R/W)
+  register u32 STM_CMP maps to \x8
+
+  u32 w1c(u32 val, u32 oldVal) -- built-in? -> useful for PPC.
+  {
+    return oldVal & ~val;
+  }
+}
+
+-- System Timer Module
+peripheral STM memory size \x50 {
+  --STM Control Register
+  register u32 STM_CR maps to \x00 {
+    TEN := slice{0} -- R/W Timer ENable
+    FRZ := slice{1} -- R/W Freeze: 1 -> stop IN DEBUG MODE -> not modelled.
+    CPS := slice{15..8} -- Counter Prescaler
+  } --write automata STM_CR_Write
+  
+  --STM Counter Value (R/W)
+  register u32 STM_CNT maps to \x04
+
+  -- peut-on autoriser l'utilisation de 'device' dans un composant?
+  -- on peux faire autrement qu'un device, avec simplement une structure.
+  -- si c'est un device -> il y a des handlers internes potentiellement.
+  device STM_Channel[4] chan maps to \x10
+
+  timing STM_CR_Write enabled (STM_CR.TEN = 1)
+    signal out: itSTM -- interrupt signal.
+  {
+    u32 chanId
+    wait (STM_CR.CPS+1) cycle
+    --increment timer.
+    STM_CNT := STM_CNT + 1 -- no pb with overflow.
+    --match on channel.
+    chanId := 0
+    loop 4
+    while chanId < 4 do
+      if chan[chanId].STM_CCR.CEN then -- compare with channel 'chanId' enabled.
+        if STM_CNT = chan[chanId].STM_CMP then
+          chan[chanId].STM_CIR.CIF := 1 -- interrupt
+          --interrupt \x30+chanId  -- interrupt Match on Channel chanId
+          emit broadcast signal itSTM -- itSTM(\x30+chanId).
+        end if
+      end if
+    end loop
+  }
+
+  signal {
+    export out itSTM
+  }
+}
+
+-- vim:ft=harmlesscore:ts=2:sw=2:tw=0

@@ -1,0 +1,37 @@
+import core e200z4 from "test.core"
+import core e200z4Bis from "test2.core"
+import peripheral from "serial.hadl"
+--import peripheral from "leopardSTM.hadl"
+--import peripheral from "memTiming.hadl"
+
+program memory space mem width 32
+
+cpu leopard {
+
+  memory sharedMem {
+    width  := 32
+    size   := 32mb
+    type   := RAM
+  } maps to mem:0
+
+  core e200z4 core0(0)
+  core e200z4 core1(1)
+  --core e200z4Bis core3(2)
+  --core e200z4Bis core4(3)
+
+  device dummySerial serial maps to mem:1000
+--  device STM stm maps to mem:\x12000
+--  device memTiming mem maps to mem:0
+
+  signal {
+    -- timer interrupt
+    stm.itSTM -> * -- not used.
+    -- mem access to core0
+    core0.ICache.memStart -> mem.memStart
+    mem.memEnd  -> core0.ICache.memEnd
+  }
+}
+
+-- errorformat=%f:%l:%c:%m
+-- makeprg=gadl\ \%
+-- vim:ft=harmlesscore:ts=2:sw=2:tw=0
