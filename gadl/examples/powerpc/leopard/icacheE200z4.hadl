@@ -1,0 +1,273 @@
+-- portage cache instruction e200z4 en peripheral
+-- init 23 avril 2014.
+
+-- 4Kb, 2 ways associative (or 4 way -> not modeled)
+-- 32 bytes per line.
+peripheral ICacheE200Z4 memory size \x14 {
+  --L1 Cache Control and Status Register 0
+  -- peut-être il faut ajouter la possibilité de mapper n'importe où en mémoire!!!
+  register u32 L1CSR0 maps to \x0 { -- SPR 1010 in decimal
+    WID := slice{31..28} --Way Instruction Disable
+  }
+
+  --L1 Cache Control and Status Register 1
+  register u32 L1CSR1 maps to \x4 { -- SPR 1011 in decimal
+    ICECE := slice{16}
+    ICEI  := slice{15}
+    ICEDT := slice{13..12}
+    ICUL  := slice{10}
+    ICLO  := slice{9}
+    ICLFC := slice{8}
+    ICLOA := slice{7}
+    ICEA  := slice{6..5}
+    ICORG := slice{4}
+    ICABT := slice{2}
+    ICINV := slice{1} -- Instruction Cache Invalidate
+    ICE   := slice{0} -- Instruction Cache Enable
+  }
+
+  --L1 Cache Configuration Register 0
+  register u32 L1CFG0 maps to \x8  -- SPR 515 in decimal!!!
+  --L1 Cache Configuration Register 1
+  register u32 L1CFG1 maps to \xC  -- SPR 516 in decimal!!!
+
+  -- Flush/Invalidate Register 1 
+  register u32 L1FINV1 maps to \x10  { -- SPR - 959 in decimal.
+    CWAY := slice {25..24} -- Cache Way
+    CSET := slice {10..5}  -- Cache Set
+    CCMD := slice {1..0}   -- Cache Command
+  }
+
+  ----------------------------------------------------------------------------
+  -- internal array
+  ----------------------------------------------------------------------------
+  -- cache line models 32 bytes (4 dblwords)
+  typedef cacheLine {
+    u21 tag --only 21 bits for the 2-ways config.
+    u1  lock
+    u1  valid
+    -- no data (not usefull in simulation)
+  }
+
+  -- cache way has 64 lines -> 2048 bytes
+  typedef cacheWay {
+    type cacheLine[64] lines
+  }
+  -- cache has 2 ways -> 4096 bytes=4kb
+  type cacheWay[2] cacheArray
+
+  -- cache information.
+  u32 nbHit
+  u32 nbMiss
+
+  ----------------------------------------------------------------------------
+  -- internal methods
+  ----------------------------------------------------------------------------
+  void reset() {
+    u32 wayId := 0
+    u6 index := 0
+    L1CSR0 := 0
+    nbHit := 0
+    nbMiss := 0
+
+    -- invalidate all cache.
+    loop 2
+    while wayId < 2 do
+      index := 0
+      loop 64
+      while index < 64 do
+        cacheArray[wayId].lines[index].valid := 0
+        cacheArray[wayId].lines[index].lock := 0
+        index := index + 1
+      end loop
+      wayId := wayId + 1
+    end loop
+  }
+
+  -- return 1 if data is in cache.
+  u1 isInCache(u32 addr)
+  {
+    u21 tag   := addr{31..11}
+    u6  index := addr{10..5}
+    u1 found := false
+    u32 wayId := 0
+    loop 2
+    while wayId < 2 && !found do
+      type cacheLine currentLine := cacheArray[wayId].lines[index]
+      if currentLine.tag = tag && currentLine.valid then
+        -- way 'wayId' is matching!
+        found := true
+      else
+        wayId := wayId + 1
+      end if
+    end loop
+    if found then nbHit := nbHit + 1
+    else nbMiss := nbMiss + 1
+    end if
+    return found
+  }
+
+  void insertInCache(u32 base)
+  {
+    u21 tag   := base{31..11}
+    u6  index := base{10..5}
+    -- L1CSR0 allows to lock an entire way -> field wid.
+    -- cache replacement is based on a pseudo-round robin: section 9.6.3 p. 553
+    u32 i := 0
+    u1 found := false -- set to true if a replacement is possible.
+    loop 2 -- only 2 ways to test.
+    while(i < 2 && !found) do
+      u2 currentWay := L1FINV1.CWAY & \x1 -- only 2 ways.
+      -- L1CSR0.wid : bit 3 is set if way 0 is disabled, bit 2 is set if way 1 is disabled, ..
+      if !L1CSR0.WID{3 - currentWay} then -- way not disabled
+        if !cacheArray[currentWay].lines[index].lock then -- no line cache lock
+          cacheArray[currentWay].lines[index].tag := tag
+          cacheArray[currentWay].lines[index].valid := true
+          found := true
+        end if
+      end if
+      L1FINV1.CWAY := (L1FINV1.CWAY + 1) & \x1 -- model using 2 ways.
+      i := i + 1
+    end loop
+  }
+
+--  --TODO: init.
+  u1 filling          -- boolean: true if buffer is filling.
+--  u32 baseAddress     -- to detect which line is currently loaded.
+--  u4 dblWordInBuffer -- 1 bit for each dbl word in the buffer.
+--
+  ----------------------------------------------------------------------------
+  -- timing
+  ----------------------------------------------------------------------------
+
+  -- timing related to line buffer update.
+  timing ICacheE200Z4LineBuffer
+  signal in : fillBuffer      -- order to refill a cache line.
+  signal in : memEnd          -- the memory read is terminated
+  signal out: memStart        -- ask the memory to get a dblword
+  signal out: bufferData      -- a data is received
+  {
+--    u2 currentId   -- DblWord Id of the next dblWord to fetch in mem
+--    u3 i := 0
+    wait for signal fillBuffer -- need to refill.
+--    -- start to refill. init
+--    filling := true
+--    dblWordInBuffer:= 0
+--    baseAddress    := fillBuffer.address
+--    currentId      := baseAddress{4..3}  -- because critical word first.
+--    -- and refill.
+--    loop 4
+--    while i < 4 do
+      emit signal memStart  -- get the 4 dblwords, one by one.
+--      wait for signal memEnd
+--      dblWordInBuffer := dblWordInBuffer | (1 << currentId)
+--      currentId := currentId + 1 -- implicit modulo, as currenId is an u2.
+--      emit broadcast signal bufferData -- non blocking emission.
+--      i := i + 1
+--    end loop
+--    -- p.546: When a cache linefill occurs, the line-fill buffer contents holding the previous 
+--    --        linefill are placed into the cache array in one cycle.
+    wait 1 cycle
+--    -- ok done -> update cache
+--    insertInCache(baseAddress) -- call peripheral internal method.
+--    filling := false
+  }
+
+-- tmp:
+  u32 currentAddress
+  u32 baseAddress
+  u1 dblWordInBuffer
+
+  timing memFetch
+  signal in : memFetch   -- called by the shared port for a memory fetch
+  signal out: memFetchOk -- answer 'fetch done' to the shared port.
+  signal in : bufferData -- a new data is coming from the buffer refill.
+  signal out: fillBuffer -- the buffer refill is done.
+  {
+    u1 hit
+    wait for signal memFetch
+--    u32 currentAddress := memFetch.address
+    hit := isInCache(currentAddress)
+    if !hit then -- miss
+      -- search into the line buffer
+      if filling then -- OK, buffer is working.
+        if (baseAddress >> 5) = currentAddress{31..5} then -- updating this line.
+          loop 4 -- at least 3 in fact..
+          while !(dblWordInBuffer & (1 << currentAddress{4..3}))  do -- wait for the correct data in buffer.
+            wait for signal bufferData
+          end loop
+        else --updating another line.
+          -- we should wait for the end of the current line
+          -- and start another refilling.
+--          emit signal fillBuffer(currentAddress)
+          wait for signal bufferData -- wait for first data (critical first).
+        end if
+      else -- buffer is not filling. Start it.
+--        emit signal fillBuffer(currentAddress)
+        wait for signal bufferData -- wait for first data (critical first).
+      end if
+    end if
+    -- Ok. Here, we got the data.
+    emit memFetchOk
+  }
+
+  timing memFetchTest
+  signal in : memFetch   -- called by the shared port for a memory fetch
+  signal out: memFetchOk -- answer 'fetch done' to the shared port.
+  signal in : bufferData -- a new data is coming from the buffer refill.
+  signal out: fillBuffer -- the buffer refill is done.
+  {
+    wait for signal memFetch
+    u32 i := 0;
+    loop 4 -- at least 3 in fact..
+    while !(dblWordInBuffer & (1 << currentAddress{4..3}))  do -- wait for the correct data in buffer.
+      wait for signal bufferData
+      loop 4 -- at least 3 in fact..
+      while !(dblWordInBuffer & (1 << currentAddress{4..3}))  do -- wait for the correct data in buffer.
+        i:= i+1
+      end loop
+    end loop
+    
+  }
+
+  u32 PC
+  u1 isFilling
+  u1 isInBuffer
+  timing ICacheE200Z4Base on activation
+  signal in : bufferData -- get a signal when a buffer receive a dblWord.
+  signal out: fillBuffer -- the buffer to refill a line
+  {
+    u1 hit
+    hit := isInCache(PC)
+    if !hit then -- miss
+      -- search into the line buffer
+      if isFilling then -- OK, buffer is working.
+        if (baseAddress >> 5) = PC{31..5} then -- updating this line.
+          loop 4 -- at least 3 in fact..
+          while !isInBuffer do -- wait for the correct data in buffer.
+            wait for signal bufferData
+          end loop
+        else --updating another line.
+          -- we should wait for the end of the current line
+          -- and start another refilling.
+          emit signal fillBuffer
+          wait for signal bufferData -- wait for first data (critical first).
+        end if
+      else -- buffer is not filling. Start it.
+        emit signal fillBuffer
+        wait for signal bufferData -- wait for first data (critical first).
+      end if
+      -- Ok. Here, we got the data.
+    end if
+  }
+  
+  signal {
+    --internal connection.
+    memFetch.fillBuffer -> ICacheE200Z4LineBuffer.fillBuffer
+    ICacheE200Z4LineBuffer.bufferData -> memFetch.bufferData
+    -- should be connected: memStart, memEnd, memFetch, memFetchOk
+    export in  memEnd, memFetch
+    export out memStart, memFetchOk
+  }
+}
+-- vim:ft=harmlesscore:ts=2:sw=2:tw=0

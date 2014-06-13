@@ -1,0 +1,19 @@
+peripheral memTiming memory size 0 {
+
+  -- basic memory model: 3 cycles required to fetch a dblword
+  timing mem
+  signal in :memStart        -- ask the memory to get a dblword
+  signal out:memEnd          -- the memory read is terminated
+  {
+    wait for signal memStart
+    wait 300 cycle
+    emit memEnd
+  }
+
+  signal {
+    export in  memStart
+    export out memEnd
+  }
+}
+
+-- vim:ft=harmlesscore:ts=2:sw=2:tw=0

@@ -1,0 +1,34 @@
+-- dummy serial line:
+-- 1 register used for printf.
+-- Need 10 cycles to transmit a data:
+--   If a new data is written in this delay, it is not printed/transmitted.
+peripheral dummySerial memory size 8 {
+  -- Control and Status Register for Serial Line
+  register u32 CSRSL maps to \x0 {
+    SEN := slice{0} -- Serial ENable
+    BSY := slice{1} -- Busy. Used to models TX delay.
+  } write is CSRSLWrite
+
+  -- data register. Use only low eight bytes.
+  register u32 DR maps to \x4 write is dataPrint
+
+  u32 CSRSLWrite(u32 value, u32 oldValue) {
+    return (oldValue & \x0002) | (value & ~\x0002); -- BSY is hw controlled… ugly!
+  }
+
+  u32 dataPrint(u32 value, u32 oldValue) {
+    if CSRSL.BSY = 0 then
+      print (s8)(value & \xFF) -- may be in the automata to be printed after the delay?
+      CSRSL.BSY := 1
+    end if
+		return 0 -- data not effectively written on mem location. (write only register)
+  }
+
+  timing serialTX enabled (CSRSL.SEN = 1 && CSRSL.BSY = 1)
+  {
+    wait 10 cycle;
+    CSRSL.BSY := 0; --> stop the automata
+  }
+}
+
+-- vim:ft=harmlesscore:ts=2:sw=2:tw=0
