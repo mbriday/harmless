@@ -31,7 +31,6 @@ class cpu
   end if
   % *%!storageName%;\n%
  end foreach
-
 #declare devices
 foreach dev in cpu::deviceList do
   !dev::declare%\n%

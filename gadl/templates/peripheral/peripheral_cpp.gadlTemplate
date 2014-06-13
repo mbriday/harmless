@@ -1,26 +1,31 @@
 %template headerC%
 
-#include "periph_%!peripheral::name%.h"
+#include "%!baseName%.h"
 
-typedef u32 (peripheral_%!peripheral::name%::*__func_%!peripheral::name%_w)(u32 ,u32);
-typedef u32 (peripheral_%!peripheral::name%::*__func_%!peripheral::name%_r)(u32);
+typedef u32 (%!baseName%::*__func_%!peripheral::name%_w)(u32 ,u32);
+typedef u32 (%!baseName%::*__func_%!peripheral::name%_r)(u32);
 
 #include "action.h"
+%foreach timingPart in peripheral::timingList do
+  let className := baseName."_timing_".timingPart::name
+  %#include "%!className%.h"\n%
+end foreach
+%
 
 //internal object used by peripheral
 //connexion between memory and handler.
 class peripheralActionWrite_%!peripheral::name% : public writeAction
 {
-	peripheral_%!peripheral::name% *m_peripheral;
+	%!baseName% *m_peripheral;
 	const u32 m_addr;
 	__func_%!peripheral::name%_w m_func;
 
 	public:
-	peripheralActionWrite_%!peripheral::name%(peripheral_%!peripheral::name% *periph, const u32 addr, __func_%!peripheral::name%_w func);
+	peripheralActionWrite_%!peripheral::name%(%!baseName% *periph, const u32 addr, __func_%!peripheral::name%_w func);
 	virtual bool trigger(storage *,u32 &data, u32 oldData);
 };
 
-peripheralActionWrite_%!peripheral::name%::peripheralActionWrite_%!peripheral::name%(peripheral_%!peripheral::name% *periph, const u32 addr, __func_%!peripheral::name%_w func)
+peripheralActionWrite_%!peripheral::name%::peripheralActionWrite_%!peripheral::name%(%!baseName% *periph, const u32 addr, __func_%!peripheral::name%_w func)
 : m_peripheral(periph),m_addr(addr), m_func(func)
 {
 	#ifndef GADL_NO_ACTION
@@ -38,16 +43,16 @@ bool peripheralActionWrite_%!peripheral::name%::trigger(storage *,u32 &data, u32
 
 class peripheralActionRead_%!peripheral::name% : public readAction
 {
-	peripheral_%!peripheral::name% *m_peripheral;
+	%!baseName% *m_peripheral;
 	const u32 m_addr;
 	__func_%!peripheral::name%_r m_func;
 
 	public:
-	peripheralActionRead_%!peripheral::name%(peripheral_%!peripheral::name% *periph, const u32 addr, __func_%!peripheral::name%_r func);
+	peripheralActionRead_%!peripheral::name%(%!baseName% *periph, const u32 addr, __func_%!peripheral::name%_r func);
 	virtual bool trigger(storage *, u32 &data);
 };
 
-peripheralActionRead_%!peripheral::name%::peripheralActionRead_%!peripheral::name%(peripheral_%!peripheral::name% *periph, const u32 addr, __func_%!peripheral::name%_r func)
+peripheralActionRead_%!peripheral::name%::peripheralActionRead_%!peripheral::name%(%!baseName% *periph, const u32 addr, __func_%!peripheral::name%_r func)
 : m_peripheral(periph),m_addr(addr), m_func(func)
 {
 	#ifndef GADL_NO_ACTION
@@ -64,30 +69,38 @@ bool peripheralActionRead_%!peripheral::name%::trigger(storage *, u32 &data)
 }
 %# constructor part.
 %
-peripheral_%!peripheral::name%::peripheral_%!peripheral::name%(const u32 address) : peripheral("%!peripheral::name%", %!peripheral::memSize%, address)
+%!baseName%::%!baseName%(const u32 address) : peripheral("%!peripheral::name%", %!peripheral::memSize%, address)
 {
 %
 foreach dev in peripheral::deviceList
 before %\t//device instantiation.\n%
 do
   if dev::nb == 1 then #only one.
-    %\t%!dev::name% = new peripheral_%!dev::type%(address+%!dev::baseAddress%);\n%
+    %\t%!dev::name% = new periph_%!dev::type%(address+%!dev::baseAddress%);\n%
   else #tabular
   	%\tfor(unsigned int i=0, offset = 0; i < %!dev::nb%; i++)\n%
 	%\t{\n%
-	%\t\t%!dev::name%[i] = new peripheral_%!dev::type%(address+%!dev::baseAddress%+offset);\n%
+	%\t\t%!dev::name%[i] = new periph_%!dev::type%(address+%!dev::baseAddress%+offset);\n%
 	%\t\toffset += %!dev::name%[i]->size();\n%
 	%\t}\n%
   end if
 end foreach
+
+foreach timingPart in peripheral::timingList
+before %\t//timing instantiation.\n%
+do
+  let className := baseName."_timing_".timingPart::name
+  %\tm_%!className% = new %!className%(this,0,0);\n%
+end foreach
+
 foreach reg in peripheral::regList
 before %\t//associate an action to a function handler\n%
 do
   if exists reg::writeFunc then
-    %\tnew peripheralActionWrite_%!peripheral::name%(this,address+%!reg::address%,&peripheral_%!peripheral::name%::method_%!reg::writeFunc%);\n%
+    %\tnew peripheralActionWrite_%!peripheral::name%(this,address+%!reg::address%,&%!baseName%::method_%!reg::writeFunc%);\n%
   end if
   if exists reg::readFunc then
-    %\tnew peripheralActionRead_%!peripheral::name%(this,address+%!reg::address%,&peripheral_%!peripheral::name%::method_%!reg::readFunc%);\n%
+    %\tnew peripheralActionRead_%!peripheral::name%(this,address+%!reg::address%,&%!baseName%::method_%!reg::readFunc%);\n%
   end if
 end foreach
 %
@@ -95,7 +108,7 @@ end foreach
 %# get Chunk part, only if there are included devices (else use default).
 %
 %if [peripheral::deviceList length] > 0 then
-%peripheral *peripheral_%!peripheral::name%::chunk(const u32 address)
+%peripheral *%!baseName%::chunk(const u32 address)
 {
 \tperipheral *result;
 %foreach dev in peripheral::deviceList do

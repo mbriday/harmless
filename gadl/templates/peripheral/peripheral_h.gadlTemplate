@@ -11,11 +11,32 @@ foreach dev in peripheral::idfStruct::varList do
     %#include "periph_%!dev::type%.h"\n%
   end if
 end foreach
+
+#declare class of included timings.
+foreach timingPart in peripheral::timingList do
+  let className := baseName."_timing_".timingPart::name
+  %class %!className%;\n%
+end foreach
+
 %
 
-class peripheral_%!peripheral::name% : public peripheral
+class %!baseName% : public peripheral
 {
 %
+#timings are friend classes
+foreach timingPart in peripheral::timingList do
+  let className := baseName."_timing_".timingPart::name
+  %\tfriend class %!className%;\n%
+end foreach
+
+#instances of timings
+
+foreach timingPart in peripheral::timingList do
+  let className := baseName."_timing_".timingPart::name
+  %\t%!className% *m_%!className%;\n%
+end foreach
+
+
 #define internal typedefs.
 !peripheral::idfStruct::typeDefCode
 
@@ -32,7 +53,7 @@ end foreach
 
 %
 	public:
-		peripheral_%!peripheral::name%(const u32 address);
+		%!baseName%(const u32 address);
 
 %if [peripheral::deviceList length] > 0 then
 	%\tvirtual peripheral *chunk(u32 address);\n%

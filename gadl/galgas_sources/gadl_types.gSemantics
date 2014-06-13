@@ -328,7 +328,7 @@ override reader @varDeviceType getDeclaration
   ?? @codeCtx cgc
   -> @string code
 :
-  code:= "peripheral_".[typeName string]." *".idf;
+  code:= "periph_".[typeName string]." *".idf;
   if cgc == [@codeCtx Uppaal] then
     warning typeName: "no device code generation for Uppaal export at this date";
   end if;

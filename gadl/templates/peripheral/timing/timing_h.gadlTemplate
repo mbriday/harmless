@@ -7,9 +7,10 @@
 #include "types.h"
 #include "fifo.h"
 
-class peripheral;
+class %!baseName%;
 
 class %!className% : public timingBase {\n
+	%!baseName% *m_peripheral; 
 	const unsigned int m_inOffset;
 	const unsigned int m_outOffset;
 %foreach var in timingPart::localVar do
@@ -18,37 +19,38 @@ end foreach
 let id := 0
 %	//declare simulation steps\n%
 foreach step in timingPart::timingStepList do
-%	bool step_%!id%(arch *);
+%	bool step_%!id%();
 %let id := id + 1
 end foreach
-%	typedef bool (%!className%::* stepPtr)(peripheral *);
+%	typedef bool (%!className%::* stepPtr)();
 	stepPtr nextStep; //points to the next step
-	fifo<u32> *m_accessFifo;
+//	fifo<u32> *m_accessFifo;
 	public:
-	%!className%(const unsigned int inOffset, const unsigned int outOffset) : 
-	m_inOffset(inOffset), m_outOffset(outOffset) {init();};
-	virtual void run(arch *arch) {
-		while((this->*nextStep)(arch));
-%		let addrFound := 0
+	%!className%(%!baseName% *peripheral, const unsigned int inOffset, const unsigned int outOffset) : 
+	m_peripheral(peripheral), m_inOffset(inOffset), m_outOffset(outOffset) {init();};
+	virtual void run() {
+		while((this->*nextStep)());
+%		#deprecated?
+		let addrFound := 0
 		foreach var in timingPart::localVar do
 			if var::name == "addr" then let addrFound := 1 end if
 		end foreach
         if addrFound==1 then
 %		if(isInit() && m_accessFifo->read(addr)) //init state, and read was a success (i.e. not empty)
 		{
-			run(arch); //recursive call. (not a big depth!).
+			run(); //recursive call. (not a big depth!).
 		}
 %end if
 %	}
 	virtual void init() {
 		nextStep = &%!className%::step_0;
-		m_accessFifo = new fifo<u32>("timing %!className% fifo",16); //arbitrary max val
+//		m_accessFifo = new fifo<u32>("timing %!className% fifo",16); //arbitrary max val
 	};
 	bool isInit() {return nextStep == &%!className%::step_0;};
 	virtual std::string toString() {return std::string("%!className%");};
-	void insertInDataCacheFifo(const u32 addr)
-	{
-		m_accessFifo->write(addr);
-	}	
+//	void insertInDataCacheFifo(const u32 addr)
+//	{
+//		m_accessFifo->write(addr);
+//	}	
 };
 #endif // __TIMING_%!className%_H__

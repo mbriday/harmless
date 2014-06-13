@@ -11,14 +11,14 @@ class peripheral;
 
 class timingBase {
 	private:
-	timingBase *m_next; //single link list
-	u64 m_nextWakeUpDate; //single link list sorting value
+	timingBase *m_next; //single linked list
+	u64 m_nextWakeUpDate; //single linked list sorting criterion
 	public:
-	virtual void run(peripheral *_peripheral) = 0;
+	virtual void run() = 0;
 	virtual void init() = 0 ;
 	virtual std::string toString() = 0;
 
-	//single link list related functions.
+	//single linked list related functions.
    inline void setNext(timingBase *tb) {m_next = tb;};
    inline timingBase * const next() {return m_next;};
    inline void setNextWakeUpDate(const u64 date) {m_nextWakeUpDate = date;};

@@ -16,12 +16,12 @@
     #.cpp file
     write to exportDir."/".className.".cpp":
        #generation Ok, mais manque timingSignal.h
-#      template timing_cpp in "peripheral/timing" 
+      template timing_cpp in "peripheral/timing" 
     end write
     !className%.cpp \\\n%
     #.h file
     write to exportDir."/".className.".h":
-#      template timing_h in "peripheral/timing"
+      template timing_h in "peripheral/timing"
     end write
     #.dot (graphviz) file
     write to exportDir."/".className.".dot":
