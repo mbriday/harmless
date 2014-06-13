@@ -62,6 +62,14 @@ struct @varIdfStruct {
   @lstringMap replaceMap;
   @memSpaceMap memSpaceMap; #memory space (not defined in isa).
   @bool assign; #true for left side of an assignment.
+  #locals of another class that can be access (using friend classes)
+  #It is used with timings that can have their own locals, but can also
+  #use the one of the peripheral (which is in another class in the generated code…)
+  #Access to maps from this varMap use a specific prefix (and have less priority
+  #than using vars in the varMap).
+  @varMap varMapFriend;
+  @string friendAccessPrefix; 
+  
 }
 
 reader @varIdfStruct string

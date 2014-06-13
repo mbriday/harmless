@@ -16,6 +16,12 @@ reader @ASTTimingMap getTimingMap
     @expressionContext ctx := [@expressionContext timing];  
     @symbolValueMap symbolMapCopy := symbolMap;
     @varIdfStruct idfStructCopy := idfStruct;
+    #move varMap of peripheral to the 'friend' varMap.
+    idfStructCopy->varMapFriend := idfStruct->varMap;
+    idfStructCopy->varMap := [@varMap emptyMap];
+    idfStructCopy->friendAccessPrefix := "m_peripheral->";
+    idfStructCopy->idfPrefixCore := "m_peripheral->"; #for registers…
+   
     @uint timingInternalId := 0;
     [ASTTinstList getTimingList !signalIn !signalOut !?symbolMapCopy !?idfStructCopy
                   !?timingInternalId ?@timingInstructionList tInstList];
@@ -157,6 +163,10 @@ override method @ASTTAssignOrCall getTiming
 :
   @expressionContext ctx := [@expressionContext timing];
   @instructionList instList [emptyList];
+  #message "##########\n";
+  #message [idfStruct string];
+  #message "##########\n";
+  #idfStruct->idfPrefixCore := "_peripheral->"; #pb avvec chan[xx]->
   foreach ASTinstList (@ASTInstruction ASTinst) do
     [ASTinst getInst !ctx !?symbolMap !?idfStruct ?@instruction inst];
     instList += !inst;

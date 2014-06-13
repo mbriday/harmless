@@ -1,41 +1,42 @@
 %template headerC%
 #include <iostream>
-#include "timingSignal.h"
+#include "types.h"
+//#include "timingSignal.h"
 
 #include "%!className%.h"
-#include "peripheral.h"
+#include "%!baseName%.h"
 
 //state related code\n%
 let id := 0
 foreach step in timingPart::timingStepList do
   let canResume := "true"
-  %bool %!className%::step_%!id%(peripheral *_peripheral)\n{\n%
+  %bool %!className%::step_%!id%()\n{\n%
   #debug
   %\t#ifdef DEBUG_TIMING\n%
   %\t\tstd::cout << "%!className%::step_%!id%" << std::endl;\n%
   %\t#endif\n%
   # first: updates:
   foreach update in step::updateList do
-    %\t%!update::str
+    %\t%!update::str%\n%
   end foreach
   #synchro:
   foreach synchro in step::synchroInList do
-    %\tconst bool result = _peripheral->timingSynchroWait(this,m_inOffset + SIGNAL_WAIT_%!className%_%!synchro::str%);\n%
+    %\tconst bool result = m_peripheral->timingSynchroWait(this,m_inOffset + SIGNAL_WAIT_%!className%_%!synchro::str%);\n%
     let canResume := "result"
   end foreach
   foreach synchro in step::synchroOutList do
-    %\tconst bool result = _peripheral->timingSynchroEmit(this,m_outOffset + SIGNAL_EMIT_%!className%_%!synchro::str%, false);\n%
+    %\tconst bool result = m_peripheral->timingSynchroEmit(this,m_outOffset + SIGNAL_EMIT_%!className%_%!synchro::str%, false);\n%
     let canResume := "result"
   end foreach
   foreach synchro in step::synchroOutBroadcastList do
-    %\tconst bool result = _peripheral->timingSynchroEmit(this,m_outOffset + SIGNAL_EMIT_%!className%_%!synchro::str%, true);\n%
+    %\tconst bool result = m_peripheral->timingSynchroEmit(this,m_outOffset + SIGNAL_EMIT_%!className%_%!synchro::str%, true);\n%
     let canResume := "result"
   end foreach
   #wait:
   foreach wait in step::waitCycles
   before 
     let canResume := "false" #should stop the simulation here!
-    %\t_peripheral->timingWaitForCycles(this,%
+    %\tm_peripheral->timingWaitForCycles(this,%
   do %(%!wait::exp%)%
   between %+%
   after %);\n%

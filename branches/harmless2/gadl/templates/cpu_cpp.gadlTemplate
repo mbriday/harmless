@@ -14,7 +14,7 @@ cpu::cpu()
   foreach dev in cpu::deviceList
   before %\t//cpu devices\n%
   do
-    %\t%!dev::name% = new peripheral_%!dev::type%(%!dev::baseAddress%);\n%
+    %\t%!dev::name% = new periph_%!dev::type%(%!dev::baseAddress%);\n%
   end foreach
 %
 	///cpu memory chunks

@@ -398,10 +398,16 @@ routine handleUnknownType
   ?! @location locDef #location of parameters to check (if any).
 :
   detectedType := [@idfType unknown]; #it should already be set like this.
-  if [idfStruct->varMap hasKey ![idf string]] then
+  if [idfStruct->varMap hasKey ![idf string]] |
+     [idfStruct->varMapFriend hasKey ![idf string]] then
     @varAbstractType type;
     @varClass varClass;
-    [idfStruct->varMap searchKey !idf ?type ?isConst ?varClass ?*];
+    if [idfStruct->varMap hasKey ![idf string]] then
+      [idfStruct->varMap searchKey !idf ?type ?isConst ?varClass ?*];
+    else #friend varMap.
+      [idfStruct->varMapFriend searchKey !idf ?type ?isConst ?varClass ?*];
+      prefix := idfStruct->friendAccessPrefix;
+    end if;
     @varAbstractType typeWithoutTab := removeTabInIdf[!type];
     cast typeWithoutTab
     when == @varStructType vst : #struct type.
@@ -538,10 +544,16 @@ routine handleRegisterType
   [!?currentItemListCopy popLast ?@lstring regName ?* ?* ?* ?* ?*];
   #we detected a register access, while it may be a register slice access.
   @string regSlice := getRegSliceName[![regName string] ![idf string]];
-  if [idfStruct->varMap hasKey !regSlice] then #register slice inside varMap
+  if [idfStruct->varMap hasKey !regSlice] |
+     [idfStruct->varMapFriend hasKey !regSlice] then #register slice inside varMap
     #message "I've just discover a reg slice ".regSlice."\n";
     #got a register slice.
-    [idfStruct->varMap searchKey ![@lstring new !regSlice !here] ?outType ?isConst ?@varClass varClass ?*];
+    @varClass varClass;
+    if [idfStruct->varMap hasKey !regSlice] then
+      [idfStruct->varMap searchKey ![@lstring new !regSlice !here] ?outType ?isConst ?varClass ?*];
+    else #varMapFriend
+      [idfStruct->varMapFriend searchKey ![@lstring new !regSlice !here] ?outType ?isConst ?varClass ?*];
+    end if;
     if varClass != [@varClass registerSlice] then
       error idf : "internal error: detect a register slice, while variable map does not have the same type";
     end if;
