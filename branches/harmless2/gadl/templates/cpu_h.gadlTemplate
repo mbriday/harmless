@@ -6,6 +6,7 @@
 #include "types.h"
 #include "storage.h"
 #include "macro.h"
+#include "timingRun.h" //include m_nbCycles
 
 %
 #define core classes
@@ -20,7 +21,7 @@ foreach dev in cpu::deviceList do
 end foreach
 
 %
-class cpu
+class cpu : public timingRun
 {
 	///cpu memory chunks declaration.
 %foreach memInCpu in cpu::memInCpuList do

@@ -6,8 +6,10 @@
 #include "timingBase.h"
 #include "types.h"
 #include "fifo.h"
+#include "timingRun.h"
 
 class %!baseName%;
+class timingRun;
 
 class %!className% : public timingBase {\n
 	%!baseName% *m_peripheral; 
@@ -26,8 +28,15 @@ end foreach
 	stepPtr nextStep; //points to the next step
 //	fifo<u32> *m_accessFifo;
 	public:
-	%!className%(%!baseName% *peripheral, const unsigned int inOffset, const unsigned int outOffset) : 
-	m_peripheral(peripheral), m_inOffset(inOffset), m_outOffset(outOffset) {init();};
+	%!className%(timingRun *tr, %!baseName% *peripheral, const unsigned int inOffset, const unsigned int outOffset) : 
+	timingBase(tr),
+	m_peripheral(peripheral),
+	m_inOffset(inOffset),
+	m_outOffset(outOffset)
+	{
+		init();
+	};
+
 	virtual void run() {
 		while((this->*nextStep)());
 %		#deprecated?

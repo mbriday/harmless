@@ -1,0 +1,29 @@
+%template headerC%
+#ifndef __TIMINGRUN_H__
+#define __TIMINGRUN_H__
+
+#include "types.h"
+//#define DEBUG_TIMING
+
+class timingBase;
+
+//this super class is used to run timings:
+// * use a linked list to manage trigger of timings (ordered by date of wake-up
+// * a manageTiming() function that should be called at each cycle.
+// This class SHOULD have the nb cycles done.
+// This class is inherited by core and cpu.
+class timingRun {
+	//timing related functions
+	timingBase *m_timingListRoot;
+	u64 m_timingNextWakeUp;
+
+	protected:
+	u64 m_nbCycles;
+	
+	public:
+	timingRun();
+	void timingWaitForCycles(timingBase *automata,const u64 nbCycles);
+	void manageTiming();
+};
+
+#endif

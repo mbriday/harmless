@@ -8,12 +8,18 @@
 #include <string>
 
 class peripheral;
+class timingRun;
 
 class timingBase {
 	private:
 	timingBase *m_next; //single linked list
 	u64 m_nextWakeUpDate; //single linked list sorting criterion
+
+	protected:
+	timingRun *m_timingRun;
+
 	public:
+	timingBase(timingRun *tr) : m_timingRun(tr) {};
 	virtual void run() = 0;
 	virtual void init() = 0 ;
 	virtual std::string toString() = 0;
