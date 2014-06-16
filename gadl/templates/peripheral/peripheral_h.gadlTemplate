@@ -53,7 +53,7 @@ end foreach
 
 %
 	public:
-		%!baseName%(const u32 address);
+		%!baseName%(const u32 address, timingRun *);
 
 %if [peripheral::deviceList length] > 0 then
 	%\tvirtual peripheral *chunk(u32 address);\n%
@@ -76,8 +76,7 @@ foreach reg in peripheral::idfStruct::varList do
     if reg::varClassId == 2 then #SFR
       #should be converted to a mem access.
       %return this->read%!reg::size%AtAddress(%
-      !regMap[reg::name]::address
-      %);%
+      !regMap[reg::name]::address%+dumStorage::m_offset);%
     elsif reg::varClassId == 3 then #reg fields.
       !reg::getterNoLocal
     else error reg::name: "internal error - bad type"
@@ -94,7 +93,7 @@ foreach reg in peripheral::idfStruct::varList do
         #should be converted to a mem access.
         %\t\t\t%
         %this->write%!reg::size%AtAddress(%
-        !regMap[reg::name]::address%,value);\n%
+        !regMap[reg::name]::address%+dumStorage::m_offset,value);\n%
       elsif reg::varClassId == 3 then #reg fields.
         !reg::setter%\n%
       else error reg::name: "internal error - bad type"

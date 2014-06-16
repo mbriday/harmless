@@ -1,4 +1,13 @@
 % 
+#super class to run simulation (-> timings)
+write to exportDir."/timingRun.h":
+  template timingRun_h
+end write
+write to exportDir."/timingRun.cpp":
+  template timingRun_cpp
+end write
+%timingRun.cpp \\\n%
+
 #super class.
 write to exportDir."/peripheral.h":
   template peripheralBase_h

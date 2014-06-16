@@ -14,7 +14,7 @@ cpu::cpu()
   foreach dev in cpu::deviceList
   before %\t//cpu devices\n%
   do
-    %\t%!dev::name% = new periph_%!dev::type%(%!dev::baseAddress%);\n%
+    %\t%!dev::name% = new periph_%!dev::type%(%!dev::baseAddress%,this);\n%
   end foreach
 %
 	///cpu memory chunks
@@ -43,6 +43,14 @@ end foreach
 void cpu::run(u64 nbCycle)
 {
 	for(u64 i=0;i<nbCycle;i++)
+	{
+		//cores
 		for(int coreId=0;coreId<%!nbCores%;coreId++)
+		{
 			m_coreTab[coreId]->execInst(1);
+		}
+		//and peripherals.
+		manageTiming();
+		m_nbCycles++;
+	}
 }

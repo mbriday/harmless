@@ -5,12 +5,16 @@
 #include "storage.h"
 #include <string.h> //required by Linux for memcpy...
 class timingBase;
+class timingRun; //code that call timings.
 
 class peripheral : public rwStorage
 {
+	protected:
+	timingRun *m_timingRun;
+
 	public:
 	//constructor
-	peripheral(std::string name, u32 size, u32 offset);
+	peripheral(std::string name, u32 size, u32 offset, timingRun *);
 	
 	//return the memory chunk.
 	virtual peripheral *chunk(const u32 address)
@@ -20,7 +24,7 @@ class peripheral : public rwStorage
 	};
 
 	//TODO
-	void timingWaitForCycles(timingBase *,const u64 nbCycles) {};
+//	void timingWaitForCycles(timingBase *,const u64 nbCycles) {};
 	bool timingSynchroEmit(timingBase *,unsigned int sigName, const bool broadcast) {return true;};
 	bool timingSynchroWait(timingBase *,unsigned int sigName) {return true;};
 

@@ -1,0 +1,64 @@
+#include "timingRun.h"
+#include "timingBase.h"
+#include <iostream>
+using namespace std;
+
+timingRun::timingRun()
+{
+	m_timingListRoot = NULL;
+	m_timingNextWakeUp = 0xFFFFFFFFFFFFFFFFULL;
+	m_nbCycles = 0;
+}
+
+void timingRun::timingWaitForCycles(timingBase *automata,const u64 nbCycles)
+{
+	const u64 wakeUpDate = m_nbCycles + nbCycles;
+	#ifdef DEBUG_TIMING
+		cout << "automata " << automata->toString() << " will wake up at " << wakeUpDate << endl;
+	#endif
+	automata->setNextWakeUpDate(wakeUpDate);
+	//insert in single linked list (and adjust m_timingNextWakeUp if required)
+	timingBase *currentNode = m_timingListRoot;
+	timingBase *previousNode = NULL;
+
+	while(currentNode && (currentNode->nextWakeUpDate())<wakeUpDate)
+	{
+		previousNode = currentNode;
+		currentNode = currentNode->next();
+	}
+	automata->setNext(currentNode); //may be NULL
+	if(previousNode)
+	{
+		//not at the beginning
+		previousNode->setNext(automata); //linked list.
+	} else {
+		//at the beginning
+		m_timingListRoot = automata;
+		m_timingNextWakeUp = wakeUpDate;
+	}
+}
+
+void timingRun::manageTiming()
+{
+	//this function is called when m_timingNextWakeUp <= m_nbCycles
+	while(m_timingNextWakeUp <= m_nbCycles)
+	{
+		timingBase *currentNode = m_timingListRoot;
+		if(currentNode)
+		{
+			//remove the node.
+			m_timingListRoot = currentNode->next();
+			//run
+			#ifdef DEBUG_TIMING
+				cout << "wake up automata " << currentNode->toString() << " : " << m_nbCycles << endl;
+			#endif
+			currentNode->run();
+			//re-init m_timingNextWakeUp
+			if(m_timingListRoot)
+				m_timingNextWakeUp = m_timingListRoot->nextWakeUpDate();
+			else
+				m_timingNextWakeUp = 0xFFFFFFFFFFFFFFFFULL; //max u64 value.
+		}
+	}
+}
+

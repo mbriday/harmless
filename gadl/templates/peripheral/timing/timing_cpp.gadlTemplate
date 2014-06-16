@@ -5,6 +5,7 @@
 
 #include "%!className%.h"
 #include "%!baseName%.h"
+#include "timingRun.h"
 
 //state related code\n%
 let id := 0
@@ -36,7 +37,7 @@ foreach step in timingPart::timingStepList do
   foreach wait in step::waitCycles
   before 
     let canResume := "false" #should stop the simulation here!
-    %\tm_peripheral->timingWaitForCycles(this,%
+    %\tm_timingRun->timingWaitForCycles(this,%
   do %(%!wait::exp%)%
   between %+%
   after %);\n%

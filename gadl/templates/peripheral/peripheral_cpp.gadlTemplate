@@ -69,18 +69,18 @@ bool peripheralActionRead_%!peripheral::name%::trigger(storage *, u32 &data)
 }
 %# constructor part.
 %
-%!baseName%::%!baseName%(const u32 address) : peripheral("%!peripheral::name%", %!peripheral::memSize%, address)
+%!baseName%::%!baseName%(const u32 address,timingRun *tr) : peripheral("%!peripheral::name%", %!peripheral::memSize%, address, tr)
 {
 %
 foreach dev in peripheral::deviceList
 before %\t//device instantiation.\n%
 do
   if dev::nb == 1 then #only one.
-    %\t%!dev::name% = new periph_%!dev::type%(address+%!dev::baseAddress%);\n%
+    %\t%!dev::name% = new periph_%!dev::type%(address+%!dev::baseAddress%,tr);\n%
   else #tabular
   	%\tfor(unsigned int i=0, offset = 0; i < %!dev::nb%; i++)\n%
 	%\t{\n%
-	%\t\t%!dev::name%[i] = new periph_%!dev::type%(address+%!dev::baseAddress%+offset);\n%
+	%\t\t%!dev::name%[i] = new periph_%!dev::type%(address+%!dev::baseAddress%+offset,tr);\n%
 	%\t\toffset += %!dev::name%[i]->size();\n%
 	%\t}\n%
   end if
@@ -90,7 +90,7 @@ foreach timingPart in peripheral::timingList
 before %\t//timing instantiation.\n%
 do
   let className := baseName."_timing_".timingPart::name
-  %\tm_%!className% = new %!className%(this,0,0);\n%
+  %\tm_%!className% = new %!className%(tr,this,0,0);\n%
 end foreach
 
 foreach reg in peripheral::regList
