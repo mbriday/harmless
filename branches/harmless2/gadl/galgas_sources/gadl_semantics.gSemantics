@@ -14,6 +14,15 @@ map @boolMap
 {
   insert insertKey error message "the '%K' key is already defined in %L" ; 
   search searchKey error message "the '%K' key is not defined" ;
+  remove removeKey error message "the '%K' key is not defined and cannot be removed." ;
+}
+
+map @boolMapMap
+{
+  @boolMap boolMap;
+  insert insertKey error message "the '%K' value is already defined in %L" ; 
+  search searchKey error message "the '%K' value is not defined" ;
+  remove removeKey error message "the '%K' value is not defined and cannot be removed." ;
 }
 
 map @intMap {
