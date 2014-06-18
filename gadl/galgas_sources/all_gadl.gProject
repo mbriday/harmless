@@ -32,6 +32,7 @@ project all_gadl (0:8:1) -> "gadl" :
   semantics "gadl_semantics_GetExp.gSemantics" ;         # AST reader to get decorated expression.
   semantics "gadl_semantics_expression_eval.gSemantics" ;
   semantics "gadl_semantics_expression_code_generation.gSemantics" ;
+  semantics "gadl_semantics_expression_extract_idf.gSemantics" ;
 
 #******************************************************
 # implementation: harmless instructions related files.

@@ -4,6 +4,7 @@ semantics gadl_timing_getTiming:
   import "gadl_timing_AST.gSemantics" ;
   import "gadl_semantics_GetExp.gSemantics" ;
   import "gadl_semantics_getInst.gSemantics" ;
+  import "gadl_semantics_expression_extract_idf.gSemantics" ; #tmp
 
 reader @ASTTimingMap getTimingMap
   ?? @symbolValueMap symbolMap

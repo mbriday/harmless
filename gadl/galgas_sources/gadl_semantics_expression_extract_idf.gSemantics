@@ -1,0 +1,98 @@
+semantics gadl_semantics_expression_extract_idf:
+  import "gadl_options.gOption" ;
+  import "gadl_semantics_expression.gSemantics";
+
+#This file provides the reader for expression : @expression getIdf
+#The goal of this reader is to give the list of the expIdf that
+#are used inside an expression:
+# -> primary usage: the 'enable' condition inside a timing
+#    We have to add an implentation hook in each accessor of the 
+#    idf (associated to a register) to take into account the condition.
+
+list @expIdfList {
+  @expIdf idf;
+}
+
+abstract reader @expression getIdf
+  ?? @expIdfList inList
+  -> @expIdfList outList
+;
+
+override reader @expDummy getIdf
+  ?? @expIdfList inList
+  -> @expIdfList outList
+: 
+  outList:=inList;
+end reader;
+
+override reader @expIntConst getIdf
+  ?? @expIdfList inList
+  -> @expIdfList outList
+: 
+  outList:=inList;
+end reader;
+
+override reader @expInstructionSize getIdf
+  ?? @expIdfList inList
+  -> @expIdfList outList
+: 
+  outList:=inList;
+end reader;
+
+override reader @expInstructionAddress getIdf
+  ?? @expIdfList inList
+  -> @expIdfList outList
+: 
+  outList:=inList;
+end reader;
+
+override reader @expIdf getIdf
+  ?? @expIdfList inList
+  -> @expIdfList outList
+: 
+  outList:=inList;
+  outList += !selfcopy;
+end reader;
+
+override reader @expCast getIdf
+  ?? @expIdfList inList
+  -> @expIdfList outList
+: 
+  outList := [expCasted getIdf !inList];
+end reader;
+
+reader @fieldList getIdf
+  ?? @expIdfList inList
+  -> @expIdfList outList
+: 
+  outList := inList;
+  foreach selfcopy do
+    outList := outList . [expFrom getIdf ![@expIdfList emptyList]] .
+               [expTo   getIdf ![@expIdfList emptyList]];
+  end foreach;
+end reader;
+
+override reader @expBitFieldOp getIdf
+  ?? @expIdfList inList
+  -> @expIdfList outList
+: 
+  outList := [expField getIdf !inList] . [fList getIdf ![@expIdfList emptyList]];
+end reader;
+
+override reader @expUnary getIdf
+  ?? @expIdfList inList
+  -> @expIdfList outList
+: 
+  outList := [exp getIdf !inList];
+end reader;
+
+override reader @expBinary getIdf
+  ?? @expIdfList inList
+  -> @expIdfList outList
+: 
+  outList := inList . [expLeft  getIdf ![@expIdfList emptyList]] .
+             [expRight getIdf ![@expIdfList emptyList]];
+end reader;
+
+end semantics ;
+# vim:ft=ggs:ts=2:sw=2
