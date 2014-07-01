@@ -17,6 +17,9 @@ reader @ASTTimingMap getTimingMap
     @expressionContext ctx := [@expressionContext timing];  
     @symbolValueMap symbolMapCopy := symbolMap;
     @varIdfStruct idfStructCopy := idfStruct;
+    #expEnable expression is in the timing structure, however, it is called
+    #from the peripheral -> should have the idfStruct associated.
+    @expression expEnable := [ASTExpEnable getExp !ctx !symbolMap !idfStructCopy];
     #move varMap of peripheral to the 'friend' varMap.
     idfStructCopy->varMapFriend := idfStruct->varMap;
     idfStructCopy->varMap := [@varMap emptyMap];
@@ -26,7 +29,6 @@ reader @ASTTimingMap getTimingMap
     @uint timingInternalId := 0;
     [ASTTinstList getTimingList !signalIn !signalOut !?symbolMapCopy !?idfStructCopy
                   !?timingInternalId ?@timingInstructionList tInstList];
-    @expression expEnable := [ASTExpEnable getExp !ctx !symbolMap !idfStructCopy];
     [!?timingMap insertKey !lkey !externalActivation !signalIn !signalOut !tInstList !expEnable];
   end foreach;
 end reader;

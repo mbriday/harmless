@@ -9,26 +9,21 @@ method @timingMap setInTemplate
 :
   @TfieldMapList timingTpl [emptyList];
   @stringset signalSet [emptySet];
-  foreach selfcopy (@lstring name 
-                     @bool externalActivation
-                     @boolMap SignalIn
-                     @boolMap SignalOut
-                     @timingInstructionList instList ...) do
-
+  foreach selfcopy do
     @TfieldMap timingTplBody [emptyMap];
-    foreach SignalIn  (@lstring sigName) do signalSet += ![sigName string]; end foreach;
-    foreach SignalOut (@lstring sigName) do signalSet += ![sigName string]; end foreach;
+    foreach signalIn  (@lstring sigName) do signalSet += ![sigName string]; end foreach;
+    foreach signalOut (@lstring sigName) do signalSet += ![sigName string]; end foreach;
 
-    addBoolMap !SignalIn  !"name" !"signalWait" !?timingTplBody;
-    addBoolMap !SignalOut !"name" !"signalEmit" !?timingTplBody;
+    addBoolMap !signalIn  !"name" !"signalWait" !?timingTplBody;
+    addBoolMap !signalOut !"name" !"signalEmit" !?timingTplBody;
 
     @adjMat harmlessAutomata := computeMatAdj[!instList !externalActivation !false];
     @adjMat uppaalAutomata   := computeMatAdj[!instList !externalActivation !true];
     
     @pointList stateCoordinateList;
-    getAutomataCoordinates !exportDir !uppaalAutomata !name ?stateCoordinateList;
+    getAutomataCoordinates !exportDir !uppaalAutomata !lkey ?stateCoordinateList;
     #add name
-    addLStringValue !?timingTplBody !"name" !name;
+    addLStringValue !?timingTplBody !"name" !lkey;
     #add local vars
     addListValue !?timingTplBody !lstringWith[!"localVarUppaal"] ![instList getDeclarationList ![@codeCtx Uppaal]];
     addListValue !?timingTplBody !lstringWith[!"localVar"]  ![instList getDeclarationList ![@codeCtx C]];
@@ -38,6 +33,9 @@ method @timingMap setInTemplate
 
     addBoolValue !?timingTplBody !lstringWith[!"onActivation"] !externalActivation;
     getSimulationSteps !harmlessAutomata !?timingTplBody !externalActivation;
+    #expEnable
+    addStringValue !?timingTplBody !lstringWith[!"expEnable"] ![expEnable generateCode ![@codeCtx C]];
+    #end
     timingTpl += !timingTplBody;
   end foreach;
   addListValue !?templateStruct !lstringWith[!"timingList"] !timingTpl;
@@ -73,45 +71,41 @@ reader @timingMap getEnableConditionIdf
                                   [[idf detectedType] string].". Only registers are allowed";
         when registerAccess, registerBitField :
           #then get the registers to update:
-          #for reg.slice => we will have 'reg' and 'reg_slice'
+          #for reg.slice => we keep only the 'reg', because the method to access the 
+          #slice call the full reg accessor
           #store the result in 'regName'
-          @string regName := "";
-          @bool first := true;
-          foreach [idf idfList] do #each item
-            if not first then regName .= "_"; else first := false; end if;
-            regName .= [idf string]; #idf is the item name here...
-            @lstring lregName := [@lstring new !regName !here];
-            #ok: we are here with the correct 'regName'.
-            #The boolMapMap works as follow:
-            #the first Key is the register -> we get a boolMap
-            #In that boolMap, all the timing names that are dependant of this register are listed.
-            if [timerCondMap hasKey !regName] then
-              #already an entry -> the register is used
-              [timerCondMap searchKey !lregName ?@boolMap timingNameMap];
-              if not [timingNameMap hasKey ![timingName string]] then
-                #it is used for another 'timing'. Update
-                [!?timingNameMap insertKey !timingName];
-                #remove the old one and set the new one.
-                [!?timerCondMap removeKey !lregName ?*];
-                [!?timerCondMap insertKey !lregName !timingNameMap];
-              end if;
-            else
-              @boolMap timingNameMap [emptyMap];
+          @lstring lregName := [[idf idfList] idfAtIndex !0];#get identifier name of the first item.
+          @string regName := [lregName string];
+          #ok: we are here with the correct 'regName'.
+          #The boolMapMap works as follow:
+          #the first Key is the register -> we get a boolMap
+          #In that boolMap, all the timing names that are dependant of this register are listed.
+          if [timerCondMap hasKey !regName] then
+            #already an entry -> the register is used
+            [timerCondMap searchKey !lregName ?@boolMap timingNameMap];
+            if not [timingNameMap hasKey ![timingName string]] then
+              #it is used for another 'timing'. Update
               [!?timingNameMap insertKey !timingName];
+              #remove the old one and set the new one.
+              [!?timerCondMap removeKey !lregName ?*];
               [!?timerCondMap insertKey !lregName !timingNameMap];
             end if;
-          end foreach;
+          else
+            @boolMap timingNameMap [emptyMap];
+            [!?timingNameMap insertKey !timingName];
+            [!?timerCondMap insertKey !lregName !timingNameMap];
+          end if;
       end switch;
     end foreach;
   end foreach;
   #debug.
-  #foreach timerCondMap do
-  #  @lstring reg := lkey;
-  #  message "register ".[reg string].":\n";
-  #  foreach boolMap do
-  #    message "\ttiming ".[lkey string]."\n";
-  #  end foreach;
-  #end foreach;
+  foreach timerCondMap do
+    @lstring reg := lkey;
+    message "register ".[reg string].":\n";
+    foreach boolMap do
+      message "\ttiming ".[lkey string]."\n";
+    end foreach;
+  end foreach;
 end reader;
 
 

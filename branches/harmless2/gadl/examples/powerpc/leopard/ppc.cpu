@@ -20,7 +20,7 @@ cpu leopard {
   --core e200z4Bis core4(3)
 
   device dummySerial serial maps to mem:1000
---  device STM stm maps to mem:\x12000
+--  device STM stm maps to mem:\x8FF3_C000
 --  device memTiming mem maps to mem:0
 
   signal {

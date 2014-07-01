@@ -51,6 +51,13 @@ do
   #end if
 end foreach
 
+#generate method that checks the enable condition
+foreach timingPart in peripheral::timingList
+before %\t//fonction to enable/disable a timing\n%
+do
+  %\tvoid checkEnableTiming_%!timingPart::name%();\n%
+end foreach
+
 %
 	public:
 		%!baseName%(const u32 address, timingRun *);
@@ -61,6 +68,7 @@ end if%
 		///register accessors (-> remap in memory for 'actions').
 %
 let regMap := mapof peripheral::regList by name
+let regEnableTimingMap := mapof peripheral::timingEnableList by name
 foreach reg in peripheral::idfStruct::varList do
   if reg::varClassId == 2      #SFR
    | reg::varClassId == 3 then #reg fields.
@@ -102,6 +110,12 @@ foreach reg in peripheral::idfStruct::varList do
     let key := "counter_write_".reg::name #access counter
     if exists counterMap[key] then
       %\t\t\t%!key%++;\n%
+    end if
+    #Access to a register may enable/disable a timing.
+    if exists regEnableTimingMap[reg::name] then
+      foreach timingEn in regEnableTimingMap[reg::name]::timing do
+        %\t\t\tcheckEnableTiming_%!timingEn::name%();\n%
+      end foreach
     end if
     %\t\t};\n%
   end if #varClass id

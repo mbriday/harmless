@@ -18,7 +18,7 @@ peripheral STM_Channel memory size 16 {
 }
 
 -- System Timer Module
-peripheral STM memory size \x50 {
+peripheral STM memory size \x5c {
   --STM Control Register
   register u32 STM_CR maps to \x00 {
     TEN := slice{0} -- R/W Timer ENable
