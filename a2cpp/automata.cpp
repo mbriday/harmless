@@ -39,11 +39,11 @@ void automata::loadAutomataBDD(const char* BDDString)
 	m_consecutiveToa2aStatesTab = new int[nbStates];
 
 	C_BDD sources = m_transitions.existsOnBitsAfterNumber(m_nbBitsToCodeAState);
-	TC_UniqueArray <PMUInt64> sourceArray;
+	TC_UniqueArray <uint64_t> sourceArray;
 	sources.buildValue64Array(sourceArray, m_nbBitsToCodeAState);
-	const PMSInt32 nbSources = sourceArray.count();
-	for (PMSInt32 i=0 ; i<nbSources ; i++) {
-		PMUInt64 a2aId = sourceArray(i COMMA_HERE);
+	const int32_t nbSources = sourceArray.count();
+	for (int32_t i=0 ; i<nbSources ; i++) {
+		uint64_t a2aId = sourceArray(i COMMA_HERE);
 		m_consecutiveToa2aStatesTab[i] = a2aId;
 		m_a2aToConsecutiveStatesMap[a2aId] = i;
 	}	
@@ -67,7 +67,7 @@ unsigned int automata::getNbStates()
 	if(m_nbStates) return m_nbStates;
 	else {
 		C_BDD sources = m_transitions.existsOnBitsAfterNumber(m_nbBitsToCodeAState);
-		TC_UniqueArray <PMUInt64> sourceArray;
+		TC_UniqueArray <uint64_t> sourceArray;
 		sources.buildValue64Array(sourceArray, m_nbBitsToCodeAState);
 		m_nbStates = (unsigned int)sourceArray.count();
 		return m_nbStates;
