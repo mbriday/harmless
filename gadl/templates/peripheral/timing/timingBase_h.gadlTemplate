@@ -10,6 +10,10 @@
 class peripheral;
 class timingRun;
 
+//states of timings. No RUN state yet.
+#define SUSPENDED 0
+#define READY     1
+
 class timingBase {
 	private:
 	timingBase *m_next; //single linked list
@@ -29,5 +33,6 @@ class timingBase {
    inline timingBase * const next() {return m_next;};
    inline void setNextWakeUpDate(const u64 date) {m_nextWakeUpDate = date;};
    inline u64 const nextWakeUpDate() {return m_nextWakeUpDate;};
+   void setState(int newState) {};
 };
 #endif //__TIMING_BASE_H__

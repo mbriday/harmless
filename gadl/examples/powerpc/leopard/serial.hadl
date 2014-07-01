@@ -17,7 +17,7 @@ peripheral dummySerial memory size 8 {
   }
 
   u32 dataPrint(u32 value, u32 oldValue) {
-    if CSRSL.BSY = 0 then
+    if CSRSL.BSY = 0 && CSRSL.SEN then
       print (s8)(value & \xFF) -- may be in the automata to be printed after the delay?
       CSRSL.BSY := 1
     end if
@@ -29,6 +29,12 @@ peripheral dummySerial memory size 8 {
     wait 10 cycle;
     CSRSL.BSY := 0; --> stop the automata
   }
+  timing serialTX2 enabled (CSRSL.SEN = 1 && DR = 1)
+  {
+    wait 10 cycle;
+    CSRSL.BSY := 0; --> stop the automata
+  }
+
 }
 
 -- vim:ft=harmlesscore:ts=2:sw=2:tw=0

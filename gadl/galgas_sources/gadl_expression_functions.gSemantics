@@ -13,9 +13,9 @@ function nbBitsToCodeUnsigned
   ?@uint64 val
   -> @uint nbBits
 :
-  @uint var := 65; # max 64 loops.
+  @uint vari := 65; # max 64 loops.
   nbBits := 0;
-  loop var:
+  loop vari:
   while (val != 0L) do
     val := val >> 1;
     nbBits := nbBits + 1;

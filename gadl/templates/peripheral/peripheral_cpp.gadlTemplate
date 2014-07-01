@@ -128,3 +128,17 @@ end foreach
 	else return NULL;
 }%
 end if
+
+#generate method that checks the enable condition
+foreach timingPart in peripheral::timingList do
+  let className := baseName."_timing_".timingPart::name
+  let instanceName := "m_".className
+  %void %!baseName%::checkEnableTiming_%!timingPart::name%(){\n%
+  %\tif(%!timingPart::expEnable%)\n%
+  %\t\t%!instanceName%->setState(READY);\n%
+  %\telse\n%
+  %\t\t%!instanceName%->setState(SUSPENDED);\n%
+  %}\n%
+  between %\n%
+end foreach
+
