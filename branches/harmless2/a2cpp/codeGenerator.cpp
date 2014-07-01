@@ -235,28 +235,28 @@ void codeGenerator::tabular_nextState(fileHeaderGeneration &outputH)
 			C_BDD automataFromCurrentSourcesAndCondition = automataFromCurrentSources & currentCond;
 
 			//get the target from that.
-			PMUInt64 targetId = 0;
+			uint64_t targetId = 0;
 			C_BDD currentTargets = automataFromCurrentSourcesAndCondition.bddByRightShifting(nbBitsToCodeAState+nbBitsToCodeATransition);
-			TC_UniqueArray <PMUInt64> currentTargetsArray;
+			TC_UniqueArray <uint64_t> currentTargetsArray;
 			currentTargets.buildValue64Array(currentTargetsArray, nbBitsToCodeAState);
 			assert(currentTargetsArray.count() <= 1);
-			for (PMSInt32 j=0 ; j<currentTargetsArray.count () ; j++) //max 1 loop.
+			for (int32_t j=0 ; j<currentTargetsArray.count () ; j++) //max 1 loop.
 				targetId = currentTargetsArray(j COMMA_HERE);
 			int targetA2CPP = aut->getA2CPPStateIdFromA2A(targetId);
 
 			//get the notification.
-			PMUInt64 notificationId = 0;
+			uint64_t notificationId = 0;
 			C_BDD currentNotification = automataFromCurrentSourcesAndCondition.bddByRightShifting(nbBitsToCodeAState);
 			currentNotification = currentNotification.existsOnBitsAfterNumber(nbNotifications);
-			TC_UniqueArray <PMUInt64> currentNotificationsArray;			
+			TC_UniqueArray <uint64_t> currentNotificationsArray;			
 			currentNotification.buildValue64Array(currentNotificationsArray, nbNotifications);			
 			assert(currentNotificationsArray.count() <= 1);
-			for (PMSInt32 j=0 ; j<currentNotificationsArray.count () ; j++) //max 1 loop.
+			for (int32_t j=0 ; j<currentNotificationsArray.count () ; j++) //max 1 loop.
 				notificationId = currentNotificationsArray(j COMMA_HERE);
 			assert(notificationId < (1UL<<nbNotifications));
 
 			//concatenate the whole.
-			PMUInt64 val = notificationId << stateSizeInBits |  targetA2CPP;
+			uint64_t val = notificationId << stateSizeInBits |  targetA2CPP;
 			//and print.
 			m_cpp << "0x" << hex << setfill('0') << setw(nbBytesTab) << val;
 		}

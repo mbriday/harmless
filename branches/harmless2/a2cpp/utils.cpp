@@ -56,7 +56,7 @@ void printBDD(C_BDD &bdd)
 	TC_UniqueArray <C_String> s ;
 	//bdd.buildCompressedLittleEndianStringValueArray (s COMMA_HERE) ;
 	bdd.buildCompressedBigEndianStringValueArray (s COMMA_HERE) ;
-	for (PMSInt32 i=0 ; i<s.count () ; i++) {
+	for (int32_t i=0 ; i<s.count () ; i++) {
 		if(i) printf(" | ");	
 		printf ("'%s'", s (i COMMA_HERE).cString (HERE)) ;
 	}
