@@ -7,10 +7,10 @@ using namespace std;
 pipelineNotificationEncoder::pipelineNotificationEncoder(pipeline *pipe)
 {
 	//Stall (id=0) is replaced to 'any instruction'
-	const PMUInt nbInst =  pipe->getNbInstructionClassesIncludeStall();
-	const PMUInt nbStage = pipe->getNumberOfPipelineStages();
-	m_nbBitsInst  = nbBitsToCodeValue((PMUInt32) nbInst);
-	m_nbBitsStage = nbBitsToCodeValue((PMUInt32) nbStage);
+	const uint32_t nbInst =  pipe->getNbInstructionClassesIncludeStall();
+	const uint32_t nbStage = pipe->getNumberOfPipelineStages();
+	m_nbBitsInst  = nbBitsToCodeValue((uint32_t) nbInst);
+	m_nbBitsStage = nbBitsToCodeValue((uint32_t) nbStage);
 
 	m_codeSize = m_nbBitsStage+m_nbBitsInst+1;
 	m_codeSizeAny = m_nbBitsStage+1;

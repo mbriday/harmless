@@ -53,7 +53,7 @@ public:
 	///during configuration, set access priority to the resource
 	void addPriority(pipelineStageDescriptor *ps) {m_priorityVector.push_back(ps);};
 	///nb of priorities to the resource (correspond to the nb of pipeline stage the resource can be taken)
-	PMUInt const getNbPriorities() {return m_priorityVector.size();};
+	uint32_t const getNbPriorities() {return m_priorityVector.size();};
 	///get pipeline stage descriptor at priority 'prio'
 	pipelineStageDescriptor *getPipelineStageDescriptorAtPriority(unsigned int index) const;
 };

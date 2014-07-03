@@ -71,9 +71,9 @@ class systemConfiguration
 	///return true if file is ok.
 	bool load(const std::string filename);
 
-	PMUInt const getNumberOfResources() {return m_resourceDescriptorVector.size();};
-	PMUInt const getNumberOfInstructionClasses() {return m_instructionClassVector.size();};
-	PMUInt const getNumberOfPipelineStages() {return m_pipelineStageDescriptorVector.size();};
+	uint32_t const getNumberOfResources() {return m_resourceDescriptorVector.size();};
+	uint32_t const getNumberOfInstructionClasses() {return m_instructionClassVector.size();};
+	uint32_t const getNumberOfPipelineStages() {return m_pipelineStageDescriptorVector.size();};
 
 	unsigned int const getNumberOfExternalResources();
 	

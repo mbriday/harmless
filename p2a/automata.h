@@ -30,14 +30,14 @@ class transitionCondition
 {
 	const unsigned int m_nbBitsToCodeAnInstructionClass;
 	const unsigned int m_nbExternalResources;
-  PMUInt32 m_conditionValue ;
+  uint32_t m_conditionValue ;
 public:
 	transitionCondition(const unsigned int nbBitsToCodeAnInstructionClass,
                       const unsigned int nbExternalResources);
 	inline unsigned int const nbBitsRequired() {return m_nbBitsToCodeAnInstructionClass+m_nbExternalResources;};
 	void addTransitionCondition(const unsigned int externalResources, instructionClass *inst);
 
-	inline PMUInt32 getConditionValue() const {return m_conditionValue;};
+	inline uint32_t getConditionValue() const {return m_conditionValue;};
 };
 
 //class that encodes a transition notification (only fetch at this date).
@@ -47,7 +47,7 @@ public:
 //should be performed.
 class transitionNotification
 {
-  PMUInt32 m_val ;
+  uint32_t m_val ;
 public:
 	//the C_BDD in parameter encodes all the notifications (pipeline ones) 
 	//that are performed to go to the next state.
@@ -55,7 +55,7 @@ public:
 	//void setFetch(unsigned int val);
 	inline unsigned int const nbBitsRequired(pipeline *pipe);
 	//should ONLY be called by automata class.
-  inline PMUInt32 value () const {return m_val;}
+  inline uint32_t value () const {return m_val;}
 };
 
 //TODO: split this big class into 
@@ -107,8 +107,8 @@ class automata
 	//    -> transition notification, 
 	// last   the source state id
   C_BDD m_transitions ;
-  PMUInt32 m_transitionArrayCapacity ;
-  PMUInt64 * m_transitionArray ;
+  uint32_t m_transitionArrayCapacity ;
+  uint64_t * m_transitionArray ;
 	//count transition, for periodic cleaning of useless bdds.
 	unsigned int m_nbTransition;
 	//add a transition in the automata.

@@ -64,12 +64,12 @@ class pipeline
 	///add an instruction class.
 	instructionClass *addInstructionClass(const std::string name);
 
-	inline PMUInt const getNumberOfPipelineStages() {return m_pipelineStageDescriptorVector.size();};
- 	inline PMUInt const getNbExternalResources() {return m_externalResourceDescriptorVector.size();};
-	inline PMUInt const getNbInternalResources() {return m_internalResourceDescriptorVector.size();};
-	inline PMUInt const getNbInstructionClasses() {return m_instructionClassVector.size();}; //without any stalls
-	inline PMUInt const getNbInstructionClassesIncludeStall() {return m_instructionClassVector.size() + 1;};
-	inline PMUInt const getNbPipelineNotificationData() {return m_pipelineNotificationDataVector.size();};
+	inline uint32_t const getNumberOfPipelineStages() {return m_pipelineStageDescriptorVector.size();};
+ 	inline uint32_t const getNbExternalResources() {return m_externalResourceDescriptorVector.size();};
+	inline uint32_t const getNbInternalResources() {return m_internalResourceDescriptorVector.size();};
+	inline uint32_t const getNbInstructionClasses() {return m_instructionClassVector.size();}; //without any stalls
+	inline uint32_t const getNbInstructionClassesIncludeStall() {return m_instructionClassVector.size() + 1;};
+	inline uint32_t const getNbPipelineNotificationData() {return m_pipelineNotificationDataVector.size();};
 
 	//index should be less than getNbInstructionClassesIncludeStall.
 	std::string getInstructionClassNameforIndex(const unsigned int index);
@@ -88,10 +88,10 @@ class pipeline
 
 	std::vector<resourceDescriptor *> const getInternalResourceDescriptorVector() {return m_internalResourceDescriptorVector;};
 	std::vector<resourceDescriptor *> const getExternalResourceDescriptorVector() {return m_externalResourceDescriptorVector;};
-	std::string getExtResourceNameForIndex(const PMUInt index);
+	std::string getExtResourceNameForIndex(const uint32_t index);
 	
 	inline unsigned int const getNbOfBitsToCodeAState() {return m_nbBits;};
-	std::string getStringForCode(const PMUInt code);
+	std::string getStringForCode(const uint32_t code);
 
 	void save(std::ostream &output);
 };

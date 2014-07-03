@@ -284,13 +284,13 @@ void automata::addTransition(const hash_length fromStateId,
 //---
   if (m_nbTransition >= m_transitionArrayCapacity) {
     m_transitionArrayCapacity += 10000000 ;
-    macroMyReallocPODArray (m_transitionArray, PMUInt64, m_transitionArrayCapacity) ;
+    macroMyReallocPODArray (m_transitionArray, uint64_t, m_transitionArrayCapacity) ;
   }
 //---
-  PMUInt32 notificationID = condition.getConditionValue () ;
+  uint32_t notificationID = condition.getConditionValue () ;
   notificationID <<= m_nbBitsRequiredNotification ;
   notificationID |= notification.value () ;
-  PMUInt64 t = toStateId ;
+  uint64_t t = toStateId ;
   t <<= m_nbBitsToCodeATransition ;
   t |= notificationID ;
   t <<= m_nbBitsToCodeAState ;
@@ -305,7 +305,7 @@ void automata::translateTransitionArrayIntoBDD (const bool inVerboseMode)
     printf ("Translating transition array into BDD...") ; fflush (stdout) ;
   }
   C_Timer timer ;
-  const PMUInt32 totalBits = m_nbBitsToCodeAState + m_nbBitsToCodeATransition + m_nbBitsToCodeAState ;
+  const uint32_t totalBits = m_nbBitsToCodeAState + m_nbBitsToCodeATransition + m_nbBitsToCodeAState ;
   m_transitions = C_BDD::buildBDDFromValueList (m_transitionArray, m_nbTransition, totalBits) ;
   if (inVerboseMode) {
     co << " done (" << timer << ")\n" ;
@@ -329,12 +329,12 @@ void automata::printInternalConstants()
 void automata::printInternalStats()
 {
 	cout << "automata generation stats" << endl;
-	PMUInt64 nbTransitions = m_transitions.valueCount64(m_nbBitsToCodeATransition+m_nbBitsToCodeAState*2);
+	uint64_t nbTransitions = m_transitions.valueCount64(m_nbBitsToCodeATransition+m_nbBitsToCodeAState*2);
 	const unsigned int nbNodes = m_transitions.getBDDnodesCount();
   cout << "\tnumber of transitions  : " << nbTransitions << endl;
     // All (reachable) states. Expressed here as "all states source of a transition"
   C_BDD states = m_transitions.existsOnBitsAfterNumber(m_nbBitsToCodeAState);
-	PMUInt64 nbStates = states.valueCount64(m_nbBitsToCodeAState);
+	uint64_t nbStates = states.valueCount64(m_nbBitsToCodeAState);
   cout << "\tnumber of states: " << dec << nbStates << endl;
 	cout << "\tBDD encoding : " << dec << nbNodes << " nodes (" << nbNodes * C_BDD::getBDDnodeSize () << " bytes)" << endl;
 }
@@ -356,11 +356,11 @@ void automata::exportGraphViz(ostream &output)
     output << "digraph g {" << endl;
 	//states
 	//all states are source states => give all source states.
-	TC_UniqueArray <PMUInt64> sourceArray;
+	TC_UniqueArray <uint64_t> sourceArray;
 	sources.buildValue64Array (sourceArray, m_nbBitsToCodeAState);
 	int circleType = 0; //0 <>not init, 1 double circle, 2 circle
-	for (PMSInt32 i=0 ; i<sourceArray.count () ; i++) {
-		PMUInt64 stateId = sourceArray(i COMMA_HERE);
+	for (int32_t i=0 ; i<sourceArray.count () ; i++) {
+		uint64_t stateId = sourceArray(i COMMA_HERE);
 		if(circleType != 2 && stateId != 0) 
 		{
 			output << "node [shape=circle];" << endl; 
@@ -373,17 +373,17 @@ void automata::exportGraphViz(ostream &output)
 		output << "\"" << hex << stateId << "\";" << endl;
 	}
 	//transitions.
-	for (PMSInt32 i=0 ; i<sourceArray.count () ; i++) {
-		PMUInt64 sourceId = sourceArray(i COMMA_HERE);
+	for (int32_t i=0 ; i<sourceArray.count () ; i++) {
+		uint64_t sourceId = sourceArray(i COMMA_HERE);
 		C_BDD currentSource = C_BDD::varCompareConst (0, m_nbBitsToCodeAState, C_BDD::kEqual, sourceId) ;
 		C_BDD automataFromCurrentSources = m_transitions & currentSource;
 
 		C_BDD currentTargets = automataFromCurrentSources.bddByRightShifting(m_nbBitsToCodeAState+m_nbBitsToCodeATransition);
-		TC_UniqueArray <PMUInt64> currentTargetsArray;
+		TC_UniqueArray <uint64_t> currentTargetsArray;
 		currentTargets.buildValue64Array(currentTargetsArray, m_nbBitsToCodeAState);
 		
-		for (PMSInt32 j=0 ; j<currentTargetsArray.count () ; j++) {
-			PMUInt64 targetId = currentTargetsArray(j COMMA_HERE);
+		for (int32_t j=0 ; j<currentTargetsArray.count () ; j++) {
+			uint64_t targetId = currentTargetsArray(j COMMA_HERE);
 			output << "\"" << hex << sourceId << "\" -> \"" << hex << targetId << "\"";
 			C_BDD currentTarget = C_BDD::varCompareConst (m_nbBitsToCodeAState+m_nbBitsToCodeATransition, m_nbBitsToCodeAState, C_BDD::kEqual, targetId) ;
 
@@ -395,16 +395,16 @@ void automata::exportGraphViz(ostream &output)
 			//transition id
 			//condition(notification), condition2(notification2), ....
 			output << "[ label = \"";
-			TC_UniqueArray <PMUInt64> conditionTransitionArray;
+			TC_UniqueArray <uint64_t> conditionTransitionArray;
 			C_BDD conditions = currentTransition.bddByRightShifting(m_nbBitsRequiredNotification);
 			conditions.buildValue64Array(conditionTransitionArray, m_nbBitsRequiredCondition);
-			PMSInt32 nbCondition = conditionTransitionArray.count();
-			for (PMSInt32 k=0 ; k<nbCondition ; k++) {
-				PMUInt32 conditionId = (PMUInt32) conditionTransitionArray(k COMMA_HERE);
+			int32_t nbCondition = conditionTransitionArray.count();
+			for (int32_t k=0 ; k<nbCondition ; k++) {
+				uint32_t conditionId = (uint32_t) conditionTransitionArray(k COMMA_HERE);
 				//condition id is built with classId (low bits) and 
 				// external resources access.
-				const PMUInt32 classId = conditionId & maskClassId;
-				const PMUInt32 allExtRes = conditionId >> m_nbBitsToCodeAnInstructionClass;
+				const uint32_t classId = conditionId & maskClassId;
+				const uint32_t allExtRes = conditionId >> m_nbBitsToCodeAnInstructionClass;
 				for(int extResId = m_nbExternalResources-1; extResId>=0; extResId--)
 					output << ((allExtRes >> extResId) & 0x1);
 				output << ":" << m_pipeline->getInstructionClassNameforIndex(classId) << "(";
@@ -414,7 +414,7 @@ void automata::exportGraphViz(ostream &output)
 				TC_UniqueArray <C_String> act;
 				currentTransitionNotification.buildCompressedBigEndianStringValueArray (act COMMA_HERE) ;
 				
-				for (PMSInt32 l=0 ; l<act.count () ; l++) {
+				for (int32_t l=0 ; l<act.count () ; l++) {
 					if(l) output << " | ";	
 					output << act(l COMMA_HERE).cString (HERE);
 				}
@@ -428,8 +428,8 @@ void automata::exportGraphViz(ostream &output)
 	
 
 
-	PMUInt64 nbStates = sources.valueCount64(m_nbBitsToCodeAState);
-	PMUInt64 nbTransitions = m_transitions.valueCount64(m_nbBitsToCodeATransition+m_nbBitsToCodeAState*2);
+	uint64_t nbStates = sources.valueCount64(m_nbBitsToCodeAState);
+	uint64_t nbTransitions = m_transitions.valueCount64(m_nbBitsToCodeATransition+m_nbBitsToCodeAState*2);
 	const unsigned int nbNodes = m_transitions.getBDDnodesCount();
 	output << "}" << endl;
     output << "# number of states : " << dec << nbStates << endl;
@@ -579,7 +579,7 @@ void automata::save(std::string filename, string modelName)
         cerr << "  Preparation done in " << preparationTimer.timeString ().cString (HERE) << "." << endl ;
       }
       // Fixpoint
-      PMUInt32 iteration = 0 ;
+      uint32_t iteration = 0 ;
       while (!it.isEqualToBDD(BR))
       {
           iteration ++ ;
@@ -706,21 +706,21 @@ void automata::save(std::string filename, string modelName)
 
 //--- Perform substitution
 // ss (pp) tttt (qq) rr -> ss tttt rr (qq) (pp)
-    PMUInt32 * substitutionVector = NULL ;
-    macroMyNewArray (substitutionVector, PMUInt32, 4 * n + t) ;
-    for (PMUInt32 i=0 ; i<n ; i++) { // ss (n bits)
+    uint32_t * substitutionVector = NULL ;
+    macroMyNewArray (substitutionVector, uint32_t, 4 * n + t) ;
+    for (uint32_t i=0 ; i<n ; i++) { // ss (n bits)
       substitutionVector [i] = i ;
     }
-    for (PMUInt32 i=n ; i<(2 * n) ; i++) { // pp (n bits)
+    for (uint32_t i=n ; i<(2 * n) ; i++) { // pp (n bits)
       substitutionVector [i] = i+2*n+t ;
     }
-    for (PMUInt32 i=2*n ; i<(n * 2 + t) ; i++) { // tttt (p bits)
+    for (uint32_t i=2*n ; i<(n * 2 + t) ; i++) { // tttt (p bits)
       substitutionVector [i] = i - n ;
     }
-    for (PMUInt32 i=n*2+t ; i<(n * 3 + t) ; i++) {  // qq (n bits)
+    for (uint32_t i=n*2+t ; i<(n * 3 + t) ; i++) {  // qq (n bits)
       substitutionVector [i] = i ;
     }
-    for (PMUInt32 i=n*3+t ; i<(n * 4 + t) ; i++) {  // rr (n bits)
+    for (uint32_t i=n*3+t ; i<(n * 4 + t) ; i++) {  // rr (n bits)
       substitutionVector [i] = i - 2*n ;
     }
     timer.startTimer () ;
@@ -753,14 +753,14 @@ void automata::save(std::string filename, string modelName)
 // //  printf ("Predicate String Value of reduced automata: '%s'\n", predicate.cString (HERE)) ;
 // //  const C_BDD readBDD = C_BDD::BDDWithPredicateString (predicate COMMA_HERE) ;
 //   cout << "Read automata stats:\n" ;
-// //  const PMUInt64 nbTransitions = readBDD.valueCount(m_nbBitsToCodeATransition+m_nbBitsToCodeAState*2);
+// //  const uint64_t nbTransitions = readBDD.valueCount(m_nbBitsToCodeATransition+m_nbBitsToCodeAState*2);
 // //  const unsigned int nbNodes = readBDD.getBDDnodesCount();
-//   const PMUInt64 nbTransitions = m_transitions.valueCount(m_nbBitsToCodeATransition+m_nbBitsToCodeAState*2);
+//   const uint64_t nbTransitions = m_transitions.valueCount(m_nbBitsToCodeATransition+m_nbBitsToCodeAState*2);
 //   const unsigned int nbNodes = m_transitions.getBDDnodesCount();
 //   cout << "\tnumber of transitions  : " << nbTransitions << endl;
 //     // All (reachable) states. Expressed here as "all states source of a transition"
 //   C_BDD states = m_transitions.existsOnBitsAfterNumber(m_nbBitsToCodeAState);
-//  	PMUInt64 nbStates = states.valueCount(m_nbBitsToCodeAState);
+//  	uint64_t nbStates = states.valueCount(m_nbBitsToCodeAState);
 //   cout << "\tnumber of states: " << nbStates << endl;
 //  	cout << "\tBDD encoding : " << nbNodes << " nodes" << endl;
 //--- Fin de temporaire			
