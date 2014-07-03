@@ -539,7 +539,7 @@ void automata::save(std::string filename, string modelName)
     #ifdef MINIMIZATION_DEBUG_MESSAGES
       co << "  'Reach' computed in " << timer << "\n" ;
     #endif
-    //C_BDD Trans = m_transitions.swap213(n,t,n).existsOnBitsAfterNumber(t);
+    //C_BDD Trans = m_transitions.swap102(n,t,n).existsOnBitsAfterNumber(t);
 
     { // We open a block so that useless BDDs will be eliminated at the end of fixed-point computation
       timer.startTimer () ;
@@ -555,13 +555,13 @@ void automata::save(std::string filename, string modelName)
       #endif
 
       timer.startTimer () ;
-      const C_BDD T1 = m_transitions.swap132(n,n+t,n);
+      const C_BDD T1 = m_transitions.swap021(n,n+t,n);
       #ifdef MINIMIZATION_DEBUG_MESSAGES
         co << "  'T1' computed in " << timer << "\n" ;
       #endif
 
       timer.startTimer () ;
-      const C_BDD T2 = m_transitions.swap132(n+t,n,n).bddByLeftShifting(n);
+      const C_BDD T2 = m_transitions.swap021(n+t,n,n).bddByLeftShifting(n);
       #ifdef MINIMIZATION_DEBUG_MESSAGES
         co << "  'T2' computed in " << timer << "\n" ;
       #endif
@@ -580,7 +580,7 @@ void automata::save(std::string filename, string modelName)
       }
       // Fixpoint
       uint32_t iteration = 0 ;
-      while (!it.isEqualToBDD(BR))
+      while (it != BR)
       {
           iteration ++ ;
           C_Timer iterationTimer ;
@@ -628,7 +628,7 @@ void automata::save(std::string filename, string modelName)
           #endif
 
           timer.startTimer () ;
-          T = BR.swap21(n,n) ;
+          T = BR.swap10(n,n) ;
           #ifdef MINIMIZATION_DEBUG_MESSAGES
             co << "  Iteration " << cStringWithUnsigned (iteration) << ", step g done in " << timer << "\n" ;
           #endif

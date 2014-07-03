@@ -59,7 +59,6 @@ LIBPM_SRCS=C_BDD.cpp \
 C_BDD-and-operation.cpp \
 C_BDD-find-or-add.cpp \
 C_BDD-single-operand-ops.cpp \
-C_Display_BDD.cpp \
 PMUInt128.cpp \
 F_GetPrime.cpp \
 C_ErrorOut.cpp \
