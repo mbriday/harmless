@@ -65,7 +65,7 @@ static void print_help()
 static bool argumentWithInteger (const char * inArgument,
                                  const char * inString1,
                                  const char * inString2,
-                                 PMUInt32 & outValue) {
+                                 uint32_t & outValue) {
 	bool ok = strncmp (inArgument, inString1, strlen (inString1)) == 0 ;
   if (ok) {
     sscanf (& inArgument[strlen (inString1)], "%u", & outValue) ;
@@ -81,7 +81,7 @@ static bool argumentWithInteger (const char * inArgument,
 //check for arguments.
 static bool parseArgumentList(int argc, const char *argv[])
 {
-  PMUInt32 value = 0 ;
+  uint32_t value = 0 ;
 	int i = 1; //remove program name.
 	bool endRequest = false;
 	while(i < argc)

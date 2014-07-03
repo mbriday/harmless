@@ -39,11 +39,11 @@ m_stateCodeComputed(false)
 	s_nbStates++;
 	//init with all external resources not taken;
 	std::vector<resourceDescriptor *> eVec = pipe->getExternalResourceDescriptorVector();
-	const PMUInt extSize = eVec.size();
+	const uint32_t extSize = eVec.size();
 	m_externalResourceVector = NULL ;
 	if(extSize > 0)
 		macroMyNewArray (m_externalResourceVector, resource, extSize);
-	for(PMUInt i = 0; i < extSize; i++) 
+	for(uint32_t i = 0; i < extSize; i++) 
 	{	
 		m_externalResourceVector[i].setResourceDescriptor(eVec[i]);
 		m_externalResourceVector[i].setTaken(0);
@@ -51,25 +51,25 @@ m_stateCodeComputed(false)
 	
 	//init with all internal resources not taken;
 	std::vector<resourceDescriptor *> iVec = pipe->getInternalResourceDescriptorVector();
-	const PMUInt intSize = iVec.size();
+	const uint32_t intSize = iVec.size();
 	m_internalResourceVector = NULL ;
 	if(intSize > 0)
 		macroMyNewArray (m_internalResourceVector, resource, intSize);
-	for(PMUInt i = 0; i < intSize; i++) 
+	for(uint32_t i = 0; i < intSize; i++) 
 	{	
 		m_internalResourceVector[i].setResourceDescriptor(iVec[i]);
 		m_internalResourceVector[i].setTaken(0);
 	}
 
-	const PMUInt nbPS = s_pipeline->getNumberOfPipelineStages();
+	const uint32_t nbPS = s_pipeline->getNumberOfPipelineStages();
 //	m_pipelineStageVector = new pipelineStage*[nbPS];
-//	for(PMUInt i = 0; i < nbPS; i++) 
+//	for(uint32_t i = 0; i < nbPS; i++) 
 //		m_pipelineStageVector[i] = new pipelineStage(s_pipeline->getPipelineStageDescriptor(i));
 
 	m_pipelineStageVector = NULL ;
 	macroMyNewArray (m_pipelineStageVector, pipelineStage, nbPS);
-	for(PMUInt i = 0; i < nbPS; i++) 
-		m_pipelineStageVector[i].setPipelineStageDescriptor(s_pipeline->getPipelineStageDescriptor((PMUInt32) i));
+	for(uint32_t i = 0; i < nbPS; i++) 
+		m_pipelineStageVector[i].setPipelineStageDescriptor(s_pipeline->getPipelineStageDescriptor((uint32_t) i));
 }
 
 systemState::~systemState()
@@ -87,17 +87,17 @@ resource *const systemState::getResourceFrom(resourceDescriptor *resDesc)
 {
 	bool found = false;
 	resource *result = NULL;
-	PMUInt index = 0;
+	uint32_t index = 0;
 	if(resDesc->isExternal())
 	{
-		const PMUInt size = s_pipeline->getNbExternalResources();
+		const uint32_t size = s_pipeline->getNbExternalResources();
 		while(!found && (index < size))
 		{
 			result = &(m_externalResourceVector[index++]);
 			found = (result->descriptor() == resDesc);
 		}
 	} else {
-		const PMUInt size = s_pipeline->getNbInternalResources();
+		const uint32_t size = s_pipeline->getNbInternalResources();
 		while(!found && (index < size))
 		{
 			result = &(m_internalResourceVector[index++]);
@@ -112,8 +112,8 @@ void systemState::getResources(instructionClass *ic, pipelineStageDescriptor *ps
 {
 	//cout << ic->debug() << endl;
 	std::vector<resourceDescriptorAccess> &vec = ic->getResourceDescriptorVector(psDesc->getIndex(),GET);
-	const PMUInt size = vec.size();
-	for(PMUInt resIndex = 0;resIndex<size; resIndex++)
+	const uint32_t size = vec.size();
+	for(uint32_t resIndex = 0;resIndex<size; resIndex++)
 	{
 		resourceDescriptorAccess rda = vec[resIndex];
 		//get the resource object
@@ -128,8 +128,8 @@ void systemState::releaseResources(instructionClass *ic, pipelineStageDescriptor
 {
 	//cout << ic->debug() << endl;
 	std::vector<resourceDescriptorAccess> &vec = ic->getResourceDescriptorVector(psDesc->getIndex(),RELEASE);
-	const PMUInt size = vec.size();
-	for(PMUInt resIndex = 0;resIndex<size; resIndex++)
+	const uint32_t size = vec.size();
+	for(uint32_t resIndex = 0;resIndex<size; resIndex++)
 	{
 		resourceDescriptorAccess rda = vec[resIndex];
 		//get the resource object
@@ -144,9 +144,9 @@ bool const systemState::checkDependResource(instructionClass *ic, pipelineStageD
 	bool ok = true;
 	//cout << ic->debug() << endl;
 	std::vector<resourceDescriptorAccess> &vec = ic->getResourceDescriptorVector(psDesc->getIndex(),DEPEND);
-	const PMUInt size = vec.size();
+	const uint32_t size = vec.size();
 	//for each resource that is necessary for the instruction class
-	PMUInt resIndex = 0;
+	uint32_t resIndex = 0;
 	while(ok && (resIndex < size))
 	{
 		resourceDescriptorAccess rda = vec[resIndex];
@@ -166,32 +166,32 @@ systemState::systemState(const systemState &st)
 	//s_pipeline = st.s_pipeline; -> static.
 	s_nbStates++;
 	//external resources
-	const PMUInt extSize = s_pipeline->getNbExternalResources();
+	const uint32_t extSize = s_pipeline->getNbExternalResources();
 	m_externalResourceVector = NULL ;
 	if(extSize > 0) 
 		macroMyNewArray (m_externalResourceVector, resource, extSize);
-	for(PMUInt i = 0; i < extSize; i++) 
+	for(uint32_t i = 0; i < extSize; i++) 
 	{
 		resource &res = st.m_externalResourceVector[i];
 		m_externalResourceVector[i].setResourceDescriptor(res.descriptor());
 		m_externalResourceVector[i].setTaken(res.taken());
 	}
 	//internal resources
-	const PMUInt intSize = s_pipeline->getNbInternalResources();
+	const uint32_t intSize = s_pipeline->getNbInternalResources();
 	m_internalResourceVector = NULL ;
 	if(intSize > 0) 
 		macroMyNewArray (m_internalResourceVector, resource, intSize);
-	for(PMUInt i = 0; i < intSize; i++) 
+	for(uint32_t i = 0; i < intSize; i++) 
 	{
 		resource &res = st.m_internalResourceVector[i];		
 		m_internalResourceVector[i].setResourceDescriptor(res.descriptor());
 		m_internalResourceVector[i].setTaken(res.taken());
 	}
 	//pipeline stages
-	const PMUInt nbPS = s_pipeline->getNumberOfPipelineStages();
+	const uint32_t nbPS = s_pipeline->getNumberOfPipelineStages();
 	m_pipelineStageVector = NULL ;
 	macroMyNewArray (m_pipelineStageVector, pipelineStage, nbPS);
-	for(PMUInt i = 0; i < nbPS; i++) 
+	for(uint32_t i = 0; i < nbPS; i++) 
 	{
 		pipelineStage &ps=st.m_pipelineStageVector[i];
 		m_pipelineStageVector[i].setPipelineStageDescriptor(ps.descriptor());
@@ -202,9 +202,9 @@ systemState::systemState(const systemState &st)
 
 void systemState::setExternalRessources(unsigned int mask)
 {
-	const PMUInt size = s_pipeline->getNbExternalResources();
+	const uint32_t size = s_pipeline->getNbExternalResources();
 	//cout << "avant setExternalRessources:" << debug() << flush;
-	for(PMUInt i=0; i<size; ++i)
+	for(uint32_t i=0; i<size; ++i)
 	{
 		m_externalResourceVector[i].setTaken(mask & 0x1);
 		mask >>= 1;
@@ -223,15 +223,15 @@ systemState *systemState::getNext(instructionClass *nextInst, C_BDD &notificatio
   macroMyNew (next, systemState(*this)); //init with a 'retain'
 	//hash_inst_move inst_move = 0; //deprecated. For debug now only.
 	pipelineNotificationEncoder *pae = s_pipeline->getPipelineNotificationEncoder();
-	const PMSInt nbPipelineStage = (PMSInt) s_pipeline->getNumberOfPipelineStages();
+	const int32_t nbPipelineStage = (int32_t) s_pipeline->getNumberOfPipelineStages();
 	
 	//for each pipeline stage, from the end to the beginning
-	for(PMSInt psIndex = nbPipelineStage-1; psIndex>=-1; psIndex--)
+	for(int32_t psIndex = nbPipelineStage-1; psIndex>=-1; psIndex--)
 	{
 		pipelineStage *ps = NULL;
 		if(psIndex>=0) ps = &(next->m_pipelineStageVector[psIndex]);
 
-		const PMSInt psNextIndex = psIndex+1;
+		const int32_t psNextIndex = psIndex+1;
 		pipelineStage *psNext = NULL;
 		if(psNextIndex < (int)nbPipelineStage) psNext = &(next->m_pipelineStageVector[psNextIndex]);
 
@@ -268,7 +268,7 @@ systemState *systemState::getNext(instructionClass *nextInst, C_BDD &notificatio
 					next->getResources(ic, psNext->descriptor());
 					//the instruction can be executed in the stage.
 					//compute the associated notification (enter in stage psNext)
-					notification |= pae->getBdd(ic->getIndex(), (PMUInt32) psNextIndex , true);
+					notification |= pae->getBdd(ic->getIndex(), (uint32_t) psNextIndex , true);
 					
 				}
 				if(ps) 
@@ -276,7 +276,7 @@ systemState *systemState::getNext(instructionClass *nextInst, C_BDD &notificatio
 					//remove the instruction in that pipeline stage.
 					ps->setInstruction(NULL);
 					//compute the associated notification (leave stage ps)
-					notification |= pae->getBdd(ic->getIndex(), (PMUInt32) psIndex , false);
+					notification |= pae->getBdd(ic->getIndex(), (uint32_t) psIndex , false);
 				}
 				//the stage has an instruction that moves now.
 				//inst_move |= 1 << psNextIndex;
@@ -298,8 +298,8 @@ std::string systemState::getStringFromCode(pipeline *pipe, hash_length code,HASH
 	if(type == TRANSITION)
 	{
 		//decode external ressources state.
-		const PMUInt eRsize = pipe->getNbExternalResources();
-		for(PMUInt i=0; i<eRsize; ++i)
+		const uint32_t eRsize = pipe->getNbExternalResources();
+		for(uint32_t i=0; i<eRsize; ++i)
 		{
 			bool taken = (code & 0x1);
 			bool irrelevant = (irrelevantMask & 0x1);
@@ -336,10 +336,10 @@ std::string systemState::getStringFromCode(pipeline *pipe, hash_length code,HASH
 	} else //type = STATE
 	{
 		//decode pipeline state
-		const PMUInt size = pipe->getNumberOfPipelineStages();
-		const PMUInt nbBit = pipe->getNbOfBitsToCodeAState();
+		const uint32_t size = pipe->getNumberOfPipelineStages();
+		const uint32_t nbBit = pipe->getNbOfBitsToCodeAState();
 		const hash_length mask = (1 << nbBit) - 1;
-		for(PMUInt i=0; i < size; i++)
+		for(uint32_t i=0; i < size; i++)
 		{
 			//if(!start) result+= " ";
 			//start = false;
@@ -366,19 +366,19 @@ hash_length const systemState::getStateHashCode()
 	else
     {
         //encode pipeline state
-        const PMUInt size = s_pipeline->getNumberOfPipelineStages();
-        const PMUInt nbBit = s_pipeline->getNbOfBitsToCodeAState();
-        for(PMUInt i=0; i < size; i++)
+        const uint32_t size = s_pipeline->getNumberOfPipelineStages();
+        const uint32_t nbBit = s_pipeline->getNbOfBitsToCodeAState();
+        for(uint32_t i=0; i < size; i++)
         {
-			const PMUInt psCode = m_pipelineStageVector[i].getCode();
+			const uint32_t psCode = m_pipelineStageVector[i].getCode();
 			code <<= nbBit;
             code |= psCode;
         }
 		//new, it now encodes wait cycles in pipeline stages.
-        for(PMUInt i=0; i < size; i++)
+        for(uint32_t i=0; i < size; i++)
         {
-			const PMUInt nb = m_pipelineStageVector[i].getNbExtraCycles();
-			const PMUInt nbBits = (m_pipelineStageVector[i].descriptor())->getNbBitsToCodeStageExtraCycles();
+			const uint32_t nb = m_pipelineStageVector[i].getNbExtraCycles();
+			const uint32_t nbBits = (m_pipelineStageVector[i].descriptor())->getNbBitsToCodeStageExtraCycles();
 			
 			code <<= nbBits;
 			assert(nb < (1U<<nbBits));
@@ -392,12 +392,12 @@ hash_length const systemState::getStateHashCode()
     return code;
 }
 
-PMUInt const systemState::getNbBitsForStateCode()
+uint32_t const systemState::getNbBitsForStateCode()
 {
 	return getNbBitsForStateCode(s_pipeline);
 }
 
-PMUInt systemState::getNbBitsForStateCode(pipeline *pipe)
+uint32_t systemState::getNbBitsForStateCode(pipeline *pipe)
 {
 	const unsigned int nbBit = pipe->getNbOfBitsToCodeAState();
 	const unsigned int size = pipe->getNumberOfPipelineStages();

@@ -133,7 +133,7 @@ instructionClass *pipeline::getInstructionClass(const unsigned int index)
 	}
 }
 
-std::string pipeline::getExtResourceNameForIndex(const PMUInt index)
+std::string pipeline::getExtResourceNameForIndex(const uint32_t index)
 {
 	SEGFAULTIF(index>m_externalResourceDescriptorVector.size());
 	return m_externalResourceDescriptorVector[index]->toString();
@@ -152,7 +152,7 @@ pipelineStageDescriptor *const pipeline::getPipelineStageDescriptor(const unsign
 	return m_pipelineStageDescriptorVector[index];
 }
 
-std::string pipeline::getStringForCode(const PMUInt code)
+std::string pipeline::getStringForCode(const uint32_t code)
 {
 	if(code == 0) return "-";
 	const unsigned int size = m_instructionClassVector.size();

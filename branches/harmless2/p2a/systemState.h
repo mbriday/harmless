@@ -72,8 +72,8 @@ class systemState
 	systemState *getNext(instructionClass *, C_BDD &notification);
 	//check that the hash_length type contains enough bits to encode the codes (compact/full).
 	void const checkHashCodeLength();
-	PMUInt const getNbBitsForStateCode();
-	static PMUInt  getNbBitsForStateCode(pipeline *pipe);
+	uint32_t const getNbBitsForStateCode();
+	static uint32_t  getNbBitsForStateCode(pipeline *pipe);
 	//get the hash code of the state. The hash code encodes the pipeline state and external ressources. The hash code is calculated only one time. The code is then stored.
 	hash_length const getStateHashCode();
 	unsigned int getNbBitsForTransitionCode();
