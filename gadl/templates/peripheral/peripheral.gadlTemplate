@@ -21,6 +21,10 @@ end write
 write to exportDir."/timingBase.h":
   template timingBase_h in "peripheral/timing"
 end write
+write to exportDir."/timingBase.cpp":
+  template timingBase_cpp in "peripheral/timing"
+end write
+%timingBase.cpp \\\n%
 
 #each peripheral has its own class.
 if exists peripheralList then

@@ -23,7 +23,9 @@ class timingRun {
 	public:
 	timingRun();
 	void timingWaitForCycles(timingBase *automata,const u64 nbCycles);
+	void timingRemoveWaitForCycles(timingBase *automata); //remove an automata.
 	void manageTiming();
+	inline u64 nbCycles() const {return m_nbCycles;};
 };
 
 #endif

@@ -38,7 +38,10 @@ end foreach
 	};
 
 	virtual void run() {
-		while((this->*nextStep)());
+		while(currentState() == READY) 
+		{
+			(this->*nextStep)();
+		}
 %		#deprecated?
 		let addrFound := 0
 		foreach var in timingPart::localVar do

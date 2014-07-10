@@ -15,7 +15,7 @@ cpu leopard {
   } maps to mem:0
 
   core e200z4 core0(0)
-  core e200z4 core1(1)
+--  core e200z4 core1(1)
   --core e200z4Bis core3(2)
   --core e200z4Bis core4(3)
 
