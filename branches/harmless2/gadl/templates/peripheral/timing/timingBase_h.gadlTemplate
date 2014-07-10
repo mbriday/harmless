@@ -9,30 +9,62 @@
 
 class peripheral;
 class timingRun;
+#include "timingRun.h"
 
 //states of timings. No RUN state yet.
 #define SUSPENDED 0
 #define READY     1
+#define WAITTIME  2
+#define WAITEVENT 3
+
+//#define DEBUG_TIMING_STATE
 
 class timingBase {
 	private:
 	timingBase *m_next; //single linked list
 	u64 m_nextWakeUpDate; //single linked list sorting criterion
+	//when it gets from WAITTIME -> SUSPENDED, its stores the nb cycles that should be done.
+	u64 m_nbCyclesToDo;
+	int m_currentState;
 
+	//functions related to state change.
+	typedef void (timingBase::* changeStateFunc)(int);
+	void changeStateNOK(const int newState);
+	void changeStateSuspToReady(const int newState);
+	void changeStateWaittimeToSusp(const int newState);
+	void changeStateWaittimeToReady(const int newState);
+	void changeStateReadyToWaittime(const int newState);
+	void changeStateReadyToSusp(const int newState);
+	//tabular that stores state transition functions.
+	//column is the new state id
+	//row is the current state.
+	// => index = (m_currentState << 2) | newState;
+	// (using only 4 states).
+	changeStateFunc stateTransitionTab[16];
 	protected:
 	timingRun *m_timingRun;
 
 	public:
-	timingBase(timingRun *tr) : m_timingRun(tr) {};
+	timingBase(timingRun *tr);
 	virtual void run() = 0;
 	virtual void init() = 0 ;
 	virtual std::string toString() = 0;
 
 	//single linked list related functions.
-   inline void setNext(timingBase *tb) {m_next = tb;};
-   inline timingBase * const next() {return m_next;};
-   inline void setNextWakeUpDate(const u64 date) {m_nextWakeUpDate = date;};
-   inline u64 const nextWakeUpDate() {return m_nextWakeUpDate;};
-   void setState(int newState) {};
+	inline void setNext(timingBase *tb) {m_next = tb;};
+	inline timingBase * const next() {return m_next;};
+	inline void setNextWakeUpDate(const u64 date) {m_nextWakeUpDate = date; setState(WAITTIME);};
+	inline u64 const nextWakeUpDate() {return m_nextWakeUpDate;};
+	inline u64 const nbCycles() {return m_timingRun->nbCycles();};
+	void debugState(int from,int to);
+
+	inline void setState(int newState) {
+		#ifdef DEBUG_TIMING_STATE
+			debugState(m_currentState,newState);
+		#endif
+		(this->*stateTransitionTab[(m_currentState << 2) | newState])(newState);
+	}
+	inline int const currentState() {return m_currentState;};
+	
 };
 #endif //__TIMING_BASE_H__

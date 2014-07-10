@@ -7,14 +7,10 @@ peripheral dummySerial memory size 8 {
   register u32 CSRSL maps to \x0 {
     SEN := slice{0} -- Serial ENable
     BSY := slice{1} -- Busy. Used to models TX delay.
-  } write is CSRSLWrite
+  }
 
   -- data register. Use only low eight bytes.
   register u32 DR maps to \x4 write is dataPrint
-
-  u32 CSRSLWrite(u32 value, u32 oldValue) {
-    return (oldValue & \x0002) | (value & ~\x0002); -- BSY is hw controlled… ugly!
-  }
 
   u32 dataPrint(u32 value, u32 oldValue) {
     if CSRSL.BSY = 0 && CSRSL.SEN then
@@ -26,12 +22,7 @@ peripheral dummySerial memory size 8 {
 
   timing serialTX enabled (CSRSL.SEN = 1 && CSRSL.BSY = 1)
   {
-    wait 10 cycle;
-    CSRSL.BSY := 0; --> stop the automata
-  }
-  timing serialTX2 enabled (CSRSL.SEN = 1 && DR = 1)
-  {
-    wait 10 cycle;
+    wait 100 cycle;
     CSRSL.BSY := 0; --> stop the automata
   }
 

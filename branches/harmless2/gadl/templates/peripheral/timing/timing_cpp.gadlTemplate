@@ -14,7 +14,8 @@ foreach step in timingPart::timingStepList do
   %bool %!className%::step_%!id%()\n{\n%
   #debug
   %\t#ifdef DEBUG_TIMING\n%
-  %\t\tstd::cout << "%!className%::step_%!id%" << std::endl;\n%
+  %\t\tstd::cout << "%!className%::step_%!id%";\n%
+  %\t\tstd::cout << ", -> " << nbCycles() << std::endl;\n%
   %\t#endif\n%
   # first: updates:
   foreach update in step::updateList do

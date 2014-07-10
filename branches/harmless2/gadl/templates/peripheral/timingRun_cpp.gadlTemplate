@@ -10,6 +10,31 @@ timingRun::timingRun()
 	m_nbCycles = 0;
 }
 
+void timingRun::timingRemoveWaitForCycles(timingBase *automata)
+{
+	timingBase *currentNode = m_timingListRoot;
+	timingBase *previousNode = NULL;
+	while(currentNode && (currentNode != automata))
+	{
+		previousNode = currentNode;
+		currentNode = currentNode->next();		
+	}
+	if(currentNode) //found!
+	{
+		if(previousNode) //not the first
+		{
+			//not at the beginning
+			previousNode->setNext(currentNode->next()); //linked list.
+		} else {
+			//currentNode is the first
+			m_timingListRoot = currentNode->next();
+		}
+	} else {
+		cerr << "internal error: Try to remove an automata not present in wait list!!" << endl;
+	}
+}
+
+
 void timingRun::timingWaitForCycles(timingBase *automata,const u64 nbCycles)
 {
 	const u64 wakeUpDate = m_nbCycles + nbCycles;
@@ -52,7 +77,7 @@ void timingRun::manageTiming()
 			#ifdef DEBUG_TIMING
 				cout << "wake up automata " << currentNode->toString() << " : " << m_nbCycles << endl;
 			#endif
-			currentNode->run();
+			currentNode->setState(READY);
 			//re-init m_timingNextWakeUp
 			if(m_timingListRoot)
 				m_timingNextWakeUp = m_timingListRoot->nextWakeUpDate();
@@ -61,4 +86,3 @@ void timingRun::manageTiming()
 		}
 	}
 }
-
