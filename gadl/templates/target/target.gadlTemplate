@@ -4,12 +4,10 @@ write to exportDir."/main.cpp":
   template main_cpp in "target"
 end write
 
-#core.i is related to target 'python' -> interface between python and C++ using Swig
-foreach core in coreList do
-  write to exportDir."/".core::NAME."_core.i":
-    template core_i in "target"
-  end write
-end foreach
+#cpu.i is related to target 'python' -> interface between python and C++ using Swig
+write to exportDir."/".CPUNAME.".i":
+  template cpu_i in "target"
+end write
 
 #gdb target related files.
 if exists GDB_DEBUG_COMPONENT then

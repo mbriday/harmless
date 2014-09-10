@@ -13,6 +13,8 @@ USE_IO_STUBS = 1
 #(quite slower simulation. May generate huge output files!)
 #GADL_WITH_PIPELINE_TRACE=1
 
+#Python interpreter.
+PYTHON_BIN=python2.7
 
 DEFINES  = -DHOST_IS_LITTLE_ENDIAN 
 #DEFINES += -DINST_DECODER_CACHE_STATS
@@ -39,15 +41,15 @@ IMAGES_DOC=$(IMAGES_DOT:.dot=.svg)
 ############# Swig configuration.
 # Swig is used to generate a Wrapper between C++ and Python (or other script languages)
 # see http://www.swig.org
-PYTHON_LIB = _%!CPUNAME%.so #where %!CPUNAME% should be the module name defined in core.i
+PYTHON_LIB = _%!CPUNAME%.so #where %!CPUNAME% should be the module name defined in %!CPUNAME%.i
 # swig understang -Dflags for conditional compilation (DEFINES)
 SWIG=swig -python -c++ -classic
-#python configuration: we use python2.7-config tool (or xx instead of 2.7)
-PYTHON_VERSION=python2.7
-PYTHON_INCLUDE=$(shell $(PYTHON_VERSION)-config --includes)
-PYTHON_CFLAGS += -I$(PYTHON_INCLUDE) #we do not use $(PYTHON_VERSION)-config --cflags because it adds many other flags.
-PYTHON_LDFLAGS = $(shell $(PYTHON_VERSION)-config --ldflags)
-INTERFACE = %foreach core in coreList do !core::NAME%_core.i% between % % end foreach%
+PYTHON_CONFIG_BIN = $(PYTHON_BIN)-config
+#python configuration: we use python-config tool
+#PYTHON_INCLUDE=$(shell $(PYTHON_CONFIG_BIN) --includes)
+PYTHON_CFLAGS += $(shell $(PYTHON_CONFIG_BIN) --cflags)
+PYTHON_LDFLAGS = $(shell $(PYTHON_CONFIG_BIN) --ldflags)
+INTERFACE = %!CPUNAME%.i
 IO_STUBS_SRC_DIR=../ioStubs/simulatorSource
 ########################################################
 # end of configuration...
