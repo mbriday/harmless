@@ -1,0 +1,68 @@
+#include "timingBase.h"
+#include <iostream>
+#include <string>
+using namespace std;
+
+timingBase::timingBase(timingRun *tr) : m_timingRun(tr),m_nbCyclesToDo(0) {
+	for(int i=0; i<16;i++)
+		stateTransitionTab[i] = &timingBase::changeStateNOK;
+	stateTransitionTab[SUSPENDED << 2 | READY]     = &timingBase::changeStateSuspToReady;
+	stateTransitionTab[WAITTIME  << 2 | SUSPENDED] = &timingBase::changeStateWaittimeToSusp;
+	stateTransitionTab[WAITTIME  << 2 | READY]     = &timingBase::changeStateWaittimeToReady;
+	stateTransitionTab[READY     << 2 | WAITTIME]  = &timingBase::changeStateReadyToWaittime;
+	stateTransitionTab[READY     << 2 | SUSPENDED]     = &timingBase::changeStateReadyToSusp;
+};
+
+
+void timingBase::debugState(int from,int to)
+{
+	string state[4] = {"SUSPENDED","READY","WAITTIME","WAITEVENT"};
+	cout << "date " << nbCycles() << " " << state[from] << " -> " << state[to] << endl;
+}
+void timingBase::changeStateNOK(const int newState)
+{
+	cout <<"internal error: state transition not taken into account: " <<flush;
+	debugState(m_currentState,newState);
+}
+
+void timingBase::changeStateSuspToReady(const int newState)
+{
+	//cerr << "changeStateSuspToReady" << endl;
+	m_currentState = READY;
+	if(m_nbCyclesToDo) { //have to WAIT (same code as setNextWakeUpDate).
+		m_nextWakeUpDate = nbCycles()+m_nbCyclesToDo;
+		setState(WAITTIME); //recursive call
+	} else {
+		run(); //may call setState(...)
+	}		
+}
+
+void timingBase::changeStateWaittimeToSusp(const int newState)
+{
+	//cerr << "changeStateWaittimeToSusp" << endl;
+	//store the rest of cycles to wait:
+	m_nbCyclesToDo = m_nextWakeUpDate - nbCycles();
+	m_timingRun->timingRemoveWaitForCycles(this);
+	m_currentState = SUSPENDED;	
+}
+
+void timingBase::changeStateWaittimeToReady(const int newState)
+{
+	//cerr << "changeStateWaittimeToReady" << endl;
+	m_currentState = READY;
+	run(); //may call setState(...)
+}
+
+void timingBase::changeStateReadyToWaittime(const int newState)
+{
+	//cerr << "changeStateReadyToWaittime" << endl;
+	//called indirectly from setNextWakeUpDate
+	m_currentState = WAITTIME;
+}
+
+void timingBase::changeStateReadyToSusp(const int newState)
+{
+	//cerr << "changeStateReadyToSusp" << endl;
+	//this happen if the timing update its enable condition to false.
+	m_currentState = SUSPENDED;
+}
