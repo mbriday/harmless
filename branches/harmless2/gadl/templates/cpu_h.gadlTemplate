@@ -52,6 +52,7 @@ end foreach
 	public:
 	///constructor
 	cpu();
+	virtual ~cpu() {};
 
 	void run(u64 nbCycle);
 	/*******************************************************************
