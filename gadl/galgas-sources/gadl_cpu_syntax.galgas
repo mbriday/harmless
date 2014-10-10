@@ -1,0 +1,132 @@
+syntax gadl_cpu_syntax (gadl_lexique) {
+
+rule <memorySpace> ?! @ASTmemSpaceMap ASTmemSpaceMap
+rule <peripheral>  ?! @ASTperipheralMap ASTperipheralMap
+rule <memoryChunk>
+  ?! @ASTmemoryParamMap ASTmemChunk 
+  ?! @stringlist memChunkOrder
+rule <paramCall> ! @ASTExpressionlist idfExpList #gadl_expression_parser.gSyntax
+rule <deviceDeclaration>
+  ?let  @bool memoryAccessIsLocal #true if a device is declared inside a peripheral (same mem chunk).
+  ?let  @ASTperipheralMap ASTperipheralMap
+  !  @ASTInstDeclarationDevice deviceDec
+rule <signalConnect>
+
+rule <import>
+  ?let  @bool fromCPU
+  ?! @lstringMap importCoreMap
+  ?! @lstringMap importIsaMap
+  ?! @ASTperipheralMap ASTperipheralMap
+
+rule <coreInstantiation>
+  ?! @ASTcoreInstanceMap ASTcoreInstanceMap
+  ?! @ASTCoreMap ASTcoreMap
+  ?! @stringset coreSet
+  ?! @ASTmemSpaceMap ASTmemSpaceMap
+  ?! @uint coreId
+  ?let  @lstringMap importCoreMap {
+  $core$ $idf$ ?var @lstring coreType
+  $idf$ ?var @lstring coreName
+  <paramCall> ?var @ASTExpressionlist coreParamExpList
+  [!?ASTcoreInstanceMap insertKey !coreName !coreType !coreId !coreParamExpList] 
+  if not [coreSet hasKey ![coreType string]] then
+    #core type not parsed yet.
+    [importCoreMap searchKey !coreType ?var @lstring coreFileName]
+    grammar gadl_core_grammar in coreFileName !?ASTcoreMap !?ASTmemSpaceMap
+    coreSet += ![coreType string]
+  end
+  coreId = coreId+1
+}
+
+rule <cpu> {
+  var ASTmemSpaceMap =@ASTmemSpaceMap.emptyMap{}
+  var ASTperipheralMap =@ASTperipheralMap.emptyMap{}
+  #import (cores and peripherals)
+  var importCoreMap =@lstringMap.emptyMap{}
+  #memory stuff
+  var ASTmemChunk =@ASTmemoryParamMap.emptyMap{}
+  var memChunkOrder =@stringlist.emptyList{}
+  
+  repeat
+  while
+    #global mem space definition.
+    <memorySpace> !?ASTmemSpaceMap
+  while
+    #peripheral def
+    <peripheral> !?ASTperipheralMap
+  while
+    #Core or peripheral importation
+    var importIsaMap =@lstringMap.emptyMap{} #unused here.
+    <import> !true !?importCoreMap !?importIsaMap !?ASTperipheralMap
+  end
+
+  $cpu$ $idf$ ?var @lstring cpuName
+  ${$
+  #associate core type and a name 
+  var ASTcoreInstanceMap =@ASTcoreInstanceMap.emptyMap{}
+  #map of cores, key is the type.
+  var ASTcoreMap =@ASTCoreMap.emptyMap{}
+  #core id.
+  @uint coreId = 0
+  #set of core types, to parse only one time each core type.
+  var coreSet =@stringset.emptySet{}
+  #cpu devices.
+  var ASTDeviceDecList =@ASTInstructionList.emptyList{}
+  #map of cpu.
+  var ASTCpuMap =@ASTCpuMap.emptyMap{}
+
+  repeat
+  while
+    <memoryChunk> !?ASTmemChunk !?memChunkOrder
+  while
+    <coreInstantiation> !?ASTcoreInstanceMap !?ASTcoreMap !?coreSet !?ASTmemSpaceMap !?coreId !importCoreMap
+  while
+    <deviceDeclaration> !false !ASTperipheralMap ?var @ASTInstDeclarationDevice deviceDec
+    ASTDeviceDecList += !deviceDec
+  while
+    <signalConnect>
+  end
+  [!?ASTCpuMap insertKey !cpuName !ASTcoreInstanceMap !ASTcoreMap !ASTDeviceDecList !ASTmemChunk !memChunkOrder]
+  $}$
+  
+  @lstring exportDir = cpuName
+  #Ok. Parsing done. Now apply semantic.
+  ###########################################################################
+  # init templates.
+  ###########################################################################
+  @TfieldMap templateStruct = @TfieldMap. emptyMap
+  [!?templateStruct initTemplate !cpuName !exportDir]
+  #compile the tools templates (-> generate tools required during compilation)
+  @string templateLog = computeTemplate(!"" !templateStruct !"tools")
+
+  ###########################################################################
+  # memory space.
+  ###########################################################################
+  @memSpaceMap memSpaceMap = [ASTmemSpaceMap getMemSpaceMap]
+  [memSpaceMap setInTemplate !?templateStruct]
+
+  ###########################################################################
+  # peripherals
+  ###########################################################################
+  @peripheralMap peripheralMap = [ASTperipheralMap getPeriphMap]
+  [peripheralMap setInTemplate ![cpuName string] !?templateStruct]
+
+  ###########################################################################
+  # cpu generation.
+  ###########################################################################
+  [ASTCpuMap cpuSemantic !memSpaceMap !?templateStruct]
+
+  ###########################################################################
+  # template generation
+  ###########################################################################
+  @string gadlLog = computeTemplate(!"" !templateStruct !"root")
+  if [option gadl_options.templateLogFile value] then
+    extractTemplateStructure ( !templateStruct !"templateLog.xml")
+  end
+  ###########################################################################
+  # filewrappers: add binary files inside the gadl compiler.
+  ###########################################################################
+  addFileWrappers ( !exportDir)
+}
+
+}

@@ -1,0 +1,339 @@
+
+
+#in this file, 
+# functions:
+# * getInst -> convert a list of @ASTInstruction to a list of @instruction.
+#           -> performs all required checks
+# * checkNoReturn ?? @instructionList instList -> verification.
+# * checkNoTypeDef?? @instructionList instList -> verification.
+# routines
+# getInst -> the same as the function, but get back the idfStruct also.
+
+# readers:
+# * @ASTInstruction getInst -> used by 'getInst' function.
+
+proc getInst
+  ?let  @ASTInstructionList ASTInstList
+  ?let  @expressionContext ctx
+  ?let  @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  !  @instructionList instList {
+  #check correct use of 'return'
+  @symbolValueMap symbolMapCopy = symbolMap
+  instList = @instructionList. emptyList
+  for (@ASTInstruction ASTinst) in  ASTInstList do
+    @instruction inst
+    [ASTinst getInst !ctx !?symbolMapCopy !?idfStruct ?inst]
+    instList += !inst
+  end
+
+  #check that there is no return statement (except last instruction).
+  if [instList length] > 1 then
+    @instructionList instListTmp = instList #get a copy
+    [!?instListTmp popLast ?*]               #remove last instruction.
+    checkNoReturn ( !instListTmp)               #and check for no return inst.
+  end
+  #log idfStructcopy;
+}
+
+func getInst
+  ?let  @ASTInstructionList ASTInstList
+  ?let  @expressionContext ctx
+  ?let  @symbolValueMap symbolMap
+  ?let  @varIdfStruct idfStruct
+  -> @instructionList instList {
+  @varIdfStruct idfStructcopy = idfStruct  
+  getInst ( !ASTInstList !ctx !symbolMap !?idfStructcopy ?instList)
+}
+
+abstract method @ASTInstruction getInst
+  ?let  @expressionContext ctx
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  !  @instruction inst
+
+override method @ASTInstIf getInst
+  ?let  @expressionContext ctx
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  !  @instruction inst {
+  #check that condition is a boolean.
+  #condition
+  @expression newCond = [cond getExp !ctx !symbolMap !idfStruct]
+  [[newCond type] checkBool]
+
+  @instructionList instIfList   = getInst(!ASTifList !ctx !symbolMap !idfStruct)
+  @instructionList instElseList = getInst(!ASTelseList !ctx !symbolMap !idfStruct)
+
+  checkNoReturn ( !instIfList)
+  checkNoReturn ( !instElseList)
+
+  inst = @instIf. new { !loc !newCond !instIfList !instElseList}
+  #TODO: merge symbolMap
+}
+
+override method @ASTInstReturn getInst
+  ?let  @expressionContext ctx
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  !  @instruction inst {
+  @expression newExp = [exp getExp !ctx !symbolMap !idfStruct]
+  inst = @instReturn. new { !loc !newExp}
+}
+
+override method @ASTInstNop getInst
+  ?let  @expressionContext ctx
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  !  @instruction inst {
+  @expression newExp = [exp getExp !ctx !symbolMap !idfStruct]
+  inst = @instNop. new { !loc !ctx !newExp}
+}
+
+override method @ASTInstLoop getInst
+  ?let  @expressionContext ctx
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  !  @instruction inst {
+  #check that there is no return instruction.
+  @expression newGuard = [guard getExp !ctx !symbolMap !idfStruct]
+  @expression newExpCondition = [expCondition getExp !ctx !symbolMap !idfStruct]
+  @instructionList newLoopInstList = getInst(!loopInstList !ctx !symbolMap !idfStruct)
+  checkNoReturn ( !newLoopInstList)
+
+  inst = @instLoop. new { !loc !newGuard !newExpCondition !newLoopInstList}
+}
+
+override method @ASTInstError getInst
+  ?let  @expressionContext unused ctx
+  ?! @symbolValueMap unused symbolMap
+  ?! @varIdfStruct unused idfStruct
+  !  @instruction inst {
+  inst = @instError. new { !loc !onlyWarn !msg}
+}
+
+override method @ASTInstPrint getInst
+  ?let  @expressionContext ctx
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  !  @instruction inst {
+  @expression newExp = [exp getExp !ctx !symbolMap !idfStruct]
+  inst = @instPrint. new { !loc !newExp}
+}
+
+override method @ASTInstMessage getInst
+  ?let  @expressionContext unused ctx
+  ?! @symbolValueMap unused symbolMap
+  ?! @varIdfStruct unused idfStruct
+  !  @instruction inst {
+  inst = @instMessage. new { !loc !msg}
+}
+
+override method @ASTInstFunctionCall getInst
+  ?let  @expressionContext ctx
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  !  @instruction inst {
+  #Check that expression is effectively a function call TODO.
+  #Check types of arguments TODO.
+  @expression newIdf = [idf getExp !ctx !symbolMap !idfStruct]
+  if not (newIdf is == @expIdf) then
+    error loc:"internal error. Treated as function call but this is not a function call."
+  end
+  @expIdf expIdf = ( newIdf as @expIdf)
+  switch [expIdf detectedType]
+  case unknown:
+    error loc: "The identifier is unknown in function call"
+  case structMember,localVar,tabularAccess,registerAccess,registerBitField:
+    error loc: "This is not a function call, but it was excepted here."
+  case componentCall,memoryAccess,periphCall:
+    #checkCorrectAssignType ![expIdf type] !newExp ![expIdf lstring];
+  end
+  inst = @instFunctionCall. new { !loc !expIdf}
+}
+
+override method @ASTInstAssignment getInst
+  ?let  @expressionContext ctx
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  !  @instruction inst {
+  #check that variable idf is not a constant value.
+  #check that variable idf is an idf (not a function call).
+  #check that value asigned is not of type 'void' (in case of scalar).
+  #check that left operand is an idf expression.
+  #check for type compatibility (cannot assign a tabular to a scalar..) TODO
+  idfStruct.assign = true
+  @expression newIdfAssign = [idf getExp !ctx !symbolMap !idfStruct]
+  idfStruct.assign = false
+  @expression newIdfRead = [idf getExp !ctx !symbolMap !idfStruct]
+  @expression newExp = [exp getExp !ctx !symbolMap !idfStruct]
+  
+  cast [newExp type]
+  case == @varBaseType vbt : #basic type.
+    if [vbt size] == 0 then
+      error loc: "The expression in assignment returns void"
+      log newExp
+      log exp
+    end
+  else
+  end
+
+  if not (newIdfAssign is == @expIdf) then
+    error loc:"the left expression in assignment does not refer to an identifier."
+  end
+  @expIdf expIdfAssign = ( newIdfAssign as @expIdf)
+  @expIdf expIdfRead   = ( newIdfRead as @expIdf)
+  #various checks.
+  switch [expIdfAssign detectedType]
+  case unknown:
+    error loc: "The identifier is unknown in assignment (left side)"
+  case structMember,localVar,tabularAccess,registerAccess,registerBitField:
+    if [expIdfAssign isConst] then
+      @string errorStr = "Variable \'"+[expIdfAssign string]+"\' is declared constant. It should not be assigned."
+      error loc: errorStr
+    end
+    checkCorrectAssignType ( ![expIdfAssign type] !newExp ![expIdfAssign lstring])
+  case componentCall,memoryAccess,periphCall:
+    error loc: "Cannot assign a function call or a memory access"
+  end
+  #get the intruction.
+  @fieldList flist = fieldListFromAST(!ctx !symbolMap !idfStruct !astFList)  
+  inst = @instAssignment. new { !loc !expIdfAssign !expIdfRead !flist !newExp}
+}
+
+override method @ASTInstDeclaration getInst
+  ?let  @expressionContext ctx
+  ?! @symbolValueMap unused symbolMap
+  ?! @varIdfStruct idfStruct
+  !  @instruction inst {
+  #check that var was not declared previously.
+  #check that types has size > 0 bits
+  #check that size < 128 bits.
+  #check that types exists.
+  #check that we have the right to do that. TODO
+
+  cast type
+  case == @varBaseType vbt : #basic type.
+    if [vbt size] == 0 then
+      error loc: "The variable has a 0-bit size."
+    elsif [vbt size] > 128 then
+      error loc: "Cannot handle variables greater than 128 bits."
+    end
+  else
+    #exists.
+    #message "check type: ".[type string]."\n";
+    checkTypeExists ( !type !idfStruct)
+  end
+  #next depends of the type of data.
+  switch access
+  case localVar:
+    #name of the var, using the suffix
+    @lstring idfFull = [idfStruct getIdfPrePost !idf]
+    #message "declare local var   ".idfFull."\n";
+    @instDeclaration instDec = @instDeclaration. new { !loc !type !idfFull !access !idfStruct.idfPrefixLocal}
+    [!?idfStruct.varMap insertKey !idfFull !type !false !access !instDec]
+    inst = instDec
+  case field: #a field used in the behavior view (ISA description).
+    if ctx != @expressionContext. behavior then
+      error loc: "internal error in @ASTInstDeclaration. Have a 'field', but context is not behavior"
+    end
+    if not (type is >= @varBaseType) then
+      error loc: "A 'field' can only be associated with a basic type (unsigned/signed/float)"
+    end
+    #a constant, without any prefix.
+    @lstring idfField = [idfStruct getIdfPost !idf]
+    #message "declare field       ".idfField."\n";
+    @instDeclaration instDec = @instDeclaration. new { !loc !type !idfField !access !""}
+    [!?idfStruct.varMap insertKey !idfField !type !true !@varClass. localVar !instDec]
+    inst = instDec
+  case programCounter,GPR,SFR:
+    @instDeclaration instDec = @instDeclaration. new { !loc !type !idf !access !""}
+    [!?idfStruct.varMap insertKey !idf !type !false !access !instDec]
+    inst = instDec
+  case device:
+    error loc: "internal error: instanciation of a device not allowed here" : inst
+  case registerSlice:    
+    error loc: "internal error in @ASTInstDeclaration should not be use in this "+
+               "context -> @ASTInstDeclarationRegSlice" :inst
+  end
+}
+
+override method @ASTInstDeclarationDevice getInst
+  ?let  @expressionContext unused ctx
+  ?! @symbolValueMap unused symbolMap
+  ?! @varIdfStruct idfStruct
+  !  @instruction inst {
+  if access != @varClass. device then
+    error loc: "internal error: a device varClass is expected in @ASTInstDeclarationDevice"
+  end
+  @instDeclarationDevice instDec = @instDeclarationDevice. new { !loc !type !idf !access !"" !address}
+  [!?idfStruct.varMap insertKey !idf !type !true !access !instDec]
+  inst = instDec
+}
+
+override method @ASTInstDeclarationRegSlice getInst
+  ?let  @expressionContext ctx
+  ?! @symbolValueMap symbolMap
+  ?! @varIdfStruct idfStruct
+  !  @instruction inst {
+  #check that var was not declared previously.
+  #check that types has size > 0 bits
+  #check that size < reg size bits.
+  #check that types exists.
+  #check that we have the right to do that. TODO
+  @fieldList flist = fieldListFromAST(!ctx !symbolMap !idfStruct !ASTfieldList)
+  @varBaseType sliceType = @varBaseType. new { !@varKind. unsigned ![flist fieldsize !symbolMap] ![sliceName location]}
+  #base register should be a varBaseType
+  @varBaseType regType = ( type as @varBaseType)
+  if [regType size] < [sliceType size] then
+    error sliceName: "The slice size is bigger than its base register."
+  end
+  if access != @varClass. registerSlice then
+    error sliceName: "internal error: a registerSlice is expected in @ASTInstDeclarationRegSlice"
+  end
+  @instDeclarationRegSlice instRegSlice = @instDeclarationRegSlice. new { !loc !type !idf !access !"" !sliceName !flist}
+  [!?idfStruct.varMap insertKey ![instRegSlice name] !sliceType !false !access !instRegSlice]
+  inst = instRegSlice
+}
+
+override method @ASTInstTypeDefinition getInst
+  ?let  @expressionContext unused ctx
+  ?! @symbolValueMap unused symbolMap
+  ?! @varIdfStruct idfStruct
+  !  @instruction inst {
+  #check that it does not exists yet.
+  #check recursively that types in members exists.
+  inst = @instTypeDefinition. new { !loc !idf !memberList}
+  #check recursively.
+  for (* @varAbstractType memberType) in  memberList do
+    checkTypeExists ( !memberType !idfStruct)
+  end  
+  #insert AFTER check to prevent recursion.
+  [!?idfStruct.typedefMap insertKey !idf !memberList]
+}
+
+proc checkNoReturn
+  ?let   @instructionList instList {
+  for(@instruction inst) in  instList do
+    cast inst
+    case == @instReturn :
+      error [inst loc]: "The return statement is not awaited here. It should be the last instruction "+
+                        "and should not be set inside a block (if/loop)"
+    else #ok
+    end
+  end
+}
+
+proc checkNoTypeDef
+  ?let   @instructionList instList {
+  for(@instruction inst) in  instList do
+    cast inst
+    case == @instTypeDefinition :
+      error [inst loc]: "The type definition"+
+                        "and should not be set inside a block (if/loop)"
+    else #ok
+    end
+  end
+}
+
+

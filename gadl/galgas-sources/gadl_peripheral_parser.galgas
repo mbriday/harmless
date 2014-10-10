@@ -1,0 +1,113 @@
+syntax gadl_peripheral_parser (gadl_lexique) { #@ASTTimingMap
+
+#from gadl_implementation_parser.gSyntax
+rule <typeDefinition> ?! @ASTInstructionList instList
+rule <typeDeclaration> ! @varAbstractType type
+rule <registerBitAccessDef>
+  ?let  @lstring regName
+  ?let  @varAbstractType type
+  ?! @ASTInstructionList ASTregDefList
+rule <memoryMapping> !@memoryMapping memoryMapping
+rule <timing> ?! @ASTTimingMap ASTTimingMap
+rule <idf> !@ASTExpression exp
+rule <deviceDeclaration>
+  ?let  @bool memoryAccessIsLocal #true if a device is declared inside a peripheral (same mem chunk).
+  ?let  @ASTperipheralMap ASTperipheralMap
+  !  @ASTInstDeclarationDevice deviceDec
+rule <signalConnect>
+
+
+#from gadl_function_parser
+#not the outType and functionName in the rule due to grammar LL1 restrictions.
+rule <functionDef> 
+  ?let  @varAbstractType outType
+  ?let  @lstring functionName
+  ?! @ASTFunctionMap ASTFunctionMap
+
+#registers as defined in peripherals.
+rule <registerPeriphDef>
+  ?! @ASTregisterPeriphDefMap ASTregDefMap {
+  var ASTregDecList =@ASTInstructionList.emptyList{}
+  $register$
+  <typeDeclaration> ?var @varAbstractType type
+  $idf$ ?var @lstring idf
+  $maps$ $to$ $unumber$ ?var @luint64 address
+  ASTregDecList += !@ASTInstDeclaration. new { !@location.here !@varClass. SFR !type !idf}
+  select
+  or
+    <registerBitAccessDef> !idf !type !?ASTregDecList
+  end
+  #is there a callBack?
+  @bool hasReadFuncCall = false
+  @bool hasWriteFuncCall = false
+  @lstring readFuncCall = @lstring. new { !"" !@location.here}
+  @lstring writeFuncCall = @lstring. new { !"" !@location.here}
+  repeat
+  while
+    if hasReadFuncCall then
+      error @location.here: "A function has already been declared for the read access"
+    end
+    $read$ $is$ $idf$? readFuncCall
+    hasReadFuncCall = true
+  while
+    if hasWriteFuncCall then
+      error @location.here: "A function has already been declared for the write access"
+    end
+    $write$ $is$ $idf$? writeFuncCall
+    hasWriteFuncCall = true
+  end
+  [!?ASTregDefMap insertKey !idf !ASTregDecList !address !readFuncCall !writeFuncCall !type]
+}
+
+
+rule <peripheral>
+  ?! @ASTperipheralMap ASTperipheralMap {
+  var ASTregDefMap =@ASTregisterPeriphDefMap.emptyMap{}
+  var ASTFunctionMap =@ASTFunctionMap.emptyMap{}
+  var ASTDeviceDecList =@ASTInstructionList.emptyList{}
+  var ASTTypeDefList =@ASTInstructionList.emptyList{}
+  var ASTLocalVarList =@ASTInstructionList.emptyList{}
+  var ASTTimingMap =@ASTTimingMap.emptyMap{}
+  $peripheral$
+  $idf$ ?var @lstring peripheralName
+  $memory$ $size$ $unumber$ ?var @luint64 lsize
+  ${$
+    repeat
+    while
+      #register def
+      <registerPeriphDef> !?ASTregDefMap
+    while
+      <typeDeclaration> ?var @varAbstractType type
+      $idf$ ?var @lstring idf
+      select
+        #this is a local var.
+        ASTLocalVarList += !@ASTInstDeclaration. new { !@location.here !@varClass. localVar !type !idf}  
+      or
+        #this is a local method.
+        <functionDef> !type !idf !?ASTFunctionMap
+      end
+    while
+      <deviceDeclaration> !true !ASTperipheralMap ?var @ASTInstDeclarationDevice deviceDec
+      ASTDeviceDecList += !deviceDec
+    while
+      <typeDefinition> !? ASTTypeDefList
+    while
+      <timing> !?ASTTimingMap
+    while
+      <signalConnect>
+    end
+  $}$
+  #problem:
+  #We need a varMap for register slices access (in other peripherals)
+  #and ASTperipheralMap (embedded in the idfStruct) does not have it.
+  #-> we extract it here from the registers definitions.  
+  @expressionContext ctx = @expressionContext. peripheral
+  var symbolMap =@symbolValueMap.emptyMap{}
+  var idfStruct =@varIdfStruct.default
+  for () in  ASTregDefMap do
+    getInst ( !ASTregDecList !ctx !symbolMap !?idfStruct ?*)
+  end
+  [!?ASTperipheralMap insertKey !peripheralName !lsize !ASTregDefMap !ASTFunctionMap !ASTDeviceDecList !ASTTypeDefList !ASTLocalVarList !idfStruct.varMap !ASTTimingMap]
+}
+
+}

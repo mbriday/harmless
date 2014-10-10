@@ -1,0 +1,370 @@
+syntax gadl_instruction_format_parser (gadl_lexique) {
+
+#specific bit field for formats (not allowing expression). Using the standard one leads to a 
+#LL1 conflict because any expression can be used in the field.
+#type is the variable type in which the bitfield is accessed. It should be correctly defined, because
+#     error are generated if the bit access is not in the variable range.
+#     Then, type is updated using the correct number of bits.
+rule <formatBitField> 
+  !  @formatFieldList fieldList 
+  ?! @varBaseType type {
+  @uint nbBits = 0
+  fieldList = @formatFieldList. emptyList
+  ${$
+  select
+    $-$ # empty field.
+  or
+    repeat
+      @luint64 fromBit
+      $unumber$ ? fromBit
+      @uint64 from = [fromBit uint64]
+      select
+        #only a bit -> bitfield size is 1.
+        fieldList += !from !from !@location.here
+        nbBits = nbBits+1
+      or
+        $..$
+        @luint64 toBit
+        $unumber$ ? toBit
+        @uint64 to = [toBit uint64]
+        if(from < to) then 
+          error toBit : "value is higher than the previous one in the range :"+
+                        [to string]+" > "+[from string]
+        end
+        fieldList += !from !to !@location.here
+        nbBits = nbBits+[from uint]-[to uint]+1
+        end
+    while 
+    $,$
+    end
+  end
+  $}$
+  type = @varBaseType. new { !@varKind. unsigned !nbBits !@location.here}
+}
+
+rule <callFormat>
+  ?let  @lstring idf
+  !  @idfOrRefFormatIsIdf idfFormat {
+  @lstring postRefName
+  select
+    #no post ref name.
+    postRefName = @lstring. new { !"" !@location.here}
+  or
+    $postReference$ ? postRefName
+  end
+  #no check at this time. It could be declarated after.... mmmh, really? TODO.
+  idfFormat = @idfOrRefFormatIsIdf. new { !idf !postRefName}
+}
+
+# here are some examples of the slice format accepted:
+# +{7..0}             -> need an extra byte.
+# {7..0}+{7..0}       -> last byte, and a nex extra byte.
+# {7..0}+{7..0}{7..0} -> last byte and 2 new extra bytes.
+# it checks that there is at least 1 '+' char.
+# If there is a '+' char, it means that an extra word must be fetched (in the previous 
+# example, 1 byte is fetched at each time). So a '+' char must be followed by a bitfield.
+# The slice list returned contains slice offset using the following convention:
+#  {7..0}                   ->  0            (nbSlicesBeforeAPlus = 1)
+# +{7..0}                   -> +1            (nbSlicesBeforeAPlus = 0)
+# {7..0}+{7..0}             ->  0 +1         (nbSlicesBeforeAPlus = 1)
+# {7..0}{7..0}+{7..0}{7..0} -> -1  0  +1  +2 (nbSlicesBeforeAPlus = 2)
+#
+# sliceSize is the size of the slice in bits.
+rule <sliceDef>
+  ?let  @luint defaultInstructionSize
+  !  @sliceList sliceList
+  !  @uint nbSlicesBeforeAPlus
+  !  @uint sliceSize {
+  nbSlicesBeforeAPlus = 0
+  sliceList =  @sliceList. emptyList
+  sliceSize = 0
+  #get slice list, starting from 0. The final slice list adds an offset.
+  @sliceList tempSliceList = @sliceList. emptyList
+  @uint nbSlices = 0
+  @bool foundAPlus = false
+  select
+    #no slice. Using the current chunk.
+    sliceSize = [defaultInstructionSize uint]
+    #get a default field, using the whole
+    @formatFieldList defaultField = @formatFieldList. emptyList
+    @uint tmp = sliceSize-1
+    #@uint sizeOfConstFrom := nbBitsToCodeUnsigned[![tmp uint64]];    
+    #@cIntConst fromExp := [@cIntConst new !getTypeListFrom[![@varBaseType new ![@varKind unsigned] !sizeOfConstFrom !here]] ![tmp uint64] !false];
+    #@cIntConst toExp   := [@cIntConst new !getTypeListFrom[![@varBaseType new ![@varKind unsigned] !0 !here]] !0L !false];
+    defaultField += ![tmp uint64] !0L !@location.here
+    sliceList += !defaultField !0s
+    nbSlicesBeforeAPlus = 1
+  or
+    $slice$
+    repeat
+    while
+      select
+      or
+        $+$ 
+        if foundAPlus then
+          error @location.here: "Only one '+' is allowed in a slice definition"
+        end
+        foundAPlus = true
+      end
+      @varBaseType tempType = @varBaseType. new { !@varKind. unsigned ![defaultInstructionSize uint] !@location.here}
+      @formatFieldList field
+      <formatBitField> ?field !?tempType
+      sliceSize = sliceSize + [tempType size]
+      nbSlices = nbSlices + 1
+      if not foundAPlus then nbSlicesBeforeAPlus = nbSlicesBeforeAPlus + 1 end
+      tempSliceList += !field ![nbSlices sint]
+    end
+    #update, using the correct offset.
+    for (@formatFieldList f @sint p) in  tempSliceList do
+      sliceList += !f !(p - [nbSlicesBeforeAPlus sint])
+    end
+  end
+}
+
+#format body: It can be:
+# - an assignment
+# - a call to another format
+# - a reference
+# - a select structure
+rule <formatBody>
+  ?let  @luint defaultInstructionSize
+  ?let  @uint nbSlicesBeforeAPlus
+  ?! @assignSliceList assignList
+  ?! @idfOrRefFormatList otherformatList
+  ?! @idfOrRefFormatList refFormatList
+  ?! @uint internalFormatId
+  ?! @formatMap formatMap {
+  select
+    @lstring idf
+    $idf$ ?idf indexing formatCall
+    select
+      <assignFormat> !defaultInstructionSize !nbSlicesBeforeAPlus !idf !?assignList
+    or
+      @idfOrRefFormatIsIdf idfFormat
+      <callFormat> !idf ?idfFormat
+      otherformatList += !idfFormat
+    end
+  or
+    @lstring refName
+    $reference$ ?refName 
+    @idfOrRefFormatIsRef ref = @idfOrRefFormatIsRef. new { !refName}
+    refFormatList += !ref
+  or
+    <selectFormat>  !defaultInstructionSize !?internalFormatId !?formatMap !?otherformatList
+  end
+}
+
+rule <format>  
+  ?let  @luint defaultInstructionSize
+  ?! @formatMap formatMap
+  ?! @uint internalFormatId {
+  if [defaultInstructionSize uint] == 0 then 
+    error @location.here: "no default instruction size specified! "
+  end
+
+  $format$
+  @lstring formatName
+  $idf$ ?formatName indexing formatDef
+
+  #prototype slice list.
+  @sliceList slicePrototypeList
+  @uint nbSlicesBeforeAPlus
+  <sliceDef> !defaultInstructionSize ?slicePrototypeList ?nbSlicesBeforeAPlus ?*
+
+  var assignList =@assignSliceList.emptyList{}
+  var otherformatList =@idfOrRefFormatList.emptyList{}
+  var refFormatList =@idfOrRefFormatList.emptyList{}
+  repeat
+  while
+    <formatBody> !defaultInstructionSize !nbSlicesBeforeAPlus  
+                 !?assignList !?otherformatList !?refFormatList !?internalFormatId !?formatMap
+  end
+  $end$ $format$
+  @aggFormat format = @aggFormat. new { !slicePrototypeList !assignList !refFormatList !otherformatList}
+  [!?formatMap insertKey !formatName !format]
+}
+
+#previously known as an "alternative format".
+rule <selectFormat>
+  ?let  @luint defaultInstructionSize
+  ?! @uint internalFormatId
+  ?! @formatMap formatMap
+  ?! @idfOrRefFormatList otherformatList {
+  $select$
+  @sliceList sliceList
+  @uint nbSlicesBeforeAPlus
+  @uint sliceSize
+  @alternativeIsList isList = @alternativeIsList. emptyList
+
+  @lstring alternativeFormatName = @lstring. new { !"select_format_"+[internalFormatId string] !@location.here}
+  internalFormatId = internalFormatId + 1
+  <sliceDef> !defaultInstructionSize ?sliceList ?nbSlicesBeforeAPlus ?sliceSize
+  #to check that there is a max of 1 'others' keyword.
+  @bool othersKeyword = false
+  #binary set used to resolve 'others'.
+  @binaryset maskCodingUsed = @binaryset. emptyBinarySet
+  repeat
+  while
+    @binaryset isFormat
+    <altFormatIs> !defaultInstructionSize !sliceSize !sliceList !nbSlicesBeforeAPlus ?isFormat !?othersKeyword !?maskCodingUsed
+
+    @assignSliceList caseAssignList = @assignSliceList. emptyList  
+    var caseFormatCallList =@idfOrRefFormatList.emptyList{}
+    var caseRefFormatList =@idfOrRefFormatList.emptyList{}
+    #each case in a format leads to generate another format (aggregate).
+    @lstring caseFormatName = @lstring. new { !"format_case_"+[internalFormatId string] !@location.here}
+    internalFormatId = internalFormatId + 1
+    repeat
+    while
+      <formatBody> !defaultInstructionSize !nbSlicesBeforeAPlus  
+                   !?caseAssignList !? caseFormatCallList !?caseRefFormatList 
+                   !?internalFormatId !?formatMap
+    end
+    var caseSliceList =@sliceList.emptyList{} #no slice associated to that internal format.
+    @aggFormat caseFormat = @aggFormat. new { !caseSliceList !caseAssignList !caseRefFormatList !caseFormatCallList}
+    [!?formatMap insertKey !caseFormatName !caseFormat]
+    @idfOrRefFormatIsIdf idf = @idfOrRefFormatIsIdf. new { ! caseFormatName !@lstring. new { !"" !@location.here}}
+    #TODO: temp.
+    isList += !idf !isFormat
+  end
+  $end$ $select$
+  #create the alternative format structure
+  @assignSliceList altAssignList = @assignSliceList. emptyList
+  var refFormatList =@idfOrRefFormatList.emptyList{}
+  @altFormat selectFormat = @altFormat. new { !sliceList !altAssignList !refFormatList !isList !nbSlicesBeforeAPlus}
+  [!?formatMap insertKey !alternativeFormatName !selectFormat]  
+  #update the aggregate to call the new alternative format.
+  @idfOrRefFormatIsIdf alternativeFormat = @idfOrRefFormatIsIdf. new { !alternativeFormatName !@lstring. new { !"" !@location.here}}
+  otherformatList += !alternativeFormat
+}
+
+
+#this rule reads cases in a 'select' 'end select' structure.
+#It reads:
+# case 'mask' is
+#Where mask can be:
+# - an unsigned number
+# - a mask (prefixed by \m)
+# - a disjunction of unsigned numbers and masks: \m--1 or \b100
+# - the 'others' keyword. It can be used only one time, at the end of the select structure.
+# parameters are:
+#   - defaultInstructionSize: basic size of instructions
+#   - sliceSize: the slice size specfied in the select part: This is to check sizes.
+#   - tempSliceList: the slice list, with the correct offset.
+
+rule <altFormatIs>
+  ?let  @luint defaultInstructionSize
+  ?let  @uint sliceSize
+  ?let  @sliceList sliceList
+  ?let  @uint nbSlicesBeforeAPlus
+  !  @binaryset isFormat
+  ?! @bool othersKeyword
+  ?! @binaryset maskCodingUsed {
+  isFormat = @binaryset. emptyBinarySet
+  select
+      $others$
+      if othersKeyword then 
+        error @location.here : "Only one 'others' keyword allowed in a format!"
+      end
+      @binaryset tempSet = ~maskCodingUsed
+      @binaryset tempIsFormat
+      getRelativeBinarySet ( !tempSet !sliceSize !defaultInstructionSize !sliceList !nbSlicesBeforeAPlus ?tempIsFormat)
+      isFormat = isFormat | tempIsFormat
+      othersKeyword = true
+  or
+    $case$
+    repeat
+      select
+        @luint64 nb
+        $unumber$ ?nb
+#        @uint64 tempNb     := [[nb uint] uint64];
+        @binaryset tempSet = @binaryset. binarySetWithEqualToConstant { !0 !sliceSize ![nb uint64]}
+        @binaryset tempIsFormat
+        getRelativeBinarySet ( !tempSet !sliceSize !defaultInstructionSize !sliceList !nbSlicesBeforeAPlus ?tempIsFormat)
+        isFormat = isFormat | tempIsFormat
+        maskCodingUsed = maskCodingUsed | tempSet
+        if [[nb uint64] uint] > ((1 << sliceSize) - 1)  then
+          error @location.here: "number size does not fit in the slice"+
+                      " considered : size:"+[sliceSize string]
+        end
+        if othersKeyword then
+          error @location.here : "It is not allowed to add a ref/alternative after a 'others' keyword."
+        end
+      or
+        @lstring mask
+        $binaryMask$ ?mask
+        @string tempMask   = [[mask string] stringByReplacingStringByString !"-" !"X"]
+        @binaryset tempSet = @binaryset. binarySetWithPredicateString { !tempMask}
+        @binaryset tempIsFormat
+        getRelativeBinarySet ( !tempSet !sliceSize !defaultInstructionSize !sliceList !nbSlicesBeforeAPlus ?tempIsFormat)
+        isFormat = isFormat | tempIsFormat
+        maskCodingUsed     = maskCodingUsed | tempSet
+        if sliceSize != [[mask string] length] then
+          error @location.here: "mask size ("+[[[mask string] length] string]+") has not the size of the slice"+
+                      " considered : "+[sliceSize string]
+        end
+        if othersKeyword then
+          error @location.here : "It is not allowed to add a ref/alternative after a 'others' keyword."
+        end
+      end
+    while 
+      $or$
+    end
+  end
+  $is$
+}
+
+rule <assignFormat> 
+  ?let  @luint defaultInstructionSize
+  ?let  @uint sliceOffset 
+  ?let  @lstring idf
+  ?! @assignSliceList assignList {
+  @location loc = @location.here
+  $:=$
+  @sliceList slice = @sliceList. emptyList
+  @uint typeLength = 0 #final length of the slice.
+  @uint nbSlicesInAssign = 0
+  @varKind kind    # signed assignmenent
+  @uint shiftType #value is shifted? type 0, 1 or 2
+  @luint shift    #shift value.
+  select
+    kind = @varKind. unsigned
+  or
+    $signed$
+    kind = @varKind. signed
+  end
+  $slice$
+  repeat
+    @formatFieldList fieldList
+    @varBaseType typeSlice = @varBaseType. new { !@varKind. unsigned ![defaultInstructionSize uint] !@location.here} #TODO: update.
+    <formatBitField> ?fieldList !?typeSlice #type updated.(no size verification ....)
+    typeLength = typeLength + [typeSlice size]
+    nbSlicesInAssign = nbSlicesInAssign + 1
+    slice += !fieldList !([nbSlicesInAssign sint] - [sliceOffset sint])
+  while
+  end
+  select
+    shift = @luint. new { !0 !@location.here}
+    shiftType = 0
+  or
+    @luint64 tmpShift
+    $<<$ $unumber$ ?tmpShift
+    shift = @luint. new { ![[tmpShift uint64] uint] !@location.here}
+    typeLength = typeLength + [shift uint]
+    shiftType = 1
+  or
+    @luint64 tmpShift
+    $>>$ $unumber$ ?tmpShift
+    shift = @luint. new { ![[tmpShift uint64] uint] !@location.here}
+    if(typeLength < [shift uint]) then
+      error @location.here: "fields returns always 0!"
+    else
+      typeLength = typeLength - [shift uint]
+    end
+    shiftType = 2
+  end
+  @varBaseType type = @varBaseType. new { !kind !typeLength !loc} #return type
+  assignList += !idf !slice !type !shiftType !shift
+}
+
+}

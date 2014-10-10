@@ -1,0 +1,67 @@
+ #expression
+
+#Timing instructions
+#timingInstruction
+#|-> @tLoop
+#|-> @tIf
+#|-> @tEmit
+#|-> @tWaitSignal
+#|-> @tWaitCycle
+#|-> @tDeclaration
+#|-> @tAssignOrCall -> assignment or method call.
+
+list @timingInstructionList {
+  @timingInstruction inst
+}
+
+abstract class @timingInstruction {
+  @location loc
+}
+
+map @timingMap
+{
+  @bool externalActivation #deprecated?
+  @boolMap signalIn
+  @boolMap signalOut
+  @timingInstructionList instList
+  @expression expEnable  
+  
+  insert insertKey error message "the '%K' timing is already defined in %L" 
+  search searchKey error message "the '%K' timing is not defined"
+}
+
+class @tEmit : @timingInstruction {
+  @lstring name
+  @bool broadcast
+}
+
+class @tWaitSignal : @timingInstruction {
+  @lstring name
+}
+
+class @tWaitCycle : @timingInstruction {
+  @expression expCycle
+}
+
+class @tIf :  @timingInstruction {
+  @expression expIf
+  @timingInstructionList tInstListThen
+  @timingInstructionList tInstListElse
+}
+
+class @tLoop :  @timingInstruction {
+  @bool forever     #no max loop.
+  @uint64 loopValue #max loops.
+  @expression conditionExp  
+  @timingInstructionList tInstLoopList
+  @uint internalId
+}
+
+class @tAssignOrCall : @timingInstruction {
+  @instructionList instList
+}
+
+class @tDeclaration : @timingInstruction {
+  @instructionList instList
+}
+

@@ -1,0 +1,81 @@
+ #varClass
+
+class @memoryMapping
+{
+  @lstring memSpaceName
+  @luint64 baseAddress
+}
+
+abstract class @ASTInstruction {
+  @location loc
+}
+
+list @ASTInstructionList {
+  @ASTInstruction inst
+}
+
+class @ASTInstIf : @ASTInstruction {
+  @ASTExpression cond
+  @ASTInstructionList ASTifList
+  @ASTInstructionList ASTelseList
+}
+
+class @ASTInstReturn : @ASTInstruction {
+  @ASTExpression exp
+}
+
+class @ASTInstNop : @ASTInstruction {
+  @ASTExpression exp
+}
+
+class @ASTInstLoop : @ASTInstruction {
+  @ASTExpression guard
+  @ASTExpression expCondition
+  @ASTInstructionList loopInstList
+}
+
+class @ASTInstError : @ASTInstruction {
+  @bool onlyWarn
+  @lstring msg
+}
+
+class @ASTInstPrint : @ASTInstruction {
+  @ASTExpression exp
+}
+
+class @ASTInstMessage : @ASTInstruction {
+  @lstring msg
+}
+
+class @ASTInstFunctionCall : @ASTInstruction {
+  @ASTExpression idf
+}
+
+class @ASTInstAssignment : @ASTInstruction {
+  @ASTExpression idf
+  @ASTfieldList astFList
+  @ASTExpression exp
+}
+
+class @ASTInstDeclaration : @ASTInstruction {
+  @varClass access
+  @varAbstractType type
+  @lstring idf
+}
+
+class @ASTInstDeclarationRegSlice : @ASTInstDeclaration {
+  #idf in the super class is the full register name (only)
+  #type in the super class is the type of the full register
+  @lstring sliceName
+  @ASTfieldList ASTfieldList
+}
+
+class @ASTInstDeclarationDevice : @ASTInstDeclaration {
+  @memoryMapping address
+}
+
+class @ASTInstTypeDefinition : @ASTInstruction {
+  @lstring idf
+  @typedefMemberMap memberList
+}
+

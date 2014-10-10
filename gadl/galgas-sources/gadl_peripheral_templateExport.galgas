@@ -1,0 +1,76 @@
+
+
+method @registerPeriphDefMap setInTemplate
+  ?! @TfieldMap templateStruct {
+  var registerPeriphDefTplList =@TfieldMapList.emptyList{}
+  for () in  self do
+    var regPeriphDefTplBody =@TfieldMap.emptyMap{}
+    addLStringValue (  !?regPeriphDefTplBody !"name"                  !lkey)
+    addUnsignedValue ( !?regPeriphDefTplBody !lstringWith(!"address") ![address uint64])
+    if [readFuncCall string] != "" then
+      addLStringValue (  !?regPeriphDefTplBody !"readFunc"  !readFuncCall)
+    end
+    if [writeFuncCall string] != "" then
+      addLStringValue (  !?regPeriphDefTplBody !"writeFunc" !writeFuncCall)
+    end
+    addStringValue (   !?regPeriphDefTplBody !lstringWith(!"type")    ![[type getBaseType] getCType])
+    registerPeriphDefTplList += !regPeriphDefTplBody
+  end
+  addListValue ( !?templateStruct !lstringWith(!"regList") !registerPeriphDefTplList)
+}
+
+method @peripheralMap setInTemplate
+  ?let  @string exportDir
+  ?! @TfieldMap templateStruct {
+  var peripheralList =@TfieldMapList.emptyList{}
+  for () in  self do
+    var peripheralBody =@TfieldMap.emptyMap{}
+    #name
+    addLStringValue ( !?peripheralBody !"name" !lkey)
+    #memory size
+    addUnsignedValue ( !?peripheralBody !lstringWith(!"memSize") ![size uint64])
+    #idfStruct related -> varMap only.
+    [idfStruct setInTemplate !?peripheralBody]
+    #methods
+    addListValue ( !?peripheralBody !lstringWith(!"methodList") ![functionMap getFunctionTemplate])
+    #internal registers
+    [registerPeriphDefMap setInTemplate !?peripheralBody]
+    #devices.
+    [instDeviceDecList setDeviceInTemplate !?peripheralBody]
+    #timing
+    [timingMap setInTemplate !exportDir !?peripheralBody]
+    #typedef (type definitions)
+    peripheralList += !peripheralBody
+  end
+  addListValue ( !?templateStruct !lstringWith(!"peripheralList") !peripheralList)
+}
+
+
+method @instructionList setDeviceInTemplate
+  ?! @TfieldMap templateWithDev {
+  var deviceDecListTpl =@TfieldMapList.emptyList{}
+  for () in  self do
+    var deviceDecListTplBody =@TfieldMap.emptyMap{}
+    let @instDeclarationDevice instDevDec = ( inst as @instDeclarationDevice)
+    addLStringValue ( !?deviceDecListTplBody !"name" ![instDevDec name])
+    addLStringValue ( !?deviceDecListTplBody !"memSpaceName"  ![[instDevDec address] memSpaceName])
+    addLUnsignedValue ( !?deviceDecListTplBody !"baseAddress"  ![[instDevDec address] baseAddress])  
+    @varDeviceType base = ( [[instDevDec type] getFinalType] as @varDeviceType)
+    addLStringValue ( !?deviceDecListTplBody !"type" ![base typeName])
+    @uint nbDev = 1
+    if ([instDevDec type] is >= @varTabularType) then
+      @varTabularType tabType = ( [instDevDec type] as @varTabularType)
+      #should not happen: not allowed by parser: double check!!
+      if not ([tabType type] is == @varDeviceType) then
+        error [base typeName]: "only the definition of a device, or a tab of devices is allowed here"
+      end
+      nbDev = [tabType length]
+    end
+    addUnsignedValue ( !?deviceDecListTplBody !lstringWith(!"nb") ![nbDev uint64])
+    #this information is also present in the IdfStruct, if any.
+    addStringValue ( !?deviceDecListTplBody !lstringWith(!"declare") ![inst generateCode !1 !@codeCtx. C])
+    deviceDecListTpl += !deviceDecListTplBody
+  end
+  addListValue ( !?templateWithDev !lstringWith(!"deviceList") !deviceDecListTpl)
+}
+

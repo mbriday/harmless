@@ -1,0 +1,146 @@
+
+
+# reader @instDeclaration mySetter #setter is a keyword in galgas 3
+# reader @instDeclaration myGetter
+# method @varIdfStruct setProgramCounterInTemplate
+# method @varIdfStruct setInTemplate
+
+
+## mySetter for instDeclaration (for myGetter function in generated code).
+getter @instDeclaration mySetter
+  -> @string str {
+  switch access
+  case programCounter,GPR,SFR:
+    str = "\t\t\tm_"+[[self name] string]+" = value;"
+  case registerSlice:
+    error @location.here: "internal error: @instDeclaration mySetter with slice":str
+  case device:
+    error @location.here: "internal error: @instDeclaration mySetter with device":str
+  case localVar, field:
+    str = [[self name] string]
+  end
+}
+
+
+override getter @instDeclarationRegSlice mySetter
+  -> @string str {
+  switch access
+  case programCounter,GPR,SFR,localVar, field,device:
+    error @location.here: "internal error: @instDeclaration mySetter":str
+  case registerSlice:
+    str = "\t\t\t"+[[type getBaseType] getCType] +" __temp = "+[idf string]+"();\n"
+    str += "\t\t\t__temp = "+[fieldList getAssignCode !@codeCtx. C !"__temp" !"value"]+";\n"
+    str += "\t\t\tset"+[idf string]+"(__temp);"
+  end
+}
+
+## myGetter for instDeclaration (for myGetter function in generated code).
+getter @instDeclaration myGetter
+  ?let  @bool unused useLocal #can use local variable (optimisation for components).
+  -> @string str {
+  switch access
+  case programCounter,GPR,SFR:
+    str = "return m_"+[[self name] string]+";"
+  case registerSlice:
+    error @location.here: "internal error: @instDeclaration myGetter with slice":str
+  case device:
+    error @location.here: "internal error: @instDeclaration myGetter with device":str
+  case localVar, field:
+    str = [[self name] string]
+  end
+}
+
+override getter @instDeclarationRegSlice myGetter
+  ?let  @bool useLocal #can use local variable (optimisation for components).
+  -> @string str {
+  switch access
+  case programCounter,GPR,SFR,localVar, field,device:
+    error @location.here: "internal error: @instDeclaration myGetter with slice":str
+  case registerSlice:
+    @string name
+    if useLocal then
+      name = "m_"+[idf string] #for components (direct access)
+    else
+      name = [idf string]+"()" #for peripherals (trigger action).
+    end
+    str = "return "+[fieldList getExpCode !@codeCtx. C !name]+";"
+  end
+}
+
+
+method @varIdfStruct setProgramCounterInTemplate
+  ?! @TfieldMap templateStruct {
+  #program counter specific
+  [self.varMap checkProgramCounter ?var @varBaseType typePC ?var @lstring PCname]
+  addStringValue ( !?templateStruct !lstringWith(!"PC_SIZE_IN_BITS") ! [[typePC size] string])
+  addStringValue ( !?templateStruct !lstringWith(!"PC_C_TYPE") ![typePC getCType])
+  addStringValue ( !?templateStruct !lstringWith(!"PC_NAME") ![PCname string])
+}
+
+method @lstringMap setInTemplate
+  ?let  @lstring name #name of the lstringMap export
+  ?! @TfieldMap templateStruct {
+  var lstringMapTpl =@TfieldMapList.emptyList{}
+  for () in  self do
+    var lstringMapTplBody =@TfieldMap.emptyMap{}
+    addLStringValue ( !?lstringMapTplBody !"name" !lkey)
+    addLStringValue ( !?lstringMapTplBody !"str"  !lstr)
+    lstringMapTpl += !lstringMapTplBody    
+  end
+  addListValue ( !?templateStruct !name !lstringMapTpl)  
+}
+
+method @varIdfStruct setInTemplate
+  ?! @TfieldMap templateStruct {
+  var idfStructBody =@TfieldMap.emptyMap{}
+
+  var varListTpl =@TfieldMapList.emptyList{}
+  #varMap -> registers : type and name
+  for () in  varMap do
+    var varMapRegBody =@TfieldMap.emptyMap{}
+    addLStringValue ( !?varMapRegBody !"name" !lkey)
+    if varClass == @varClass. device then
+      let @varDeviceType typeCast = ( [type getFinalType] as @varDeviceType)
+      addLStringValue ( !?varMapRegBody !"type" ![typeCast typeName])
+    else
+      addStringValue ( !?varMapRegBody !lstringWith(!"type") ![type getCType])
+    end
+    addBoolValue ( !?varMapRegBody !lstringWith(!"constant") !constant)
+    addUnsignedValue ( !?varMapRegBody !lstringWith(!"varClassId") ![varClass id])
+    @lstring baseName = lkey
+    if varClass == @varClass. registerSlice then
+      @stringlist strList = [[lkey string] componentsSeparatedByString !"_"]
+      [strList first ?var @string baseNameStr]
+      baseName = @lstring. new { !baseNameStr ![lkey location]}
+    end
+    addLStringValue ( !?varMapRegBody !"baseName" !baseName)
+
+    @uint size = 0
+    if (type is >= @varBaseType) then
+      size = [[type getBaseType] size]
+    end
+    addUnsignedValue ( !?varMapRegBody !lstringWith(!"size") ![size uint64]) #size in bits.
+
+    if varClass != @varClass. device then
+      #myGetter code.
+      addStringValue ( !?varMapRegBody !lstringWith(!"myGetter") ![inst myGetter !true])
+      addStringValue ( !?varMapRegBody !lstringWith(!"myGetterNoLocal") ![inst myGetter !false])
+      #mySetter code.
+      addStringValue ( !?varMapRegBody !lstringWith(!"mySetter") ![inst mySetter])
+    end
+
+    #declaration (if appropriate).
+    addStringValue ( !?varMapRegBody !lstringWith(!"declare") ![inst generateCode !1 !@codeCtx. C])
+
+    varListTpl += !varMapRegBody
+  end
+  addListValue ( !?idfStructBody !lstringWith(!"varList") !varListTpl)
+  
+  addStringValue ( !?idfStructBody !lstringWith(!"typeDefCode") ![typedefMap generateCode !1 !@codeCtx. C])
+
+  #do not export memSpaceMap to the idfStruct (which is embedded into a core).
+  #because a memSpace is global. There is a copy in idfStruct for easy access.
+  addStructValue ( !?templateStruct !lstringWith(!"idfStruct") !idfStructBody)
+}
+
+

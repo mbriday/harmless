@@ -1,0 +1,195 @@
+
+
+# useful functions
+# -> reader @lstring getASTExp -> @ASTIdf exp #return an expression from simple idf.
+
+
+
+
+#AST Expression -> expression data from Abstract Syntax Analysis.
+abstract class @ASTExpression {
+  @location loc
+}
+
+list @ASTExpressionlist {
+  @ASTExpression exp
+}
+#----------------------------------------------------------------------------
+#-------------------------- define bit fields 
+#----------------------------------------------------------------------------
+
+list @ASTfieldList {
+  @ASTExpression expFrom
+  @ASTExpression expTo
+  @bool only1Exp #true if only one expression (expTo=expFrom), false if there are 2 expressions
+}
+
+#TODO: should be set in the format part.
+list @ASTsliceList {
+  @ASTfieldList field
+  @sint      fetchPart #used for instruction codes of different sizes: relative value, 0 is the current slice, -1 is previous slice, 1 is next slice, ...
+}
+
+#When a variable is used with a fieldList, its size may be updated:
+#function getVarSize
+#  ?? @varAbstractType type
+#  ?? @fieldList field
+#  -> @varBaseType outType
+#: 
+#  @varBaseType vbt := shouldBeVarBaseType[!type !"field"];
+#  if [type kind] == [@varKind float] then
+#    outType := vbt;
+#    error here: "cannot use fields on float variables.";
+#  else
+#    if [field length] == 0 then #no field list used
+#      outType := vbt;
+#    else
+#      outType := [@varBaseType new ![vbt kind] ![field fieldsize] ![vbt location]];
+#    end if;
+#  end if;  
+#end function;
+
+#----------------------------------------------------------------------------
+#-------------------------- expressions 
+#----------------------------------------------------------------------------
+
+
+#this should only be called in a Harmless instruction.
+#Used only in the 'instCycle' view.
+class @ASTExpInstructionSize : @ASTExpression {
+}
+
+#this should only be called in a Harmless instruction syntax (mnemo).
+#Used only in the 'syntax' view.
+class @ASTExpInstructionAddress : @ASTExpression {
+}
+
+enum @idfItemType {
+  case basic         #basic idf, only a name
+  case functionCall  #a function call -> with '(' expression list ')'
+  case tabular       #a tabular access, only one expression.
+}
+
+getter @idfItemType string -> @string outResult {
+  switch self
+    case basic        : outResult = "a basic identifier"
+    case functionCall : outResult = "a function call"
+    case tabular      : outResult = "a tabular access"
+  end
+}
+
+list @ASTidfItemList
+{
+  @lstring idf
+  @idfItemType type
+  @ASTExpressionlist ASTparamList #for a function call, or 1 item for tabular.
+}
+
+getter @ASTidfItemList string -> @string name {
+  name = ""
+  for (@lstring idf @idfItemType type ...) in  self 
+    do 
+      name+=[idf string]
+      if type == @idfItemType. functionCall then name += "(..)" end
+      if type == @idfItemType. tabular then name += "[..]" end
+    between name+="." 
+  end
+}
+
+class @ASTIdf : @ASTExpression {
+  @ASTidfItemList idfList #may be idf1.idf2.idf3
+}
+
+getter @lstring getASTExp
+  -> @ASTIdf exp {
+  var idfList =@ASTidfItemList.emptyList{}
+  var idfExpList =@ASTExpressionlist.emptyList{}
+  idfList += !self !@idfItemType. basic !idfExpList
+  exp = @ASTIdf. new { ![self location] !idfList}
+}
+
+class @ASTCast : @ASTExpression {
+  @ASTExpression ASTexp
+  @varBaseType toType
+}
+
+class @ASTBitFieldOp : @ASTExpression {
+  @ASTExpression ASTexp
+  @ASTfieldList astFList
+}
+
+#used for instruction constructor: format part.
+# ex with: expPrefix = 'chunk'
+# -> (FIELD(chunk3,(7),(0))|(FIELD(chunk2,(7),(0))<<8))
+class @ASTSliceFieldOp : @ASTExpression {
+  @string expPrefix
+  @ASTsliceList sliceList 
+  @uint globalOffset
+}
+
+class @ASTIntConst : @ASTExpression {
+  @uint64 value
+  @bool negative #if true, the real value is (-value). Kind should be signed.
+  @varKind kind  #should be signed if value is negative, but may be signed with a positive value.
+}
+
+#unary code id 0 -> "!"
+#unary code id 1 -> "~"
+#unary code id 2 -> "-"
+class @ASTUnaryOp : @ASTExpression {
+  @ASTExpression ASTexp
+  @uint id
+}
+
+# in the order: * / % + - >> << < > <= >= = !=  & ^ | && ^^ || ror rol cat (from 0) 
+class @ASTBinaryBasicOp : @ASTExpression {
+  @ASTExpression ASTexpLeft
+  @ASTExpression ASTexpRight
+  @uint id
+}
+
+
+#------------------------------------------------------------------------------
+#-- useful functions.
+#------------------------------------------------------------------------------
+
+#function getExpIdf
+#  ?? @varKind kind      # [@varKind unsigned]
+#  ?? @uint    size      # size of related var.
+#  ?? @bool    constant  # may the var be modified?
+#  ?? @string  prefix    # for code generation
+#  ?? @string  suffix    # for code generation
+#  ?? @lstring name      # name of the var
+#  -> @cIdf idf
+#:
+#  @varBaseType type := [@varBaseType new !kind !size ![name location]];
+#  @classicVar var := [@classicVar new !type !constant !prefix !suffix];
+#  idf := [@cIdf new !type !name !var];
+#end function;
+#
+#function getExpUint #unsigned value.
+#  ?? @uint    size      # size of related var
+#  ?? @uint64  val
+#  -> @cIntConst expUint
+#:
+#  @varBaseType type := [@varBaseType new ![@varKind unsigned] !size !here];
+#  expUint := [@cIntConst new !type !val !false];
+#end function;
+#
+#function getBoolVarType
+#  -> @varBaseType type
+#:
+#  type := [@varBaseType new ![@varKind unsigned] !1 !here];
+#end function;
+#
+##insert an u32 value (not const)
+#routine insertInVarMap
+#  ?! @varMap varMap
+#  ?? @lstring name
+#:
+#  @varBaseType type := [@varBaseType new ![@varKind unsigned] !32 ![name location]];
+#  @classicVar var := [@classicVar new !type !false !"" !""];
+#  [!?varMap insertKey !name !var];
+#end routine;
+
+

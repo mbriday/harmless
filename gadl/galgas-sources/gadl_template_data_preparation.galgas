@@ -1,0 +1,86 @@
+ #cDeclareVar
+
+#template related files.
+proc addLstringlist
+  ?!@TfieldMap ioTemplateVariableMap
+  ?let @lstring inListName
+  ?let @string inItemName
+  ?let @lstringlist inList {
+  var itemMapList =@TfieldMapList.emptyList{}
+  for (@lstring item) in  inList do
+    var itemMap =@TfieldMap.emptyMap{}
+    addLStringValue ( !?itemMap !inItemName !item)
+    itemMapList += !itemMap
+  end
+  addListValue ( !?ioTemplateVariableMap !inListName !itemMapList)
+}
+
+proc getTemplateLogList
+  ?! @string str
+  ?let  @TfieldMapList fmList
+  ?let  @uint tab {
+  @uint nbItems = [fmList length]
+  str += [nbItems string]+" item(s)\n"
+  for (@TfieldMap mMap) in  fmList do
+    getTemplateLogStruct ( !?str !mMap !tab)
+  end
+}
+
+proc getTemplateLogStruct
+  ?! @string str
+  ?let  @TfieldMap fm
+  ?let  @uint tab {
+  @bool start = true
+  for (@lstring key @Ttype mType @Tvalue mValue) in  fm do
+    @string space = @string. stringWithSequenceOfCharacters { !' ' !tab*2}
+    str += space
+    if start then str+= "-" else str += " " end start = false
+    str += [key string]+" ("+[mType messageGoilTemplateType]+") :"
+    if mType == @Ttype. boolType then
+      if [mValue mUnsigned64Value] == 1L then str+="true\n" else str+="false\n" end
+    elsif mType == @Ttype. unsignedType then str+= [[mValue mUnsigned64Value] string]+"\n"
+    elsif mType == @Ttype. stringType   then str+= [mValue mStringValue]+"\n"
+    elsif mType == @Ttype. listType     then getTemplateLogList (   !?str ![mValue mMapListValue] !tab+1)
+    elsif mType == @Ttype. mapType      then getTemplateLogStruct ( !?str ![mValue mStructValue] !tab+1)
+    elsif mType == @Ttype. structType   then getTemplateLogStruct ( !?str ![mValue mStructValue]  !tab+1)
+    elsif mType == @Ttype. enumType     then str+= [mValue mStringValue]+"\n"
+    elsif mType == @Ttype. unconstructedType then str += "unconstructed!!\n"
+    end
+  end
+}
+
+func getTemplateLog
+  ?let  @TfieldMap cfg
+  -> @string str {
+  str = ""
+  getTemplateLogStruct ( !?str !cfg !1)
+}
+
+proc addStringlist
+  ?!@TfieldMap ioTemplateVariableMap
+  ?let @lstring inListName
+  ?let @lstring inItemName
+  ?let @stringlist inList {
+  var itemMapList =@TfieldMapList.emptyList{}
+  for (@string item) in  inList do
+    var itemMap =@TfieldMap.emptyMap{}
+    addStringValue ( !?itemMap !inItemName !item)
+    itemMapList += !itemMap
+  end
+  addListValue ( !?ioTemplateVariableMap !inListName !itemMapList)
+}
+
+proc addStringset
+  ?!@TfieldMap ioTemplateVariableMap
+  ?let @lstring inListName
+  ?let @lstring inItemName
+  ?let @stringset inSet {
+  var itemMapList =@TfieldMapList.emptyList{}
+  for (@string item) in  inSet do
+    var itemMap =@TfieldMap.emptyMap{}
+    addStringValue ( !?itemMap !inItemName !item)
+    itemMapList += !itemMap
+  end
+  addListValue ( !?ioTemplateVariableMap !inListName !itemMapList)
+}
+

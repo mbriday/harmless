@@ -1,0 +1,13 @@
+syntax gadl_memory_mapping_parser (gadl_lexique) {
+
+rule <memoryMapping>
+  ! @memoryMapping memoryMapping {
+  @lstring memSpaceName
+  $idf$ ?memSpaceName
+  $:$
+  @luint64 address
+  $unumber$ ?address
+  memoryMapping = @memoryMapping. new { !memSpaceName !address}
+}
+
+}

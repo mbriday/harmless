@@ -1,0 +1,28 @@
+
+
+#--- Prologue routine
+before {
+}
+
+#--- 'when' clauses
+case . "core"
+message "a core only description file (with the .core extension)"
+?sourceFilePath:@lstring inSourceFile {
+  grammar gadl_core_alone_grammar in inSourceFile
+}
+
+#--- 'when' clauses
+case . "cpu"
+message "a CPU description, including peripherals and cores (with the .cpu extension)"
+?sourceFilePath:@lstring inSourceFile {
+  grammar gadl_cpu_grammar in inSourceFile
+}
+
+case . "gadlTemplate"
+message "a gadl template file"
+?sourceFilePath:@lstring unused inSourceFile {
+}
+
+#--- Epilogue routine
+after {
+}

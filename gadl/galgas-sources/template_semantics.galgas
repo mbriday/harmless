@@ -1,0 +1,506 @@
+#---------------------------------------------------------------------------*
+#                                                                           *
+#  Types for GOIL templates                                                 *
+#                                                                           *
+#  Copyright (C) 2009, ..., 2009 Pierre Molinaro.                           *
+#                                                                           *
+#  e-mail : molinaro@irccyn.ec-nantes.fr                                    *
+#                                                                           *
+#  This program is free software; you can redistribute it and/or modify it  *
+#  under the terms of the GNU General Public License as published by the    *
+#  Free Software Foundation.                                                *
+#                                                                           *
+#  This program is distributed in the hope it will be useful, but WITHOUT   *
+#  ANY WARRANTY; without even the implied warranty of MERCHANDIBILITY or    *
+#  FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for *
+#   more details.                                                           *
+#                                                                           *
+#---------------------------------------------------------------------------*
+
+# * addBoolValue
+# * addUnsignedValue
+# * addLUnsignedValue
+# * addStringValue
+# * addLStringValue
+# * addListValue
+# * addStructValue
+# * addEnumValue
+
+
+
+func tabsTpl 
+  ?let  @uint nbTabulation
+  -> @string code {
+  code = ""
+  @uint val = nbTabulation
+  loop( nbTabulation + 1)
+  while val > 0 do
+    code += "\t"
+    val--
+  end
+}
+
+
+#------------------------------------------------------------------------------*
+
+enum @Ttype {
+  case boolType 
+  case unsignedType 
+  case stringType 
+  case listType 
+  case mapType 
+  case structType 
+  case enumType 
+  case unconstructedType
+}
+
+#------------------------------------------------------------------------------*
+
+getter @Ttype messageGoilTemplateType -> @string outResult {
+  switch self
+    case boolType : outResult = "bool"
+    case unsignedType : outResult = "unsigned"
+    case stringType : outResult = "string"
+    case listType : outResult = "list"
+    case mapType : outResult = "map"
+    case structType : outResult = "struct"
+    case enumType : outResult = "enum"
+    case unconstructedType : outResult = "unconstructed"
+  end 
+} 
+
+#------------------------------------------------------------------------------*
+
+list @TtypeList {
+  @Ttype mType
+}
+
+#------------------------------------------------------------------------------*
+
+map @TfieldMap {
+  @Ttype  mType
+  @Tvalue mValue 
+  insert insertKey error message "a template field named '%K' is already declared in %L"
+  search searchKey error message "there is no template field named '%K'"
+  remove removeKey error message "there is no template field named '%K' to delete"
+}
+
+#------------------------------------------------------------------------------*
+
+list @TfieldMapList {
+  @TfieldMap mMap %setter
+}
+
+#------------------------------------------------------------------------------*
+
+struct @Tvalue {
+  @uint64 mUnsigned64Value
+  @string mStringValue
+  @TfieldMapList mMapListValue
+  @TfieldMap mStructValue
+}
+
+#------------------------------------------------------------------------------*
+
+list @TexpressionList {
+  @Tvalue mValue
+  @Ttype mType
+}
+
+#------------------------------------------------------------------------------*
+
+list @TenumationList {
+  @Tvalue mEnumeratedValue
+  @string mPrefix
+}
+
+#------------------------------------------------------------------------------*
+
+func valueWithBool
+  ?let @bool inValue
+  ->@Tvalue outValue {
+  outValue = @Tvalue. new {
+    ![inValue uint64]
+    !""
+    !@TfieldMapList. emptyList
+    !@TfieldMap. emptyMap}
+}
+
+#------------------------------------------------------------------------------*
+
+func valueWithUnsigned
+  ?let @uint64 inValue
+  ->@Tvalue outValue {
+  outValue = @Tvalue. new {
+    !inValue
+    !""
+    !@TfieldMapList. emptyList
+    !@TfieldMap. emptyMap}
+}
+
+#------------------------------------------------------------------------------*
+
+func valueWithString
+  ?let @string inValue
+  ->@Tvalue outValue {
+  outValue = @Tvalue. new {
+    !0L
+    !inValue
+    !@TfieldMapList. emptyList
+    !@TfieldMap. emptyMap}
+}
+
+#------------------------------------------------------------------------------*
+
+func valueWithStruct
+  ?let @TfieldMap inValue
+  ->@Tvalue outValue {
+  outValue = @Tvalue. new {
+    !0L
+    !""
+    !@TfieldMapList. emptyList
+    !inValue}
+}
+
+#------------------------------------------------------------------------------*
+
+func valueWithMap
+  ?let @TfieldMap inValue
+  ->@Tvalue outValue {
+  outValue = @Tvalue. new {
+    !0L
+    !""
+    !@TfieldMapList. emptyList
+    !inValue}
+}
+
+#------------------------------------------------------------------------------*
+
+func valueWithVoid
+  ->@Tvalue outValue {
+  outValue = @Tvalue. new {
+    !0L
+    !""
+    !@TfieldMapList. emptyList
+    !@TfieldMap. emptyMap}
+}
+
+#------------------------------------------------------------------------------*
+
+proc addBoolValue
+  ?!@TfieldMap ioTemplateVariableMap
+  ?let @lstring inVariableName
+  ?let @bool inValue {
+  [!?ioTemplateVariableMap insertKey
+    !inVariableName
+    !@Ttype. boolType
+    !valueWithBool(!inValue)
+  ]
+}
+
+#------------------------------------------------------------------------------*
+
+proc addUnsignedValue
+  ?!@TfieldMap ioTemplateVariableMap
+  ?let @lstring inVariableName
+  ?let @uint64 inValue {
+  [!?ioTemplateVariableMap insertKey
+    !inVariableName
+    !@Ttype. unsignedType
+    !valueWithUnsigned(!inValue)
+    #[@goilTemplateValue new !inValue !"" ![@goilTemplateFieldMapList emptyList]]
+  ]
+}
+
+#------------------------------------------------------------------------------*
+
+proc addLUnsignedValue
+  ?!@TfieldMap ioTemplateVariableMap
+  ?let @string inVariableName
+  ?let @luint64 inValue {
+  addUnsignedValue ( !?ioTemplateVariableMap !@lstring. new { !inVariableName ![inValue location]} ![inValue uint64])
+}
+
+#------------------------------------------------------------------------------*
+
+proc addStringValue
+  ?!@TfieldMap ioTemplateVariableMap
+  ?let @lstring inVariableName
+  ?let @string inValue {
+  [!?ioTemplateVariableMap insertKey
+    !inVariableName
+    !@Ttype. stringType
+    !valueWithString(!inValue)
+    #[@goilTemplateValue new !0L !inValue ![@goilTemplateFieldMapList emptyList]]
+  ]
+}
+
+#------------------------------------------------------------------------------*
+
+proc addLStringValue
+  ?!@TfieldMap ioTemplateVariableMap
+  ?let @string inVariableName
+  ?let @lstring inValue {
+  addStringValue ( !?ioTemplateVariableMap !@lstring. new { !inVariableName ![inValue location]} ![inValue string])
+}
+
+#------------------------------------------------------------------------------*
+
+proc addListValue
+  ?!@TfieldMap ioTemplateVariableMap
+  ?let @lstring inVariableName
+  ?let @TfieldMapList inValue {
+  [!?ioTemplateVariableMap insertKey
+    !inVariableName
+    !@Ttype. listType
+    !@Tvalue. new { !0L !"" !inValue !@TfieldMap. emptyMap}
+  ]
+}
+
+#------------------------------------------------------------------------------*
+
+proc addStructValue
+  ?!@TfieldMap ioTemplateVariableMap
+  ?let @lstring inVariableName
+  ?let @TfieldMap inValue {
+  [!?ioTemplateVariableMap insertKey
+    !inVariableName
+    !@Ttype. structType
+    !@Tvalue. new { !0L !"" !@TfieldMapList. emptyList !inValue}
+  ]
+}
+
+#------------------------------------------------------------------------------*
+
+proc addEnumValue
+  ?!@TfieldMap ioTemplateVariableMap
+  ?let @lstring inVariableName
+  ?let @string inValue {
+  [!?ioTemplateVariableMap insertKey
+    !inVariableName
+    !@Ttype. enumType
+    !valueWithString(!inValue)
+    #[@goilTemplateValue new !0L !inValue ![@goilTemplateFieldMapList emptyList]]
+  ]
+}
+
+#------------------------------------------------------------------------------*
+func stringSetToList
+  ?let  @stringset stringSet
+  ?let  @string idName
+  -> @TfieldMapList TfieldMapList {
+  #store the set in a list.
+  TfieldMapList = @TfieldMapList. emptyList
+  for (@string id) in  stringSet do
+    var body =@TfieldMap.emptyMap{}
+    addStringValue ( !?body !@lstring. new { !idName !@location.here} !id)
+    TfieldMapList += !body
+  end
+}
+
+#------------------------------------------------------------------------------*
+
+list @TvarPath {
+  @lstring item
+  @lstring key
+}
+
+#------------------------------------------------------------------------------*
+
+proc searchField
+  ?@TvarPath variable
+  ?let @TfieldMap inTemplateFieldMap
+  !@Ttype variableType
+  !@Tvalue variableValue
+  !@location variableLocation {
+  @lstring field
+  @lstring key
+  variableLocation = @location.here
+  [!?variable popFirst ?field ?key]
+  [inTemplateFieldMap searchKey !field ?variableType ?variableValue]
+  variableLocation = [inTemplateFieldMap locationForKey ![field string]]
+  if [key string] != "" & variableType == @Ttype. mapType then
+    @TfieldMap mapMap = [variableValue mStructValue]
+    [mapMap searchKey !key ?variableType ?variableValue]
+    variableLocation = [mapMap locationForKey ![key string]]
+  end
+  if [variable length] > 0 then
+    if variableType == @Ttype. structType then
+      searchField ( !variable ![variableValue mStructValue] ?variableType ?variableValue ?variableLocation)
+    else
+      variableLocation = @location.here
+      error field: "struct variable expected": variableValue
+    end
+  end
+}
+
+#------------------------------------------------------------------------------*
+
+proc searchFieldIfExists
+  ?@TvarPath variable
+  ?let @TfieldMap inTemplateFieldMap
+  !@Ttype variableType
+  !@Tvalue variableValue
+  !@bool found {
+  @lstring field
+  @lstring key
+  [!?variable popFirst ?field ?key]
+  
+  if [inTemplateFieldMap hasKey ![field string]] then
+    [inTemplateFieldMap searchKey !field ?variableType ?variableValue]
+    if [key string] != "" & variableType == @Ttype. mapType then
+      if [[variableValue mStructValue] hasKey ![key string]] then
+        [[variableValue mStructValue] searchKey !key ?variableType ?variableValue]
+        found = true
+      else
+        found = false
+      end
+    else
+      found = true
+    end
+  else
+    variableType = @Ttype. unconstructedType
+    variableValue = valueWithVoid()
+    found = false
+  end
+  if [variable length] > 0 & found then
+    if variableType == @Ttype. structType then
+      searchFieldIfExists ( !variable ![variableValue mStructValue] ?variableType ?variableValue ?found)
+    else
+      found = false
+    end
+  end
+}
+
+########################################################################
+## file managment TOOLS
+########################################################################
+#Open "fullFilename" and get its content. If it is different than the "content" in 
+#argument, the file is updated. This is useful to prevent the make tool to rebuild an 
+#unmodified file.
+proc writeOnDiskIfUpdated
+  ?let  @string fullFilename
+  ?let  @string content {
+  @bool overwrite = true
+  #check if the file exists.
+  if [fullFilename fileExists] then
+    @string currentFileContent = @string. stringWithContentsOfFile { !fullFilename}
+    if currentFileContent == content then
+      #file not changed.
+      overwrite = false
+    end
+  end
+  if overwrite then
+    [content makeDirectoryAndWriteToFile !fullFilename]
+  end
+}  
+
+#give full filename path
+#if the file does not begins with '/', a "./" is added to use a correct relative path.
+func getFullFileName
+  ?let  @string relativeDirectory
+  ?let  @string filename
+  ->  @string fullFilename {
+  @string sourceFilePath = [@string. stringWithSourceFilePath stringByDeletingLastPathComponent]
+  if sourceFilePath == "" then
+    if [@string. stringWithSourceFilePath firstCharacterOrNul] != '/' then
+      sourceFilePath = "."
+    end
+  end
+  fullFilename = [filename absolutePathFromPath !sourceFilePath+"/"+relativeDirectory]
+  #message "file : ". fullFilename."\n";
+}
+
+#create the file and update if it does not exists.
+proc createFile
+  ?let  @string directory
+  ?let  @string filename
+  ?let  @string content {
+  @string fullFilename = getFullFileName(!directory !filename)
+  #[contentWithPreamble makeDirectoryAndWriteToFile !fullFilename];
+  writeOnDiskIfUpdated ( !fullFilename ! content)
+}
+
+########################################################################
+## routines to get a log of the template data structure.
+########################################################################
+
+#debug value.
+func printValue
+  ?let  @Ttype mType 
+  ?let  @Tvalue mValue
+  ?let  @uint nbTab
+  -> @string str {
+  str = ""
+  switch mType
+  case boolType:
+    if [mValue mUnsigned64Value] != 0L then str += "true" else str += "false" end
+  case unsignedType:
+    str += [[mValue mUnsigned64Value] string]
+  case stringType:
+    str += getXMLCompliant(![mValue mStringValue])
+  case listType:
+    str += extractListTemplateStructureRec(![mValue mMapListValue] !nbTab+1)+tabsTpl(!nbTab)
+  case mapType:
+    str += extractMapTemplateStructureRec(![mValue mStructValue] !nbTab+1)+tabsTpl(!nbTab)
+  case structType:
+    str += extractMapTemplateStructureRec(![mValue mStructValue] !nbTab+1)+tabsTpl(!nbTab)
+  case enumType:
+    str += [mValue mStringValue]
+  case unconstructedType:
+  end
+}
+
+func getXMLCompliant
+  ?  @string base
+  -> @string xml {
+  xml = [base stringByReplacingStringByString !"&" !"&amp;"] #XML
+  xml = [xml stringByReplacingStringByString !"<" !"&lt;"]   #XML
+  xml = [xml stringByReplacingStringByString !">" !"&gt;"]   #XML
+  xml = [xml stringByReplacingStringByString !"\"" !"&quot;"]#XML
+  xml = [xml stringByReplacingStringByString !"'" !"&apos;"] #XML
+}
+
+#map type (recursive)
+func extractMapTemplateStructureRec
+  ?let  @TfieldMap templateVariableMap
+  ?let  @uint nbTab
+  -> @string str {
+  str = "<item key=\"item\">"
+  for (@lstring key @Ttype mType @Tvalue mValue) in  templateVariableMap do
+    str += "\n"+tabsTpl(!nbTab)+"<item key=\""+[key string]+"\" type=\""+[mType messageGoilTemplateType]+"\">"
+    str += printValue(!mType !mValue !nbTab)
+    str += "</item>"
+  end
+  str += "</item>\n"
+}
+
+#list type (recursive)
+func extractListTemplateStructureRec
+  ?let  @TfieldMapList templateVariableList
+  ?let  @uint nbTab
+  -> @string str {
+  str = ""
+  for (@TfieldMap fieldMap) in  templateVariableList do
+    str += extractMapTemplateStructureRec(!fieldMap !nbTab)
+  end
+}
+
+proc extractTemplateStructure
+  ?let  @TfieldMap templateVariableMap
+  ?let  @string filename {
+ @string str = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<root>"
+ str += extractMapTemplateStructureRec(!templateVariableMap !0)
+ str+= "\n</root>"
+ createFile ( !"." !filename !str)
+}
+
+#function getTemplateString
+#  ?? @TfieldMap inTemplateFieldMap
+#  ?? @lstring key
+#  -> @string str
+#:
+#  @Tvalue variableValue;
+#  @Ttype variableType;
+#  searchField !path !inTemplateVariableMap ?variableType ?variableValue ?outWhere;
+#end function;

@@ -1,0 +1,239 @@
+syntax gadl_implementation_parser (gadl_lexique) {
+
+rule <expression> !@ASTExpression exp
+rule <idf> !@ASTExpression exp
+rule <bitField> !@ASTfieldList fieldList
+
+
+rule <implementationOrEmpty>
+  ?! @ASTInstructionList instList {
+  select
+    #empty implementation
+  or
+    <implementation> !?instList
+  end
+}
+
+
+rule <ifInstruction>
+  ! @ASTInstruction inst {
+  @ASTExpression expIf
+  var IfInstructionList =@ASTInstructionList.emptyList{}
+  var elseInstructionList =@ASTInstructionList.emptyList{}
+  let @location loc = @location.here
+  <expression>  ?expIf
+  $then$
+  <implementationOrEmpty> !?IfInstructionList
+  select
+    #no else.
+  or
+    $else$
+    <implementationOrEmpty> !?elseInstructionList
+  or
+    $elseif$
+    @ASTInstruction instElse
+    <ifInstruction> ?instElse
+    elseInstructionList += !instElse
+  end
+  inst = @ASTInstIf. new { !loc !expIf !IfInstructionList !elseInstructionList}
+}
+
+rule <ifBlock>
+  ?! @ASTInstructionList instList {
+  $if$
+  @ASTInstruction inst
+  <ifInstruction> ?inst
+  instList += !inst
+  $end$ $if$
+}
+
+rule <return>
+  ?! @ASTInstructionList instList {
+  @ASTExpression exp
+  $return$
+  <expression> ?exp
+  instList += !@ASTInstReturn. new { !@location.here !exp}
+}
+
+#this rule is used to prevent the execution of the next xx instructions.
+rule <instNop>
+  ?! @ASTInstructionList instList {
+  @ASTExpression exp
+  $nop$
+  <expression> ?exp
+  $instruction$
+  instList += !@ASTInstNop. new { !@location.here !exp}
+}
+
+rule <loopBlock>
+  ?! @ASTInstructionList instList {
+  var loopInstList =@ASTInstructionList.emptyList{}
+  $loop$
+  let @location loc = @location.here
+  @ASTExpression guard
+  <expression> ?guard
+  $while$
+  @ASTExpression expCondition
+  <expression> ?expCondition
+  $do$
+  <implementation> !?loopInstList
+  $end$ $loop$
+  instList += !@ASTInstLoop. new { !loc !guard !expCondition !loopInstList}
+}
+
+rule <errorHandling>
+  ?! @ASTInstructionList instList {
+  @bool onlyWarn
+  select 
+    $warning$
+    onlyWarn = true
+  or 
+    $error$
+    onlyWarn = false
+  end
+  @lstring msg
+  $caracterStr$ ?msg
+  instList += !@ASTInstError. new { !@location.here !onlyWarn !msg}
+}
+
+#This instruction print the text in parameter on stderr.
+#used to model the uart.
+rule <instPrint>
+  ?! @ASTInstructionList instList {
+  $print$
+  repeat
+    select
+      @ASTExpression exp
+      <expression> ?exp
+      instList += !@ASTInstPrint. new { !@location.here !exp}
+    or  
+      @lstring msg
+      $caracterStr$ ?msg
+      instList += !@ASTInstMessage. new { !@location.here !msg}
+    end
+  while $,$
+  end
+}
+
+rule <assignmentLeft>
+  ?let  @ASTExpression idf
+  ?! @ASTInstructionList instList {
+  @ASTfieldList fieldList
+  select
+    fieldList = @ASTfieldList. emptyList
+  or
+    <bitField> ?fieldList 
+  end
+  $:=$
+  <expression> ?var @ASTExpression exp
+  instList += !@ASTInstAssignment. new { !@location.here !idf !fieldList !exp}
+}
+
+rule <assignmentOrFunctionCall>
+  ?! @ASTInstructionList instList {
+  @ASTExpression idf
+  <idf> ?idf
+  select
+    #function call.
+    instList += !@ASTInstFunctionCall. new { !@location.here !idf}
+  or
+    <assignmentLeft> !idf !?instList
+  end
+}
+
+rule <typeDeclaration>
+  ! @varAbstractType type {
+  @varAbstractType typeBase #type of an item in a tabular
+  select 
+    @luint varSize
+    $uvar$ ? varSize
+    typeBase = @varBaseType. new { !@varKind. unsigned ![varSize uint] !@location.here}
+  or
+    @luint varSize
+    $svar$ ? varSize 
+    typeBase = @varBaseType. new { !@varKind. signed ![varSize uint] !@location.here}
+  or
+    $void$
+    typeBase = @varBaseType. new { !@varKind. unsigned !0 !@location.here} #void <=> u0
+  or
+    @lstring typeName
+    $type$
+    $idf$ ? typeName
+    typeBase = @varStructType. new { !@varKind. custom !typeName}
+  end
+  #this may be a tabular.
+  select
+    @luint64 tabLength
+    $[$ $unumber$ ?tabLength $]$
+    type = @varTabularType. new { !@varKind. tabular !typeBase ![tabLength uint]}
+  or
+    type = typeBase
+  end
+}
+  
+rule <declaration>
+  ?! @ASTInstructionList instList {
+  @varAbstractType type
+  <typeDeclaration> ?type
+  repeat
+    @lstring idf
+    $idf$ ?idf
+    instList += !@ASTInstDeclaration. new { !@location.here !@varClass. localVar !type !idf}
+    select
+    or 
+      <assignmentLeft> ![idf getASTExp] !?instList
+    end
+  while
+    $,$
+  end
+}
+
+rule <typeDefinition>
+  ?! @ASTInstructionList instList {
+  var memberMap =@typedefMemberMap.emptyMap{}
+  @lstring idf
+  $typedef$
+  let @location loc = @location.here
+  $idf$ ?idf
+  ${$
+  repeat
+    @varAbstractType type
+    @lstring member
+    <typeDeclaration> ?type
+    $idf$ ?member
+    [!?memberMap insertKey !member !type]
+  while
+  end
+  $}$
+  instList += !@ASTInstTypeDefinition. new { !loc !idf !memberMap}
+}
+
+rule <implementation> 
+  ?! @ASTInstructionList instList {
+  repeat
+    select
+      <ifBlock> !?instList
+    or
+      <return> !?instList
+    or
+      <instNop> !?instList
+    or
+      <loopBlock> !?instList
+    or
+      <errorHandling> !?instList
+    or
+      <instPrint> !?instList
+    or
+      <assignmentOrFunctionCall> !?instList
+    or
+      <declaration> !?instList
+    or
+      <typeDefinition> !?instList
+    end
+  while
+  end
+}
+
+
+
+}

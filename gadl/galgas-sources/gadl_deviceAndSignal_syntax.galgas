@@ -1,0 +1,76 @@
+syntax gadl_deviceAndSignal_syntax (gadl_lexique) {
+
+rule <memoryMapping> !@memoryMapping memoryMapping
+rule <idf> !@ASTExpression exp
+
+rule <deviceDeclaration>
+  ?let  @bool memoryAccessIsLocal #true if a device is declared inside a peripheral (same mem chunk).
+  ?let  @ASTperipheralMap ASTperipheralMap
+  !  @ASTInstDeclarationDevice deviceDec {
+  @varAbstractType type
+  $device$ $idf$ ?var @lstring deviceType
+  [ASTperipheralMap searchKey !deviceType ?* ?* ?* ?* ?* ?* ?* ?*] #check that peripheral is defined.
+  @varAbstractType typeBase = @varDeviceType. new { !@varKind. custom !deviceType}
+  select #code extracted from rule <typeDeclaration>
+    @luint64 tabLength
+    $[$ $unumber$ ?tabLength $]$
+    type = @varTabularType. new { !@varKind. tabular !typeBase ![tabLength uint]}
+  or
+    type = typeBase
+  end
+  $idf$ ?var @lstring deviceName
+  $maps$ $to$ 
+  @memoryMapping memoryMapping
+  select
+    $unumber$ ?var @luint64 address
+    memoryMapping = @memoryMapping. new { !@lstring. new { !"__local" !@location.here} !address}
+    if not memoryAccessIsLocal then
+      error @location.here: "The device declaration is not local. The memory space should be given: mem:\\x.."
+    end
+  or
+    <memoryMapping> ?memoryMapping
+    if memoryAccessIsLocal then
+      error @location.here: "The device declaration is local. Only the memory address should be given (no memory space name)."
+    end
+  end
+  deviceDec = @ASTInstDeclarationDevice. new { !@location.here !@varClass. device !type !deviceName !memoryMapping}
+}
+
+rule <signalConnect> {
+  $signal$ ${$
+  repeat
+  while
+    $shared$ $port$
+    <idf> ?var @ASTExpression ASTExpPortName
+    $->$
+    select
+      <idf> ?var @ASTExpression ASTExpToSignal
+      $wait$
+      <idf> ?var @ASTExpression ASTExpWaitSignal  
+    or
+      $*$ #joker
+    end
+  while
+    <idf> ?var @ASTExpression ASTExpFromSignal
+    $->$
+    select
+      <idf> ?var @ASTExpression ASTExpToSignal
+    or
+      $*$ #joker
+    end
+  while
+    $export$
+    select
+      $in$
+    or
+      $out$
+    end
+    repeat
+      <idf> ?var @ASTExpression ASTExpSignal
+    while $,$
+    end
+  end
+  $}$
+}
+
+}

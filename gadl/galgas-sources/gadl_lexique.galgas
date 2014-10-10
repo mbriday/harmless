@@ -1,0 +1,314 @@
+lexique gadl_lexique indexing in "INDEXING"{
+
+#style for Cocoa text editor.
+style keywordsStyle -> "Keywords:"
+style delimitersStyle -> "Delimiters:"
+style identifierStyle -> "Identifier symbols:"
+style numberStyle -> "Number constants:"
+style stringStyle -> "String constants:"
+style referenceStyle -> "reference:"
+style binaryMaskStyle -> "binary mask:"
+style varStyle -> "variable type:"
+style commentStyle -> "Comments:"
+
+#indexing (Cocoa text editor capability)
+indexing formatDef  : "format definition"
+indexing formatCall : "format call"
+
+#--------------- comments -------------------------------
+# They must be defined before delimitors!! 
+# '-' is a delimitor.
+$__comment__$  style commentStyle error message "a comment"
+rule "--" {
+  repeat #accept all except 0xA (LF) and 0xD (CR)
+    while '\u0001'->'\u0009' | '\u000B'| '\u000C'| '\u000E' -> '\uFFFD' : 
+  end
+  drop $__comment__$
+} 
+
+#-------------a character string---------------------
+#example: 'this is 1 character [string].'
+#There may be any character between '"' (ascii 0x22).
+#0xA (LF) and 0xD (CR) are ignored.
+#The caracter String is sent to the parser without the '"' delimitors.
+
+@string carStr
+$caracterStr$ ! carStr  style stringStyle error message "a character string"
+message carStrnotTerminated : "character string not terminated!"
+rule  '"' {
+  repeat 
+    while '\u0001'->'\u0009' | '\u000B'| '\u000C'| '\u000E' -> '\u0021' | '\u0023' -> '\uFFFD' : 
+
+    enterCharacterIntoString ( !?carStr !* )
+    while '\u000A' | '\u000D': #ignore
+  end
+   
+  select case '"' :
+  default 
+    error carStrnotTerminated
+  end
+
+  send $caracterStr$
+}
+
+#-------------a binary mask---------------------
+#example: \m'1011-0---'
+#There may be only 1,0 and - characters between "'"
+#The caracter String is sent to the parser without the "'" delimitors.
+#TODO: check for max length.
+
+@string binaryMaskStr   
+$binaryMask$ ! binaryMaskStr  style binaryMaskStyle error message "a binary mask"
+#message badBinaryMaskStr : "binary mask not well formed!";
+rule "\\m"{
+  repeat
+  while '0'->'1' :
+   enterCharacterIntoString ( !?binaryMaskStr !* )
+  while  '-':
+   enterCharacterIntoString ( !?binaryMaskStr !* )
+  while  '_':
+   #nothing...
+  end
+#   select when"'" :
+#   default 
+#    error badBinaryMaskStr;
+#   end select;   
+  send  $binaryMask$
+}
+
+#------------------Reference----------------------------
+#exemple: #ref
+#a reference begins with the # character.
+#The # is removed from the string for the syntax parser.
+
+@string refStr
+$reference$ ! refStr  style referenceStyle error message "a reference label"
+rule  '#'{
+  repeat 
+  while 'a'->'z' |'A'->'Z' | '_' | '0'->'9':
+    enterCharacterIntoString ( !?refStr !* )
+  end
+  send $reference$
+}
+
+#------------------ post Reference----------------------------
+#exemple: formatToCall@src
+#when calling a format, the @src means that in references that are used in 'formatToCall',
+#the 'src' string will be append to the ref name.
+
+@string postRefStr
+$postReference$ ! postRefStr  style referenceStyle error message "a post reference label"
+rule  '@'{
+  repeat 
+  while 'a'->'z' |'A'->'Z' | '_' | '0'->'9':
+    enterCharacterIntoString ( !?postRefStr !* )
+  end
+  send $postReference$
+}
+#--------------- Delimitors -----------------------------------
+
+list delimitorsList style delimitersStyle error message "the '%K' delimitor"{
+ ":","..",".",",","{",  "}","[","]",":=",
+"(",")",
+"!", "~",
+"*","/", "%",
+"+","-",
+"<<",  ">>",
+"<",">", "<=",  ">=", 
+"=", "!=", 
+"&", "^", "|", "&&", "^^", "||",
+"->"}
+rule list delimitorsList
+
+#--------------- Decimal-----------------------------------
+
+@uint64 number
+@sint64 snumber
+#snumber is used only to check that the signed number is not too large. 
+#but the unsigned value is always sent to the parser. 
+$snumber$  ! number  style numberStyle error message "a decimal signed number"
+$unumber$  ! number  style numberStyle error message "a decimal unsigned number"
+message snumberTooLarge : "signed number too large (>2**63-1)"
+message numberTooLarge : "unsigned number too large (>2**64-1)"
+message charNotABinDigit : "the character is not a binary digit"
+message charNotAOctDigit : "the character is not an ocal digit"
+message charNotADecDigit : "the character is not a decimal digit"
+message charNotAHexDigit : "the character is not a hexadecimal digit"
+message numberTypeNotRecognized : "Type of number unknown"
+
+#number can be \b10011, \d12983 or \xAF48c, or signed numbers postfixed by 's'.
+# the '_' char can be added for lisibility (not taken into account): ex \b0001_1001_1001
+rule '\\' {
+  select 
+  case 'b' | 'B': #binary number
+    repeat
+    while '0'->'1':
+      enterBinDigitIntoUInt64 ( !* !?number
+      error numberTooLarge, charNotABinDigit )
+    while '_':
+      #nothing
+    end 
+  case 'd' | 'D': #decimal number
+    repeat
+    while '0'->'9':
+      enterDigitIntoUInt64 ( !* !?number
+      error numberTooLarge, charNotADecDigit )
+    while '_':
+      #nothing
+    end 
+  case 'o' | 'O': #octal number
+    repeat
+    while '0'->'7':
+      enterOctDigitIntoUInt64 ( !* !?number
+      error numberTooLarge, charNotAOctDigit )
+    while '_':
+      #nothing
+    end 
+  case 'x' | 'X': #hex number
+    repeat
+    while '0'->'9' | 'a'->'f' | 'A' -> 'F':
+      enterHexDigitIntoUInt64 ( !* !?number
+      error numberTooLarge, charNotAHexDigit )
+    while '_':
+      #nothing
+    end 
+  default 
+    error numberTypeNotRecognized
+  end
+  select 
+  case 's' :
+    convertUInt64ToSInt64 ( !number !?snumber error snumberTooLarge)
+    send $snumber$
+  default
+    send  $unumber$
+  end
+}
+
+#number can be decimal: 193458
+#TODO:update for '_' char.
+rule '0'->'9' {
+  enterDigitIntoUInt64 ( !* !?number
+  error numberTooLarge, charNotADecDigit )
+  repeat
+  while '0'->'9':
+   enterDigitIntoUInt64 ( !* !?number
+   error numberTooLarge, charNotADecDigit )
+   while '_': 
+    #nothing
+  end 
+  select 
+  case "kb" :
+    multiplyUInt64 ( !1024 !?number error numberTooLarge)
+    send $unumber$
+  case "mb" : #1024*1024=1048576
+    multiplyUInt64 ( !1048576 !?number error numberTooLarge)
+    send $unumber$
+  case 's' :
+    convertUInt64ToSInt64 ( !number !?snumber error snumberTooLarge)
+    send $snumber$
+  default
+    send  $unumber$
+  end
+}
+
+
+#--------------- Keywords -----------------------------------
+#
+# NOTE: If a Keyword is added in this list, it also should be added 
+# in the main.tex of the documentation file!
+#
+list keyWordList style keywordsStyle error message "the '%K' keyword"{
+"model","except","include",                              #model
+"port","device","architecture","write","shared",         #archi
+"behavior","format","select",                            #ISS
+"error","warning",                                       #error detection.
+"component","void","every",                              #component
+"interrupt",                                             #interrupt handling
+"memory","space","width","type","RAM","ROM",           #memory
+"register","stride","read","program","counter",
+"pipeline","stage","machine",                            #pipeline
+"bypass","release","in","maps","to","stall",
+"default","debug",                                       #global
+"big","little","endian",                                 #global (endianness)
+"typedef",                                               # structured types.
+                                                         # 'in' expression.
+"do","out","when","field","nop","on",                    #behavior
+"slice","case","is","others",                            #format
+"signed","or",
+"syntax","switch","number","octal","decimal",            #syntax
+"hexadecimal","binary","suffix","prefix",          
+"jumpTaken","add","cycle","use",                         #cycles 
+"timing","signal","emit","wait","for",                   #timing        
+"broadcast","activation","forever","enabled","export",   #timing        
+"return","print",                                        #implementation
+"if","then","elseif","else","end",                       #conditional
+"loop","while",                                          #loops 
+"true","false","ror","rol","cat",                        #expression
+"instruction","size","address",                          #expression
+"core", "import","isa","from",                           #core
+"peripheral",                                            #peripherals
+"cpu"                                                    #cpu
+}
+#-------------a variable .. and identifers (1/2).---------------------
+# TODO: not terminated. u3f does not send an identifier for instance.
+@string idStr
+$idf$ ! idStr  style identifierStyle error message "an identifier"
+# example u8, s32, u1 (<=>boolean).
+@uint varSize
+$uvar$  ! varSize  style varStyle error message "an unsigned variable type"
+rule 'u' {
+  enterCharacterIntoString ( !?idStr !* )
+  select
+  case '0'->'9' :
+   repeat
+    enterDigitIntoUInt ( !* !?varSize
+    error numberTooLarge, charNotADecDigit )
+   while '0'->'9':
+     end
+   send  $uvar$
+  default
+   repeat
+   while 'a'->'z' |'A'->'Z' | '_' | '0'->'9':
+    enterCharacterIntoString ( !?idStr !* )
+   end 
+   send search idStr in keyWordList default $idf$
+  end
+}
+
+$svar$  ! varSize  style varStyle error message "a signed variable type"
+rule 's' {
+  enterCharacterIntoString ( !?idStr !* )
+  select
+  case '0'->'9' :
+   repeat
+    enterDigitIntoUInt ( !* !?varSize
+    error numberTooLarge, charNotADecDigit )
+   while '0'->'9':
+     end
+   send  $svar$
+  default
+   repeat
+   while 'a'->'z' |'A'->'Z' | '_' | '0'->'9':
+    enterCharacterIntoString ( !?idStr !* )
+   end 
+   send search idStr in keyWordList default $idf$
+  end
+}
+
+#------------------Identifiers (2/2) (see previous rule) -------------
+rule 'a'->'z' |'A'->'Z'| '_'{
+   repeat
+   enterCharacterIntoString ( !?idStr !* )
+   while 'a'->'z' |'A'->'Z' | '_' | '0'->'9':
+   end 
+   send search idStr in keyWordList default $idf$
+}
+
+#--------------- spaces and escapes characters ----------
+# The ';' is treated like a space
+rule '\u0001'-> ' ' | ';'{  
+}
+
+
+}
+# vim:ft=ggs:ts=2:sw=2

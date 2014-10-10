@@ -1,0 +1,72 @@
+syntax gadl_isa_syntax (gadl_lexique) {
+
+#format
+rule  <format>  
+  ?let  @luint instructionSize
+  ?! @formatMap formatMap
+  ?! @uint internalFormatId
+rule <syntax>
+  ?! @syntaxMap syntaxMap
+  ?! @varMap fieldMap 
+  ?! @uint internalSyntaxId
+rule <printNumberType> ?! @printNumberTypeMap typeMap
+#behavior
+rule <behavior> ?!@ASTbehaviorMap ASTbehaviorMap ?!@uint internalBehaviorId
+#defaults
+rule <default> ?! @defaultSection defaultValues
+rule <component> ?! @ASTComponentMap ASTComponentMap 
+                        ?! @uint currentComponentId ?! @lstringMap componentMapOrder
+
+rule <isa> !@ASTIsa ASTIsa {
+  #format stuff
+  var formatMap =@formatMap.emptyMap{}
+  @uint internalFormatId = 0
+  #syntax stuff.
+  var syntaxMap =@syntaxMap.emptyMap{}
+  var fieldSyntaxMap =@varMap.emptyMap{}
+  @uint internalSyntaxId = 0
+  @printNumberTypeMap typeMap = @printNumberTypeMap. emptyMap
+  #behavior stuff.
+  var ASTbehaviorMap =@ASTbehaviorMap.emptyMap{}
+  @uint internalBehaviorId = 0
+  #component map
+  var ASTComponentMap =@ASTComponentMap.emptyMap{}
+  var componentMapOrder =@lstringMap.emptyMap{} #used to preserve description order of components.
+  @uint currentComponentId = 0
+  #default  
+  var defaultValues =@defaultSection.default
+  defaultValues.instructionSize = @luint. new { !32 !@location.here}
+  
+  $isa$ 
+  ${$
+  repeat
+  while
+    <behavior> !?ASTbehaviorMap !?internalBehaviorId
+  while
+    <format> ![defaultValues instructionSize] !?formatMap !?internalFormatId
+  while
+    <syntax> !?syntaxMap !?fieldSyntaxMap !?internalSyntaxId
+  while 
+     <printNumberType> !?typeMap    
+  while
+    <default> !?defaultValues
+  while
+    <component> !?ASTComponentMap !?currentComponentId !?componentMapOrder
+  end
+  $}$
+
+  ASTIsa = @ASTIsa. new { !formatMap
+                         !internalFormatId
+                         !syntaxMap
+                         !fieldSyntaxMap
+                         !internalSyntaxId
+                         !typeMap
+                         !ASTbehaviorMap
+                         !internalBehaviorId
+                         !ASTComponentMap
+                         !componentMapOrder
+                         !currentComponentId
+                         !defaultValues}
+}
+
+}

@@ -1,0 +1,28 @@
+syntax gadl_register_parser (gadl_lexique) { #varClass.
+
+#from gadl_implementation_parser
+rule <typeDeclaration> ! @varAbstractType type
+#from gadl_expression_parser
+rule <bitField> !@ASTfieldList fieldList
+
+
+rule <registerBitAccessDef>
+  ?let  @lstring regName
+  ?let  @varAbstractType type
+  ?! @ASTInstructionList regDefList {
+  ${$
+  repeat
+  while
+    @lstring bitFieldName
+    $idf$ ?bitFieldName
+    $:=$ $slice$
+    @ASTfieldList fieldList
+    <bitField> ?fieldList
+    regDefList += !@ASTInstDeclarationRegSlice. new { !@location.here 
+                                !@varClass. registerSlice !type !regName 
+                                !bitFieldName !fieldList}
+  end  
+  $}$
+}
+
+}

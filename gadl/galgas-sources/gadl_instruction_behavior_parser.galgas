@@ -1,0 +1,128 @@
+syntax gadl_instruction_behavior_parser (gadl_lexique) {
+
+#TODO: faire en sorte qu'une variable placee dans un 
+#      select n'utilise pas un mapToOvverride, car si c'est le même nom, ça va coincer!!!
+#      il n'y a pas de vérification à ce niveau là (dans le même behavior).
+
+
+#from gadl_function_parser
+rule <functionDefParam> !@parameterDefList parameterDefList
+
+#from gadl_implementation_parser
+rule <typeDeclaration> ! @varAbstractType type
+rule <assignmentLeft> ?let  @ASTExpression idf ?! @ASTInstructionList instList
+rule <implementation> ?! @ASTInstructionList instList
+rule <declaration> ?! @ASTInstructionList instList
+rule <implementationOrEmpty> ?! @ASTInstructionList instList
+
+
+#from gadl_expression_parser
+rule <paramCall> !@ASTExpressionlist idfExpList
+
+rule <behaviorImplementationPart>
+  ?! @ASTbehaviorChunkList chunkList {
+  var instList =@ASTInstructionList. emptyList{}
+  $do$
+  @location loc = @location.here
+  <implementationOrEmpty> !?instList
+  $end$ $do$ 
+  chunkList += !@ASTbehChunkImplementation. new { !loc !instList}
+}
+
+rule <behaviorFieldDeclaration>
+  ?! @ASTInstructionList instList {
+  $field$ 
+  @varAbstractType type
+  <typeDeclaration> ?type
+  @lstring idf
+  $idf$ ?idf
+  instList += !@ASTInstDeclaration. new { !@location.here !@varClass. field !type !idf}
+}
+
+rule <otherBehaviorCall> 
+  ?! @ASTbehaviorChunkList chunkList {
+  @lstring postRefName
+  @lstring behaviorCallName
+  $idf$ ?behaviorCallName
+  @ASTExpressionlist idfExpList
+  select
+    <paramCall> ?idfExpList
+  or
+    #nothing.
+    idfExpList = @ASTExpressionlist. emptyList
+  end
+  #suffix?
+  select
+    #no post ref name.
+    postRefName = @lstring. new { !"" !@location.here}    
+  or
+    $postReference$ ?postRefName
+  end
+  chunkList += !@ASTbehChunkCall. new { ![behaviorCallName location] !behaviorCallName !idfExpList !postRefName}
+}
+
+rule <behavior>
+  ?! @ASTbehaviorMap ASTbehaviorMap
+  ?! @uint unused internalBehaviorId {
+  $behavior$
+  @lstring behaviorName
+  $idf$ ?behaviorName
+  @parameterDefList parameterDefList
+  select
+    <functionDefParam> ?parameterDefList
+  or
+    parameterDefList =@parameterDefList. emptyList
+  end
+  @ASTBehBody body
+  <behaviorBody> ?body
+  $end$ $behavior$
+  [!?ASTbehaviorMap insertKey !behaviorName !parameterDefList !body]
+}
+
+rule <behaviorBody>
+  !@ASTBehBody body {
+  var fieldList =@ASTInstructionList.emptyList{}
+  var varDeclarationList =@ASTInstructionList.emptyList{}
+  var referenceSet =@stringset.emptySet{}
+  var chunkList =@ASTbehaviorChunkList.emptyList{}
+  @location loc = @location.here
+  repeat
+  while
+    <behaviorFieldDeclaration> !?fieldList
+  while
+    <declaration> !?varDeclarationList
+  while
+    #implementation
+    <behaviorImplementationPart> !?chunkList
+  while
+    #ref only. Add it.
+    @lstring refName
+    $reference$ ?refName
+    referenceSet += ![refName string]
+  while
+    <selectPart> !?chunkList
+  while
+    #other behaviors call.
+    <otherBehaviorCall> !?chunkList
+  end
+  body = @ASTBehBody. new { !loc !fieldList !varDeclarationList !referenceSet !chunkList}
+}
+
+rule <selectPart>
+  ?! @ASTbehaviorChunkList chunkList {
+  var bodyList =@ASTBehBodyList.emptyList{}
+  $select$
+  @location loc = @location.here
+  repeat
+  while
+    $case$
+    @ASTBehBody body
+    <behaviorBody> ?body
+    bodyList += !body
+  end
+  $end$
+  $select$
+  chunkList += !@ASTbehChunkSelect. new { !loc !bodyList}
+}
+
+}

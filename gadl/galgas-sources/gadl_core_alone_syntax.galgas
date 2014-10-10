@@ -1,0 +1,48 @@
+syntax gadl_core_alone_syntax (gadl_lexique) {
+
+rule <core>
+  ?! @ASTCoreMap ASTcoreMap
+  ?! @ASTmemSpaceMap ASTmemSpaceMap
+
+rule <coreAlone> {
+
+  var ASTcoreMap =@ASTCoreMap.emptyMap{}
+  var ASTmemSpaceMap =@ASTmemSpaceMap.emptyMap{}
+  <core> !?ASTcoreMap !?ASTmemSpaceMap
+  #get back the core name, and set cpuName and exportDir.
+  @lstring coreName = @lstring. new { !"coreName" !@location.here}
+  for () in  ASTcoreMap do coreName = lkey end
+  @lstring cpuName   = coreName
+  @lstring exportDir = coreName
+  #Ok. Parsing done. Now apply semantic.
+  ###########################################################################
+  # init templates.
+  ###########################################################################
+  @TfieldMap templateStruct = @TfieldMap. emptyMap
+  [!?templateStruct initTemplate !cpuName !exportDir]
+
+  ###########################################################################
+  # memory space.
+  ###########################################################################
+  @memSpaceMap memSpaceMap = [ASTmemSpaceMap getMemSpaceMap]
+  [memSpaceMap setInTemplate !?templateStruct]
+  
+  ###########################################################################
+  # core generation.
+  ###########################################################################
+  [ASTcoreMap coreSemantic !exportDir !memSpaceMap !?templateStruct]
+
+  ###########################################################################
+  # template generation
+  ###########################################################################
+  @string gadlLog = computeTemplate(!"" !templateStruct !"root")
+  if [option gadl_options.templateLogFile value] then
+    extractTemplateStructure ( !templateStruct !"templateLog.xml")
+  end
+  ###########################################################################
+  # filewrappers: add binary files inside the gadl compiler.
+  ###########################################################################
+  addFileWrappers ( !exportDir)
+}
+
+}

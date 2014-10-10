@@ -1,0 +1,313 @@
+
+
+# functions:
+# - generateCode -> for an instruction list (and add description line as comment).
+# - commentCurrentDescriptionLine -> print the description line (.hadl), for debugging.
+# - tabs -> add tabluations to get a candy output (C code).
+#
+# readers:
+# - generateCode for each instruction.
+# reader @fieldList getAssignCode
+
+abstract getter @instruction generateCode
+  ?let  @uint unused nbTabulation        ## input init tabulation (only to get candy ouput C code)
+  ?let  @codeCtx unused cgc              ## generation code context (C, Uppaal, ..)
+  -> @string code
+
+func tabs 
+  ?let  @uint nbTabulation
+  -> @string code {
+  code = ""
+  @uint val = nbTabulation
+  loop( nbTabulation + 1)
+  while val > 0 do
+    code += "\t"
+    val--
+  end
+}
+
+func commentCurrentDescriptionLine
+  ?let  @uint nbTabulation
+  ?let  @location loc
+  -> @string comment {
+  comment = tabs(!nbTabulation)
+  @stringlist l1 = [[loc locationString] componentsSeparatedByString !"'"]
+  @string longPath = [l1 mValueAtIndex !1]
+  @string shortPath = [longPath lastPathComponent]
+  comment += "// '"+shortPath+"', l."+[[loc line] string]+"\n"
+}
+
+func generateCode 
+  ?let  @instructionList instList
+  ?let  @uint nbTabulation
+  ?let  @codeCtx cgc              ## generation code context (C, Uppaal, ..)
+  -> @string code {
+  code = ""
+  @bool emptyInst = false #used for instruction that do not generate code.
+  for (@instruction inst) in  instList do
+    @string instCode = [inst generateCode !nbTabulation !cgc]
+    emptyInst = instCode == ""
+    if not emptyInst then
+      code += commentCurrentDescriptionLine(!nbTabulation ![inst loc])
+      code += instCode
+    end
+  between
+    if not emptyInst then
+      code += "\n"
+    end
+  end
+}
+
+
+override getter @instIf generateCode
+  ?let  @uint nbTabulation
+  ?let  @codeCtx cgc
+  -> @string code {
+  #check for needed '()': conditions like 
+   # idf or int do not have any '()', -> they should be added
+   # others (binary ops for instance have '()'. One should not add extra '()'.
+  @bool hasParenthesis = [cond hasParenthesis]
+  
+  code = tabs(!nbTabulation)
+  code += "if"
+  if not hasParenthesis then code += "(" end
+  code += [cond generateCode !cgc]
+  if not hasParenthesis then code += ")" end
+  code += "{\n"
+  code += generateCode(!instIfList !nbTabulation+1 !cgc)
+  code += "\n"
+  code += tabs(!nbTabulation)+"}"
+  if [instElseList length] > 0 then
+    code += " else {\n"
+    code += generateCode(!instElseList !nbTabulation+1 !cgc)
+    code += "\n"
+    code += tabs(!nbTabulation) + "}"
+  end
+}
+
+override getter @instReturn generateCode
+  ?let  @uint nbTabulation
+  ?let  @codeCtx cgc
+  -> @string code {
+  code = tabs(!nbTabulation)+"return "
+  code += [exp generateCode !cgc]+";"
+}
+
+override getter @instNop generateCode
+  ?let  @uint nbTabulation
+  ?let  @codeCtx cgc
+  -> @string code {
+  code = tabs(!nbTabulation)
+  if expContext == @expressionContext. behavior then
+    code += "_arch->"
+  end
+  code +="doNotExececuteNextInstructions("
+  code += [cond generateCode !cgc]+");"
+}
+
+override getter @instLoop generateCode
+  ?let  @uint nbTabulation
+  ?let  @codeCtx cgc
+  -> @string code {
+  #generates code inside a dedicated block.
+  #This allows to use the internal guard variable only inside this block.
+  code = tabs(!nbTabulation)+"{\n"
+  code += tabs(!nbTabulation+1)+"u32 __loopGuard = 0;\n"
+  code += tabs(!nbTabulation+1)
+  code += "while((__loopGuard < "+[guard generateCode !cgc]+") && ("
+  code += [expCondition generateCode !cgc]+")) {\n"
+  code += generateCode(!loopInstList !nbTabulation+2 !cgc)
+  code += "\n" 
+  code += tabs(!nbTabulation+2)+"__loopGuard++;\n"
+  code += tabs(!nbTabulation+1)+"}\n"  
+  code += tabs(!nbTabulation)+"}"
+}
+
+override getter @instError generateCode
+  ?let  @uint nbTabulation
+  ?let  @codeCtx unused cgc
+  -> @string code {
+  code = tabs(!nbTabulation)
+  code += "std::cerr << \"RUNTIME "
+  if onlyWarn then
+    code += "WARNING"
+  else
+    code += "ERROR"
+  end
+  code += " at "+[[msg location] locationString]+". Message is \\\""+[msg string]+"\\\"\" << std::endl;\n"
+}
+
+override getter @instPrint generateCode
+  ?let  @uint nbTabulation
+  ?let  @codeCtx cgc
+  -> @string code {
+  code = tabs(!nbTabulation)
+  code += "std::cerr << std::hex << "
+  code += [exp generateCode !cgc]+";"  
+}
+
+override getter @instMessage generateCode
+  ?let  @uint nbTabulation
+  ?let  @codeCtx unused cgc
+  -> @string code {
+  code = tabs(!nbTabulation)
+  code += "std::cerr << \""+[msg string]+"\";"
+}
+
+override getter @instFunctionCall generateCode
+  ?let  @uint nbTabulation
+  ?let  @codeCtx cgc
+  -> @string code {
+  code = tabs(!nbTabulation)+[exp generateCode !cgc]+";"  
+}
+
+getter @fieldList getAssignCode
+  ?let  @codeCtx cgc
+  ?let  @string idfReadAccess
+  ?let  @string rightExp #right code.
+  -> @string rightPart {
+  rightPart = ""
+  @uint offset = 0
+  #when this flag becomes true, the offset cannot be determined
+  #and the field should be the last (no more offset).
+  @bool unknown = false 
+  for >(@expression expFrom @expression expTo @location loc @bool only1Exp) in  self
+  do
+    if unknown then
+      error  loc: "error, the field size cannot be computed statically, gadl cannot "+
+                  "concatenate field parts for code generation (assign)."
+    end
+    @uint offsetInc = 0
+    @string fromExpCode = [expFrom generateCode !cgc]
+    @string rightExpShift = "("+rightExp+")"
+    if offset != 0 then rightExpShift += " >> " + [offset string] end
+    if only1Exp then
+      rightPart += "FIELD_ASSIGN_ONE_BIT("+idfReadAccess+","+fromExpCode+","+rightExpShift+")"
+      offsetInc = 1
+    else #general case.
+      @string toExpCode = [expTo generateCode !cgc]
+      rightPart += "FIELD_ASSIGN("+idfReadAccess+","+fromExpCode+","+toExpCode+","+rightExpShift+")"
+      #should get the size of the increment:
+      @uint64 rangeFrom
+      @bool ok = true
+      var symbolMap =@symbolValueMap.emptyMap{} #no symbols here.TODO.
+      [[expFrom eval !symbolMap] getUVal ?rangeFrom ?ok]
+      if ok then #can evaluate 'from'
+        @uint64 rangeTo
+        [[expTo eval !symbolMap] getUVal ?rangeTo ?ok]
+        if ok then #can evaluate 'to'
+          offsetInc = [rangeFrom uint]-[rangeTo uint]+1
+        end
+      end
+      unknown = not ok #can't add an offset just after.
+    end
+    offset = offset+offsetInc
+  between rightPart += " | "
+  end
+}
+
+
+# The instAssignment reader generates the following code:
+# * 'std' assignment : left = (right) & mask, 
+#                      where mask limits the result size to fit in 'left'
+# * 'register' assignement : setReg(right)
+#                      when left is a register.
+# * 'type' assignment : memcpy(left, right, sizeof(left));
+#                      when left is a structured type.
+#  @expIdf idf;
+#  @expression exp;
+
+override getter @instAssignment generateCode
+  ?let  @uint nbTabulation
+  ?let  @codeCtx cgc
+  -> @string code {
+  code = tabs(!nbTabulation)
+  @string rightExp = [exp generateCode !cgc]
+  @varKind kind = [[idfAssign type] kind] #unsigned, signed, float, custom, tabular
+  if kind ==  @varKind. custom then #specific case (memcopy)
+    code += "memcpy(&("+[idfAssign generateCode !cgc]+"), &("+rightExp+"),sizeof("+[[exp type] getCType]+"));"
+  else
+    #this is a scalar (local or reg or tab value).
+    @string postInstruction = ""
+    @string maskStr = ""
+    @string rightPart
+    @string leftPart
+    maskStr = getMaskFor(![[idfAssign type] sizeInBits] ![[idfAssign type] loc] !cgc)
+
+    #left part.
+    switch [idfAssign detectedType]
+    case unknown:
+      error loc: "The identifier is unknown in assignment (code generation) ":leftPart
+    case structMember,localVar,tabularAccess: #variable access.
+      leftPart = [idfAssign generateCode !cgc]+" = "  
+    case registerAccess,registerBitField: #register
+      leftPart = [idfAssign generateSetterCode !cgc]+"("
+      postInstruction = ")"
+    case componentCall,memoryAccess,periphCall:
+      error loc: "Cannot assign a function call or memory access.":leftPart
+    end
+
+    #right part (in case of fields)
+    if [flist length] == 0 then
+      rightPart = rightExp
+    else
+      rightPart = [flist getAssignCode !cgc ![idfRead generateCode !cgc] !rightExp]
+    end
+
+    code += leftPart
+    if cgc == @codeCtx. C then code += "(" end
+    code += rightPart
+    if cgc == @codeCtx. C then code += ") & " + maskStr+postInstruction+";" end
+  end
+}
+
+override getter @instDeclaration generateCode
+  ?let  @uint nbTabulation
+  ?let  @codeCtx cgc
+  -> @string code {
+  switch access
+  case localVar,device:
+    code = tabs(!nbTabulation)
+    @string name = prefixLocal+[idf string]
+    code += [type getDeclaration !name !cgc]
+    code += "; // "+[type string]
+  case field,programCounter,GPR,SFR,registerSlice:
+    #nothing.
+    code = ""
+  end
+}
+
+override getter @instDeclarationRegSlice generateCode
+  ?let  @uint unused nbTabulation
+  ?let  @codeCtx unused cgc
+  -> @string code {
+  code = ""
+}
+
+override getter @instTypeDefinition generateCode
+  ?let  @uint unused nbTabulation
+  ?let  @codeCtx unused cgc
+  -> @string code {
+  #no code associated. Type definition is done elsewhere.
+  code = ""
+}
+
+#This is not an instruction, however code generation is similar.
+getter @typedefMap generateCode
+  ?let  @uint nbTabulation
+  ?let  @codeCtx cgc
+  -> @string code {
+  #TODO: gestion de l'ordre des définitions!!
+  code = ""
+  for () in  self do
+    code += tabs(!nbTabulation)
+    code += "typedef struct {\n"
+    for () in  typedefMemberMap do
+      code += tabs(!nbTabulation+1)
+      code += [type getDeclaration ![lkey string] !cgc]+";\n"
+    end
+    code += tabs(!nbTabulation)
+    code += "} gadl_struct_"+[lkey string]+";\n\n"
+  end
+}
+

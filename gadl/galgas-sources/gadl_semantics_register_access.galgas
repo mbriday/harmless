@@ -1,0 +1,422 @@
+
+
+#This list get pipeline information for the DDC:
+# for each component that get registers, it stores the 
+# * pipeline stage where the registers are read
+# * pipeline stage where the registers are written
+#
+list @DDCPipelineInfoList {
+  @lstring addressSpace
+  @lstring pipelineReadName
+  @lstring pipelineStageReadName
+  @lstring pipelineWriteName
+  @lstring pipelineStageWriteName  
+}
+
+#this class is used only to get information about the memory registers file
+# -> a unique name (memory space name)
+# -> nb of elements (i.e. if this is a 32 bits registers, it is the size/4). It uses the stride.
+# -> if there are more than one chunk, used in alphabetical order, from small offset.
+map @DDCMemoryRegisterInfoMap {
+  @uint nbElt
+  @uint width
+  @uint maskId #store the chunkId.
+  @uint maskOffset #store the chunkOffset.
+  @intMap memChunkOffsetMap #offset foreach memChunk (local -> should add chunkOffset).
+  insert insertKey error message "the '%K' DDCMemoryRegisterInfoMap is already defined in %L" 
+  search searchKey error message "the '%K' DDCMemoryRegisterInfoMap is not defined"
+}
+
+#access to a register file.
+#Key is the memory space name (no notion of mem chunk inside an instruction).
+map @DDCRegisterFileAccess {
+  @bool read  #got a read  access;
+  @bool write #got a write access;
+  insert insertKey error message "the '%K' DDCRegisterFileAccess is already defined in %L" 
+  search searchKey error message "the '%K' DDCRegisterFileAccess is not defined"
+  remove removeKey error message "the '%K' DDCRegisterFileAccess is not defined and cannot be removed."
+}
+
+
+getter @DDCMemoryRegisterInfoMap string
+  -> @string msg {
+  msg = "register files for data dependancy controller\n"
+  for () in  self do
+    msg += "\tmemory space "+[lkey string]+":\n"
+    msg += "\t\t"+[nbElt string]+" elements of "+[width string]+" bytes \n"
+    msg += "\t\tinternal mask assignment chunk"+[maskId string]+", offset "+[maskOffset string]+"\n"
+    for () in  memChunkOffsetMap do
+      msg += "\t\t\tmem chunk "+[lkey string]+" -> offset "+[val string]+"\n"
+    end
+  end
+}
+
+##list all the R/W accesses. It should have
+##"@boolMap" entries. One entry for each
+##register file.
+## key is componentName_memoryName -> memid.
+#map @DDCRegisterFileAccess {
+#  @lstring componentName;
+#  @lstring memoryName;
+#  @stringMap methodAccessMap; #method access map -> read32, memoryName_read8, memoryName_memoryChunkName_write32..
+#  #String value is either "read" or "write".
+#  insert insertKey error message "the '%K' DDCRegisterFileAccess is already defined in %L" ; 
+#  search searchKey error message "the '%K' DDCRegisterFileAccess is not defined" ;
+#  remove removeKey error message "the '%K' DDCRegisterFileAccess is not defined and cannot be removed." ;
+#}
+
+#This map stores for each instruction (the key) the 
+#structures that records the read/write registers access.
+map @DDCRegisterAccessMap
+{
+  @boolMap registerReadAccess  #read  access to a register (defined using keyword 'register')
+  @boolMap registerWriteAccess #write access to a register (defined using keyword 'register')
+  @DDCRegisterFileAccess registerFileAccess #R/W/ access to a register file (inside memory part).
+  insert insertKey error message "the '%K' @DDCRegisterAccessMap is already defined in %L" 
+  search searchKey error message "the '%K' @DDCRegisterAccessMap is not defined"
+}
+
+#used to store a register mask for each item in memSpaceWithRegister and in classical registers.
+#key is the register file access:
+map @regMaskMap
+{
+  @string readMaskStr #as the result of an expression.
+  @string writeMaskStr
+  insert insertKey error message "the '%K' @regMaskMap is already defined in %L" 
+}
+
+map @regMaskMapMap
+{
+  @uint64 registerReadMask
+  @uint64 registerWriteMask
+  @regMaskMap regMaskMap
+  insert insertKey error message "the '%K' @regMaskMapMap is already defined in %L" 
+  search searchKey error message "the '%K' @regMaskMapMap is not defined"
+}
+
+####################################################################################
+# below are the 'getRegisterUsage' methods for:
+# * instructions
+#   - @instIf
+#   - @instReturn
+#   - @instNop
+#   - @instLoop
+#   - @instError
+#   - @instPrint
+#   - @instMessage
+#   - @instFunctionCall
+#   - @instAssignment
+#   - @instDeclaration
+#     -> @instDeclarationRegSlice 
+#   - @instTypeDefinition
+# * expressions.
+#   - expDummy
+#   - expIntConst
+#   - expInstructionSize
+#   - expInstructionAddress
+#   - expIdf
+#   - expCast
+#   - expBitFieldOp
+#   + expUnary
+#   - expBinary
+####################################################################################
+abstract method @instruction getRegisterUsage
+ ?let  @varIdfStruct unused varIdfStruct
+ ?! @boolMap unused registerReadAccess
+ ?! @boolMap unused registerWriteAccess
+ ?! @DDCRegisterFileAccess unused registerFileAccess
+ ?let  @intMap unused memSpaceWithRegister
+ ?let  @bool unused assignment
+
+override method @instError getRegisterUsage
+ ?let  @varIdfStruct unused varIdfStruct
+ ?! @boolMap unused registerReadAccess
+ ?! @boolMap unused registerWriteAccess
+ ?! @DDCRegisterFileAccess unused registerFileAccess
+ ?let  @intMap unused memSpaceWithRegister
+ ?let  @bool unused assignment {
+}
+
+override method @instMessage getRegisterUsage
+ ?let  @varIdfStruct unused varIdfStruct
+ ?! @boolMap unused registerReadAccess
+ ?! @boolMap unused registerWriteAccess
+ ?! @DDCRegisterFileAccess unused registerFileAccess
+ ?let  @intMap unused memSpaceWithRegister
+ ?let  @bool unused assignment {
+}
+
+override method @instPrint getRegisterUsage
+ ?let  @varIdfStruct unused varIdfStruct
+ ?! @boolMap unused registerReadAccess
+ ?! @boolMap unused registerWriteAccess
+ ?! @DDCRegisterFileAccess unused registerFileAccess
+ ?let  @intMap unused memSpaceWithRegister
+ ?let  @bool unused assignment {
+}
+
+override method @instNop getRegisterUsage
+ ?let  @varIdfStruct varIdfStruct
+ ?! @boolMap registerReadAccess
+ ?! @boolMap registerWriteAccess
+ ?! @DDCRegisterFileAccess registerFileAccess
+ ?let  @intMap memSpaceWithRegister
+ ?let  @bool unused assignment {
+  [cond getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+}
+
+override method @instIf getRegisterUsage
+ ?let  @varIdfStruct varIdfStruct
+ ?! @boolMap registerReadAccess
+ ?! @boolMap registerWriteAccess
+ ?! @DDCRegisterFileAccess registerFileAccess
+ ?let  @intMap memSpaceWithRegister
+ ?let  @bool unused assignment {
+  [cond getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+  for () in  instIfList do
+    [inst getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+  end
+  for () in  instElseList do
+    [inst getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+  end
+}
+
+override method @instDeclaration getRegisterUsage
+ ?let  @varIdfStruct unused varIdfStruct
+ ?! @boolMap unused registerReadAccess
+ ?! @boolMap unused registerWriteAccess
+ ?! @DDCRegisterFileAccess unused registerFileAccess
+ ?let  @intMap unused memSpaceWithRegister
+ ?let  @bool unused assignment {
+}
+
+override method @instTypeDefinition getRegisterUsage
+ ?let  @varIdfStruct unused varIdfStruct
+ ?! @boolMap unused registerReadAccess
+ ?! @boolMap unused registerWriteAccess
+ ?! @DDCRegisterFileAccess unused registerFileAccess
+ ?let  @intMap unused memSpaceWithRegister
+ ?let  @bool unused assignment {
+}
+
+override method @instLoop getRegisterUsage
+ ?let  @varIdfStruct varIdfStruct
+ ?! @boolMap registerReadAccess
+ ?! @boolMap registerWriteAccess
+ ?! @DDCRegisterFileAccess registerFileAccess
+ ?let  @intMap memSpaceWithRegister
+ ?let  @bool unused assignment {
+  [expCondition getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+  for () in  loopInstList do
+    [inst getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+  end
+}
+
+override method @instAssignment getRegisterUsage
+ ?let  @varIdfStruct varIdfStruct
+ ?! @boolMap registerReadAccess
+ ?! @boolMap registerWriteAccess
+ ?! @DDCRegisterFileAccess registerFileAccess
+ ?let  @intMap memSpaceWithRegister
+ ?let  @bool unused assignment {
+  #right part of assignment.
+  [exp getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+  #left part are written.
+  [idfAssign getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !true]
+}
+
+proc checkForAccessInRegisterFile
+ ?let  @idfItemList idfList
+ ?let  @bool read #read or write access.
+ ?let  @intMap memSpaceWithRegister
+ ?! @DDCRegisterFileAccess registerFileAccess {
+  @lstring memSpaceName = [idfList idfAtIndex !0] #we don't need the type of access considered.
+  #message "check for reg file access ".[memSpaceName string].":";
+  if [memSpaceWithRegister hasKey ![memSpaceName string]] then #this is a mem space with regs.
+    if [registerFileAccess hasKey ![memSpaceName string]] then
+      #message "update";
+      #already a file access -> update
+      if read then
+        [!?registerFileAccess setReadForKey !true ![memSpaceName string]] #update
+      else
+        [!?registerFileAccess setWriteForKey !true ![memSpaceName string]] #update
+      end
+    else
+      #message "insert";
+      #no access. Insert entry.
+      @bool R = read
+      @bool W = not read
+      [!?registerFileAccess insertKey !memSpaceName !R !W]
+    end
+    #if read then message "(R)"; else message "(W)"; end if;
+    #debug.
+    #[registerFileAccess searchKey !memSpaceName ?@bool R ?@bool W];
+    #message " -> ";
+    #if R  then message "R"; end if;
+    #if W then message "W"; end if;
+  end
+  #message "\n";
+}
+
+override method @instFunctionCall getRegisterUsage
+ ?let  @varIdfStruct varIdfStruct
+ ?! @boolMap registerReadAccess
+ ?! @boolMap registerWriteAccess
+ ?! @DDCRegisterFileAccess registerFileAccess
+ ?let  @intMap memSpaceWithRegister
+ ?let  @bool unused assignment {
+  #register defined using the 'register' keyword.
+  for () in  [exp idfList] do
+    for () in  paramList do
+      [exp getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+    end
+  end
+  switch [exp detectedType]
+    case unknown,structMember,localVar,tabularAccess,registerAccess,registerBitField:
+      error loc: "invalid detected type for a function call"+[[exp detectedType] string]
+    case componentCall:
+      @instructionList instList = [varIdfStruct.componentMap getInstList ![exp idfList]]
+      for () in  instList do
+        [inst getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+      end
+    case memoryAccess:
+      #register file (memory). This could be only a write (the instruction does not returns any value).
+      checkForAccessInRegisterFile ( ![exp idfList] !false !memSpaceWithRegister !?registerFileAccess)  
+    case periphCall: #nothing here.
+  end
+}
+
+override method @instReturn getRegisterUsage
+ ?let  @varIdfStruct varIdfStruct
+ ?! @boolMap registerReadAccess
+ ?! @boolMap registerWriteAccess
+ ?! @DDCRegisterFileAccess registerFileAccess
+ ?let  @intMap memSpaceWithRegister
+ ?let  @bool unused assignment {
+  [exp getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+}
+
+##Expression category.
+abstract method @expression getRegisterUsage
+ ?let  @varIdfStruct unused varIdfStruct
+ ?! @boolMap unused registerReadAccess
+ ?! @boolMap unused registerWriteAccess
+ ?! @DDCRegisterFileAccess unused registerFileAccess
+ ?let  @intMap unused memSpaceWithRegister
+ ?let  @bool unused assignment
+
+override method @expIdf getRegisterUsage
+ ?let  @varIdfStruct varIdfStruct
+ ?! @boolMap registerReadAccess
+ ?! @boolMap registerWriteAccess
+ ?! @DDCRegisterFileAccess registerFileAccess
+ ?let  @intMap memSpaceWithRegister
+ ?let  @bool assignment {
+  #parameters (if any).
+  for () in  idfList do
+    for () in  paramList do
+      [exp getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+    end
+  end
+
+  switch detectedType
+    case unknown,structMember,localVar,tabularAccess,periphCall: #nothing to do.
+    case registerAccess,registerBitField:
+      @lstring regName = [idfList idfAtIndex !0] #more than one idf in list for slices.
+      if assignment then #from the left part of an assignment expression
+        if not [registerWriteAccess hasKey ![regName string]] then
+          [!?registerWriteAccess insertKey !regName]
+        end
+      else
+        if not [registerReadAccess hasKey ![regName string]] then
+          [!?registerReadAccess insertKey !regName]
+        end
+      end
+    case componentCall:
+      #instructions
+      @instructionList instList = [varIdfStruct.componentMap getInstList !idfList]
+      for () in  instList do
+        [inst getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+      end
+    case memoryAccess: #only a read inside an expression.
+      checkForAccessInRegisterFile ( !idfList !true !memSpaceWithRegister !?registerFileAccess)  
+  end
+}
+
+override method @expBinary getRegisterUsage
+ ?let  @varIdfStruct varIdfStruct
+ ?! @boolMap registerReadAccess
+ ?! @boolMap registerWriteAccess
+ ?! @DDCRegisterFileAccess registerFileAccess
+ ?let  @intMap memSpaceWithRegister
+ ?let  @bool unused assignment {
+  [expLeft getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+  [expRight getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+}
+
+override method @expBitFieldOp getRegisterUsage
+ ?let  @varIdfStruct varIdfStruct
+ ?! @boolMap registerReadAccess
+ ?! @boolMap registerWriteAccess
+ ?! @DDCRegisterFileAccess registerFileAccess
+ ?let  @intMap memSpaceWithRegister
+ ?let  @bool unused assignment {
+  [expField getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+}
+
+override method @expCast getRegisterUsage
+ ?let  @varIdfStruct varIdfStruct
+ ?! @boolMap registerReadAccess
+ ?! @boolMap registerWriteAccess
+ ?! @DDCRegisterFileAccess registerFileAccess
+ ?let  @intMap memSpaceWithRegister
+ ?let  @bool unused assignment {
+  [expCasted getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+}
+
+override method @expDummy getRegisterUsage
+ ?let  @varIdfStruct unused varIdfStruct
+ ?! @boolMap unused registerReadAccess
+ ?! @boolMap unused registerWriteAccess
+ ?! @DDCRegisterFileAccess unused registerFileAccess
+ ?let  @intMap unused memSpaceWithRegister
+ ?let  @bool unused assignment {
+}
+
+override method @expInstructionAddress getRegisterUsage
+ ?let  @varIdfStruct unused varIdfStruct
+ ?! @boolMap unused registerReadAccess
+ ?! @boolMap unused registerWriteAccess
+ ?! @DDCRegisterFileAccess unused registerFileAccess
+ ?let  @intMap unused memSpaceWithRegister
+ ?let  @bool unused assignment {
+}
+
+override method @expInstructionSize getRegisterUsage
+ ?let  @varIdfStruct unused varIdfStruct
+ ?! @boolMap unused registerReadAccess
+ ?! @boolMap unused registerWriteAccess
+ ?! @DDCRegisterFileAccess unused registerFileAccess
+ ?let  @intMap unused memSpaceWithRegister
+ ?let  @bool unused assignment {
+}
+
+override method @expIntConst getRegisterUsage
+ ?let  @varIdfStruct unused varIdfStruct
+ ?! @boolMap unused registerReadAccess
+ ?! @boolMap unused registerWriteAccess
+ ?! @DDCRegisterFileAccess unused registerFileAccess
+ ?let  @intMap unused memSpaceWithRegister
+ ?let  @bool unused assignment {
+}
+
+override method @expUnary getRegisterUsage
+ ?let  @varIdfStruct varIdfStruct
+ ?! @boolMap registerReadAccess
+ ?! @boolMap registerWriteAccess
+ ?! @DDCRegisterFileAccess registerFileAccess
+ ?let  @intMap memSpaceWithRegister
+ ?let  @bool unused assignment {
+  [exp getRegisterUsage !varIdfStruct !?registerReadAccess !?registerWriteAccess !?registerFileAccess !memSpaceWithRegister !false]
+}
+

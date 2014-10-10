@@ -1,0 +1,81 @@
+
+
+#----------------------------------------------------------------------------
+# template management 
+#----------------------------------------------------------------------------
+
+#return the template directory (with a '/' at the end)
+#looks for (in order)
+# * command line argument
+# * environment variable
+# * default location `pwd`/../templates
+#this routine should not be called outside of this file
+#(internal use). Use the 'writeTemplates' routine instead.
+func templates_directory 
+  ->  @string temp_dir {
+  temp_dir = [option gadl_options.template_dir value]
+  if temp_dir != "" then
+    if [temp_dir firstCharacterOrNul] != '/' then #relative path.
+      temp_dir = @string. stringWithCurrentDirectory+"/"+temp_dir
+    end
+    if [temp_dir characterAtIndex !([temp_dir length] - 1)] != '/' then
+      temp_dir += "/"
+    end
+  end
+
+}
+
+#function required for the new templates.
+func lstringWith ?@string s ->@lstring r {
+  r = @lstring. new { !s !@location.here}
+}
+
+func %once emptyLString ->@lstring ls {
+  ls = @lstring. new { !"" !@location.here}
+}
+
+func computeTemplate
+  ?let @string prefix
+  ?let @TfieldMap cfg
+  ?let @string name
+  ->@string result {
+  result = ""
+  templateInvocation (
+    !@lstring. new { !name !@location.here}
+    !prefix
+    !"templates"
+    !templates_directory()
+    !true
+    !cfg
+    !?result
+    ?*)
+}
+
+## populate init template with:
+##MODELNAME           : name of model, used everywhere, including generated directory name
+##DATE                : current date: no more used, to prevent whole compilation time.
+##HEADER_C            : standard header for each .c/.h file generated.
+##NO_BEHAVIOR         : command line option.
+##HOST_COMPILATION_64_BITS : used in Makefile for default simulator compilation mode
+#TODO constructor.
+
+setter @TfieldMap initTemplate
+  ?let  @lstring cpuName
+  ?let  @lstring exportDir {
+  @TfieldMap templateStructCopy = self
+  #model name
+  addLStringValue ( !?templateStructCopy !"CPUNAME" !cpuName)
+  #export Dir
+  addLStringValue ( !?templateStructCopy !"exportDir" !exportDir)
+  #date
+  @string date = @string. stringWithCurrentDateTime
+  addStringValue ( !?templateStructCopy !lstringWith(!"DATE") !date)
+  #behavior
+  #addBoolValue !?templateStructCopy !lstringWith[!"NO_BEHAVIOR"] ![option gadl_options.noBehavior value];
+  #compilation mode
+  @uint comp = @uint. compilationMode
+  addBoolValue ( !?templateStructCopy !lstringWith(!"HOST_COMPILATION_64_BITS") !comp==64)
+  #Ok. Get the copy.
+  self = templateStructCopy
+}
+

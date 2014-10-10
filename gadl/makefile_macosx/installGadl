@@ -1,7 +1,0 @@
-#!/bin/sh
-echo "un coup de galgas"
-galgas -T ../galgas_sources/all_gadl.gProject &&
-echo "make gadl.." &&
-time make gadl 
-#echo "install gadl in the editor bundle."
-#cp ./gadl64 /Applications/Harmless.app/Contents/Resources/gadl

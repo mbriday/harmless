@@ -1,0 +1,1291 @@
+
+
+list @formatFieldList {
+  @uint64 from
+  @uint64 to
+  @location loc
+}
+
+list @sliceList {
+  @formatFieldList field
+  @sint      fetchPart #used for instruction codes of different sizes: relative value, 0 is the current slice, -1 is previous slice, 1 is next slice, ...
+}
+
+#ne pas mettre d'instruction, mais un truc qui n'a que les infos qu'il faut:
+# * le nom.
+# * le field
+# * le type final.
+# * le type de shift
+# * la valeur du shift.
+#puis on fera une routine qui fait une instruction cAssign a partir de ca
+
+list @assignSliceList {
+  @lstring name
+  @sliceList slice
+  @varBaseType type
+  @uint shiftType #0 <=> nothing, 1 <=> left shift, 2 <=> right shift, 
+  @luint shiftVal
+}
+
+
+########## Format "is" (left part) #############
+
+abstract class @idfOrRefFormat
+{
+  @lstring name
+}
+
+class @idfOrRefFormatIsIdf : @idfOrRefFormat
+{
+  @lstring postRefName #string to add in the called format. (suffix)
+}
+
+class @idfOrRefFormatIsRef : @idfOrRefFormat
+{
+}
+
+########## Format "is" (whole part) #############
+list @alternativeIsList
+{
+  @idfOrRefFormat right
+  @binaryset      left
+}
+
+########## other format call #############
+
+list @idfOrRefFormatList
+{
+  @idfOrRefFormat format
+}
+
+########## Format #############
+#format name is in the map.
+#base class for both alternative and aggregate formats.
+abstract class @format {
+  @sliceList sliceProtoTypeList
+  @assignSliceList asList
+  @idfOrRefFormatList refList #a format can be associated to references (>=0) .
+}
+
+class @aggFormat : @format
+{
+  @idfOrRefFormatList formatCallList
+}
+
+class @altFormat : @format
+{
+  @alternativeIsList isList
+  #this value is needed to compute the offset for binary sets for instruction codes.
+  #see getBinaryFormat routine.
+  @uint nbSlicesBeforePlus 
+}
+
+map @formatMap
+{
+  @format format
+  insert insertKey error message "the '%K' format is already defined in %L" 
+  search searchKey error message "the '%K' format is not defined"
+  remove removeKey error message "the '%K' format is not defined and cannot be removed."
+}
+
+list @binaryCodeList
+{
+  @binaryset code
+}
+
+########### data for graph generation.
+
+# format name is sufficent to find the format structure, through the formatMap.
+list @formatList {
+  @idfOrRefFormat name #may be either an idf or a ref.
+}
+
+#the suffix is used when calling a format: ext@src (suffixe is src). The suffix
+#is added to references (#ref) and fields.
+#Suffix is a list as many suffix can be added (A suffix in applied in the whole branch)
+list @formatListWithSuffix {
+  @idfOrRefFormat name #may be either an idf or a ref.
+  @stringlist suffixList
+}
+
+#TODO: ajouter le suffixe pour chaque instruction (dans formatList).
+list @formatListWithSuffixList {
+  @formatListWithSuffix fslist
+#  @stringset instructionId; #id of the instruction.
+}
+
+list @instructionCodeOffset {
+  @uint offset
+}
+
+list @variableInstructionCodeList {
+  @instructionCodeOffset offsetList
+  @uint codeLength
+}
+
+# this structure store all the fields that can be used in behavior and syntax.
+# It gets information about name and size.
+# This informat is extracted from @assignSliceList and stored in @instructionImplementationMap
+
+#structure that saves all the information about an instruction (format related).
+map @instructionImplementationMap
+{
+  @binaryset code
+  @formatListWithSuffix flist
+  @lstringlist instructionSeq # including alternative/aggregate (refs include '#')
+  @stringset instructionID   # instruction id: exclude the '#' in references 
+  @instructionCodeOffset offsetList
+  #nb of chunks of the instruction. The real instruction length is codeLength*instructionSize bits.
+  @uint codeLength
+  @varBaseTypeMap instructionFieldMap
+
+  insert insertKey error message "the '%K' instruction has the same signature (same references sequence) than another one." 
+  search searchKey error message "the '%K' instruction is not defined"
+}
+
+list @conditionDataList
+{
+  @lstring name
+  @binaryset code
+  @uint codeLength
+}
+
+list @stringSetList
+{
+  @stringset stringSet
+}
+
+list @lstringListList
+{
+  @lstringlist lstringList
+}
+
+func getInstructionName
+  ?let  @stringset instructionId
+  ?let  @string modelName
+  -> @string instName {
+  instName = modelName
+  for (@string idPart) in  instructionId do
+    instName += "_" + idPart
+  end
+}
+
+######
+# routine used for logs and debug (error code).
+######
+proc printInstSequence 
+  ?let  @lstringlist seq 
+  ?! @string file {
+  @bool first = true
+  for (@lstring elt) in  seq do
+    if not first then file += " -> " end
+    file += [elt string]
+    first = false
+  end
+}
+
+
+############################################################################
+##  Routines to generate instruction names and group instruction data
+##  into a big map.
+############################################################################
+
+#get suffix string both for logs and internal use.
+proc getSuffixString
+  ?let  @stringlist suffixList
+  !  @string suffixLog      #used for logs and debug
+  !  @string suffixInternal {
+  suffixLog = ""
+  suffixInternal = ""
+  @bool start = true
+  for (@string str) in  suffixList do
+    if not start then suffixLog += ", " end
+    start = false
+    suffixLog += "@"+str
+    suffixInternal += str
+  end
+  if not start then #at least one
+    suffixLog = "("+suffixLog+")"
+  end
+}
+
+#get instruction sequence:
+#instructionSeqList must only be used for debug, logs and error messages.
+#referenceSeqList is the instruction id.
+proc getInstructionSequences
+  ?let  @formatListWithSuffixList instructionList 
+  !  @lstringListList instructionSeqList
+  !  @stringSetList  referenceSeqList {
+  instructionSeqList = @lstringListList. emptyList
+  referenceSeqList   = @stringSetList.  emptyList
+
+  for (@formatListWithSuffix fslist) in  instructionList do
+    #one instruction
+    var instructionSeq =@lstringlist.emptyList{}
+    var referenceSeq =@stringset.emptySet{}
+    for (@idfOrRefFormat format @stringlist suffixList) in  fslist do
+      @string suffixLog
+      @string suffixInternal
+      getSuffixString ( !suffixList ?suffixLog ?suffixInternal)
+      cast format
+      case == @idfOrRefFormatIsIdf :
+        @string temp = [[format name] string]+suffixLog
+        @lstring name = @lstring. new { !temp ![[format name] location]}
+        instructionSeq += !name
+      case == @idfOrRefFormatIsRef :
+        @string temp = "#" + [[format name] string]+suffixLog
+        @lstring name = @lstring. new { !temp ![[format name] location]}
+        instructionSeq += !name
+        referenceSeq += ![[format name] string]+suffixInternal
+      else error @location.here : "internal error: neither ref nor format idf ?!"
+      end
+    end
+    instructionSeqList += !instructionSeq
+    referenceSeqList += !referenceSeq
+  end
+}
+
+proc getInstructionCodeSize
+  ?let  @formatListWithSuffixList instructionList 
+  ?let  @formatMap formatMap
+  ! @variableInstructionCodeList variableInstructionCodeList {
+  variableInstructionCodeList = @variableInstructionCodeList. emptyList
+  for (@formatListWithSuffix fslist) in  instructionList do
+    #one instruction
+    @instructionCodeOffset offsetList = @instructionCodeOffset. emptyList
+    @uint codeLength = 0
+    for (@idfOrRefFormat idfOrRefformat *) in  fslist do
+      offsetList += !codeLength #start at 0
+      cast idfOrRefformat
+      case == @idfOrRefFormatIsIdf :
+        #get the format
+        @format format
+        @lstring currentFormatString = [idfOrRefformat name] #use static format (no suffix reuired)
+        [formatMap searchKey !currentFormatString ?format]
+        #from the format, get the offset of the last slice. 
+        #It is the offset of the next chunk (must be > 0).
+        @sliceList sliceProtoTypeList = [format sliceProtoTypeList]
+        @sint nextOffset
+        if [sliceProtoTypeList length] == 0 then
+          nextOffset = 0s
+        else
+          [sliceProtoTypeList last ?* ?nextOffset]
+        end
+        codeLength = codeLength + [nextOffset uint] #nextOffset must be > 0
+      case == @idfOrRefFormatIsRef :
+      else error @location.here : "internal error: neither ref nor format idf ?!"
+      end
+    end
+    codeLength = codeLength + 1 #code length start from 1, offset from 0.
+    variableInstructionCodeList += !offsetList !codeLength
+  end
+}
+
+#TODO: a revoir. Ce qui est retourne est utilise dans les behavior et 
+#la syntaxe pour verifier les differents champs
+#l'information dynamique doit etre contenue dans decodedInstructionList.
+proc setInstructionImplementationNames
+  ?let  @formatMap formatMap
+  ?let  @binaryCodeList binaryCodeList
+  ?let  @formatListWithSuffixList instructionList 
+  ?let  @lstringListList instructionSeqList
+  ?let  @stringSetList  referenceSeqList
+  ?let  @string modelName
+  ?let  @variableInstructionCodeList variableInstructionCodeList
+  !  @instructionImplementationMap instructionMap {
+  instructionMap = @instructionImplementationMap. emptyMap
+  for(@binaryset code) in  binaryCodeList, (@formatListWithSuffix fslist) in 
+          instructionList,(@lstringlist instructionSeq) in  # @stringset instructionId),
+          instructionSeqList,(@stringset instructionID) in 
+          referenceSeqList,(@instructionCodeOffset offsetList @uint codeLength) in 
+          variableInstructionCodeList do
+    var instructionFieldMap =@varBaseTypeMap.emptyMap{}
+    #one instruction
+    for (@idfOrRefFormat idfOrRefFormat @stringlist suffixList) in  fslist do
+      cast idfOrRefFormat 
+      case == @idfOrRefFormatIsIdf :
+        #idf: used to construct instructionFieldMap for the instruction.
+        #needs formatMap;
+        @format format
+        @lstring currentFormatString = [idfOrRefFormat name]
+        @string suffixStr
+        getSuffixString ( !suffixList ?* ?suffixStr)
+        [formatMap searchKey !currentFormatString ?format]
+        @assignSliceList asList = [format asList]
+        for (@lstring ASname * @varBaseType AStype ...) in  asList do
+          @lstring fieldName = @lstring. new { ![ASname string]+suffixStr ![ASname location]}
+          if [instructionFieldMap hasKey ![fieldName string]] then
+            #there is a problem
+            [!?instructionFieldMap insertKey ! fieldName !AStype] #generate the error.
+            message "current fields declared:\n"
+            for (@lstring name *) in  instructionFieldMap do
+              message " -> "+[name string]+"\n"
+            end
+            @string path = "current path in format tree:"
+            printInstSequence ( !instructionSeq !?path)
+            path += "\n"
+            message path
+          else
+            [!?instructionFieldMap insertKey !fieldName !AStype]
+          end
+        end
+      else
+      end
+    end
+    @string instName = getInstructionName(!instructionID !modelName)
+    @lstring idf = @lstring. new { !instName !@location.here}
+    [!?instructionMap insertKey !idf !code !fslist !instructionSeq !instructionID !offsetList !codeLength !instructionFieldMap]
+  end
+}
+
+############################################################################
+##  Routines to generate logs (text and graphViz dot)
+############################################################################
+
+#Ok, checked
+#instruction code is stored with Most Significant part (first fetch) at right..
+#This is very useful to compare instruction codes of different sizes. 
+#However, in the log, and in the generated decoder, code must appear
+#with the first fetch at left. This function re-order the instruction code.
+proc getRealInstructionCode
+  ?let  @binaryset codeMSByteLeft
+  ?let  @uint instructionSize
+  ?let  @uint codeLength
+  !  @binaryset code {
+  code = @binaryset. fullBinarySet
+  @uint currentChunk = 0
+  loop( codeLength)
+  while currentChunk < codeLength do
+    #get the code chunk;
+    @binaryset codeChunk = codeMSByteLeft >> (currentChunk*instructionSize)
+    codeChunk = [codeChunk existOnBitIndexAndBeyond !instructionSize]
+    # add it to the new code.
+    code = code & (codeChunk << ((codeLength - currentChunk - 1)*instructionSize))
+    currentChunk = currentChunk + 1
+  end
+}
+
+proc printInstructionId 
+  ?let  @stringset instID 
+  ?! @string file {
+  @bool first = true
+  for (@string elt) in  instID do
+    if not first then file += ", " end
+    file += "#"+elt
+    first = false
+  end
+}
+
+proc outputFormatGraphViz
+  ?let  @lstring exportDir
+  ?let  @formatMap formatMap
+  ?let  @formatListWithSuffixList instructionList {
+  @string file = "digraph behaviorGraph {\n"
+  @string fileRef = file
+  #declare nodes.
+  for (@lstring name @format format) in  formatMap do
+    file += "\""+[name string]+"\" "
+    cast format
+    case == @aggFormat :
+      file += "[shape=box];\n"
+    case == @altFormat :
+      file += "[shape=diamond];\n"
+      else error @location.here : "internal error: neither aggregate nor alternative format ?!"
+    end
+  end
+
+  file += "node [shape=triangle];\n" #default for references..
+  fileRef += "node [shape=triangle];\n" #default for references..
+  #construct graph.
+  for (@formatListWithSuffix fslist) in  instructionList do
+    #one instruction
+    @bool first = true
+    @bool firstRef = true
+    for (@idfOrRefFormat format *) in  fslist do #TODO: maybe update to add suffix..
+      if first == false then file += " -> " end
+      first = false
+      cast format
+      case == @idfOrRefFormatIsIdf :
+        file += "\""+[[format name] string]+"\""
+      case == @idfOrRefFormatIsRef :
+        file += "\"#" + [[format name] string]+"\""
+        if firstRef == false then fileRef += " -> " end
+        firstRef = false
+        fileRef += "\"#" + [[format name] string]+"\""
+      else error @location.here : "internal error: neither ref nor format idf ?!"
+      end
+    end
+    file += "\n"
+    fileRef += "\n"
+  end
+
+  file += "}\n"
+  fileRef += "}\n"
+  createFile ( ![exportDir string] !"format_all.dot" !file)
+  createFile ( ![exportDir string] !"format_ref.dot" !fileRef)
+}
+
+############################################################################
+##  generate decoder
+############################################################################
+#check that there is not 2 instructions that matches the same binary format.
+#this function is really time consuming :-/
+proc checkISOrthogonality 
+  ?let  @instructionImplementationMap impMap {
+  if [option .verbose_output value] then
+    message "checking instruction binary code coherency..."
+  end
+  @bool errorFound = false
+  @uint i1 = 0
+  for (@lstring name1 @binaryset code1 * @lstringlist seq1 ...) in  impMap do
+    @uint i2 = 0
+    for (@lstring name2 @binaryset code2 * @lstringlist seq2 ...) in  impMap do
+      if i2 > i1 then 
+        @binaryset matchCode = code1 & code2
+        if [matchCode isEmpty] == false then 
+          @string seq1str = ""
+          @string seq2str = ""
+          printInstSequence ( !seq1 !?seq1str)
+          printInstSequence ( !seq2 !?seq2str)
+          error @location.here : "instruction "+name1+" (sequence is :"+ seq1str+") and instruction "+
+                       name2+" (sequence is :"+ seq2str+") may have the same binary code. "+
+                       "Next errors are reporting locations where instruction is described:"
+          for (@lstring item) in  seq1 do
+            error [item location] : [item string]+" for instruction "+name1+" is defined here"
+          end
+          for (@lstring item) in  seq2 do
+            error [item location] : [item string]+" for instruction "+name2+" is defined here"
+          end
+          errorFound = true
+        end
+      end
+      i2=i2+1
+    end
+    i1 = i1+1
+  end
+  if [option .verbose_output value] then
+    if errorFound then message "failed\n" else message "ok\n" end
+  end
+}
+
+proc getHexString 
+  ?let  @uint64 mask
+  !  @string maskStr {
+  @uint64 max32 = 1L << 32
+  if mask < max32 then
+    #ok, it can be stored in a 32 bits integer.
+    maskStr = [[mask uint] hexString]
+  else
+    maskStr = [mask hexString]
+  end
+}
+
+
+#generate instruction code for the code in parameter.
+#cut each code into chuncks of 32 bits.
+#send one parameter for each code part (codeLength parameters).
+proc generateConditionCode 
+  ?let  @lstring instName
+  ?let  @binaryset codeMSByteLeft
+  ?let  @uint codeLength
+  ?let  @uint instructionSize
+  ?let  @uint nbBitsEncodedWith32
+  ?! @string file {
+  @uint sizeInBits = instructionSize*codeLength
+  #reform code from Most Significant Part First (at left).
+  @binaryset code
+  getRealInstructionCode ( !codeMSByteLeft !instructionSize !codeLength ?code)
+
+  @uint nbChunks = sizeInBits/nbBitsEncodedWith32
+  if sizeInBits mod nbBitsEncodedWith32 != 0 then nbChunks = nbChunks + 1 end
+
+  @uint currentChunk = 0
+  @uint shiftInBits = sizeInBits
+  loop( nbChunks)
+  while currentChunk < nbChunks do
+    if currentChunk == 0 then
+      file += "\tif("
+    else
+      file += " &&\n\t   "
+    end
+    #@binaryset codeChunk := code >> (currentChunk*nbBitsEncodedWith32);     #condition on 32 bits.
+    @uint maskChunk
+    if shiftInBits >= nbBitsEncodedWith32 then 
+      shiftInBits = shiftInBits-nbBitsEncodedWith32
+      maskChunk = nbBitsEncodedWith32 #Ok, using the 32 bits.
+    else
+      maskChunk = shiftInBits #bits after shiftInBits already taken into account.
+      shiftInBits = 0
+    end
+    @binaryset codeChunk = code >> shiftInBits     #condition on 32 bits.
+    codeChunk = [codeChunk existOnBitIndexAndBeyond !maskChunk] #condition on 32 bits.
+    @stringlist strL
+    strL = [codeChunk compressedStringValueList !sizeInBits]
+    #open the '(' if there are several conditions (OR operation required).
+    if [strL length] > 1 then file += "(" end
+    @bool startOr = true
+    for (@string compressStr) in  strL do
+      if not startOr then file += " || " end
+      startOr = false
+      ##the OR condition is removed...
+      var mask =@uint64.uint64MaskWithCompressedBitString{ !compressStr}
+      var val =@uint64.uint64BaseValueWithCompressedBitString{ !compressStr}
+      @string maskStr
+      @string valStr
+      getHexString ( !mask ?maskStr)
+      getHexString ( !val ?valStr)
+      file += "((chunk_32_"+[currentChunk string]+" & "+ maskStr+") == "+valStr+")"
+    end
+    #close the ')' if there are several conditions (OR operation required).
+    if [strL length] > 1 then file += ")" end
+    currentChunk = currentChunk + 1
+  end
+  file += ") return new "+[instName string]+"(pcBase,"
+  #parameters...
+  currentChunk = 0
+  @bool first = true
+  loop( codeLength)
+  while currentChunk < codeLength do
+    currentChunk = currentChunk + 1
+    if not first then file += ", " end 
+    first = false
+    file += "chunk"+[currentChunk string]
+  end
+  file += ");\n"
+}
+
+#this routine gives the number of bits used in a 32 bit condition.
+#for instance, with 12 bit instructions, only 24 bits are used for 
+#each nbChunks32. But for a 8 bit instruction sizes, the 32 bits are used.
+proc giveNbBitsUsedOn32BitsConditions
+  ?let  @uint instructionSize
+  !  @uint nbBitsEncodedWith32 {
+  nbBitsEncodedWith32 = 0
+  loop( 32)
+  while nbBitsEncodedWith32 <= (32-instructionSize) do
+    nbBitsEncodedWith32 = nbBitsEncodedWith32 + instructionSize
+  end
+}
+
+#compute instruction conditions for all the instructions that matches an entry in the 
+#pointer table (i.e. related to a function).
+proc computeImplementationConditions 
+  ?let  @uint instructionSize
+  ?let  @conditionDataList conditionDataList 
+  ?let  @string fetchFunctionCondition
+  ?! @string file {
+  @string instructionDefaultSizeCString
+  instructionDefaultSizeCString = "u"+[getCSize(!instructionSize) string]
+  #getCTypeFor !instructionSize ?instructionDefaultSizeCString ?*;
+  @uint nbConditionDone = 0
+  @uint currentSize = 0 #nb of chunks.
+  @uint nbChunks32 = 0 #nb of chunks of 32 bits (used fo conditions)
+  @uint nbBitsEncodedWith32
+  giveNbBitsUsedOn32BitsConditions ( !instructionSize ?nbBitsEncodedWith32) 
+  file += "\tu32 chunk_32_0 = chunk1;\n"
+  if instructionSize > 32 then
+    error @location.here : "cannot handle instruction set of default size > 32 bits at this time"
+  end
+  loop( 64) #one instruction cannot exceed 64 fetch ;-)
+  while nbConditionDone < [conditionDataList length] do
+    currentSize = currentSize + 1
+    if currentSize != 1 then 
+      #fetch..TODO:improve.
+      @string chunkStr = "chunk"+[currentSize string]
+      file += "\t"+instructionDefaultSizeCString+" "+chunkStr+" = "+fetchFunctionCondition+";\n"
+      @uint chunk32Bits = currentSize*instructionSize - nbChunks32*32
+      if chunk32Bits > 32 then
+        nbChunks32 = nbChunks32+1
+        file += "\tu32 chunk_32_"+[nbChunks32 string]+" = "+chunkStr+";\n"
+        #TODO. -> remove this code if instructionSize = 32, and update condition codes.
+      else
+        #TODO.
+        @string chunk32Str = "chunk_32_"+[nbChunks32 string]
+        file += "\t"+chunk32Str+" = ("+ chunk32Str+" << "+[instructionSize string]+") |"+ chunkStr+";\n"
+      end
+    end
+    for (@lstring instName @binaryset code @uint codeLength) in  conditionDataList do
+      if codeLength == currentSize then
+        #ok, size is matching. Print condition(s)
+        generateConditionCode ( !instName !code !codeLength !instructionSize !nbBitsEncodedWith32 !?file)
+        nbConditionDone = nbConditionDone + 1
+      end
+    end
+  end
+  #return NULL if no instruction is matching.
+  file += "\treturn NULL;\n"
+}
+
+proc generateDecoder
+  ?! @TfieldMap templateStruct
+  ?let  @instructionImplementationMap impMap
+  ?let  @defaultSection defaultValues
+  ?let  @string fetchFunctionCondition {
+  #get data related to binary operations.
+  var decoderFunction =@TfieldMapList.emptyList{}
+
+  if [option gadl_options.noCheck value] then 
+    if [option .verbose_output value] then
+      message "do not search for instruction set format ambiguity (option -c)\n"
+    end
+  else
+    checkISOrthogonality ( !impMap)
+  end
+  @uint tabNbBits = 8 #size of the tab for the decoder (in bits)
+  @uint shift
+  @uint instructionSize = [[defaultValues instructionSize] uint]
+  if instructionSize == 0 then
+    error @location.here: "The instruction default size is not defined in the default section, assuming 32 bits"
+    instructionSize = 32
+  end  
+  if instructionSize <= tabNbBits then
+    tabNbBits = instructionSize
+    shift = 0
+  else 
+    shift = instructionSize - tabNbBits
+  end
+
+  @string instructionDefaultSizeCString
+  @uint instructionDefaultSizeC
+  #getCTypeFor !instructionSize ?instructionDefaultSizeCString ?instructionDefaultSizeC;
+  instructionDefaultSizeC = getCSize(!instructionSize)
+  instructionDefaultSizeCString = "u"+[instructionDefaultSizeC string]
+  addStringValue ( !?templateStruct !lstringWith(!"INST_DEFAULT_SIZE_C_STR") !instructionDefaultSizeCString)
+  addUnsignedValue ( !?templateStruct !lstringWith(!"INST_DEFAULT_SIZE_C") ![instructionDefaultSizeC uint64])
+  var tabCodeList =@binaryCodeList.emptyList{}
+  addStringValue ( !?templateStruct !lstringWith(!"INST_SHIFT") ![shift string])
+  addStringValue ( !?templateStruct !lstringWith(!"DECODER_FUNC_TABLE_SIZE_IN_BITS") ![tabNbBits string])
+  for (* @binaryset code ...) in  impMap do
+    #log code;
+    @binaryset tabRelatedCode = code >> shift
+    tabRelatedCode = [tabRelatedCode existOnBitIndexAndBeyond !tabNbBits] #mask..
+    tabCodeList += !tabRelatedCode
+  end
+  #log tabCodeList;
+  @uint nbCases = 1 << tabNbBits
+  @uint i = 0 #loop value
+  loop( nbCases)
+  while i < nbCases do
+    var decoderFunctionBody =@TfieldMap.emptyMap{}
+    @bool found = false #at last one instruction is matching
+    @binaryset binI = @binaryset. binarySetWithEqualToConstant { !0 !tabNbBits ![i uint64]}
+    var conditionDataList =@conditionDataList.emptyList{}
+    for (@lstring name  @binaryset code 4* @uint codeLength ...) in  impMap, (@binaryset tabCode) in  tabCodeList do
+      @binaryset equal = binI & tabCode
+      if [equal isEmpty] == false then #found
+        found = true
+        conditionDataList += !name !code !codeLength
+      end
+    end
+    if found then
+      @string body = ""
+      computeImplementationConditions ( !instructionSize !conditionDataList !fetchFunctionCondition !?body)
+      addUnsignedValue ( !?decoderFunctionBody !lstringWith(!"id") ![i uint64])
+      addStringValue ( !?decoderFunctionBody !lstringWith(!"body") !body)
+    end
+    addBoolValue ( !?decoderFunctionBody !lstringWith(!"exist") !found)
+
+    i = i+1
+    decoderFunction += !decoderFunctionBody
+  end
+  addListValue ( !?templateStruct !lstringWith(!"DECODER_FUNCTION_LIST") !decoderFunction)
+}
+
+############################################################################
+##  generate instruction constructors.
+############################################################################
+func getFormatFieldListSize
+  ?let  @formatFieldList fieldlist
+  -> @uint size {
+  size = 0
+  for(@uint64 from @uint64 to *) in  fieldlist do
+    size = size + [from uint] - [to uint] + 1
+  end
+}
+
+func basicFormatFieldCode
+  ?let  @string chunkName
+  ?let  @formatFieldList fieldList
+  -> @string code {
+  code = ""
+  @uint offset = 0
+  #iterate in the reverse order.
+  for >(@uint64 expFrom @uint64 expTo @location loc) in  fieldList
+  do
+    @uint offsetInc = 0
+    if offset != 0 then code += "(" end  
+    if expFrom == expTo then
+      code += "FIELD_ONE_BIT("+chunkName+","+[expFrom string]+"U)"
+      offsetInc = 1
+    else #general case.
+      code += "FIELD("+chunkName+",("+[expFrom string]+"U),("+[expTo string]+"U))"
+      #should get the size of the increment:
+      offsetInc = [expFrom uint]-[expTo uint]+1
+    end
+    if offset != 0 then code += "<<" + [offset string] + ")" end
+    offset = offset+offsetInc
+  between code += "|"
+  end
+}
+
+
+func getFormatAssignString
+  ?let  @sliceList sliceList
+  ?let  @uint globalOffset
+  -> @string code {
+  @string expPrefix = "chunk"
+  code = ""
+  #slice fields (used in instruction format, for constructors.)
+  @uint chunkOffset = 0
+  @bool start = true
+  @sliceList tempSliceList = sliceList #can be modified 
+  @uint nbSlices = [sliceList length]
+  if nbSlices != 1 then code += "(" end
+  loop( nbSlices)
+  while [tempSliceList length] > 0 do
+    @formatFieldList fieldList 
+    @uint fieldSize
+    #take the last slice.
+    @sint fetchPart
+    [!?tempSliceList popLast ?fieldList ?fetchPart]
+    #field size.
+    fieldSize = getFormatFieldListSize(!fieldList)
+    if fieldSize > 0 then
+      #put the 'or' between fields
+      if not start then code += "|" end
+      #get the offset.
+      @sint signedOffset = [globalOffset sint] + fetchPart
+      @uint offset = [signedOffset uint] + 1 #must be > 0. chunk idx start at 1.
+      #name of idf is prefix concatened with the offset (starting at 1)
+      #@varBaseType varType := [@varType new ![@varKind unsigned] !fieldSize !here];
+      #@classicVar var := [@classicVar new !varType !false !expPrefix !""];
+      #@cIdf idf := [@cIdf new !getTypeListFrom[!varType] ![@lstring new ![offset string] !here] !var];
+      #@cBitFieldOp bitFieldOp := [@cBitFieldOp new !getTypeListFrom[!varType] !idf !fieldList];
+      #generate slice code.
+      if chunkOffset != 0 then code += "(" end
+      #code .= [bitFieldOp generateCode !componentPrefix !idfSuffix !cgc];
+      code += basicFormatFieldCode(!"chunk"+[offset string] !fieldList)
+      #shift field if needed.
+      if chunkOffset != 0 then code += "<<" + [chunkOffset string]+")" end
+      #compute next shift value.
+      chunkOffset = chunkOffset + fieldSize
+      start = false
+    end
+  end
+  if nbSlices != 1 then code += ")" end  
+}
+
+proc constructAssign 
+  ?let  @format format
+  ?let  @uint globalOffset
+  ?let  @string suffixStr
+  ?! @string instCode {
+  @assignSliceList asList = [format asList]
+  for (@lstring name
+                  @sliceList sliceList
+                  @varBaseType type
+                  @uint shiftType
+                  @luint shiftVal) in  asList do
+    @string nameWithSuffix = [name string]+suffixStr
+    @string realTypeString = [type string]
+    instCode += "\t// construct "+nameWithSuffix+" ("+realTypeString+")\n"
+    instCode += "\t"+ nameWithSuffix+" = "
+    @bool signExtend = false
+    if [type kind] == @varKind. signed then #signed var.
+      @uint CSize = [type getCSize]
+      if [type size] != CSize then
+        signExtend = true
+        instCode += "SIGN_EXTEND("
+      end
+    elsif [type kind] == @varKind. float then
+      error @location.here: "internal error: not yet imlplemented: format constructor"
+    end
+    instCode += getFormatAssignString(!sliceList !globalOffset)
+    #@cSliceFieldOp sliceOp := [@cSliceFieldOp new !getTypeListFrom[!type] !"chunk" !sliceList !globalOffset];
+    #instCode .= [sliceOp generateCode !"" !"" ![@codeCtx C]];
+    #Shift management.
+    #0 <=> nothing, 1 <=> left shift, 2 <=> right shift, 
+    if shiftType != 0 then
+      if shiftType == 1 then instCode += "<<"
+      elsif shiftType == 2 then instCode += ">>" 
+      else error @location.here : "internal error: unknown code!"
+      end
+      instCode += [[shiftVal uint] string]
+    end
+    if signExtend then
+      @uint CSize = [type getCSize]
+      instCode += ", "+[[type size] string]+", "+[CSize string]+")"
+    end
+    instCode += ";\n"
+  end
+}
+
+#construct definition of data members for instruction.h
+proc constructDef
+  ?let  @format format
+  ?let  @string suffixStr
+  ?! @string def {
+  @assignSliceList asList = [format asList]
+  for (@lstring name *
+                  @varBaseType type ...) in  asList do
+    @string nameWithSuffix = [name string]+suffixStr
+    @string CTypeString = [type getCType]
+    @string realTypeString = [type string]
+    def += "\t"+CTypeString+" "+nameWithSuffix+";"
+    def += "  /* "+realTypeString+" */\n"
+  end
+}
+
+#TODO: unused: Should be removed with new templates.
+proc generateAllIdDecoratedString 
+  ?let  @stringset allIdSet 
+  ?! @string idMethodsDecorated {
+  for (@string id) in  allIdSet do
+    idMethodsDecorated += "\tvirtual bool hasID_"+id+"() {return m_inst->hasID_"+id+"();};\n"
+  end
+}
+
+proc generateInstConstructorAndDef
+  ?! @TfieldMap templateStruct
+  ?let  @instructionImplementationMap impMap
+  ?let  @formatMap formatMap {
+  #get data related to binary operations.
+  var constructorImpl =@TfieldMapList.emptyList{}
+  var allIdSet =@stringset.emptySet{} #get all signature ids.
+  for (@lstring name 
+                  @binaryset bin 
+                  @formatListWithSuffix fslist 
+                  @lstringlist instructionSeq
+                  @stringset instructionID 
+                  @instructionCodeOffset offsetList 
+                  @uint codeLength ...) in  impMap do
+    #one instruction
+    var constructorImplBody =@TfieldMap.emptyMap{}
+    addLStringValue ( !?constructorImplBody !"name" !name)
+    addUnsignedValue ( !?constructorImplBody !lstringWith(!"codeLength") ![codeLength uint64])
+    @string constructorBodyStr = ""
+    @string constructorDefStr = ""
+    #instruction constructor body (field assignation).
+    #also used to get structure field names and types.
+    for (@idfOrRefFormat idfOrRefformat @stringlist suffixList) in  fslist,(@uint offset) in  offsetList do
+      @string suffixStr
+      getSuffixString ( !suffixList ?* ?suffixStr)
+      cast idfOrRefformat
+      case == @idfOrRefFormatIsIdf :
+        @format format
+        @lstring currentFormatString = [idfOrRefformat name]
+        [formatMap searchKey !currentFormatString ?format]
+        constructAssign ( !format !offset !suffixStr !?constructorBodyStr )
+        constructDef (    !format !suffixStr !?constructorDefStr)
+      case == @idfOrRefFormatIsRef :
+      else error @location.here : "internal error: neither ref nor format idf ?!"
+      end
+    end
+    addStringValue ( !?constructorImplBody !lstringWith(!"INST_FIELD_DEF") !constructorDefStr)
+    addStringValue ( !?constructorImplBody !lstringWith(!"INST_CONSTRUCTOR_BODY") !constructorBodyStr)
+
+    #hasID_REF functions, where 'REF' is a signature id (#...).
+    var instIDMethods =@stringset.emptySet{}
+    for (@string id) in  instructionID do 
+      allIdSet += !id
+      instIDMethods += !id
+    end
+
+    addListValue ( !?constructorImplBody !lstringWith(!"ID_LIST") !stringSetToList(!instIDMethods !"ID"))
+    constructorImpl += !constructorImplBody
+  end
+  #store the set in a list.
+  addListValue ( !?templateStruct !lstringWith(!"ALL_ID_LIST") !stringSetToList(!allIdSet !"ID"))
+  addListValue (   !?templateStruct !lstringWith(!"INST_CONSTRUCTOR") !constructorImpl)
+}
+
+############################################################################
+##  extract binary format for instructions.
+############################################################################
+
+# get the correct "right part" in expression like:
+#   #AREF is \m11--
+# when the left part is known.
+proc searchCode 
+  ?let  @alternativeIsList tempAltList 
+  ?let  @idfOrRefFormat currentFormat
+  !  @binaryset tempCode {
+#  message "CURRENT FORMAT ".[[currentFormat name] string]."\n";
+  tempCode = @binaryset. fullBinarySet 
+  @bool found = false
+  #message "format: ".[[currentFormat name] string]."\n";
+  for (@idfOrRefFormat leftPart @binaryset rightPart) in  tempAltList do
+    #message "\t -> ".[[leftPart name] string]."\n";
+#    message "LEFT PART ".[[leftPart name] string]."\n";
+    if currentFormat == leftPart then
+      if found == true then
+        @lstring tempStr = [currentFormat name]
+        error [tempStr location] : "2 possibilities in the alternative "+[tempStr string]
+      end 
+      found = true
+      tempCode = rightPart
+    end
+  end
+  if not found then
+    error @location.here: "internal error: cannot retrieve the alternative entry.."
+  end
+}
+
+proc getBinaryFormat
+  ?let  @formatListWithSuffixList instructionList 
+  ?let  @formatMap       formatMap
+  ?let  @variableInstructionCodeList variableInstructionCodeList
+  ?let  @uint instructionSize
+  ?let  @stringSetList referenceSeqList
+  !  @binaryCodeList binaryCodeList {
+  @alternativeIsList tempAltList = @alternativeIsList. emptyList #init not used
+  binaryCodeList = @binaryCodeList. emptyList
+  for (@formatListWithSuffix fslist) in  instructionList, (@instructionCodeOffset offsetList @uint codeLength) in  
+          variableInstructionCodeList,(@stringset instructionID) in 
+          referenceSeqList do
+    #one instruction
+    #in the list of formats, we are looking for alternatives.
+    #When we got one, we search for the following format (agg, alt or ref), which indicates
+    #which alternative has been taken.
+    @bool nextToSearch = false
+    var code =@binaryset.fullBinarySet{}
+    @uint previousOffset = 0 # init not used. Offset of the alternative found.
+    #check if this is a ref associated to a format  (field refList of @format)...
+    @bool nextIsRefAssociatedToAFormat = false
+    @uint nbSlicesBeforePlus = 0 #init not used.
+    for (@idfOrRefFormat format *) in  fslist, (@uint offset) in  offsetList do
+      #message "loop: ".[[format name] string]." avec offset de l'alt:".[previousOffset string]."\n"; 
+      if not nextIsRefAssociatedToAFormat then
+        @lstring currentFormatString = [format name]
+        #if we have found an alternative in the previous item in the list. 
+        #With the current format (alt/agg/ref), we know which path 
+        #was chosen in the alternative.
+        #NOTE: If the alternative has a reference, nextIsRefAssociatedToAFormat
+        #      has been set to true and the reference has not been takent into account.
+        if nextToSearch then
+          @binaryset tempCode
+          searchCode ( !tempAltList !format ?tempCode)
+          #add one because the current slice in {bla}{bli}+{blo} is 0 (bli).
+          #We have to take into account that we are using bla, with a negative offset :-/
+          @uint finalOffset = previousOffset+1-nbSlicesBeforePlus
+          if finalOffset != 0 then
+            tempCode = tempCode << ((finalOffset)*instructionSize)
+          end
+          #message "offset is ".[previousOffset string]."\n";
+          code = code & tempCode
+          nextToSearch = false
+        end
+        #looks for alternatives.
+        cast format
+        case == @idfOrRefFormatIsIdf :
+          #idf -> other format (alternative or aggregate)
+          @format altFormat
+          [formatMap searchKey !currentFormatString ?altFormat]
+          cast altFormat
+          case == @aggFormat :
+          case == @altFormat altFormatIsAlt :
+            #ok, get the alternatives :-)
+            tempAltList = [altFormatIsAlt isList]
+            #message "alternative is: ".currentFormatString."\n";
+            #if there is a reference associated to a format, we do not hava to take it into account.
+            nextIsRefAssociatedToAFormat = [[altFormatIsAlt refList] length] > 0
+            #store the ofset of the alternative.
+            previousOffset = offset
+            #get the number of slices before a '+' n description to compute the whole offset:
+            nbSlicesBeforePlus = [altFormatIsAlt nbSlicesBeforePlus]
+            #this should not happen.
+            if [[altFormatIsAlt refList] length] > 1 then
+              error @location.here : "internal error: only one reference can be associated to a format..."
+            end
+            nextToSearch = true
+          else error @location.here : "internal error: neither aggregate nor alternative format ?!"
+          end
+        case == @idfOrRefFormatIsRef :
+        else error @location.here : "internal error: neither ref nor format idf ?!"
+        end
+      else #nextIsRefAssociatedToAFormat
+        nextIsRefAssociatedToAFormat = false #only one time.
+      end
+    end
+    if [code isEmpty] & [option .verbose_output value] then
+      @string instID = ""
+      printInstructionId ( !instructionID !?instID)
+      message "-> instruction "+instID+" does not have a valid binary format (always false).\n"
+    end
+    binaryCodeList += !code
+  end
+}
+
+#take into account instruction with different code sizes... but not tested with it.
+proc getRelativeBinarySet 
+  ?let  @binaryset val     #base value (set by user)
+  ?let  @uint sliceSize #size of the slice considered
+  ?let  @luint defaultInstructionSize
+  ?let  @sliceList sliceList      #slice list. offset may be <0
+  ?let  @uint nbSlicesBeforeAPlus #used to get offset start from 0.
+  !  @binaryset set {
+  # the operation, to get r=01-10, from a=01--- and b=---10 is r=a&b
+  # this routine generate the a and b parts (and the followers if any) and then compute the binary set.
+  @uint offset = sliceSize
+  set = @binaryset. fullBinarySet
+  for (@formatFieldList field @sint fetchPart) in  sliceList do 
+    #one instruction slice.
+    for (@uint64 from @uint64 to @location loc) in  field do 
+      @uint rangeSize = [from uint]-[to uint]+1
+      if offset < rangeSize then 
+        error loc : "slice size is is too small. Cannot fill with the corresponding fields..."
+      end
+      offset = offset - rangeSize
+      @binaryset chunk = val >> offset
+      chunk = [chunk existOnBitIndexAndBeyond !rangeSize] #mask..
+      @sint fetchOffset = fetchPart + [nbSlicesBeforeAPlus sint] - 1s #start at 0;
+      @uint shift =  [to uint] + ([fetchOffset uint]*[defaultInstructionSize uint])
+      set = set & (chunk << shift)
+    end
+  end
+}
+
+############################################################################
+##  construct graph routines.
+############################################################################
+
+#add the suffix of 'nextFormat' to the suffix list.
+#added is true if the suffix list is updated, else false 
+proc addToSuffixList
+ ?let  @idfOrRefFormat nextFormat
+ ?! @stringlist nextSuffixList
+ !  @bool added {
+  added = false
+  cast nextFormat
+  case >= @idfOrRefFormatIsIdf nextFormatIsIdf :
+    @string suffixName = [[nextFormatIsIdf postRefName] string]
+    if [suffixName length] != 0 then
+      nextSuffixList += !suffixName
+      added = true
+    end
+  else
+  end
+}
+
+#recursive routine.
+proc constructFormatInstructionTreeRec
+  ?let  @formatMap              formatMap             #format map: constant
+  ?let  @formatListWithSuffix   formatListToCompute   #format not yet taken into account
+#  ?? @idfOrRefFormat         currentFormat    
+  ?let  @formatListWithSuffix   instructionFormatList #current format list
+#  ?? @stringlist             currentSuffixList #current suffix
+  ?! @formatListWithSuffixList instructionList {
+  if [formatListToCompute length] > 0 then
+    #something to do...
+    @formatListWithSuffix newFormatListToCompute = formatListToCompute
+    @formatListWithSuffix newInstructionFormatList = instructionFormatList
+    #get the first format to compute.
+    @idfOrRefFormat currentFormat
+    @stringlist currentSuffixList
+    [!?newFormatListToCompute popFirst ?currentFormat ?currentSuffixList]
+
+    #update suffix
+    cast currentFormat
+      case == @idfOrRefFormatIsIdf currentFormatIsIdf :
+        #get suffix.
+        @string suffixStr = [[currentFormatIsIdf postRefName] string]
+        if [suffixStr length] > 0 then
+          currentSuffixList += !suffixStr
+        end
+      else
+      end
+      newInstructionFormatList += !currentFormat !currentSuffixList
+
+      cast currentFormat
+      case == @idfOrRefFormatIsIdf :
+        #idf -> other format (alternative or aggregate)
+        @format format
+        @lstring currentFormatString = [currentFormat name]
+        #check that the format is declared for agg and alt.
+        [formatMap searchKey !currentFormatString ?format]
+        cast format
+        case == @aggFormat formatIsAgg :
+          #########    aggregate format    ##########    
+          @idfOrRefFormatList refList = [formatIsAgg refList]
+          for (@idfOrRefFormat aggRef) in  refList do #the aggregate is associated to one or more ref.
+            newInstructionFormatList += !aggRef !currentSuffixList
+          end
+          @idfOrRefFormatList formatCallList = [formatIsAgg formatCallList]
+          var formatListToComputeUpdated =@formatListWithSuffix.emptyList{}
+          for (@idfOrRefFormat formatCall) in  formatCallList do
+            formatListToComputeUpdated += !formatCall !currentSuffixList
+          end
+          formatListToComputeUpdated = formatListToComputeUpdated + newFormatListToCompute
+          constructFormatInstructionTreeRec ( !formatMap !formatListToComputeUpdated !newInstructionFormatList !?instructionList)
+      case == @altFormat formatIsAlt :
+        ##########    alternative format    ##########
+        @idfOrRefFormatList refList = [formatIsAlt refList]
+          for (@idfOrRefFormat altRef) in  refList do #the alternative is associated to one or more ref.
+            newInstructionFormatList += !altRef !currentSuffixList
+          end
+
+        #altList cannot be empty. This is checked during parsing... but 2 checks are better ;-)
+        #TODO:is this a restriction?
+        @alternativeIsList isList = [formatIsAlt isList]
+        if [isList length] == 0 then
+          error [currentFormatString location]: "alternative format should not be empty."
+        end
+        for (@idfOrRefFormat nextFormat *) in  isList do
+          #there may be a suffix for the next format (only if this is an idf)
+          @stringlist nextSuffixList = currentSuffixList #copy required not to modify next alternatives.
+          @formatListWithSuffix newFormatListToComputeAlt = newFormatListToCompute #idem
+          addToSuffixList ( !nextFormat !?nextSuffixList ?*)
+          [!?newFormatListToComputeAlt insertAtIndex !nextFormat !nextSuffixList !0]
+          #recursive call.
+          constructFormatInstructionTreeRec ( !formatMap !newFormatListToComputeAlt !newInstructionFormatList !?instructionList)
+        end
+      else error @location.here : "internal error: neither aggregate nor alternative format ?!"
+      end
+    case == @idfOrRefFormatIsRef :
+      ##########    reference or declaration ref   ##########    
+      constructFormatInstructionTreeRec ( !formatMap !newFormatListToCompute !newInstructionFormatList !?instructionList)
+    else error @location.here : "internal error: neither ref nor format idf ?!"
+    end
+  else #nothing to compute. This is a leaf.
+    instructionList += !instructionFormatList
+  end
+}
+
+#This routine is used to detect roots in the format tree. 
+#There may have multiple roots.
+proc detectRootFormats
+  ?let  @formatMap formatMap
+  !  @formatMap rootFormatMap {
+  #the root format map is used to store only root formats.
+  rootFormatMap = formatMap
+  for (@lstring formatName @format format) in  formatMap do
+    cast format
+    #for aggregates, remove all the formats that are called (they cannot be root).
+    case == @aggFormat aggFormat :
+      @idfOrRefFormatList formatCallList = [aggFormat formatCallList]
+      for (@idfOrRefFormat formatCalled) in  formatCallList do
+        #remove only if it has not be removed before (format called more than one time).
+        if [rootFormatMap hasKey ![ [formatCalled name] string]] then
+          [!? rootFormatMap removeKey ![formatCalled name] ?*]
+        end
+      end
+    case == @altFormat isFormat :
+      @alternativeIsList isList = [isFormat isList]
+      for (@idfOrRefFormat formatCalled *) in  isList do
+        #remove only if it has not be removed before (format called more than one time).
+        if [rootFormatMap hasKey ![ [formatCalled name] string]] then
+          [!? rootFormatMap removeKey ![formatCalled name] ?*]
+        end
+      end
+    else
+    end
+  end
+}
+
+proc constructFormatInstructionTree
+  ?let  @formatMap formatMap
+  !  @formatListWithSuffixList instructionList {
+  instructionList = @formatListWithSuffixList. emptyList
+  @formatMap rootFormatMap
+  if [option .verbose_output value] then
+    message "contructing format tree..."
+  end
+  detectRootFormats ( !formatMap ?rootFormatMap)
+  @uint nbInstructionAccumulated = 0
+
+  for (@lstring formatName *) in  rootFormatMap do
+    if [option .verbose_output value] then
+      message "\n\tfrom root "+[formatName string]+"..."
+    end
+
+    @formatListWithSuffix formatListToCompute   = @formatListWithSuffix. emptyList
+    @formatListWithSuffix instructionFormatList = @formatListWithSuffix. emptyList
+
+    @lstring emptyLString = @lstring. new { !"" !@location.here}
+    @idfOrRefFormatIsIdf rootFormat = @idfOrRefFormatIsIdf. new { !formatName !emptyLString}
+    var emptyStringList =@stringlist.emptyList{}
+    formatListToCompute += !rootFormat !emptyStringList
+    constructFormatInstructionTreeRec ( !formatMap !formatListToCompute !instructionFormatList !?instructionList)
+
+    if [option .verbose_output value] then
+      @uint temp = [instructionList length] - nbInstructionAccumulated
+      message [temp string]+" instruction"
+      if temp > 1 then message "s." else message "." end
+      nbInstructionAccumulated = [instructionList length]
+    end
+
+  end
+  if [option .verbose_output value] then
+    message "\nFound a total of "+[[instructionList length] string]+" instructions formats.\n"
+  end
+}
+
+#$PC_C_TYPE$ should be replaced in the template files.
+#$MODELNAME$ should be replaced in the template files.
+#TODO: supprimer modelName
+proc instructionFormatPart
+  ?let  @string modelName
+  ?let  @defaultSection defaultValues
+  ?! @TfieldMap templateStruct
+  ?let  @formatMap formatMap
+  ?let  @lstring exportDir
+  !  @instructionImplementationMap impMap {
+  @formatListWithSuffixList instructionList
+  @binaryCodeList binaryCodeList
+  @lstringListList instructionSeqList
+  @variableInstructionCodeList variableInstructionCodeList
+
+  #default size of instructions
+  @uint instructionSize = [[defaultValues instructionSize] uint]
+  if instructionSize == 0 then
+    error @location.here: "The instruction default size is not defined in the default section, assuming 32 bits"
+    instructionSize = 32
+  end
+  @string instructionDefaultSizeCString
+  #getCTypeFor !instructionSize ?instructionDefaultSizeCString ?*;
+  instructionDefaultSizeCString = "u"+[getCSize(!instructionSize) string]
+  @uint instructionSizeInBytes = instructionSize/8
+  if (instructionSize & 7) != 0 then
+    instructionSizeInBytes = instructionSizeInBytes + 1
+  end
+
+  #define fetch function.
+  @string fetchFunctionCondition
+  @string multipleFetchFunctionConditionInCache
+  @bool hasUserFetch = isThereAUserFetch(!defaultValues)
+  @string fetchImplementationName
+  getUserFetchFunction ( !defaultValues ?fetchImplementationName)
+  if hasUserFetch then 
+    fetchFunctionCondition = "defaultFetch ? _core->defaultFetch(pc) : _core->"+fetchImplementationName+"()"
+    multipleFetchFunctionConditionInCache = "if(defaultFetch) {\n\t\t\tfor(int _i=0; _i<chunks; _i++) _core->defaultFetch(codeAddr);"
+    multipleFetchFunctionConditionInCache += "\n\t\t\t}else{"
+    multipleFetchFunctionConditionInCache += "\n\t\t\t\tfor(int _i=0; _i<chunks; _i++) _core->"+fetchImplementationName+"();"
+    multipleFetchFunctionConditionInCache += "\n\t\t\t}"
+  else
+    fetchFunctionCondition = "_core->defaultFetch(pc)"
+    @uint tmp = instructionSizeInBytes-1
+    @uint nbBits = nbBitsToCodeUnsigned(![tmp uint64])
+    if instructionSizeInBytes == (1 << nbBits) then #power  of 2?
+      multipleFetchFunctionConditionInCache = "codeAddr += chunks<<"+[nbBits string]+";"
+    else
+      multipleFetchFunctionConditionInCache = "codeAddr += chunks * "+[instructionSizeInBytes string]+";"
+    end
+  end
+  @uint tmp = instructionSizeInBytes-1
+  @uint fetchAlignement = nbBitsToCodeUnsigned(![tmp uint64])
+  addStringValue ( !?templateStruct !lstringWith(!"FETCH_ALIGNMENT_IN_BITS") ![fetchAlignement string])
+  addStringValue ( !?templateStruct !lstringWith(!"FETCH_FUNCTION_CONDITION") ! fetchFunctionCondition)
+  addStringValue ( !?templateStruct !lstringWith(!"MULTIPLE_FETCH_FUNCTION_CONDITION_IN_CACHE") ! multipleFetchFunctionConditionInCache)
+  addBoolValue ( !?templateStruct !lstringWith(!"HAS_USER_FETCH") !hasUserFetch)
+
+  constructFormatInstructionTree ( !formatMap ?instructionList)
+  getInstructionCodeSize ( !instructionList !formatMap ?variableInstructionCodeList)
+  @stringSetList  referenceSeqList
+  getInstructionSequences ( !instructionList ?instructionSeqList ?referenceSeqList)
+  getBinaryFormat ( !instructionList !formatMap ! variableInstructionCodeList !instructionSize !referenceSeqList ?binaryCodeList)
+  setInstructionImplementationNames ( !formatMap !binaryCodeList !instructionList !instructionSeqList !referenceSeqList !modelName !variableInstructionCodeList ?impMap)
+  outputFormatGraphViz ( !exportDir !formatMap !instructionList)
+  generateDecoder ( !?templateStruct !impMap !defaultValues !fetchFunctionCondition)
+#  generateInstConstructorAndDef !templateDecoderMap !modelName !impMap !formatMap !instructionSize !hasAnArchitectureDefined;
+}
+

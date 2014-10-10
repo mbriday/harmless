@@ -1,0 +1,23 @@
+
+  
+method @architectureMap check
+  ?let  @varIdfStruct idfStruct {
+  @componentMap componentMap = [idfStruct componentMap]
+  for () in  self do
+    for () in  deviceMap do
+      #check that component associated to device exists.
+      if not [componentMap hasKey ![componentName string]] then
+        error [componentName location]: "There is no component named :"+ componentName +"\n"
+      end
+      #check that the method is Ok
+      #TODO: check against memory methods...
+      for () in  readAliasMap do
+        [componentMap checkComponentMethod !componentName !lkey]
+      end
+      for () in  writeAliasMap do
+        [componentMap checkComponentMethod !componentName !lkey]
+      end
+    end
+  end
+}
+

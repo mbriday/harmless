@@ -1,0 +1,119 @@
+ #setDeviceInTemplate
+
+#key is the name of the core
+map @ASTcoreInstanceMap
+{
+  @lstring type #type name of the core
+  @uint id      #core number
+  @ASTExpressionlist coreParamExpList #constructor parameters
+
+  insert insertKey error message "the '%K' core instance is already defined in %L" 
+  search searchKey error message "the '%K' core instance is not defined"
+}
+
+#key is cpu name. -> only one cpu for now..
+map @ASTCpuMap
+{
+  #associate core type and a name
+  @ASTcoreInstanceMap ASTcoreInstanceMap
+  #map of cores, key is the type.
+  @ASTCoreMap ASTCoreMap
+  #cpu devices.  
+  @ASTInstructionList ASTDeviceDecList
+  #memory defined in cpu.
+  @ASTmemoryParamMap ASTmemChunk
+  @stringlist memChunkOrder
+  insert insertKey error message "the '%K' cpu is already defined in %L" 
+  search searchKey error message "the '%K' cpu is not defined"
+}
+
+#key is the name of the core
+#decoreated map.
+map @coreInstanceMap
+{
+  @lstring type #type name of the core
+  @uint id      #core number
+  @expressionlist coreParamExpList #constructor parameters
+
+  insert insertKey error message "the '%K' core instance is already defined in %L" 
+  search searchKey error message "the '%K' core instance is not defined"
+}
+
+
+method @coreInstanceMap setInTemplate
+  ?let  @lstring name
+  ?! @TfieldMap templateStruct {
+  var coreInstanceMapTpl =@TfieldMapList.emptyList{}
+  for () in  self do
+    var coreInstanceMapTplBody =@TfieldMap.emptyMap{}
+    addLStringValue ( !?coreInstanceMapTplBody !"name" !lkey)
+    addLStringValue ( !?coreInstanceMapTplBody !"type" !type)
+    addUnsignedValue ( !?coreInstanceMapTplBody !lstringWith(!"id") ![id uint64])
+
+    @string code = ""
+    for(@expression exp) in  coreParamExpList
+    do code += [exp generateCode !@codeCtx. C]
+    between code += ", "
+    end
+    addStringValue ( !?coreInstanceMapTplBody !lstringWith(!"paramCall") !code)
+
+    coreInstanceMapTpl += !coreInstanceMapTplBody    
+  end
+  addListValue ( !?templateStruct !name !coreInstanceMapTpl)  
+}
+
+getter @ASTcoreInstanceMap getCoreInstanceMap
+  ?let  @expressionContext ctx
+  ?let  @symbolValueMap symbolMap
+  ?let  @varIdfStruct idfStruct
+  -> @coreInstanceMap coreInstanceMap {
+  coreInstanceMap = @coreInstanceMap. emptyMap
+  for () in  self do
+    @expressionlist expList = [coreParamExpList getExp !ctx !symbolMap !idfStruct]
+    [!?coreInstanceMap insertKey !lkey !type !id !expList]
+  end
+}
+
+method @ASTCpuMap cpuSemantic
+  ?let  @memSpaceMap memSpaceMap
+  ?! @TfieldMap templateStruct {
+  @expressionContext ctx = @expressionContext. peripheral #context cpu?
+  var cpuTpl =@TfieldMapList.emptyList{}
+  for () in  self do #only one cpu at this date.
+    var symbolMap =@symbolValueMap.emptyMap{}
+    var idfStruct =@varIdfStruct.default
+    var cpuTplBody =@TfieldMap.emptyMap{}
+    @lstring cpuName = lkey
+    addLStringValue ( !?cpuTplBody !"NAME" !cpuName)
+    ###########################################################################
+    # local memory definition
+    ###########################################################################
+    @memoryParamMap memChunk = [ASTmemChunk getMemMap]
+    [memChunk setInTemplate !lstringWith(!"memInCpuList") !?cpuTplBody]
+    ###########################################################################
+    # cores
+    ###########################################################################
+    #cores defined as global, not inside a cpu.
+    [ASTCoreMap coreSemantic !lkey !memSpaceMap !?templateStruct]
+    @coreInstanceMap coreInstanceMap = [ASTcoreInstanceMap getCoreInstanceMap !ctx !symbolMap !idfStruct]
+    [coreInstanceMap setInTemplate !lstringWith(!"coreInstanceList") !?templateStruct]
+    #check constructor parameters.
+    for () in  coreInstanceMap do
+      @lstring coreInstanceName = lkey
+      [ASTCoreMap searchKey !type ?* ?* ?* ?* ?* ?* ?var @ASTFunctionMap ASTCoreConstructorMap ?*]
+      for () in  ASTCoreConstructorMap do
+        [param checkParams !coreParamExpList ![coreInstanceName location] ![lkey location]]
+      end
+    end
+    ###########################################################################
+    # devices
+    ###########################################################################
+    #TODO in templates.
+    getInst ( !ASTDeviceDecList !ctx !symbolMap !?idfStruct ?var @instructionList instDeviceDecList)
+    [instDeviceDecList setDeviceInTemplate !?cpuTplBody] #devices.
+    #end.
+    cpuTpl += !cpuTplBody
+  end
+  addListValue ( !?templateStruct !lstringWith(!"cpuList") !cpuTpl)  
+}
+
