@@ -1,0 +1,493 @@
+ #lstringWith
+
+# - expDummy
+# - expIntConst
+# - expInstructionSize
+# - expInstructionAddress
+# - expCast
+# - expBitFieldOp
+# - expUnary
+# - expBinary
+# @ idf
+# @ tabIndice
+# @ cTypeTabMember
+# @ cTypeMember
+# @ cTypeTag
+# @ cTypeExtend
+# @ cSliceFieldOp
+# @ cComponentMethod
+# @ cfunctionCall
+
+#This map is used to associate a value to an identifier (key).
+map @symbolValueMap
+{
+  @uint64 value  #cannot handle value > 64 bits at this date. This is the absolute val.
+  @bool negative #This is the sign.
+  insert insertKey error message "the '%K' key is already defined in symbol map %L."
+  search searchKey error message "the '%K' key is not defined in symbol map."
+  remove removeKey error message "the '%K' key is not defined in symbol map."
+}
+
+########################################################################
+#this reader is used to eval an expression
+# 2+3<<1   should return 8
+# 3+4*toto should return 3+4*toto (if toto is not in symbol map).
+########################################################################
+abstract getter @expression eval
+  ?let  @symbolValueMap unused symbolMap
+  -> @expression result
+
+########################################################################
+#this function tries to update the symbol map. It checks
+#if the expression is an int value. If this is the case
+#it either update the entry or add a new one.
+proc updateSymbolMap
+  ?! @symbolValueMap symbolValueMap
+  ?let  @lstring varName
+  ?let  @expression exp {
+  @expression expEval = [exp eval !symbolValueMap]
+  cast expEval
+    case == @expIntConst constVal :
+      #value is statically defined. Update symbolValueMap
+      if [symbolValueMap hasKey ![varName string]] then #already defined. Update
+        [!?symbolValueMap setValueForKey ![constVal value] ![varName string]]
+        [!?symbolValueMap setNegativeForKey ![constVal negative] ![varName string]]
+        #message "symbol ".[varName string]." update value ".[[constVal value] string]."\n";
+      else
+        [!?symbolValueMap insertKey !varName ![constVal value] ![constVal negative]]
+        #message "symbol ".[varName string]." get value ".[[constVal value] string]."\n";
+      end
+    else
+  end
+}
+
+
+########################################################################
+
+func getExpressionFromSymbol
+  ?let  @uint64 value #cannot handle value > 64 bits at this date.
+  ?let  @bool negative
+  -> @expression exp {
+  @varKind kind = @varKind. unsigned
+  if negative then kind = @varKind. signed end
+  @uint nbBits = 0
+  if negative then
+    nbBits = nbBitsToCodeSigned(!value)
+  else
+    nbBits = nbBitsToCodeUnsigned(!value)
+  end
+  #nb bits must be >0, when used in the expression (s8)(0) or (u8)(0)
+  if nbBits == 0 then nbBits = nbBits + 1 end
+  @varBaseType outType = @varBaseType. new { !kind !nbBits !@location.here}
+  exp = @expIntConst. new { !outType !value !negative}
+}
+
+override getter @expDummy eval
+  ?let  @symbolValueMap unused symbolMap
+  -> @expression result {
+  result = self #We can't do anything with that..
+}
+
+override getter @expInstructionSize eval
+  ?let  @symbolValueMap unused symbolMap
+  -> @expression result {
+  result = self #we do not have this information here.can't eval.
+}
+
+override getter @expInstructionAddress eval
+  ?let  @symbolValueMap unused symbolMap
+  -> @expression result {
+  result = self #we do not have this information here.can't eval.
+}
+
+override getter @expIdf eval
+  ?let  @symbolValueMap symbolMap
+  -> @expression result {
+  #not for tabulars nor function calls.
+  @bool mayBeInSymbolMap = true
+  @string key = ""
+  for(@lstring idf @idfItemType type @expressionlist paramList * * *) in  idfList while mayBeInSymbolMap do
+    key += [idf string]
+    if type != @idfItemType. basic then 
+      mayBeInSymbolMap = false
+    end
+  between
+    key += "_"
+  end
+
+  if mayBeInSymbolMap then
+    if [symbolMap hasKey !key] then
+      #found.
+      @uint64 value
+      @bool negative
+      [symbolMap searchKey !lstringWith(!key) ?value ?negative]
+      result = getExpressionFromSymbol(!value !negative)
+    else
+      result = self
+    end
+  else
+    result = self
+  end
+}
+
+override getter @expCast eval
+  ?let  @symbolValueMap symbolMap
+  -> @expression result {
+  @expression expEval = [expCasted eval !symbolMap]
+
+  @bool found
+  @uint64 value = 0L
+  @bool negative = false
+
+  getConstValue ( !expEval ?value ?negative ?found)
+
+  if found then
+    result = @expIntConst. new { !type !value !negative} #save the cast type.
+  else #no merge..
+    #we may update the out type if there is eval simplify the expression...
+    result = @expCast. new { !type !expEval}
+  end
+}
+
+override getter @expBitFieldOp eval
+  ?let  @symbolValueMap symbolMap
+  -> @expression result {
+  @expression expEval = [expField eval !symbolMap]
+
+  @bool ok = true
+  @uint64 valueBase = 0L #Base value, on which fields are applied.
+  @uint64 value = 0L     #result value
+  @bool negativeBase = false
+
+  getConstValue ( !expEval ?valueBase ?negativeBase ?ok)
+  ok = ok & (negativeBase == false) #value should not be negative.
+  if ok then #expression can be evaluated.
+    for (@expression expFrom @expression expTo @location loc *) in  fList while ok do
+      @expression expFromEval = [expFrom eval !symbolMap]
+      @expression expToEval = [expTo eval !symbolMap]
+      @uint64 valueFrom = 0L
+      @uint64 valueTo = 0L
+      @bool negFrom = false
+      @bool negTo = false
+      getConstValue ( !expFromEval ?valueFrom ?negFrom ?ok)
+      if ok then
+        getConstValue ( !expToEval ?valueTo ?negTo ?ok)
+      end
+      if ok then
+        #ok, field expressions from and to can be evaluated.
+        if (negFrom == true) | (negTo == true) then
+          error loc: "Evaluation of expression leads to a negative range"
+        end
+        @uint range = [valueFrom uint]-[valueTo uint]+1
+        @uint64 val = (valueBase >> [valueTo uint]) & ((1<<range)-1)
+        value = (value << range) | val
+      end
+    end
+  end
+  if ok then 
+    result = getExpressionFromSymbol(!value !false)
+  else #no merge..
+    result = @expBitFieldOp. new { !type !expEval !fList}
+  end
+}
+
+#override reader @cSliceFieldOp eval
+#  ?? @symbolValueMap unused symbolMap
+#  -> @expression result
+#:
+#  result := selfcopy; #used only in decoder.
+#end reader;
+
+override getter @expIntConst eval
+  ?let  @symbolValueMap unused symbolMap
+  -> @expression result {
+  result = self #nothing to do. Already simplified.
+}
+
+override getter @expUnary eval
+  ?let  @symbolValueMap symbolMap
+  -> @expression result {
+  @expression expEval = [exp eval !symbolMap]
+
+  @bool ok
+  @uint64 value = 0L
+  @bool negative = false
+
+  getConstValue ( !expEval ?value ?negative ?ok)
+
+  if ok then
+    if id == 0 then #logic not;
+      if value == 0L then value = 1L
+      else value = 0L
+      end
+      negative = false
+    elsif id == 1 then #boolean not
+      if negative & value > 0L then
+        value = (value ^ @uint64. max) + 1 #2's complement.
+      end
+      @varBaseType btype = [type getBaseType]
+      @uint64 mask = (1L<<[btype size])-1
+      value = (value ^ mask) & mask
+      negative = false
+    elsif id == 2 then #unary -
+      negative = not negative
+    else 
+      error @location.here: "internal error in unary expression. Wrong id."
+      ok = false
+    end
+  end
+  if ok then
+    result = getExpressionFromSymbol(!value !negative)
+  else #no merge..
+    #we may update the out type if there is eval simplify the expression...
+    result = @expUnary. new { !type !expEval !id}
+  end
+}
+
+#Be careful: This function is NOT recursive.
+#It only return the value for a const signed/unsigned val.
+proc getConstValue
+  ?let  @expression exp
+  !  @uint64 value
+  !  @bool negative
+  !  @bool found {
+  value = 0L
+  negative = false
+  cast exp
+  case == @expIntConst val : #both signed and unsigned.
+    value  = [val value]
+    negative = [val negative]
+    found = true
+  else
+    found = false
+  end  
+}
+
+#calulate the sum of values..
+proc getSum
+  ?let  @uint64 valLeft
+  ?let  @bool negLeft
+  ?let  @uint64 valRight
+  ?let  @bool negRight
+  !  @uint64 value
+  !  @bool negative {
+  if((negLeft == false) & (negRight == false)) then
+    value = valLeft+valRight
+    negative = false
+  elsif((negLeft == false) & (negRight == true)) then
+    if valLeft > valRight then
+      value = valLeft-valRight
+      negative = false
+    else
+      value = valRight-valLeft
+      negative = true
+    end
+  elsif((negLeft == true) & (negRight == false)) then
+    if valRight > valLeft then
+      value = valRight-valLeft
+      negative = false
+    else
+      value = valLeft-valRight
+      negative = true
+    end
+  else #if((negLeft == true) & (negRight == true)) then
+    value = valLeft+valRight
+    negative = true
+  end
+}
+
+func isEqual
+  ?let  @uint64 valLeft
+  ?let  @bool negLeft
+  ?let  @uint64 valRight
+  ?let  @bool negRight
+  -> @bool result {
+  if (valLeft == valRight) & (negLeft == negRight) then result = true
+  elsif((valLeft == 0L) & (valRight == 0L)) then result = true #sign may differ..
+  else result = false
+  end
+}
+
+proc isLess #compare left < right
+  ?let  @uint64 valLeft
+  ?let  @bool negLeft
+  ?let  @uint64 valRight
+  ?let  @bool negRight
+  !  @uint64 value {
+  if((negLeft == false) & (negRight == false)) then
+    if valLeft < valRight then value = 1L else value = 0L end
+  elsif((negLeft == false) & (negRight == true)) then
+    value = 0L
+  elsif((negLeft == true) & (negRight == false)) then
+    value = 1L
+  else #if((negLeft == true) & (negRight == true)) then
+    if valLeft > valRight then value = 1L else value = 0L end
+  end
+}
+
+override getter @expBinary eval
+  ?let  @symbolValueMap symbolMap
+  -> @expression result {
+  @expression expLeftEval = [expLeft eval !symbolMap]
+  @expression expRightEval = [expRight eval !symbolMap]
+  #can we concatenate them..?
+  #First get the value at left.
+  @bool found
+  @uint64 valLeft = 0L
+  @bool negLeft = false
+  @uint64 valRight = 0L
+  @bool negRight = false
+
+  getConstValue ( !expLeftEval ?valLeft ?negLeft ?found)
+  if found then
+    getConstValue ( !expRightEval ?valRight ?negRight ?found)
+  end
+  if found then #both are found -> we can merge.
+    @uint64 value = 0L
+    @bool negative = false
+    @bool ok = true
+    if(id == 0) then #id = 0  -> *
+      value = valLeft*valRight
+      if(negLeft == negRight) then negative = false
+      else negative = true
+      end
+    elsif(id == 1) then #id = 1  -> /
+      value = valLeft/valRight
+      if(negLeft == negRight) then negative = false
+      else negative = true
+      end
+    elsif(id == 2) then #id = 2  -> %
+      value = valLeft mod valRight
+      negative = negLeft
+    elsif(id == 3) then #id = 3  -> +
+      getSum ( !valLeft !negLeft !valRight !negRight ?value ?negative)
+    elsif(id == 4) then #id = 4  -> -
+      getSum ( !valLeft !negLeft !valRight !(not negRight) ?value ?negative)
+    elsif(id == 5) then #id = 5  -> >>
+      value = valLeft >> [valRight uint]
+      negative = negLeft
+    elsif(id == 6) then #id = 6  -> <<
+      value = valLeft << [valRight uint]
+      negative = negLeft
+    elsif(id == 7) then #id = 7  -> <
+      isLess ( !valLeft !negLeft !valRight !negRight ?value)
+      negative = false
+    elsif(id == 8) then #id = 8  -> >
+      isLess ( !valLeft !negLeft !valRight !negRight ?value)
+      value = 1L-value
+      negative = false
+    elsif(id == 9) then #id = 9  -> <=
+      isLess ( !valLeft !negLeft !valRight !negRight ?value)
+      if isEqual(!valLeft !negLeft !valRight !negRight) then value = 1L end
+      negative = false
+    elsif(id == 10) then #id = 10 -> >=
+      isLess ( !valLeft !negLeft !valRight !negRight ?value)
+      value = 1L-value
+      if isEqual(!valLeft !negLeft !valRight !negRight) then value = 1L end
+      negative = false
+    elsif(id == 11) then #id = 11 -> ==
+      negative = false
+      if isEqual(!valLeft !negLeft !valRight !negRight) then 
+        value = 1L
+      else
+        value = 0L
+      end
+    elsif(id == 12) then #id = 12 -> !=
+      negative = false
+      if isEqual(!valLeft !negLeft !valRight !negRight) then 
+        value = 0L
+      else
+        value = 1L
+      end
+    elsif(id == 13) then #id = 13 -> &
+      if (negLeft==false) & (negRight==false) then
+        value = valLeft & valRight
+        negative = false
+      else
+        ok = false #not usable for negative values.
+      end
+    elsif(id == 14) then #id = 14 -> ^
+      if (negLeft==false) & (negRight==false) then
+        value = valLeft ^ valRight
+        negative = false
+      else
+        ok = false #not usable for negative values.
+      end
+    elsif(id == 15) then #id = 15 -> |
+      if (negLeft==false) & (negRight==false) then
+        value = valLeft | valRight
+        negative = false
+      else
+        ok = false #not usable for negative values.
+      end
+    elsif(id == 16) then #id = 16 -> &&
+      if valLeft != 0L & valRight != 0L then value = 1L
+      else value = 0L
+      end
+      negative = false
+    elsif(id == 17) then #id = 17 -> ^^
+      if (valLeft != 0L) ^ (valRight != 0L) then value = 1L
+      else value = 0L
+      end
+      negative = false
+    elsif(id == 18) then #id = 18 -> ||
+      if (valLeft != 0L) | (valRight != 0L) then value = 1L
+      else value = 0L
+      end
+      negative = false
+    elsif(id == 19) then #id = 19 -> ror
+      if (negLeft == false) & (negRight == false) then
+        @uint64 rot = valLeft & ((1<<[valRight uint])-1)
+        @uint sizeL = [[[expLeft type] getBaseType] size] #size left before eval.
+        value = (valLeft >> [valRight uint]) | (rot << (sizeL - valRight))
+      else 
+        error [[expLeft type] loc]: "negative value inside a rotation operation.":value
+        ok = false
+      end
+      negative = false
+    elsif(id == 20) then #id = 20 -> rol
+      if (negLeft == false) & (negRight == false) then
+        @uint sizeL = [[[expLeft type] getBaseType] size] #size left before eval.
+        @uint64 rot = valLeft >> (sizeL - valRight) 
+        value = (valLeft << [valRight uint]) | rot
+        value = value & ((1 << sizeL)-1) #mask
+      else 
+        error [[expLeft type] loc]: "negative value inside a rotation operation.":value
+
+        ok = false
+      end
+      negative = false
+    elsif(id == 21) then #id = 21 -> cat
+      @uint64 value = 0L
+      @bool negative = false
+      @varBaseType typeR = [[expRight type] getBaseType]
+      value = (valLeft << [typeR size]) | valRight
+    else error @location.here: "internal error: unknown id for binary operation"
+    end
+    if ok then
+      result = getExpressionFromSymbol(!value !negative)
+    else
+      result = self
+    end
+  else #no merge..
+    #we may update the out type if there is eval simplify an expression...
+    result = @expBinary. new { !type !expLeftEval !expRightEval !id}
+  end
+}
+
+#import "gadl_components.gSemantics";
+#override reader @cComponentMethod eval
+#  ?? @symbolValueMap unused symbolMap
+#  -> @expression result
+#:
+#  result := selfcopy; #TODO.
+#end reader;
+#
+#import "gadl_semantics_function.gSemantics";
+#override reader @cfunctionCall eval
+#  ?? @symbolValueMap unused symbolMap
+#  -> @expression result
+#:
+#  result := selfcopy; #TODO.
+#end reader;
+#

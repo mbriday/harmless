@@ -1,0 +1,83 @@
+
+
+#This file provides the reader for expression : @expression getIdf
+#The goal of this reader is to give the list of the expIdf that
+#are used inside an expression:
+# -> primary usage: the 'enable' condition inside a timing
+#    We have to add an implentation hook in each accessor of the 
+#    idf (associated to a register) to take into account the condition.
+
+list @expIdfList {
+  @expIdf idf
+}
+
+abstract getter @expression getIdf
+  ?let  @expIdfList inList
+  -> @expIdfList outList
+
+override getter @expDummy getIdf
+  ?let  @expIdfList inList
+  -> @expIdfList outList { 
+  outList=inList
+}
+
+override getter @expIntConst getIdf
+  ?let  @expIdfList inList
+  -> @expIdfList outList { 
+  outList=inList
+}
+
+override getter @expInstructionSize getIdf
+  ?let  @expIdfList inList
+  -> @expIdfList outList { 
+  outList=inList
+}
+
+override getter @expInstructionAddress getIdf
+  ?let  @expIdfList inList
+  -> @expIdfList outList { 
+  outList=inList
+}
+
+override getter @expIdf getIdf
+  ?let  @expIdfList inList
+  -> @expIdfList outList { 
+  outList=inList
+  outList += !self
+}
+
+override getter @expCast getIdf
+  ?let  @expIdfList inList
+  -> @expIdfList outList { 
+  outList = [expCasted getIdf !inList]
+}
+
+getter @fieldList getIdf
+  ?let  @expIdfList inList
+  -> @expIdfList outList { 
+  outList = inList
+  for () in  self do
+    outList = outList + [expFrom getIdf !@expIdfList. emptyList] +
+               [expTo   getIdf !@expIdfList. emptyList]
+  end
+}
+
+override getter @expBitFieldOp getIdf
+  ?let  @expIdfList inList
+  -> @expIdfList outList { 
+  outList = [expField getIdf !inList] + [fList getIdf !@expIdfList. emptyList]
+}
+
+override getter @expUnary getIdf
+  ?let  @expIdfList inList
+  -> @expIdfList outList { 
+  outList = [exp getIdf !inList]
+}
+
+override getter @expBinary getIdf
+  ?let  @expIdfList inList
+  -> @expIdfList outList { 
+  outList = inList + [expLeft  getIdf !@expIdfList. emptyList] +
+             [expRight getIdf !@expIdfList. emptyList]
+}
+

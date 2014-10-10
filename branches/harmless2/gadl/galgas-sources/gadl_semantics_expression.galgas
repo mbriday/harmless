@@ -1,0 +1,237 @@
+ #nbBitsToCodeSigned
+
+#In this file:
+# definition of @expression, @expressionContext, @fieldList
+# def of subclasses:
+# * expDummy
+# * expIntConst
+# * expInstructionSize
+# * expInstructionAddress
+# * expIdf
+# * expCast
+# * expBitFieldOp
+# * expUnary
+# * expBinary
+#
+# useful readers for expression:
+# * getUVal ! @uint64 val ! @bool ok => return the uint64 value if possible (no eval).
+
+# reader for expIdf
+# * string that returns the debug itemList string.
+# * lstring (same as string, with location of the first item)
+# * getLocalVar: check that it is an expIdf, and then refers to a local var.
+#
+# * reader @idfItemList string -> @string name :
+
+
+
+#expressionContext associate a context to an expression. 
+#This is used to allow expressions in only specific context. For instance, the
+#'instruction size' expression can be used in the syntax view, but not in a component
+enum @expressionContext {
+  case component 
+  case memory 
+  case behavior 
+  case syntaxView  #syntax is a keyword :-/
+  case timing 
+  case instCycle  #related to the fourth view of instruction: inst cycle without pipeline.
+  case architecture 
+  case defaultSection  #default is a keyword :-/
+  case peripheral
+}
+
+getter @expressionContext msg -> @string outResult {
+  switch self
+    case component      : outResult = "an expression in a component description"
+    case memory         : outResult = "an expression in a memory description"
+    case behavior       : outResult = "an expression in a behavior view"  
+    case syntaxView     : outResult = "an expression in a syntax view"  
+    case timing         : outResult = "an expression in a timing view"
+    case instCycle      : outResult = "an expression in an instruction cycle (fourth) view"
+    case architecture   : outResult = "an expression in the architecture description"
+    case defaultSection : outResult = "an expression in the default section"
+    case peripheral     : outResult = "an expression in a peripheral description"
+  end
+}
+
+abstract class @expression {
+  @varAbstractType type #out type of the expression.
+}
+
+list @expressionlist {
+  @expression exp
+}
+
+### Dummy expression. used to generate special code in the simulator.
+class @expDummy : @expression {
+  @string expCode
+}
+
+class @expIntConst : @expression {
+  @uint64 value
+  @bool negative #if true, the real value is (-value). Kind should be signed.
+}
+
+class @expInstructionSize : @expression {
+}
+
+class @expInstructionAddress : @expression {
+}
+
+list @idfItemList
+{
+  @lstring idf
+  @idfItemType type #see gadl_semantics_AST_expression.gSemantics: basic, tabular, function call.
+  @expressionlist paramList #for a function call, or 1 item for tabular.
+  @idfItemSpecType specificType #specific type (register, peripheral method, …)
+  @string prefix #for code generation
+  @string suffix #for code generation
+}
+
+getter @idfItemList string -> @string name {
+  name = ""
+  for (@lstring idf @idfItemType type ...) in  self 
+    do 
+      name+=[idf string]
+      if type == @idfItemType. functionCall then name += "(..)" end
+      if type == @idfItemType. tabular then name += "[..]" end
+    between name+="." 
+  end
+}
+
+#define the type of the idf that have been 
+#determined during 'getExp' method (build of expIdf).
+enum @idfType
+{
+  case unknown           #should not be determined -> error
+  case structMember      #(toto.titi.tata)  -> toto defined as type.
+  case localVar          #(idf, including fields)
+  case tabularAccess     #(tab[<exp>]), -> tab defined as tabular. TODO: on garde???
+  case registerAccess    #(SP)
+  case registerBitField  #(CR.CR0)
+  case componentCall     #(fetcher.fetch())
+  case periphCall        #(device.method() or method() inside a peripheral).
+  case memoryAccess      #(memSpace.read8())
+}
+
+getter @idfType string -> @string out {
+  switch self
+    case unknown          : out = "an unknown type"
+    case structMember     : out = "a member of a defined type"
+    case localVar         : out = "a local variable"
+    case tabularAccess    : out = "a value of a tabular"
+    case registerAccess   : out = "a register access"
+    case registerBitField : out = "a bitfield of a register"
+    case componentCall    : out = "a component call"
+    case periphCall       : out = "a peripheral's method call"
+    case memoryAccess     : out = "a memory access"
+  end
+}
+
+#define the type of the idf item that have been 
+#determined during 'getExp' method (build of expIdf).
+enum @idfItemSpecType
+{
+  case unknown           #should not be determined -> error
+  case register          #->access through a function in code generation
+  case periphMethod      #
+  case standard          #basic item (nothing special).
+}
+
+getter @idfItemSpecType msg -> @string out {
+  switch self
+    case unknown          : out = "an unknown item type"
+    case register         : out = "a register access"
+    case periphMethod     : out = "a peripheral method"
+    case standard         : out = "a standard item"
+  end
+}
+
+getter @expIdf string -> @string name {
+  name = [idfList string]
+}
+
+getter @expIdf lstring -> @lstring name {
+  @string str =  [idfList string]
+  @location loc = @location.here
+  if [idfList length] > 0 then
+    @lstring first
+    [idfList first ?first ?* ?* ?* ?* ?*]
+    loc = [first location]
+  end
+  name = @lstring. new { !str !loc}
+}
+
+class @expIdf : @expression {
+  @idfItemList idfList  #may be idf1.idf2.idf3
+  @idfType detectedType #type detected using maps (varMap, methodMap, ..)
+  @bool isConst
+}
+
+class @expCast : @expression {
+  @expression expCasted
+}
+
+list @fieldList {
+  @expression expFrom
+  @expression expTo
+  @location loc
+  @bool only1Exp #will be 'true' for a 1bit interval.
+}
+
+class @expBitFieldOp : @expression {
+  @expression expField
+  @fieldList fList
+}
+
+#unary code id 0 -> "!"
+#unary code id 1 -> "~"
+#unary code id 2 -> "-"
+class @expUnary : @expression {
+  @expression exp
+  @uint id 
+}
+
+# in the order: * / % + - >> << < > <= >= = !=  & ^ | && || ^^ ror rol cat (from 0) 
+class @expBinary : @expression {
+  @expression expLeft
+  @expression expRight
+  @uint id 
+}
+###############################################################################
+#
+###############################################################################
+
+getter @expression getLocalVar
+  ?let  @location expLoc
+  -> @lstring idf {
+  if (self is == @expIdf) then
+    let @expIdf expIdf = ( self as @expIdf)
+    if [expIdf detectedType] == @idfType. localVar then
+      #ok, only one item.
+      [[expIdf idfList] first ?idf ?* ?* ?* ?* ?*]
+    else
+      error expLoc: "The expression should be a local variable" : idf
+    end
+  else
+    error expLoc: "The expression should be a local variable" :idf
+  end
+}
+
+###############################################################################
+# getUVal return the unsigned value, if possible.
+###############################################################################
+method @expression getUVal
+  ! @uint64 val
+  ! @bool ok {
+  val = 0L
+  ok = false
+}
+
+override method @expIntConst getUVal
+  ! @uint64 val
+  ! @bool ok {
+  val = value
+  ok = true
+}
+

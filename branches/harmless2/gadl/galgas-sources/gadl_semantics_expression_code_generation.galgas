@@ -1,0 +1,381 @@
+
+
+#functions:
+# - getMaskFor -> return the mask string for nbBits
+# - castCode   -> perform a cast between types.
+#TODO: fieldList range.
+#reader:
+# - generateCode -> for each expression.
+# - hasParenthesis -> return true if the expression has alreaydy "()" -> to prevent uneeded parenthesis.
+# - fieldList getExpCode
+
+
+abstract getter @expression generateCode
+  ?let  @codeCtx unused cgc
+  -> @string code
+
+getter @expression hasParenthesis
+  -> @bool result {
+  result = false
+}
+
+#This function is used for code generation
+#It returns the mask string for nbBits
+#nbBits should be <128 (otherwise, it generates an error).
+func getMaskFor
+  ?let  @uint nbBits
+  ?let  @location loc #for errors.
+  ?let  @codeCtx cgc
+  ->   @string maskStr {
+  if nbBits < 32 then
+    @uint mask = (1 << nbBits) - 1
+    if cgc == @codeCtx. C then 
+      maskStr = [mask hexString]
+    elsif cgc == @codeCtx. Uppaal then 
+      maskStr = [mask string]
+    else error @location.here : "Unknown generation language (nor C or Uppaal)": maskStr
+    end
+  elsif nbBits == 32 then
+    @uint mask = 0xFFFFFFFF
+    maskStr = [mask hexString]
+  elsif nbBits < 64 then
+    @uint64 mask = (1L << nbBits) - 1L
+    maskStr = [mask hexString] +"ULL"
+  elsif nbBits == 64 then
+    maskStr = "0xFFFFFFFFFFFFFFFFULL"
+  elsif nbBits < 128 then
+    maskStr = "(((__uint128_t)(1) << "+[nbBits string]+")-1)"
+  else 
+    maskStr = "0"
+    error loc :"cannot handle a variable >= 128 bits :-/. Mask requires "+[nbBits string]+" bits."
+  end
+  if (cgc == @codeCtx. Uppaal) & (nbBits > 32) then
+    error @location.here: "Try to handle a var of size > 32 bits. This not usable for Uppaal code generation."
+  end
+}
+
+proc castCode
+  ?let  @expression expression
+  ?let  @varAbstractType toType
+  ?! @string code
+  ?let  @bool truncate #if true, castCode may truncate the type, else, it stays in the revious size (only update type).
+  ?let  @codeCtx cgc {
+  #check that both input and output types are base types.
+  @varBaseType toTypeBase   = [toType getBaseType]
+  @varAbstractType fromType = [expression type]
+  @varBaseType fromTypeBase = [fromType getBaseType]
+  @string toTypeC = [toTypeBase getCType]
+  @string expCode = [expression generateCode !cgc]
+  #cast.
+  if cgc != @codeCtx. Uppaal then #no cast in Uppaal mode.
+    @uint toCSize = [toTypeBase getCSize]
+    #mask for assign type.
+    @string maskStr = getMaskFor (!toCSize ![toTypeBase location] !cgc)
+    if [toType kind] == @varKind. signed then
+      #cast to signed. May need a sign extension
+      if [fromTypeBase size] > [toTypeBase size] then
+        if truncate then
+          #value is cut. No sign extension.
+          # if type of a is u7, then (u5)(a) should genererate (u8)((a) & 0x1F)
+          code += "("+toTypeC+")(("+expCode+") & "+maskStr+")"
+        else #no truncate
+          #nothing done
+          code += expCode
+        end
+      elsif [fromTypeBase size] == [toTypeBase size] then
+        if [fromType kind] == @varKind. signed then 
+          #nothing to do (signed to signed).
+          code += expCode
+        else #change sign or get it from float.
+          #same size, but different sign.
+          code += "("+toTypeC+")("+expCode+")"
+        end
+      else
+        #value is extended. May need a sign extension.
+        code += "("+toTypeC+")("
+        if truncate then code += "(" end
+        if [fromTypeBase kind] == @varKind. signed then 
+          #signed to signed value. Sign extension required.
+          # if type of a is s7, then (s10)(a) should genererate (s16)(SIGN_EXTEND(a,7,10) & 0x3FF)
+          code += "SIGN_EXTEND("+expCode
+          code += ","+[[fromTypeBase size] string]+"U,"+[[toTypeBase size] string]+"U)"
+        elsif [fromTypeBase kind] == @varKind. unsigned then
+          #unsigned to signed value. Sign extension not required.
+          # if type of a is u7, then (s10)(a) should genererate (s16)(a & 0x3FF)
+          code += expCode
+        else
+          #from float should be the same size.
+          error [toTypeBase location]: "cannot cast from a float type of different size"
+        end
+        code += ")"
+        if truncate then code += " & "+maskStr+")" end
+      end
+    elsif [toType kind] == @varKind. unsigned then
+      if [fromTypeBase size] == [toTypeBase size] then
+        if [fromTypeBase kind] == @varKind. unsigned then
+          #nothing to do
+          code += expCode
+        else
+          #only change the sign (or from float).
+          code += "("+toTypeC+")("+expCode+")"
+        end
+      elsif [fromTypeBase size] > [toTypeBase size] & not truncate then
+        code += expCode
+      else #either toType size > fromType size, or equal size and truncate.
+        #an unsigned:ex (u5)(a) should genererate (u8)((a) & 0x1F)
+        code += "("+toTypeC+")("
+        if truncate then code += "(" end
+        code += expCode+")"
+        if truncate then code += " & "+maskStr+")" end
+      end
+    elsif [toType kind] == @varKind. float then
+      #no restriction to cast to a float.
+      code += "("+toTypeC+")("+expCode+")"
+    else
+      error [toTypeBase location]: "internal error: cast to non scalar type."
+    end
+  else #Uppaal -> nothing done
+    code += expCode
+  end
+}
+
+override getter @expDummy generateCode
+  ?let  @codeCtx unused cgc
+  -> @string code {
+  code = expCode
+}
+
+override getter @expIntConst generateCode
+  ?let  @codeCtx cgc
+  -> @string code {
+  @string suffix = ""
+  if negative then #negative. Should check for correct range.
+    @sint64 val = 0LS
+    if value > (1L << 63) then
+      error @location.here: "cannot generate code for a negative value less than -(1<<63)"
+    else
+      val = -[value sint64]
+    end
+    code = [val string]
+  else #positive value.
+    code = [value string]
+    suffix = "U"
+  end
+  if value > 0xFFFFFFFFL then suffix += "LL" end
+
+  if cgc == @codeCtx. C then #suffix only for C generation.
+    code += suffix
+  end
+}
+
+override getter @expInstructionSize generateCode
+  ?let  @codeCtx unused cgc
+  -> @string code {
+  code = "size()"
+}
+
+override getter @expInstructionAddress generateCode
+  ?let  @codeCtx unused cgc
+  -> @string code {
+  code = "getInstructionPointer()"
+}
+
+#internal: used by generateCode (normal way) and generateSetterCode
+#used by the assignement instruction.
+getter @expIdf generateIdfListCode
+  ?let  @codeCtx cgc
+  -> @string code {
+  code = ""
+  for (@lstring idf @idfItemType type @expressionlist paramList * @string prefix @string suffix) in  idfList do
+    #TODO: should be corrected for complex types, inlining, @..
+    @string fullIdf = prefix+[idf string]+suffix
+    if type == @idfItemType. basic then
+      code += prefix+[idf string]+suffix
+    elsif type == @idfItemType. functionCall then
+      code += prefix+[idf string]+"("
+      for(@expression exp) in  paramList
+      do code += [exp generateCode !cgc]
+      between code += ", "
+      end
+      code += ")"+suffix
+    elsif type == @idfItemType. tabular then
+      code += prefix+[idf string]+"["
+      if [paramList length] != 1 then error idf: "tabular index not handled correctly" end
+      for(@expression exp) in  paramList do
+        code += [exp generateCode !cgc]
+      end
+      code += "]"+suffix
+    else error idf: "internal error: unknown idf type" #should not happen.
+    end
+ # between code .= "_"; #TODO: a revoir…
+  end
+}
+
+override getter @expIdf generateCode
+  ?let  @codeCtx cgc
+  -> @string code {
+  #code := codePrefix.[selfcopy generateIdfListCode !cgc];
+  code = [self generateIdfListCode !cgc] #TODO
+  #suffix
+  switch detectedType
+  case unknown:
+    error [self lstring]: "The identifier is unknown (code generation) :"+[self string]
+  case structMember,localVar,tabularAccess,componentCall,memoryAccess,periphCall:
+    #ok, nothing to add.
+  case registerAccess,registerBitField:
+    #registers are accessed through functions, but as normal var in description.
+    code += "()"
+  end
+}
+
+#used for assignment instruction.
+getter @expIdf generateSetterCode
+  ?let  @codeCtx cgc
+  -> @string code {
+  code = [self generateIdfListCode !cgc]
+}
+
+
+override getter @expCast generateCode
+  ?let  @codeCtx cgc
+  -> @string code {
+  code = ""
+  castCode ( !expCasted !type !?code !true !cgc)
+}
+
+getter @fieldList getExpCode
+  ?let  @codeCtx cgc
+  ?let  @string expFieldCode
+  -> @string code {
+  code = ""
+  @uint offset = 0
+  #when this flag becomes true, the offset cannot be determined
+  #and the field should be the last (no more offset).
+  @bool unknown = false 
+  #iterate in the reverse order.
+  for >(@expression expFrom @expression expTo @location loc @bool only1Exp) in  self
+  before code = "("
+  do
+    if unknown then
+      error  loc: "error, the field size cannot be computed statically, gadl cannot "+
+                  "concatenate field parts for code generation."
+    end
+    @uint offsetInc = 0
+    if offset != 0 then code += "(" end  
+    @string fromExpCode = [expFrom generateCode !cgc]
+    if only1Exp then
+      code += "FIELD_ONE_BIT("+expFieldCode+","+fromExpCode+")"
+      offsetInc = 1
+    else #general case.
+      @string toExpCode = [expTo generateCode !cgc]
+      code += "FIELD("+expFieldCode+",("+fromExpCode+"),("+toExpCode+"))"
+      #should get the size of the increment:
+      @uint64 rangeFrom
+      @bool ok = true
+      var symbolMap =@symbolValueMap.emptyMap{} #no symbols here.TODO.
+      [[expFrom eval !symbolMap] getUVal ?rangeFrom ?ok]
+      if ok then #can evaluate 'from'
+        @uint64 rangeTo
+        [[expTo eval !symbolMap] getUVal ?rangeTo ?ok]
+        if ok then #can evaluate 'to'
+          offsetInc = [rangeFrom uint]-[rangeTo uint]+1
+        end
+      end
+      unknown = not ok #can't add an offset just after.
+    end
+    if offset != 0 then code += "<<" + [offset string] + ")" end
+    offset = offset+offsetInc
+  between code += "|"
+  after code+=")"
+  end
+}
+
+override getter @expBitFieldOp generateCode
+  ?let  @codeCtx cgc
+  -> @string code {
+  #bit fields.
+  @string expFieldCode = [expField generateCode !cgc]
+  code = [fList getExpCode !cgc !expFieldCode]
+}
+
+override getter @expBitFieldOp hasParenthesis -> @bool result { result = true }
+
+override getter @expUnary generateCode
+  ?let  @codeCtx cgc
+  -> @string code {
+  @varBaseType vbt = shouldBeVarBaseType(!type !"unary expression")
+  # logic not, boolean not, and unary '-'
+  @bool shouldUseMask = [vbt getCSize] != [vbt size]
+  code = "("
+  if shouldUseMask then code += "(" end
+  if    id == 0 then code += "!"
+  elsif id == 1 then code += "~"
+  elsif id == 2 then code += "-"
+  else error @location.here: "internal error in expression @cUnaryOp"
+  end
+  code += [exp generateCode !cgc]
+  code += ")"
+  if shouldUseMask then 
+    @string maskStr = getMaskFor (![vbt size] ![vbt location] !cgc)
+    code += " & "+maskStr+")"
+  end
+}
+
+override getter @expUnary hasParenthesis -> @bool result { result = true }
+
+override getter @expBinary generateCode
+  ?let  @codeCtx cgc
+  -> @string code {
+  @varBaseType vbtLeft  = shouldBeVarBaseType(![expLeft type]  !"binary expression")
+  @varBaseType vbtRight = shouldBeVarBaseType(![expRight type] !"binary expression")
+  #binary operations as in C
+  if id == 18 then #boolean xor does not exists in C
+    code = "(BOOLEAN_XOR("
+    code += [expLeft generateCode !cgc]
+    code += ","
+    code += [expRight generateCode !cgc]
+    code += "))"
+  elsif id == 19 | id == 20 then
+    if id == 19 then code = "(ROTATION_ROR"
+    else             code = "(ROTATION_ROL"
+    end
+    code += "("+[expLeft generateCode !cgc]
+    code += ","+ [[vbtLeft size] string] + ","
+    code += [expRight generateCode !cgc]+"))"
+  elsif id == 21 then
+    #concatenation
+    code = "(CAT("
+    code += [expLeft generateCode !cgc]
+    code += ","
+    code += [expRight generateCode !cgc]
+    code += "," + [[vbtRight size] string] + "))"
+  else
+    code = "(("
+    castCode ( !expLeft !type !?code !false !cgc)
+    if    id == 0 then code += ")*("
+    elsif id == 1 then code += ")/("
+    elsif id == 2 then code += ")%("
+    elsif id == 3 then code += ")+("
+    elsif id == 4 then code += ")-("
+    elsif id == 5 then code += ")>>("
+    elsif id == 6 then code += ")<<("
+    elsif id == 7 then code += ")<("
+    elsif id == 8 then code += ")>("
+    elsif id == 9 then code += ")<=("
+    elsif id == 10 then code += ")>=("
+    elsif id == 11 then code += ")==("
+    elsif id == 12 then code += ")!=("
+    elsif id == 13 then code += ")&("
+    elsif id == 14 then code += ")^("
+    elsif id == 15 then code += ")|("
+    elsif id == 16 then code += ")&&("
+    elsif id == 17 then code += ")||("
+    else error @location.here: "internal error in expression @cBinaryOp"
+    end
+    castCode ( !expRight !type !?code !false !cgc)
+    code += "))"
+  end
+}
+
+override getter @expBinary hasParenthesis -> @bool result { result = true }
+

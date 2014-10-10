@@ -1,0 +1,196 @@
+syntax gadl_timing_parser (gadl_lexique) {
+
+rule <expression> !@ASTExpression ASTexp
+rule <assignmentOrFunctionCall> ?! @ASTInstructionList instList
+rule <declaration> ?! @ASTInstructionList instList
+
+#main timing instruction rule.
+rule  <timing>
+  ?! @ASTTimingMap ASTTimingMap {
+  $timing$
+  @lstring timingName
+  $idf$ ?timingName
+  @bool externalActivation = false
+  @bool enabledDefined = false
+  @ASTExpression ASTExpEnable = @ASTIntConst. new { !@location.here !1L !false !@varKind. unsigned} #true: 1
+  repeat
+  while
+    $on$
+    $activation$
+    externalActivation = true
+  while
+    $enabled$    
+    $($ <expression> ?ASTExpEnable $)$
+    if enabledDefined then
+      error @location.here: "The 'enabled' condition should only be set one time for a timing"
+    end
+    enabledDefined = true
+  end
+  var signalIn =@boolMap.emptyMap{}
+  var signalOut =@boolMap.emptyMap{}
+  <signal> !?signalIn !?signalOut
+  ${$ 
+  @bool loopForever
+  @ASTTimingInstructionList ASTTinstList
+  <tInstructions> ?ASTTinstList !true ?loopForever
+  if loopForever & not externalActivation then
+    error @location.here: "This timing will generate code that loops forever."+
+    "It should wait either for a number of cycles or for a synchronisation (wait for signal/emit signal)"
+  end
+  $}$
+  [!?ASTTimingMap insertKey !timingName !externalActivation !signalIn !signalOut !ASTTinstList !ASTExpEnable]
+}
+
+#Signal Rule for in and out signal
+rule <signal>
+  ?! @boolMap signalIn
+  ?! @boolMap signalOut {
+  repeat
+  while
+    @bool isIn
+    $signal$ 
+    select 
+      $in$ isIn=true 
+    or 
+      $out$ isIn=false
+    end
+    $:$ 
+    repeat
+      @lstring signalName
+      $idf$ ?signalName
+      if isIn then
+        [!?signalIn insertKey !signalName]
+      else
+        [!?signalOut insertKey !signalName]
+      end
+    while
+      $,$
+    end
+  end
+}
+
+rule  <tInstructions>  
+  !  @ASTTimingInstructionList ASTTinstList
+  ?let  @bool mainChunk # no local vars? (really necessary?)
+  !  @bool loopForever {
+  #This bool is used to check that simulation will not go into an infinite loop:
+  #timing should have at least a block instruction (wait for cycles or signals).
+  loopForever = true
+  ASTTinstList = @ASTTimingInstructionList. emptyList
+  repeat
+    @ASTTimingInstruction ASTTinst 
+    select
+      <tDeclare> ?ASTTinst
+      if not mainChunk then
+        error @location.here: "Declaration of local variables is not supported in 'timing' sections. Please use only globals."
+      end
+    or
+      <tAssign> ?ASTTinst
+    or 
+      <temit> ?ASTTinst
+      loopForever = false
+    or
+      <wait> ?ASTTinst
+      loopForever = false
+    or
+      <ifStatement> ?ASTTinst ?var @bool loopForeverIf
+      loopForever = loopForever & loopForeverIf #if loopForever is still false, it stays false;
+    or 
+      <loop> ?ASTTinst
+    end
+    ASTTinstList += !ASTTinst
+  while
+  end
+}
+
+rule  <tDeclare>
+  ! @ASTTimingInstruction tinst {
+  var instList =@ASTInstructionList.emptyList{}
+  <declaration> !?instList
+  tinst = @ASTTDeclaration. new { !@location.here !instList}
+}
+
+rule  <tAssign>
+  ! @ASTTimingInstruction tinst {
+  var instList =@ASTInstructionList.emptyList{}
+  <assignmentOrFunctionCall> !?instList
+  tinst = @ASTTAssignOrCall. new { !@location.here !instList}
+}
+
+rule  <wait>
+  ! @ASTTimingInstruction tinst {
+  $wait$ 
+  select 
+    <expression> ?var @ASTExpression ASTexp
+    $cycle$
+    tinst = @ASTTWaitCycle. new {  !@location.here !ASTexp}
+  or 
+    $for$ $signal$ $idf$ ?var @lstring name
+    tinst = @ASTTWaitSignal. new {  !@location.here  !name}
+  end
+} 
+
+rule  <temit>  
+  ! @ASTTimingInstruction tinst {
+  @lstring name
+  $emit$ 
+  @bool broadcast
+  select
+    $broadcast$ broadcast = true
+  or
+    broadcast = false
+  end
+  select #signal keyword not mandatory.
+    $signal$
+  or
+  end
+  $idf$ ?name
+  tinst = @ASTTEmit. new { !@location.here !name !broadcast}
+}
+
+rule <loop> 
+  ! @ASTTimingInstruction tinst {
+  @bool forever
+  @ASTExpression ASTexpLoopValue
+  $loop$
+  select
+    <expression> ?ASTexpLoopValue
+    forever = false
+  or
+    $forever$
+    #dummy ASTExp
+    ASTexpLoopValue = @ASTIntConst. new { !@location.here !0L !false !@varKind. unsigned}
+    forever = true
+  end
+  $while$
+  <expression> ?var @ASTExpression ASTexpCondValue  
+  $do$
+  <tInstructions> ?var @ASTTimingInstructionList ASTTinstLoopList !false ?*
+  $end$$loop$
+  #create loop instruction.
+  tinst = @ASTTLoop. new { !@location.here !forever !ASTexpLoopValue !ASTexpCondValue !ASTTinstLoopList}
+}
+
+rule <ifStatement> 
+  !  @ASTTimingInstruction tinst
+  !  @bool loopForever {
+  var ASTTinstListThen =@ASTTimingInstructionList.emptyList{}
+  var ASTTinstListElse =@ASTTimingInstructionList.emptyList{}
+  $if$
+  <expression> ?var @ASTExpression ASTexpIf
+  $then$
+  @bool loopForeverIf
+  <tInstructions> ?ASTTinstListThen !false ?loopForeverIf
+  @bool loopForeverElse
+  select 
+    $else$
+    <tInstructions> ?ASTTinstListElse !false ?loopForeverElse
+  or
+    loopForeverElse = true #no else
+  end
+  loopForever = loopForeverIf | loopForeverElse #should be false together
+  $end$ $if$
+  tinst = @ASTTIf. new { !@location.here !ASTexpIf !ASTTinstListThen !ASTTinstListElse}
+}
+
+}

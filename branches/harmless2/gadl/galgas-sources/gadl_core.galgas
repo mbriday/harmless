@@ -1,0 +1,71 @@
+
+
+#key is core name.
+map @ASTCoreMap
+{
+  @ASTIsa ASTIsa
+  @ASTmemoryParamMap ASTmemChunk
+  @stringlist memChunkOrder
+  @architectureMap archMap
+  @pipelineMap pipelineMap
+  @machineMap machineMap
+  @ASTFunctionMap ASTCoreConstructorMap
+  @ASTInstructionList ASTDeviceDecList
+  insert insertKey error message "the '%K' core is already defined in %L" 
+  search searchKey error message "the '%K' core is not defined"
+}
+
+method @ASTCoreMap coreSemantic
+  ?let  @lstring exportDir
+  ?let  @memSpaceMap memSpaceMap
+  ?! @TfieldMap templateStruct {
+  var coreTpl =@TfieldMapList.emptyList{}
+  for () in  self do
+    var coreTplBody =@TfieldMap.emptyMap{}
+    @lstring coreName = lkey
+    addLStringValue ( !?coreTplBody !"NAME" !coreName)
+    ###########################################################################
+    # memory space.
+    ###########################################################################
+    var idfStruct =@varIdfStruct.default
+    idfStruct.memSpaceMap = memSpaceMap
+    #message [idfStruct string];
+
+    ###########################################################################
+    #constructor of the core (memory defined, and ISA not yet).
+    ###########################################################################
+    @expressionContext ctx = @expressionContext. component #same ctx as a component...  
+    @functionMap constructorMap = [ASTCoreConstructorMap getFunctionMap !ctx !idfStruct]
+    addListValue ( !?coreTplBody !lstringWith(!"coreConstructorList") 
+                 ![constructorMap getFunctionTemplate])
+    
+    ###########################################################################
+    # ISA
+    ###########################################################################
+    [ASTIsa getIsa !?idfStruct !coreName !exportDir !?coreTplBody ?var @Isa isa]
+
+    ###########################################################################
+    # local memory definition
+    ###########################################################################
+    @memoryParamMap memChunk = [ASTmemChunk getMemMap]
+    [memChunk setInTemplate !lstringWith(!"memInCoreList") !?coreTplBody]
+
+    ###########################################################################
+    # Architecture (defined in core), for a CAS version.
+    ###########################################################################
+    @intMap memSpaceWithRegister = [memChunk memSpaceWithRegisterBank !memSpaceMap]
+    microArchPart ( !isa !coreName !exportDir !machineMap !pipelineMap !archMap !idfStruct 
+                  !memSpaceWithRegister !memChunk !?coreTplBody)
+
+    ###########################################################################
+    # export data from idfStruct (components and so on).
+    ###########################################################################
+    [idfStruct setInTemplate !?coreTplBody]
+    [idfStruct setProgramCounterInTemplate !?coreTplBody]
+
+    #end.
+    coreTpl += !coreTplBody
+  end
+  addListValue ( !?templateStruct !lstringWith(!"coreList") !coreTpl)
+}
+

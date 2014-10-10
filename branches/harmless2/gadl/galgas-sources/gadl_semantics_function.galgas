@@ -1,0 +1,182 @@
+
+  
+
+#----------------------------------------------------------------------------
+# function def and calls end return.
+#----------------------------------------------------------------------------
+# @parameterDefList definition of params in a function: 
+#             (defined in gadl_varIdfStruct.gSemantics)
+# -> reader @parameterDefList checkParams ?@expressionlist idfExpList 
+#             (defined in gadl_semantics_GetExp.gSemantics)
+# -> method @parameterDefList getInlinedInsts
+# -> reader @parameterDefList getFunctionParam (implementation using templates.)
+#check that parameter lists are equals (not names, but types).
+# -> reader @parameterDefList checkEqual
+
+#
+# @ASTFunctionMap AST related function
+# -> method @ASTFunctionMap getFunctionMap -> get decorated structure.
+# -> method @ASTFunctionMap getFunctionPrototypeMap -> get only the prototype.
+#
+# @functionMap : decorated structure (defined in gadl_varIdfStruct.gSemantics).
+# ->reader @functionMap getFunctionTemplate
+
+ 
+#used during parsing, not decorated… (defined in gadl_varIdfStruct.gSemantics)
+#map @ASTFunctionMap
+
+getter @ASTFunctionMap getFunctionMap
+  ?let  @expressionContext ctx
+  ?let  @varIdfStruct idfStruct
+  -> @functionMap functionMap {
+  functionMap = @functionMap. emptyMap
+  for (@lstring key @parameterDefList param @varAbstractType outType @ASTInstructionList code) in  self do
+    #first add params to varMap
+    var varMap =@varMap.mapWithMapToOverride{ ![idfStruct varMap]}
+    for(@bool out @varAbstractType type @lstring name) in  param do
+      @instDeclaration instDec = @instDeclaration. new { !@location.here !type !name !@varClass. localVar !""}
+      [!?varMap insertKey !name !type !not out !@varClass. localVar !instDec]
+    end
+    #update the IdfStruct accordingly (copy to modify).
+    @varIdfStruct idfStructCopy = idfStruct
+    idfStructCopy.varMap = varMap
+    #then get instructions from their AST.
+    @instructionList instList = getInst(!code !ctx !@symbolValueMap. emptyMap !idfStructCopy)
+    [!?functionMap insertKey !key !param !outType !instList]
+  end
+}
+
+#return only the prototype (i.e. instList is empty).
+getter @ASTFunctionMap getFunctionPrototypeMap
+  -> @functionMap functionMap {
+  functionMap = @functionMap. emptyMap
+  for (@lstring key @parameterDefList param @varAbstractType outType *) in  self do
+    [!?functionMap insertKey !key !param !outType !@instructionList. emptyList]    
+  end
+}
+
+#This reader returns the instructions to generate the function call.
+#when used in an inlining approach (as in behaviors)
+method @parameterDefList getInlinedInsts
+  ?let  @ASTExpressionlist ASTexpList #expression list from the caller.
+  ?let  @expressionContext ctx
+  ?let  @location callLoc
+  ?let  @location defLoc
+  ?let  @varIdfStruct fromIdfStruct
+  ?! @varIdfStruct toIdfStruct
+  !  @instructionList instList {
+  #here, we have to generate a special assignment, as
+  #the idf is related to the new 'toIdfStruct' -> the varMap should be update
+  #the expression should be computed using the old 'fromIdfStruct'
+  #if there is no 'out', the value is constant, but assigned first (TODO)
+  instList = @instructionList. emptyList
+  @expressionlist expList = [ASTexpList getExp !ctx !@symbolValueMap. emptyMap !fromIdfStruct]
+#  @expressionlist expList [emptyList];
+  var symbolValueMap =@symbolValueMap.emptyMap{}
+#  foreach ASTexpList(@ASTExpression ASTexp) do
+#    expList += ![ASTexp getExp !ctx !symbolValueMap !fromIdfStruct];
+#  end foreach;
+  #check parameters.
+  [self checkParams !expList !callLoc !defLoc]
+  #then generate the instructions.
+  for(@expression exp) in  expList,(@bool out @varAbstractType type @lstring name) in  self do
+    #declaration
+    @ASTInstDeclaration ASTinstDec = @ASTInstDeclaration. new { ![name location] !@varClass. localVar !type !name}
+    @instruction instDec
+    [ASTinstDec getInst !ctx !?symbolValueMap !?toIdfStruct ?instDec]
+    if out then
+      let @instDeclaration instDecOk = ( instDec as @instDeclaration)
+      @lstring idf = [instDecOk name]
+      #now get the idf in the expression call.
+      @lstring idfCall = [exp getLocalVar !callLoc]
+      #then replace it.
+      [!?toIdfStruct.replaceMap insertKey !idf !idfCall]
+      #We add the corresponding entry in the new varMap
+      @varAbstractType idfItemType
+      @bool constant #true if the variable should not be modified.
+      @varClass varClass
+      [fromIdfStruct.varMap searchKey !idfCall ?idfItemType ?constant ?varClass ?var @instDeclaration idec]
+      [!?toIdfStruct.varMap insertKey !idfCall !idfItemType !constant !varClass !idec]
+      if constant then
+        error callLoc: "The variable is constant, but defined as in/out parameter"
+      end
+      #that's all, folks.
+    else
+      instList += !instDec
+      #get the expression related to the idf.
+      @ASTIdf ASTidf = [name getASTExp]
+      toIdfStruct.assign = true
+      @expIdf expIdfAssign = ( [ASTidf getExp !ctx !symbolValueMap !toIdfStruct] as @expIdf)    
+      toIdfStruct.assign = false
+      @expIdf expIdfRead = ( [ASTidf getExp !ctx !symbolValueMap !toIdfStruct] as @expIdf)    
+      #then assign
+      instList += !@instAssignment. new { ![name location] !expIdfAssign !expIdfRead !@fieldList. emptyList !exp}
+    end
+  end
+}
+
+getter @functionMap getFunctionTemplate
+  -> @TfieldMapList methodTplList {
+  methodTplList = @TfieldMapList. emptyList
+  for () in  self do
+    var methodTplBody =@TfieldMap.emptyMap{}
+    addLStringValue ( !?methodTplBody !"name" !lkey)
+    #return type.
+    @string returnTypeStr = [[outType getBaseType] getCType]
+    addStringValue ( !?methodTplBody !lstringWith(!"returnTypeStr") !returnTypeStr)
+    #parameters
+    @string paramStr = [param getFunctionParam]
+    addStringValue ( !?methodTplBody !lstringWith(!"paramStr") !paramStr)
+    #then body implementation
+    @string codeStr = ""
+    codeStr += generateCode(!instList !3 !@codeCtx. C)
+    addStringValue ( !?methodTplBody !lstringWith(!"codeStr") !codeStr)
+    #end
+    methodTplList += !methodTplBody
+  end
+}
+
+#check that parameter lists are equals (not names, but types).
+getter @parameterDefList checkEqual
+  ?let  @parameterDefList paramListExpected
+  ?let  @location loc
+  -> @bool ok {
+  ok = true
+  if [self length] != [paramListExpected length] then
+    error loc: [[paramListExpected length] string]+" are expected here, but only "+
+               [[self length] string]+" are given"
+    ok = false
+  end
+  if ok then
+    for () base_ in  self, () expected_ in  paramListExpected do
+      #in or out arg.
+      if base_out != expected_out then
+        error base_name: "The parameter is set as "+if base_out     then "out" else "in" end+
+                         "but the expected one is "+if expected_out then "out" else "in" end
+        ok = false
+      end
+      #check type.
+      ok = ok & [base_type checkEqual !expected_type]
+    end
+  end
+}
+
+getter @parameterDefList getFunctionParam
+  -> @string code {
+  code = ""
+  for () in  self do
+    @string typeStr = [[type getBaseType] getCType] #only base types supported for now.
+    if out then
+      code += typeStr 
+      code += " &"  # C++ only!
+    else 
+      code += "const " 
+      code += typeStr 
+      code += " " 
+    end
+    code += [name string]
+  between
+    code += ", "
+  end
+}
+

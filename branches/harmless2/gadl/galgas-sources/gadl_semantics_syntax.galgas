@@ -1,0 +1,827 @@
+ #tabs
+
+
+
+#----------------------------------------------------------------------------
+#--- Syntax
+#----------------------------------------------------------------------------
+
+map @printNumberTypeMap {
+  @lstring numberType
+  insert insertKey error message "the '%K' type number is already defined in %L" 
+  search searchKey error message "the '%K' type number is not defined"
+}
+
+#############  Chunk definition ############## 
+abstract class @syntaxChunk{
+}
+abstract method @syntaxChunk printImplementation ?let @varMap fieldMapWithoutSuffix ?let @uint indentation ?let @string currentSuffixStr ?!@string code ?let @printNumberTypeMap typeMap ?let @bool switchGenerate
+
+
+list @syntaxChunkList {
+  @syntaxChunk chunk
+}
+
+list @syntaxArgsList {
+  @ASTExpression exp
+}
+
+class @printInst {
+  @lstring str
+  @syntaxArgsList arg
+}
+
+proc printTypeName
+  ?let  @printNumberTypeMap typeMap 
+  ?let  @char charNext
+  ?! @string reg
+  ?let  @varBaseType expType {
+  @lstring prefixDec = @lstring. new { ![charNext string] + "_p" !@location.here}
+  @lstring suffixDec = @lstring. new { ![charNext string] + "_s" !@location.here}
+  @lstring prefix = @lstring. new { !"" !@location.here}
+  @lstring suffix = @lstring. new { !"" !@location.here}
+  #get the prefix, if defined.
+  if [typeMap hasKey ![prefixDec string]] then
+    [typeMap searchKey !prefixDec ? prefix]
+  end
+  #get the suffix, if defined.
+  if [typeMap hasKey ![suffixDec string]] then
+    [typeMap searchKey !suffixDec ? suffix]
+  end
+  # for > 32 bits, use long long approach.
+  @string ll = ""
+  if [expType size] > 32 then ll = "ll" end
+  if ([charNext string] == "d") & ([expType kind] == @varKind. unsigned) then #decimal with unsigned exp.
+    reg += [prefix string] + "%"+ll+"u" + [suffix string]
+  elsif [charNext string] == "b" then
+    reg += [prefix string] + "%"+ll+"d" + [suffix string]
+#  elsif [charNext string] == "x" then
+#    @uint sizeCInHex := [expType size] >> 2; #one hex => 4 bits.
+#    if ([expType size] & 0x3) != 0 then sizeCInHex := sizeCInHex + 1; end if;
+#    reg .= [prefix string] . "%0".[sizeCInHex string]."x" . [suffix string];
+  else
+    reg += [prefix string] + "%"+ll+[charNext string] + [suffix string]
+  end
+}
+
+# In case of generateSyntaxImplementationFiles, this routine returns file1 containing 
+#for example: AND R%d, R%d , and file2 containing for example: ,rd1Index, rs1Index
+#and in case of generating of Syntax.log, it returns file1 containing for example: AND Rrd1Index, Rrs1Index
+#and file2 is empty (file2 := "";)
+proc print
+  ?let  @varMap fieldMapWithoutSuffix
+  ?let  @printInst printInst
+  ?let  @printNumberTypeMap typeMap
+  ?let  @string currentSuffixStr
+  ?let  @bool switchGenerate 
+  ?! @string file1
+  ?! @string file2 {
+  @string str = [[printInst str] string]
+  @syntaxArgsList args = [printInst arg]
+  @uint length = [str length]
+  @uint i = 0
+  @string reg = ""
+  loop( length + 1)
+  while i < length do
+    @bool ok = false
+    @char char = [str characterAtIndex !i]
+    @char charNext
+    if i == (length-1) then
+      charNext = '@'
+    else
+      charNext = [str characterAtIndex !(i+1)]
+    end
+    if [args length] != 0 then
+      for(@ASTExpression ASTargUnused) in  args do
+        if not ok then
+          if (char == '\\') & ((charNext == 'd') | (charNext == 'x') | (charNext == 'b') | (charNext == 'o')) then
+            [!?args popFirst ?var @ASTExpression ASTarg]    
+            @expression arg
+            @lstring emptyLString = @lstring. new { !"" !@location.here}
+            var idfStruct =@varIdfStruct.default
+            idfStruct.varMap = fieldMapWithoutSuffix
+            idfStruct.idfSuffixName = currentSuffixStr
+            #message "arg -> ".[[ASTarg loc] locationString]."\n";
+            arg = [ASTarg getExp !@expressionContext. syntaxView !@symbolValueMap. emptyMap !idfStruct]
+          
+            @varBaseType type = [[arg type] getBaseType]
+            if switchGenerate then
+              printTypeName ( !typeMap !charNext !?reg !type)
+              file2 += ","
+              if charNext == 'b' then
+                file2 += "dtobin("
+              end
+              #cast for correct print.
+              @location loc = [[printInst str] location]
+              if [type size] <= 32 then
+                file2 += "(u32)("
+
+                castCode ( !arg !@varBaseType. new { !@varKind. unsigned !32 !loc} !?file2 ! false !@codeCtx. C)
+                #castCode !exp ![@varType new ![@varKind unsigned] !32 !loc] !"" !currentSuffixStr !?file2 ! false ![@codeCtx C];
+                file2 +=")"
+              elsif [type size] <= 64 then
+                file2 += "(u64)("
+                castCode ( !arg !@varBaseType. new { !@varKind. unsigned !64 !loc} !?file2 ! false !@codeCtx. C)
+                #castCode !exp ![@varType new ![@varKind unsigned] !63 !loc] !"" !currentSuffixStr !?file2 ! false ![@codeCtx C];
+                file2 +=")"
+              else
+                error loc: "cannot print value > 64 bits in mnemo."
+              end
+              if charNext == 'b' then
+                file2 += ")" #.c_str()";
+              end
+            end
+            file1 += reg
+            if not switchGenerate then
+              file1 += [arg generateCode !@codeCtx. C]
+            end
+            reg = ""
+            i++
+            ok = true
+          else
+            ok = true
+            reg += [char string]
+          end
+        end
+      end
+    else         
+      reg += [[str characterAtIndex !(i)] string]
+    end
+    i ++
+  end
+  file1 += reg
+  reg = ""
+}
+
+class @printChunk : @syntaxChunk {
+  @printInst printInst
+}
+
+override method @printChunk printImplementation 
+  ?let  @varMap fieldMapWithoutSuffix
+  ?let  @uint indentation
+  ?let  @string currentSuffixStr
+  ?! @string code
+  ?let  @printNumberTypeMap typeMap
+  ?let  @bool switchGenerate {
+  code += tabs(!indentation)
+  @string file1 = ""
+  @string file2 = ""
+  print ( !fieldMapWithoutSuffix !printInst !typeMap !currentSuffixStr !switchGenerate !?file1 !?file2)
+  code += "index += sprintf (result + index,\"" + file1 + "\"" + file2 + ");\n" 
+}
+
+list @ifElsifList {
+  @ASTExpression elsifCondition
+  @syntaxChunkList elsifInstructions
+}
+
+class @ifChunk : @syntaxChunk {
+  @ifElsifList elsifList
+  @syntaxChunkList elseInstructions
+}
+
+override method @ifChunk printImplementation 
+  ?let  @varMap fieldMapWithoutSuffix
+  ?let @uint indentation 
+  ?let @string currentSuffixStr 
+  ?!@string code 
+  ?let @printNumberTypeMap typeMap 
+  ?let @bool switchGenerate {
+  # imprimer ifCondition
+  @bool foundIf = false
+  for (@ASTExpression ASTElsifCondition @syntaxChunkList elsifInstructions) in  elsifList do
+    @expression elsifCondition
+    @lstring emptyLString = @lstring. new { !"" !@location.here}
+    var idfStruct =@varIdfStruct.default
+    idfStruct.varMap = fieldMapWithoutSuffix
+    idfStruct.idfSuffixName = currentSuffixStr
+    elsifCondition = [ASTElsifCondition getExp !@expressionContext. syntaxView !@symbolValueMap. emptyMap !idfStruct]
+    @bool hasParenthesis = [elsifCondition hasParenthesis]
+  
+    code += tabs(!indentation)
+    if not foundIf then
+      code += "if"
+      foundIf = true
+    else 
+      code += "}else if"
+    end
+    if not hasParenthesis then code += "(" end  
+    code += [elsifCondition generateCode !@codeCtx. C]
+    if not hasParenthesis then code += ")" end      
+    code += "{\n"
+    for (@syntaxChunk chunk) in  elsifInstructions do
+      [chunk printImplementation !fieldMapWithoutSuffix !indentation+1 !currentSuffixStr !?code !typeMap !switchGenerate]
+    end
+  end
+  if [elseInstructions length] > 0 then
+    code += tabs(!indentation)+"}else{\n"
+    for (@syntaxChunk chunk) in  elseInstructions do
+      [chunk printImplementation !fieldMapWithoutSuffix !indentation+1 !currentSuffixStr !?code !typeMap !switchGenerate]
+    end
+  end
+  code += tabs(!indentation)+"}\n"
+}
+
+abstract class @idfOrRefSyntax : @syntaxChunk {
+  @lstring name
+}
+override method @idfOrRefSyntax printImplementation 
+  ?let  @varMap unused fieldMapWithoutSuffix
+  ?let  @uint unused indentation 
+  ?let  @string unused currentSuffixStr 
+  ?! @string unused code 
+  ?let  @printNumberTypeMap unused typeMap 
+  ?let  @bool unused switchGenerate {
+}
+
+class @idfOrRefSyntaxIsIdf : @idfOrRefSyntax{
+  @lstring postRefName #string to add in the called syntax. (suffix)
+} 
+
+class @idfOrRefSyntaxIsRefDeclaration : @idfOrRefSyntax {
+}
+
+list @syntaxChunkListWithSuffix {
+  @syntaxChunk chunk
+  @stringlist suffixList  
+}
+
+list @syntaxChunkListWithSuffixList {
+  @syntaxChunkListWithSuffix chunkList
+}
+
+########### data storage ##############
+#What is contained into a syntax (agg or alt).
+
+abstract class @syntaxBody {
+  @syntaxChunkList chunkList
+  @varMap fieldMap
+}
+
+class @aggSyntax : @syntaxBody {
+}
+
+class @altSyntax : @syntaxBody {
+}
+
+map @syntaxMap {
+  @syntaxBody syntaxBody
+  insert insertKey error message "the '%K' syntax is already defined in %L" 
+  search searchKey error message "the '%K' syntax is not defined in map"
+  remove removeKey error message "the '%K' syntax is not defined and cannot be removed."
+}
+
+list @syntaxStringSetList
+{
+  @stringset stringSet
+}
+list @syntaxLStringListList
+{
+  @lstringlist stringList
+}
+
+###########################################################################
+#  Routines to check Syntax's arguments 
+###########################################################################
+proc giveSequenceSyntax
+  ?let  @syntaxChunkListWithSuffix chunkList {
+  @stringlist strList = @stringlist. emptyList
+  for (@syntaxChunk chunk *) in  chunkList do
+    cast chunk
+    case == @idfOrRefSyntaxIsIdf chunkIsIdf :
+      strList += ![[chunkIsIdf name] string]
+    case >= @idfOrRefSyntax chunkIsSyntax : #ref or declarationRef
+      @string temp = "#"+[[chunkIsSyntax  name] string]
+      strList += !temp
+    else
+    end
+  end
+  @bool first = true
+  for (@string str) in  strList do
+    if not first then message " -> " end
+    first = false
+    message str
+  end
+  message "\n"
+}
+
+proc compareArgsAndAntiSlash
+?let  @printInst printInst
+?! @bool isError {
+  @uint nbArgs = [[printInst arg] length]
+#  if nbArgs !=0 then
+  @uint slash = 0
+  @uint i = 0
+  @string str = [[printInst str] string]
+  @uint length = [str length]
+  loop( length + 1)
+  while i < length do
+    @char char = [str characterAtIndex !i]
+    if char == '\\' then
+      @char charNext
+      if i == (length-1) then
+        charNext = '@'
+      else
+        charNext = [str characterAtIndex !(i+1)]
+      end
+      if (charNext == 'd') | (charNext == 'x') | (charNext == 'b') | (charNext == 'o') then
+        slash = slash + 1
+      end
+    end
+    i ++
+  end
+  if nbArgs != slash then     
+    error [[printInst str] location]: "\nThe number of arguments is not compatible "+
+                                      "with the number of '\\'.\n"                           
+    isError = true
+  end
+#  end if;
+}
+
+proc checkSyntaxArgs
+?let  @syntaxMap syntaxMap {
+  if [option .verbose_output value] then
+    message "Check Syntax Arguments..."
+  end
+  @bool isError = false
+  for (@lstring syntaxName @syntaxBody syntaxBody) in  syntaxMap do
+    @syntaxChunkList chunkList = [syntaxBody chunkList]
+    for (@syntaxChunk chunk) in  chunkList do
+      cast chunk
+      case == @printChunk chunkIsPrint :
+        @printInst printInst = [chunkIsPrint printInst]
+        compareArgsAndAntiSlash ( !printInst !?isError)
+      else  
+      end
+    end
+  end
+  if not isError then
+    if [option .verbose_output value] then
+      message "ok.\n"
+    end
+  end
+} 
+
+proc checkSyntaxInstructionWithFormatCompatibility
+  ?let  @syntaxMap syntaxMap
+  ?let  @syntaxChunkListWithSuffixList instructionList
+  ?let  @instructionImplementationMap impMap
+  ?let  @syntaxLStringListList instructionSeqList #-> for logs and eror messages
+  ?let  @syntaxStringSetList  referenceSeqList   #-> for internal use
+  ?let  @lstring modelName
+  !  @bool noError {
+  #log instructionList;
+  noError = true
+  #for each instruction
+  for (@syntaxChunkListWithSuffix chunkList) in  instructionList, (@stringset referenceSeq) in 
+          referenceSeqList, (@lstringlist instList) in 
+          instructionSeqList do
+    @string instName = getInstructionName(!referenceSeq ![modelName string])
+    #first that the instruction extracted from syntax was declared in the format part.
+    if not [impMap hasKey !instName] then
+       error @location.here : "internal error: The syntax signature of the instruction does not match any format instruction :-/"
+    else
+      #ok matching
+      #then checks that each field is correctly set (name and type).
+      @varBaseTypeMap instructionFieldMap
+      @lstring instNameLoc = @lstring. new { !instName !@location.here}
+      [impMap searchKey !instNameLoc ?* ?* ?* ?* ?* ?* ?instructionFieldMap]
+      #now get all the fields in the behavior.
+      @uint nbFields = 0
+      for (@syntaxChunk chunk @stringlist suffixList) in  chunkList do
+        @string suffixName
+        getSuffixString ( !suffixList ?* ?suffixName)
+        #get the fieldMap
+        @varMap fieldMap
+        cast chunk
+        case == @idfOrRefSyntaxIsIdf chunkIsIdf :
+          @syntaxBody syntaxBody
+          [syntaxMap searchKey ![chunkIsIdf name] ?syntaxBody]
+          fieldMap = [syntaxBody fieldMap]
+        else fieldMap = @varMap. emptyMap
+        end
+        #check that each entry in the field Map is declared in the format.
+        for (@lstring name @varAbstractType abstractType ...) in  fieldMap do
+          @lstring nameWithSuffix = @lstring. new { ![name string]+suffixName ![name location]}
+          @varBaseType type = [abstractType getBaseType]
+          nbFields = nbFields + 1
+          @varBaseType formatType
+          @bool errorFound = false
+          if [instructionFieldMap hasKey ![nameWithSuffix string]] then
+            [instructionFieldMap searchKey !nameWithSuffix ?formatType]
+          else
+            @string errorStr = "cannot find the field "+[nameWithSuffix string]+
+                                " in the format description of instruction "
+            printInstructionId ( ! referenceSeq !? errorStr)
+            error [name location]: errorStr :formatType
+          end
+          #size?
+          if [type size] < [formatType size] then
+            error [name location]: "the type size ("+[[type size] string]+" bits) for the data field"+ 
+                                   "in instruction is not compatible with the one declared "+
+                                   "in the format description ("+[[formatType size] string]+" bits)"+
+                                   "\nThe syntax sequence found is:\n"
+            errorFound = true
+          end
+          #sign?
+          if [type kind] != [formatType kind] then
+            error [name location]: "the kind (unsigned, signed or float) for the data field in instruction is "+
+                                   "not compatible with the one declared in the format "+
+                                   "description\nThe syntax sequence found is:\n"
+            errorFound = true
+          end
+          if errorFound then 
+            giveSequenceSyntax ( !chunkList )
+          end
+        end
+      end
+    end
+  end
+}
+
+proc setInstructionSequencesSyntaxForOneInstruction
+  ?let  @syntaxChunkListWithSuffix chunkList
+  !  @lstringlist instructionSeq
+  !  @stringset referenceSeq {
+  instructionSeq = @lstringlist. emptyList
+  referenceSeq = @stringset. emptySet
+  for (@syntaxChunk chunk @stringlist suffixList) in  chunkList do
+    @string suffixInternal
+    @string suffixLog
+    getSuffixString ( !suffixList ?suffixLog ?suffixInternal)
+    cast chunk
+    case == @idfOrRefSyntaxIsIdf chunkIsIdf :
+      @string temp = [[chunkIsIdf name] string]+ suffixLog
+      @lstring ltemp = @lstring. new { !temp ![[chunkIsIdf name] location]}
+      instructionSeq += !ltemp 
+    case == @idfOrRefSyntaxIsRefDeclaration chunkIsDecRef :
+      @string name = "#" + [[chunkIsDecRef name] string] + suffixLog
+      @lstring lname = @lstring. new { ! name ![[chunkIsDecRef name] location]}
+      @string refName = [[chunkIsDecRef name] string] + suffixInternal
+
+      instructionSeq += !lname
+      referenceSeq += !refName
+    else #error here : "internal error: neither ref nor syntax idf ?!";
+    end
+  end
+}
+#
+## instructionSeqList -> for logs
+## referenceSeqList -> internal use
+proc setInstructionSequencesSyntax
+  ?let  @syntaxChunkListWithSuffixList instructionList  
+  !  @syntaxLStringListList instructionSeqList
+  !  @syntaxStringSetList  referenceSeqList {
+  instructionSeqList = @syntaxLStringListList. emptyList
+  referenceSeqList   = @syntaxStringSetList.  emptyList
+  #InstMap := [@syntaxInstructionMap  emptyMap];
+  for (@syntaxChunkListWithSuffix chunkList) in  instructionList do
+    #one instruction
+    @lstringlist instructionSeq
+    @stringset referenceSeq
+
+    setInstructionSequencesSyntaxForOneInstruction ( !chunkList ?instructionSeq ?referenceSeq)
+    
+    instructionSeqList += !instructionSeq
+    referenceSeqList += !referenceSeq
+  end
+}
+#
+#used only in the syntax log.
+proc printFieldName 
+  ?let  @syntaxMap syntaxMap
+  ?let  @syntaxChunkListWithSuffix chunkList 
+  ?! @string file {
+  @bool print = true 
+  for (@syntaxChunk chunk *) in  chunkList do
+    #get the fieldMap
+   @varMap fieldMap
+    cast chunk
+    case == @idfOrRefSyntaxIsIdf chunkIsIdf :
+      @syntaxBody syntaxBody
+      [syntaxMap searchKey ![chunkIsIdf name] ?syntaxBody]
+      fieldMap = [syntaxBody fieldMap]
+    else fieldMap = @varMap. emptyMap
+    end
+    if [fieldMap count] != 0 then 
+      if print then
+        file += "\tdata field(s): "
+        print = false
+      else file += "\t               "
+      end
+      @bool start = true
+      for (@lstring name @varAbstractType VATtype ...) in  fieldMap do
+        if not start then file += "\t               " end
+        start = false
+        @varBaseType type = [VATtype getBaseType]
+        file += [name string]+" ("+[[type size] string]+" bits)\n"
+      end
+    end
+  end
+}
+
+#generate the whole fieldmap 
+#(without any suffix (@). This is useful for code generation).
+func getSyntaxFieldMap
+  ?let  @syntaxMap syntaxMap
+  ?let  @syntaxChunkListWithSuffix chunkList
+  -> @varMap fieldMapWithoutSuffix {
+  fieldMapWithoutSuffix = @varMap. emptyMap
+  for (@syntaxChunk chunk @stringlist suffixList) in  chunkList do
+    cast chunk
+    case == @idfOrRefSyntaxIsIdf chunkIsIdf :
+      @syntaxBody syntaxBody
+      [syntaxMap searchKey ![chunkIsIdf name] ?syntaxBody]
+      @varMap fieldMap = [syntaxBody fieldMap]
+      #merge.
+      for () in  fieldMap do
+        if not [fieldMapWithoutSuffix hasKey ![lkey string]] then
+          @instDeclaration instDec = @instDeclaration. new { ![lkey location] !type !lkey !@varClass. field !""}  
+          [!?fieldMapWithoutSuffix insertKey !lkey !type !constant !varClass !instDec]
+        end
+      end
+    end
+  end
+}
+
+proc instructionSyntax
+  ?let  @syntaxMap syntaxMap
+  ?let  @syntaxChunkListWithSuffix chunkList
+  ?let  @printNumberTypeMap typeMap
+  ?let  @bool switchGenerate 
+  ?! @string file1
+  ?! @string file2
+  ?! @string codeC {
+  @uint nbTabulation = 1
+  @varMap fieldMapWithoutSuffix = getSyntaxFieldMap(!syntaxMap !chunkList)
+  for (@syntaxChunk chunk @stringlist suffixList) in  chunkList do
+    @string currentSuffixStr
+    getSuffixString ( !suffixList ?* ?currentSuffixStr)
+    if switchGenerate then
+      file1 = ""
+      file2 = ""
+    end
+    cast chunk
+    case == @printChunk printChunk :
+      @printInst printInst = [printChunk printInst]
+      print ( !fieldMapWithoutSuffix !printInst !typeMap !currentSuffixStr !switchGenerate !?file1 !?file2)
+      if switchGenerate then
+        codeC += "\tindex += sprintf (result + index,\"" + file1 + "\"" + file2 + ");\n"
+      end
+    case == @ifChunk ifChunk :
+      [ifChunk printImplementation !fieldMapWithoutSuffix !nbTabulation !currentSuffixStr !?codeC !typeMap !switchGenerate] 
+    else 
+    end 
+  end
+  if not switchGenerate then
+    file1 += "\n" 
+  end
+}
+           
+###################################################################################################
+### Tree generation related routines.
+###################################################################################################
+
+# there may have multiple roots in the syntax trees. The may root is implicitely declared as being an alternative of
+# the roots of the sub-trees.
+proc detectRootSyntaxs
+  ?let  @syntaxMap syntaxMap
+  !  @syntaxMap rootSyntaxMap {
+  #a root syntax is a syntax that is never called by another one.
+  rootSyntaxMap = syntaxMap
+
+  for (@lstring syntaxName @syntaxBody syntaxBody) in  syntaxMap do
+    @syntaxChunkList chunkList = [syntaxBody chunkList]
+    for (@syntaxChunk chunk) in  chunkList do
+      cast chunk
+      case == @idfOrRefSyntaxIsIdf chunkIsIdf :
+        #ok. This syntax call another syntax (syntaxCallName). Consequently, syntaxCallName 
+        #is not a root. Remove it from rootSyntaxMap (if it has not been removed before.)
+        if [rootSyntaxMap hasKey ![[chunkIsIdf name] string]] then
+          [!?rootSyntaxMap removeKey ![chunkIsIdf name] ?*]
+        end
+      else
+      end
+    end
+  end
+}
+
+
+proc isThereACorrespondingFormat
+  ?let  @syntaxChunkListWithSuffix instructionSyntaxList #current syntax list
+  ?let  @lstring modelName
+  ?let  @instructionImplementationMap impMap
+  !  @bool ok {
+  #get the reference sequence.
+  @stringset referenceSeq
+  setInstructionSequencesSyntaxForOneInstruction ( !instructionSyntaxList ?* ?referenceSeq)
+  #get the name of the instruction
+  @string instName = getInstructionName(!referenceSeq ![modelName string])
+  ok = [impMap hasKey !instName]
+}
+
+#recursive routine.
+proc constructSyntaxInstructionTreeRec
+  ?let  @syntaxMap                     syntaxMap             #syntax map -> constant
+  ?let  @syntaxChunkListWithSuffix     syntaxListToCompute   #syntaxes not yet taken into account
+  ?let  @syntaxChunkListWithSuffix     instructionSyntaxList #current syntax list
+  ?let  @lstring modelName #used to check that there is a corresponding format
+  ?let  @instructionImplementationMap impMap #used to check that there is a corresponding format
+  ?! @syntaxChunkListWithSuffixList instructionList       #output list of syntax list.
+  ?! @uint nbInstEvaluated {
+
+  if [syntaxListToCompute length] > 0 then
+    #something to do..
+    @syntaxChunkListWithSuffix newSyntaxListToCompute = syntaxListToCompute
+    @syntaxChunk currentSyntax
+    @stringlist currentSuffixList
+    [!?newSyntaxListToCompute popFirst ?currentSyntax ?currentSuffixList]
+    @syntaxChunkListWithSuffix newInstructionSyntaxList = instructionSyntaxList
+
+    #update suffix.
+    cast currentSyntax
+    case == @idfOrRefSyntaxIsIdf currentSyntaxIsIdf :
+      #get suffix.
+      @string suffixStr = [[currentSyntaxIsIdf postRefName] string]
+      if [suffixStr length] > 0 then
+        currentSuffixList += !suffixStr
+      end
+    else
+    end
+
+    newInstructionSyntaxList += !currentSyntax !currentSuffixList
+
+    cast currentSyntax
+    case == @idfOrRefSyntaxIsIdf currentSyntaxIsIdf :
+      #idf -> other syntax (alternative or aggregate)
+      @syntaxBody syntaxBody
+      #check that the syntax is declared for agg and alt.
+      [syntaxMap searchKey ![currentSyntaxIsIdf name] ?syntaxBody]
+      cast syntaxBody
+      case == @aggSyntax :
+        #########    aggregate syntax    ########## 
+        @syntaxChunkList chunkInBodyList = [syntaxBody chunkList]
+        var syntaxListToComputeUpdated =@syntaxChunkListWithSuffix.emptyList{}
+        for (@syntaxChunk chunk) in  chunkInBodyList do
+          syntaxListToComputeUpdated += !chunk !currentSuffixList
+        end
+        syntaxListToComputeUpdated = syntaxListToComputeUpdated + newSyntaxListToCompute
+        #newSyntaxListToCompute := [syntaxBody chunkList] . newSyntaxListToCompute;
+        constructSyntaxInstructionTreeRec ( !syntaxMap !syntaxListToComputeUpdated !newInstructionSyntaxList !modelName !impMap !?instructionList !?nbInstEvaluated)
+      case == @altSyntax :
+        ##########    alternative syntax    ##########
+        @syntaxChunkList chunkList = [syntaxBody chunkList]
+        @uint currentCallToFind = 0
+        loop( [chunkList length])
+        while currentCallToFind < [chunkList length] do
+          @bool callFound = false
+          var tempList =@syntaxChunkListWithSuffix.emptyList{}
+          @uint currentChunkId = 0
+          for (@syntaxChunk chunk) in  chunkList do
+            cast chunk
+            case == @idfOrRefSyntaxIsRefDeclaration :
+              #if currentChunkId == currentCallToFind then break; end if;
+              tempList += !chunk !currentSuffixList
+            case == @printChunk :
+              #if currentChunkId == currentCallToFind then break; end if;
+              tempList += !chunk !currentSuffixList
+            else #this is either a ref, or a call to an agg or an alt.
+              if currentChunkId == currentCallToFind then
+                tempList += !chunk !currentSuffixList
+                callFound = true
+              end
+            end
+            currentChunkId = currentChunkId + 1
+          end
+          if callFound then
+            @syntaxChunkListWithSuffix newSyntaxListToComputeCopy = tempList + newSyntaxListToCompute
+            constructSyntaxInstructionTreeRec ( !syntaxMap !newSyntaxListToComputeCopy !newInstructionSyntaxList !modelName !impMap !?instructionList !?nbInstEvaluated)
+          end
+          currentCallToFind = currentCallToFind + 1
+        end
+      else error @location.here : "internal error: neither aggregate nor alternative syntax ?!"
+      end
+    else 
+      ##########    reference or declaration ref or print chunk ##########    
+      constructSyntaxInstructionTreeRec ( !syntaxMap !newSyntaxListToCompute !newInstructionSyntaxList !modelName !impMap !?instructionList !?nbInstEvaluated)
+    end
+  else #no more chunks in the list. This is a leaf.
+    #We have the '@syntaxChunkListWithSuffix' of the new instruction. We have to check 
+    #that there is a corresponding format.
+    @bool ok
+    isThereACorrespondingFormat ( !instructionSyntaxList !modelName !impMap ?ok)
+    if ok then
+      instructionList += !instructionSyntaxList
+    end
+    nbInstEvaluated = nbInstEvaluated + 1
+  end
+}
+
+proc constructSyntaxInstructionTree
+  ?let  @syntaxMap syntaxMap
+  ?let  @lstring modelName #used to check that there is a corresponding format
+  ?let  @instructionImplementationMap impMap #used to check that there is a corresponding format
+  !  @syntaxChunkListWithSuffixList decodedInstructionList {
+  if [option .verbose_output value] then
+    message "contructing syntax tree..."
+  end
+
+  decodedInstructionList = @syntaxChunkListWithSuffixList. emptyList
+  var syntaxList =@syntaxChunkListWithSuffix.emptyList{}
+  @uint nbInstructionAccumulated = 0
+
+  #get root syntaxs. (may have many sub-trees).
+  @syntaxMap rootSyntaxMap
+  detectRootSyntaxs ( !syntaxMap ?rootSyntaxMap)
+
+  for (@lstring rootSyntaxName *) in  rootSyntaxMap do
+    if [option .verbose_output value] then
+      message "\n\tfrom root "+[rootSyntaxName string]+"..."
+    end
+    @lstring emptyLString = @lstring. new { !"" !@location.here}
+    @idfOrRefSyntaxIsIdf startSyntax = @idfOrRefSyntaxIsIdf. new { !rootSyntaxName !emptyLString}
+    var syntaxListToCompute =@syntaxChunkListWithSuffix.emptyList{}
+    var emptyStringList =@stringlist.emptyList{}
+    syntaxListToCompute += !startSyntax !emptyStringList
+    @uint nbInstEvaluated = 0
+    constructSyntaxInstructionTreeRec ( !syntaxMap !syntaxListToCompute !syntaxList !modelName !impMap !?decodedInstructionList !?nbInstEvaluated)
+    if [option .verbose_output value] then
+      @uint temp = [decodedInstructionList length] - nbInstructionAccumulated
+      message [temp string]+" instruction"
+      if temp > 1 then message "s" end
+      nbInstructionAccumulated = [decodedInstructionList length]
+      message " from "+[nbInstEvaluated string]+" branch"
+      if nbInstEvaluated > 1 then message "es." else message "." end
+    end
+  end
+  if [option .verbose_output value] then
+    message "\nFound a total of "+[[decodedInstructionList length] string]+" instructions syntaxes.\n"
+  end
+}
+
+proc generateSyntaxImplementationFiles
+  ?let  @syntaxMap syntaxMap
+  ?let  @string modelName
+  ?let  @syntaxChunkListWithSuffixList instructionList
+  ?! @TfieldMap templateStruct
+  ?let  @printNumberTypeMap typeMap
+  ?let  @instructionImplementationMap impMap {
+  var instMnemoTpl =@TfieldMapList.emptyList{}
+  @string noMnemoCode = "" #for instructions that have a format
+  var instNameMap =@boolMap.emptyMap{} #store instruction names of instruction that have a memo.
+  @syntaxLStringListList instructionSeqList
+  @syntaxStringSetList  referenceSeqList
+  @string mnemoFileStr = "" #get mnemo files (for Makefile).
+  setInstructionSequencesSyntax ( !instructionList ?instructionSeqList ?referenceSeqList)
+  @uint i = 0 #loop var
+  @uint nbFiles = 0
+  for (@syntaxChunkListWithSuffix chunkList) in  instructionList, (@stringset refSet) in  referenceSeqList do
+    var instMnemoTplBody =@TfieldMap.emptyMap{}
+    @string functionName = modelName
+    @string instName = getInstructionName(!refSet !modelName)
+
+    #first check that the instruction extracted from syntax was declared in the format part.
+    if [impMap hasKey !instName] then
+      for (@string ref) in  refSet do
+        functionName += "_" + ref
+      end
+      addStringValue ( !?instMnemoTplBody !lstringWith(!"name") !instName)
+      [!?instNameMap insertKey !@lstring. new { !functionName !@location.here}]
+      @string codeC = "\tchar *result = new char[128];\n"
+      codeC += "\tint index = 0;\n"
+      @string file1 = ""
+      @string file2 = ""
+      instructionSyntax ( !syntaxMap !chunkList !typeMap !true !?file1 !?file2 !?codeC)
+      codeC += "\t#ifdef DEBUG_MNEMO\n"
+      codeC += "\t\tindex += sprintf (result + index, \" ("+functionName+")\");\n"
+      codeC += "\t#endif\n"
+      codeC += "\treturn result;\n"
+      addStringValue ( !?instMnemoTplBody !lstringWith(!"mnemo") !codeC)
+    end
+    instMnemoTpl += !instMnemoTplBody
+  end
+  addListValue (   !?templateStruct !lstringWith(!"instMnemoList") !instMnemoTpl)
+}
+
+proc instructionSyntaxPart 
+  ?let  @lstring modelName
+  ?let  @syntaxMap syntaxMap 
+  ?let  @instructionImplementationMap impMap
+  ?! @TfieldMap templateStruct
+  ?let  @printNumberTypeMap typeMap {
+  if not [option gadl_options.noDesassemble value] then
+    checkSyntaxArgs ( !syntaxMap)
+    @syntaxChunkListWithSuffixList decodedSyntaxInstructionList
+    @syntaxStringSetList  referenceSeqList #-> for internal use
+    constructSyntaxInstructionTree ( !syntaxMap !modelName !impMap ?decodedSyntaxInstructionList)
+    @syntaxLStringListList instructionSeqList #-> for logs and eror messages
+    setInstructionSequencesSyntax ( !decodedSyntaxInstructionList ?instructionSeqList ?referenceSeqList)
+    @bool noError
+    checkSyntaxInstructionWithFormatCompatibility ( !syntaxMap !decodedSyntaxInstructionList !impMap !instructionSeqList !referenceSeqList !modelName ?noError)
+    if noError then
+      generateSyntaxImplementationFiles ( !syntaxMap ![modelName string] !decodedSyntaxInstructionList !?templateStruct !typeMap !impMap)
+    end
+  end
+}
+

@@ -1,0 +1,148 @@
+syntax gadl_hard_pipeline_parser (gadl_lexique) {
+
+rule <readOrWriteOrIdf>
+  ! @lstring idf
+
+rule <pipeline> 
+  ?let  @architectureMap architectureMap
+  ?! @pipelineMap pipelineMap {
+  $pipeline$
+  @lstring pipelineName
+  $idf$ ?pipelineName
+  $maps$ $to$
+  @lstring architectureName
+  $idf$ ?architectureName
+  @deviceMap deviceMap
+  [architectureMap searchKey !architectureName ?deviceMap ?*]
+  ${$
+  var stageList =@stageList.emptyList{}
+  repeat
+  while
+    <pipelineStage> !deviceMap !?stageList
+  end
+  $}$ 
+   [!?pipelineMap insertKey !pipelineName !architectureName !stageList]
+}
+
+rule <pipelineStage>
+  ?let  @deviceMap deviceMap
+  ?! @stageList stageList {
+  $stage$
+  @lstring stageName
+  $idf$ ?stageName
+  ${$
+  var bodyList =@stageBodyList.emptyList{}
+  var tar =@lstringlist.emptyList{}
+  @lstring stageReleaseOrBypassName = @lstring. new { !"" !@location.here}
+  repeat
+  while
+    @lstring deviceName
+    $idf$ ?deviceName
+    @portMap portMap
+    [deviceMap searchKey !deviceName ?* ?portMap ?* ?*] #check.
+    @uint type = 0 #TODO: -> enum?
+    select
+    or
+      select
+        $bypass$
+        type = 1
+      or
+        $release$
+        type = 2
+      end
+      $in$ $<$
+      $idf$ ?stageReleaseOrBypassName
+        #TODO check.
+      $>$
+    end
+    $:$
+    @lstringlist portList = @lstringlist. emptyList
+    repeat
+      @lstring portName
+      <readOrWriteOrIdf> ?portName
+      portList += !portName
+      [portMap searchKey !portName ?* ?*] #check.
+    while
+      $,$
+    end
+    if type == 0 then
+      bodyList += !@resourceAndPortAllowed. new { !deviceName !portList}
+    elsif type == 1 then
+      bodyList += !@isBypass. new { !deviceName !portList !stageReleaseOrBypassName}
+    else
+      bodyList += !@isRelease. new { !deviceName !portList !stageReleaseOrBypassName}
+    end
+  end
+  stageList += !stageName !bodyList
+  $}$
+}
+
+#----------------------------------------------------
+
+rule <machine>
+  ?! @machineMap machineMap
+  ?let  @pipelineMap pipelineMap {
+  $machine$
+  @lstring machineName
+  $idf$ ?machineName
+  ${$
+  @pipelineExpression outPipelineExpression
+  <pipelineExpression> ?outPipelineExpression !pipelineMap
+  [!?machineMap insertKey !machineName !outPipelineExpression]
+  $}$
+}      
+
+#----------------------------------------------------
+#-- ex: p1 fetch1 | p1 fetch2,(p2|p3),p4 finish3 | p4 finish4
+rule <pipelineExpression>
+  ! @pipelineExpression outPipelineExpression
+  ?let  @pipelineMap pipelineMap {
+  <pipelineSequence> ? outPipelineExpression !pipelineMap
+  repeat
+  while
+    $,$
+    @pipelineExpression rightExpression
+    <pipelineSequence> ? rightExpression !pipelineMap
+    outPipelineExpression = @pipelineSequence. new { ! outPipelineExpression ! rightExpression}
+  end
+}
+
+#----------------------------------------------------
+
+rule <pipelineSequence>
+  ! @pipelineExpression outPipelineExpression
+  ?let  @pipelineMap pipelineMap {
+  <pipelineFactor> ? outPipelineExpression !pipelineMap
+  repeat
+  while
+    $|$
+    @pipelineExpression rightExpression
+    <pipelineFactor> ? rightExpression !pipelineMap
+    outPipelineExpression = @pipelineParallel. new { ! outPipelineExpression ! rightExpression}
+  end
+}
+
+#----------------------------------------------------
+
+rule <pipelineFactor>
+  ! @pipelineExpression outPipelineExpression
+  ?let  @pipelineMap pipelineMap {
+  select
+    $($
+    <pipelineExpression> ? outPipelineExpression !pipelineMap
+    $)$
+  or
+    @lstring pipelineName
+    $idf$ ? pipelineName
+    if not [pipelineMap hasKey ![pipelineName string]] then
+        error @location.here: "There is no pipeline defined with name :"+ pipelineName +"\n"
+    end
+    @lstring pipelineAlias = @lstring. new { !"" !@location.here}
+    select
+    or
+      $idf$ ? pipelineAlias
+    end
+    outPipelineExpression = @simplePipeline. new { !pipelineName !pipelineAlias}
+  end
+}
+}

@@ -1,0 +1,17 @@
+syntax gadl_peripheral_set_parser (gadl_lexique) {
+
+#This rule is set in a separate file, because it is only used by
+#the peripheral related grammar. Else, it would print a warning
+#during grammar analysis.
+
+rule <peripheral> ?! @ASTperipheralMap ASTperipheralMap
+
+#entry point of the gadl_peripheral_grammar
+rule <peripheralSet>
+  ?! @ASTperipheralMap ASTperipheralMap {
+  repeat while
+    <peripheral> !?ASTperipheralMap
+  end
+}
+
+}

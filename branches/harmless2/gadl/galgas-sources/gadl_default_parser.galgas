@@ -1,0 +1,70 @@
+syntax gadl_default_parser (gadl_lexique) {
+#import "gadl_semantics_expression.gSemantics" ; #@expressionContext
+
+rule <default>
+  ?! @defaultSection defaultValues {
+  @luint instructionSize = [defaultValues instructionSize]
+  @bool  isBigEndian = [defaultValues isBigEndian]
+  @lstring fetchComponentName = [defaultValues fetchComponentName]
+  @lstring fetchMethodName = [defaultValues fetchMethodName]
+  @lstring fetchAddressComponentName = [defaultValues fetchAddressComponentName]
+  @lstring fetchAddressMethodName = [defaultValues fetchAddressMethodName]
+  @lstring progReadComponentName = [defaultValues progReadComponentName]
+  @lstring progReadMethodName = [defaultValues progReadMethodName]
+  @lstring debugComponentName = [defaultValues debugComponentName]
+
+  $default$ ${$
+  @bool endianessDefined = false
+  repeat
+  while
+    $instruction$
+    $:=$
+    @luint64 temp
+    $unumber$ ?temp
+    instructionSize = @luint. new { ![[temp uint64] uint] ![temp location]}
+  while
+    $idf$ ?var @lstring fetchStr
+    if [fetchStr string] != "fetch" then
+      error @location.here: "The 'fetch' keyword is awaited here"
+    end
+    select
+      $:=$
+      $idf$ ?fetchComponentName 
+      $.$ 
+      $idf$ ?fetchMethodName 
+    or
+      $address$ $:=$
+      $idf$  ?fetchAddressComponentName 
+      $.$ 
+      $idf$  ?fetchAddressMethodName 
+    end
+  while
+    $program$ $read$ $:=$
+    $idf$ ?progReadComponentName 
+    $.$ 
+    $idf$ ?progReadMethodName 
+  while
+    select 
+      $big$
+      isBigEndian = true
+      endianessDefined = true
+    or
+      $little$
+      isBigEndian = false
+      endianessDefined = true
+    end
+    $endian$
+  while
+    $debug$ $:=$ $idf$ ?debugComponentName  
+  end
+  if not endianessDefined then
+    error @location.here: "The endianness of the processor should be defined"+ 
+                "using \"big endian\" or \"little endian\" in the default section."
+  end
+  $}$
+  defaultValues = @defaultSection. new { !instructionSize !isBigEndian !fetchComponentName
+                   !fetchMethodName !fetchAddressComponentName !fetchAddressMethodName
+                   !progReadComponentName !progReadMethodName !debugComponentName}
+}
+
+}

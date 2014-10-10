@@ -1,0 +1,17 @@
+indexing grammar gadl_core_alone_grammar "LL1" {
+syntax gadl_core_alone_syntax
+syntax gadl_core_syntax
+syntax gadl_memory_parser
+syntax gadl_memory_mapping_parser
+syntax gadl_expression_parser
+syntax gadl_hard_arch_parser
+syntax gadl_hard_pipeline_parser
+syntax gadl_function_parser
+syntax gadl_implementation_parser
+syntax gadl_import_syntax
+syntax gadl_deviceAndSignal_syntax
+
+ <coreAlone>
+
+}
+# vim:ft=ggs:ts=2:sw=2

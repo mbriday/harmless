@@ -1,0 +1,141 @@
+ #Isa
+
+#populate the templates with micro-architecture data structures.
+proc microArchPipelineTemplate
+  ?! @TfieldMap templateStruct
+  ?let  @pipelineMap pipelineMap {
+  #first are pipeline.
+  var pipelineTpl =@TfieldMapList.emptyList{}
+  for (@lstring pipelineName 
+                       @lstring architectureName
+                       @stageList stageList) in  pipelineMap do
+    var pipelineTplBody =@TfieldMap.emptyMap{}
+    addLStringValue ( !?pipelineTplBody !"name" !pipelineName)
+    addLStringValue ( !?pipelineTplBody !"arch" !architectureName)
+    var pipelineStageTpl =@TfieldMapList.emptyList{}
+    for (@lstring stageName ...) in  stageList do
+      var pipelineStageTplBody =@TfieldMap.emptyMap{}
+      addLStringValue ( !?pipelineStageTplBody !"name" !stageName)
+      pipelineStageTpl += !pipelineStageTplBody
+    end
+    addListValue (   !?pipelineTplBody !lstringWith(!"stageList") !pipelineStageTpl)
+    pipelineTpl += !pipelineTplBody
+  end
+  addListValue (   !?templateStruct !lstringWith(!"pipelineList") !pipelineTpl)
+}
+
+proc microArchTemplate
+  ?! @TfieldMap templateStruct
+  ?let  @architectureMap archMap {
+  var archListTpl =@TfieldMapList.emptyList{} 
+  for (@lstring archName @deviceMap deviceMap @signalConnectPart signalConnectPart) in  archMap do
+    var archTplBody =@TfieldMap.emptyMap{}
+    addLStringValue ( !?archTplBody !"name" !archName)
+    #devices: only association between device name and component at this date...
+    var deviceListTpl =@TfieldMapList.emptyList{}
+    for (@lstring deviceName @lstring  componentName ...) in  deviceMap do
+      var deviceTplBody =@TfieldMap.emptyMap{}
+      addLStringValue ( !?deviceTplBody !"name" !deviceName)
+      addLStringValue ( !?deviceTplBody !"component" !componentName)
+      deviceListTpl += !deviceTplBody 
+    end
+    addListValue ( !?archTplBody !lstringWith(!"deviceList") !deviceListTpl)
+
+    #signals.
+    @signalConnectionList signalConnectionList = [signalConnectPart signalConnectionList]
+    @sharedPortActivationList sharedPortActivationList = [signalConnectPart sharedPortActivationList]
+    #signal connection 
+    var signalConnectListTpl =@TfieldMapList.emptyList{}
+    for (@lstring devNameSrc @lstring devNameDst @lstring sigNameSrc @lstring sigNameDst @bool noDst) in  signalConnectionList 
+    do
+      var signalConnectListTplBody =@TfieldMap.emptyMap{}
+      addLStringValue ( !?signalConnectListTplBody !"devNameSrc" !devNameSrc)
+      addLStringValue ( !?signalConnectListTplBody !"devNameDst" !devNameDst)
+      addLStringValue ( !?signalConnectListTplBody !"sigNameSrc" !sigNameSrc)
+      addLStringValue ( !?signalConnectListTplBody !"sigNameDst" !sigNameDst)
+      signalConnectListTpl += !signalConnectListTplBody
+    end
+    addListValue ( !?archTplBody !lstringWith(!"signalConnectList") !signalConnectListTpl)
+    #signal connection to shared port
+    var sharedPortActivationListTpl =@TfieldMapList.emptyList{}
+    for(@lstring deviceSrc @lstring portSrc @lstring deviceName) in  sharedPortActivationList
+    do
+      var sharedPortActivationListTplBody =@TfieldMap.emptyMap{}
+      addLStringValue ( !?sharedPortActivationListTplBody !"device" !deviceSrc)
+      addLStringValue ( !?sharedPortActivationListTplBody !"port"   !portSrc)
+      addLStringValue ( !?sharedPortActivationListTplBody !"timing" !deviceName)
+      sharedPortActivationListTpl += !sharedPortActivationListTplBody
+    end
+    addListValue ( !?archTplBody !lstringWith(!"sharedPortActivationList") !sharedPortActivationListTpl)
+
+    archListTpl += !archTplBody
+  end
+  addListValue ( !?templateStruct !lstringWith(!"archList") !archListTpl)  
+}
+
+proc addAddressSpaceWithRegTemplates
+  ?! @TfieldMap templateStruct
+  ?let  @intMap memSpaceWithRegister {
+  var ASListTpl =@TfieldMapList.emptyList{} 
+  for () in  memSpaceWithRegister do
+    var ASTplBody =@TfieldMap.emptyMap{}
+    addLStringValue ( !?ASTplBody !"name" !lkey)
+    ASListTpl += !ASTplBody
+  end
+  addListValue ( !?templateStruct !lstringWith(!"addressSpaceReg") !ASListTpl)
+}
+
+proc microArchPart
+  ?let  @Isa isa
+  ?let  @lstring coreName
+  ?let  @lstring exportDir
+  ?let  @machineMap machineMap
+  ?let  @pipelineMap pipelineMap
+  ?let  @architectureMap archMap
+  ?let  @varIdfStruct varIdfStruct
+  ?let  @intMap memSpaceWithRegister
+  ?let  @memoryParamMap memChunk
+  ?! @TfieldMap templateStruct {
+  @bool useCAS = false
+  @instructionPipelinePathListForMachine ippListMap
+  extractPipelinePaths ( !machineMap ?ippListMap)
+  #only the first architecture.
+  if [machineMap count] > 1 then
+    error @location.here: "More than one machine are defined. This is not allowed for code generation at this date"
+  elsif [machineMap count] == 1 then # case with a micro-architecture.
+    useCAS = true
+    @graphNodeMap componentAccessMap
+    getInstructionComponentGraph ( ![isa decodedBehaviorMap] ![isa defaultValues] ?componentAccessMap)
+    generateComponentAccessGraphViz ( !componentAccessMap ![exportDir string])
+    @instructionPipelinePathList ippList
+    @lstring firstMachine
+    [[machineMap keyList] first ?firstMachine]
+    [ippListMap searchKey !firstMachine ?ippList]
+    @graphNodeMapMap portAccessMap
+    mapInstructionsOnArchitecture ( !archMap !pipelineMap !ippList !componentAccessMap ?portAccessMap ![exportDir string] !varIdfStruct !?templateStruct)
+    @stringMap instToInstructionClassMap
+    @instructionClassMap icMap
+    extractInstructionClasses ( !portAccessMap ?icMap ?instToInstructionClassMap !?templateStruct)
+    @boolMap devicePortToRemove
+    reduceInstructionClasses ( !archMap !pipelineMap !?icMap !?instToInstructionClassMap !?templateStruct ?devicePortToRemove)
+    giveInstructionItsClass ( ![isa impMap] !instToInstructionClassMap !icMap !?templateStruct)
+    
+    @DDCPipelineInfoList DDCPipelineInfoList
+    @bool DDCStagesOK
+    DDCfindReadAndWritePipelineStages ( !memSpaceWithRegister !archMap !pipelineMap ?DDCPipelineInfoList ?DDCStagesOK)
+    @DDCRegisterAccessMap DDCRegisterAccessMap = getRegistersInInstructions(!varIdfStruct ![isa decodedBehaviorMap] !memSpaceWithRegister)
+
+    @boolMap regMap = [varIdfStruct.varMap getDDCRegMap]
+    @DDCMemoryRegisterInfoMap DDCMemoryRegisterInfoMap = [memChunk getDDCMemoryRegisterInfoMap !memSpaceWithRegister ![regMap count]]
+    generateDDCMethodsInInstructions ( !regMap !DDCMemoryRegisterInfoMap !DDCRegisterAccessMap !?templateStruct)
+    generateP2AFiles ( !exportDir !coreName !pipelineMap !icMap !archMap !ippList !devicePortToRemove !DDCPipelineInfoList !?templateStruct)
+    microArchPipelineTemplate ( !?templateStruct !pipelineMap)
+  else
+    if [option .verbose_output value] then
+      message "no micro-architecture defined. ISS simulation only.\n"
+    end
+  end
+  microArchTemplate ( !?templateStruct !archMap) #even if no pipeline.. signals may be present.
+  addBoolValue ( !?templateStruct !lstringWith(!"useCAS") !useCAS)
+  addAddressSpaceWithRegTemplates ( !?templateStruct !memSpaceWithRegister)
+}

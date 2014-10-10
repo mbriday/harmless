@@ -1,0 +1,205 @@
+project (0:8:1) -> "gadl" {
+#--- Targets
+  %makefile-macosx
+  %makefile-unix
+  #specific for Mac Cocoa Version:
+  %LatestMacOS
+  %applicationBundleBase : "fr.irccyn.str"
+
+#--- Source files (relative path from 'galgas_sources' directory)
+  "galgas-sources/gadl_options.galgas"
+  "galgas-sources/gadl_semantics.galgas" #TODO: to update.
+
+  "galgas-sources/gadl_lexique.galgas"
+#####################################################################
+# Default part for all description parts.
+#####################################################################
+
+#******************************************************
+# expressions handling related files.
+#******************************************************
+  "galgas-sources/gadl_expression_parser.galgas"       # parsing only.
+  "galgas-sources/gadl_types.galgas"
+  "galgas-sources/gadl_expression_functions.galgas"
+  "galgas-sources/gadl_variable.galgas"
+  "galgas-sources/gadl_varIdfStruct.galgas"             # struct that is passed through expressions (for idf)
+  "galgas-sources/gadl_semantics_AST_expression.galgas" # direct AST from parsing
+  "galgas-sources/gadl_semantics_expression.galgas"     # decorated structure
+  "galgas-sources/gadl_semantics_GetExp.galgas"         # AST reader to get decorated expression.
+  "galgas-sources/gadl_semantics_expression_eval.galgas"
+  "galgas-sources/gadl_semantics_expression_code_generation.galgas"
+  "galgas-sources/gadl_semantics_expression_extract_idf.galgas"
+
+#******************************************************
+# implementation: harmless instructions related files.
+#******************************************************
+
+  "galgas-sources/gadl_implementation_parser.galgas"          # parsing only.
+  "galgas-sources/gadl_function_parser.galgas"               #related to functions
+  "galgas-sources/gadl_semantics_AST_implementation.galgas"
+  "galgas-sources/gadl_semantics_instruction.galgas"      # base for decorated structure
+  "galgas-sources/gadl_semantics_implementation.galgas"   # decorated structure
+  "galgas-sources/gadl_semantics_getInst.galgas"          # AST reader to get decorated expression.
+  "galgas-sources/gadl_semantics_implementation_code_generation.galgas"
+  "galgas-sources/gadl_semantics_function.galgas"         #related to functions
+  "galgas-sources/gadl_semantics_templateExport.galgas"   #various template export
+
+#####################################################################
+# Part related to ISA description
+#####################################################################
+
+#******************************************************
+#'default' section. Used to give default parameters.
+# basic: no verification, no update yet, 1 pass.
+# TODO: all verifications removed.
+#******************************************************
+  "galgas-sources/gadl_default_parser.galgas"
+  "galgas-sources/gadl_semantics_default.galgas"
+
+#******************************************************
+# ISA root main file
+#******************************************************
+  "galgas-sources/gadl_isa_syntax.galgas"
+  "galgas-sources/gadl_isa_grammar.galgas"
+  "galgas-sources/gadl_isa.galgas"
+  "galgas-sources/gadl_isa_detectBranch.galgas"
+
+#******************************************************
+# ISS description, using 3 views
+#******************************************************
+  #format
+  "galgas-sources/gadl_instruction_format_parser.galgas"
+  "galgas-sources/gadl_semantics_format.galgas"
+
+  #syntax
+  "galgas-sources/gadl_instruction_syntax_parser.galgas"
+  "galgas-sources/gadl_semantics_syntax.galgas"
+  
+  #behavior
+  "galgas-sources/gadl_instruction_behavior_parser.galgas"
+  "galgas-sources/gadl_semantics_behavior_data_structures.galgas"
+  "galgas-sources/gadl_semantics_behavior.galgas"
+
+#******************************************************
+# components <-> link ISA to micro-architecture.
+#******************************************************
+  "galgas-sources/gadl_components_parser.galgas"
+  "galgas-sources/gadl_register_parser.galgas"
+  "galgas-sources/gadl_components.galgas"
+
+#******************************************************************** 
+# timing section: The timing section is used to model
+# timings of peripherals using a time-automata, associated to the 
+# behavior (defined in a component).
+# Primary goal: the memory hierarchy.
+# **
+# This part does not model the pipeline.
+#******************************************************************** 
+  "galgas-sources/gadl_peripheral_grammar.galgas"
+  "galgas-sources/gadl_peripheral_parser.galgas"
+  "galgas-sources/gadl_peripheral_set_parser.galgas" #only for included files: define more than 1 peripheral.
+  "galgas-sources/gadl_peripheral_AST.galgas"
+  "galgas-sources/gadl_peripheral.galgas"     #decorated structures
+  "galgas-sources/gadl_peripheral_templateExport.galgas" #various template export
+
+  "galgas-sources/gadl_import_syntax.galgas" #common to core/cpu grammars.
+  "galgas-sources/gadl_deviceAndSignal_syntax.galgas" #common to core/cpu/peripheral grammars
+  #timing related part.
+  "galgas-sources/gadl_timing_parser.galgas"
+  "galgas-sources/gadl_timing_AST.galgas"
+  "galgas-sources/gadl_timing.galgas"           #decorated structures.
+  "galgas-sources/gadl_timing_getTiming.galgas" #AST -> decorated.
+
+  "galgas-sources/gadl_semantics_timingSection.galgas" #main file (timing)
+  "galgas-sources/gadl_semantics_timingSectionAutomata.galgas" #
+  #transform Harmless automata into simulation steps.
+  "galgas-sources/gadl_semantics_timingSimulationStep.galgas"
+
+#####################################################################
+# new template management, included from galgas SVN (common with goil)
+#####################################################################
+
+  "galgas-sources/template_semantics.galgas"
+  "galgas-sources/template_scanner.galgas"
+  "galgas-sources/template_expression_parser.galgas"
+  "galgas-sources/template_parser.galgas"
+  "galgas-sources/template_grammar.galgas"
+  "galgas-sources/template_invocation.galgas"
+  "galgas-sources/template_functions.galgas"
+  
+  "galgas-sources/gadl_templates.galgas"
+  "galgas-sources/gadl_template_data_preparation.galgas"
+
+#####################################################################
+# Core part.
+#####################################################################
+#******************************************************
+# Core root main file
+#****************************************************** 
+
+  "galgas-sources/gadl_core_grammar.galgas"
+  "galgas-sources/gadl_core_syntax.galgas"
+  "galgas-sources/gadl_core.galgas"
+  #used for a simulator with only a core (no cpu description).
+  "galgas-sources/gadl_core_alone_grammar.galgas"
+  "galgas-sources/gadl_core_alone_syntax.galgas"
+
+#******************************************************************** 
+#timing approach. Pipeline and instruction classes.
+#******************************************************************** 
+"galgas-sources/gadl_hard_pipeline_parser.galgas"
+"galgas-sources/gadl_semantics_hard_pipeline.galgas"
+#
+"galgas-sources/gadl_hard_arch_parser.galgas" #'architecture' section.
+##architecture. Basic data structures
+"galgas-sources/gadl_semantics_hard_arch.galgas"
+"galgas-sources/gadl_semantics_hard_arch_check.galgas"
+##routines
+"galgas-sources/gadl_semantics_architecture.galgas"
+##graph approach
+"galgas-sources/gadl_graph.galgas"
+##extract the component access graph for instructions.
+"galgas-sources/gadl_semantics_components_extraction.galgas"
+##get the instructions classes.
+"galgas-sources/gadl_semantics_instruction_classes.galgas"
+##generate config files for p2a.
+"galgas-sources/gadl_semantics_pipeline_configuration.galgas"
+##generate the automata associated to the data dependancy controller.
+"galgas-sources/gadl_semantics_data_dependency_instruction_classes.galgas"
+"galgas-sources/gadl_semantics_register_access.galgas"
+##main micro-architecture file (populate templates)
+"galgas-sources/gadl_micro_architecture.galgas"
+
+#####################################################################
+# CPU part.
+#####################################################################
+#******************************************************
+# CPU root main file
+#****************************************************** 
+  "galgas-sources/gadl_cpu_grammar.galgas"
+  "galgas-sources/gadl_cpu_syntax.galgas"
+  "galgas-sources/gadl_cpu.galgas"
+
+
+#******************************************************
+# memory.
+#******************************************************
+
+  "galgas-sources/gadl_memory_parser.galgas"
+  "galgas-sources/gadl_memory_mapping_parser.galgas"
+  "galgas-sources/gadl_memory.galgas"
+
+#******************************************************
+# fileWrapper addons: add binaries and templates directly
+#                     inside the gadl compiler.
+#******************************************************
+  "galgas-sources/gadl_filewrappers.galgas"
+
+#******************************************************
+# generic stuff
+#******************************************************
+  "galgas-sources/gadl_cocoa.galgas"
+  "galgas-sources/gadl_program.galgas"
+}
+
+# vim:ft=ggs:ts=2:sw=2

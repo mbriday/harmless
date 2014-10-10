@@ -1,0 +1,419 @@
+ #instructionImplementationMap
+
+#give instruction class for each instruction. Implemented in instruction.h
+#This works even if there is no architecture (instToInstructionClassMap and icMap are empty maps).
+proc giveInstructionItsClass
+  ?let  @instructionImplementationMap impMap #get all instructions, including those without any behavior.
+  ?let  @stringMap instToInstructionClassMap #inst Name is the Key. value is the inst class name.
+  ?let  @instructionClassMap icMap
+  ?! @TfieldMap templateStruct {
+  var icTplList =@TfieldMapList.emptyList{}
+  for (@lstring instName ...) in  impMap do #get all instructions, with or without behavior.
+    var icTplBody =@TfieldMap.emptyMap{}
+    @uint classID
+    if [instToInstructionClassMap hasKey ![instName string]] then #with behavior
+      @string instClass
+      [instToInstructionClassMap searchKey !instName ?instClass]
+      [icMap searchKey !@lstring. new { !instClass !@location.here} ?classID ?*]
+    else #no behavior
+      classID = 0
+    end
+    addLStringValue (  !?icTplBody !"name" !instName)
+    addUnsignedValue ( !?icTplBody !lstringWith(!"id") ![classID uint64])
+    icTplList += !icTplBody
+  end
+  addListValue ( !?templateStruct !lstringWith(!"InstClassList") !icTplList)
+}
+
+#here is the pipeline definition for the P2A .config file.
+proc pipelineDefinitionForP2A
+  ?let  @lstring pipelineName
+  ?let  @stageList stageList
+  ?! @string p2aStr {
+  p2aStr += "pipeline "+[pipelineName string]+"\n"
+  for (@lstring stageName @stageBodyList stageBodyList) in  stageList do
+    p2aStr += [pipelineName string]+" addStage "+[stageName string]+"\n"
+  end
+  p2aStr += "\n"
+}
+
+proc resourcesDefinitionForP2A
+  ?let  @lstring pipelineName
+  ?let  @stageList stageList
+  ?let  @boolMap devicePortToRemove
+  ?let  @architectureMap architectureMap
+  ?let  @lstring architectureName
+  ?let  @bool foundDDCStage
+  ?! @boolMap resourceDefined
+  ?! @string p2aStr {
+  # TODO: We have to save the order of resource declaration.
+  #first resource is for the Data Dep access (implicit external resource)
+  if foundDDCStage then
+    p2aStr += [pipelineName string]+" addResource external DDCRes 0 priority\n"
+  end
+  # a resource is an access to device/port.
+  for (@lstring stageName @stageBodyList stageBodyList) in  stageList do
+    for (@stageBody stageBody) in  stageBodyList do
+      for (@lstring portName) in  [stageBody portList] do
+        @lstring deviceName = [stageBody device]
+        @string key = [deviceName string]+"."+[portName string]
+        if not [devicePortToRemove hasKey !key] then #not in remove list
+          if not [resourceDefined hasKey !key] then #not already added
+            [!?resourceDefined insertKey !@lstring. new { !key !@location.here}]
+            p2aStr += [pipelineName string]+" addResource "
+            @bool isShared = isDevicePortShared(!architectureMap !architectureName !deviceName !portName)
+            if isShared then
+              p2aStr += "external "
+            else
+              p2aStr += "internal 1 " #max allowed value not taken into account yet.
+            end
+            @string resourceName = [deviceName string]+"_"+[portName string]
+            p2aStr += resourceName+" 0 priority\n"
+          end
+        end
+      end
+    end
+  end
+  p2aStr += "\n"
+}
+
+#return OK, if the instruction class can go into the pipeline.
+#tested OK.
+func isInstructionClassGoingOnPipeline
+  ?let  @instructionPipelinePathList ippList
+  ?let  @lstring pipelineName
+  ?let  @instructionClass ic
+  -> @bool ok {
+  ok = false
+  for (@lstring icPathName @devicePortAccessList devicePortAccessList) in  ic while not ok do
+    @bool ippFound = false
+    for (@instructionPipelinePath ipp) in  ippList while not ippFound do
+      @string str
+      getInstructionPipelinePathString ( !ipp ?str)
+      if str == [icPathName string] then
+        #ok, get the matching pipeline path.
+        ippFound = true
+        for (@simplePipeline pipeline) in  ipp while not ok do
+          ok = [[pipeline mPipelineName] string] == [pipelineName string]
+        end
+      end
+    end
+  end
+}
+
+proc getDDCResource
+  ?let  @lstring pipelineName
+  ?let  @stageList stageList
+  ?let  @DDCPipelineInfoList DDCPipelineInfoList #DDC related struct.
+  !  @lstring DDCResourceStage
+  !  @bool foundDDCStage {
+  #get the stage associated to the DDC (external resource).
+  DDCResourceStage = @lstring. new { !"" !@location.here}
+  foundDDCStage = false
+  for (* @lstring pipelineReadName @lstring pipelineStageReadName * *) in  DDCPipelineInfoList do
+    if [pipelineReadName string] == [pipelineName string] then #ok, good pipeline.
+      DDCResourceStage = getPipelineStageAfter(!stageList !pipelineStageReadName)
+      foundDDCStage = true
+    end
+  end
+
+}
+
+proc instructionClassDefinitionForP2A
+  ?let  @lstring architectureName
+  ?let  @architectureMap architectureMap
+  ?let  @instructionClassMap icMap
+  ?let  @lstring pipelineName
+  ?let  @stageList stageList
+  ?let  @boolMap resourceDefined
+  ?let  @instructionPipelinePathList ippList
+  ?let  @lstring DDCResourceStage
+  ?let  @bool foundDDCStage
+  ?! @string p2aStr {
+  #then compute other resources
+  for (@lstring icName @uint id @instructionClass ic) in  icMap do
+    #is the instruction mapping on the current pipeline.
+    if isInstructionClassGoingOnPipeline(!ippList !pipelineName !ic) then
+      #yes
+      @string className = "ic_"+[id string]
+      p2aStr += [pipelineName string]+" addInstructionClass "+className+"\n"
+      # add the implicit external resource dedicated to DDC:
+      if foundDDCStage then 
+        p2aStr += className+" dependResource 1 DDCRes "+[DDCResourceStage string]+"\n"
+      end
+      for (@lstring icPathName @devicePortAccessList devicePortAccessList) in  ic do
+        for (@string device @string port *) in  devicePortAccessList do
+          setResourceAccessInInstClass ( !architectureName !architectureMap !className !device !port !stageList !resourceDefined !?p2aStr)
+        end
+      end
+      p2aStr += "\n"
+    end
+  end
+}
+
+map @p2aNotificationMap {
+  @uint id      #from 0 to ...
+  @bool enter   #enter or exits
+  @string stage #name of related stage
+  @string instClass #if "" -> all instructions.
+  insert insertKey error message "the '%K' in @p2aNotificationMap is already defined in %L" 
+  search searchKey error message "the '%K' in @p2aNotificationMap is not defined"
+}
+
+#This structure is used only to generate the .config file
+#and respect the order of notification 'id's
+#Use the Map instead: @p2aNotificationMap
+sortedlist @p2aNotificationSortedList {
+  @lstring key
+  @uint id      #from 0 to ...
+  @bool enter   #enter or exits
+  @string stage #name of related stage
+  @string instClass #if "" -> all instructions.
+}{
+  id <
+}
+#return the name (<=> key in NotificationMap), based on data
+func getNotificationName
+  ?let  @bool enter       #enter or exits
+  ?let  @string stage     #name of related stage
+  ?let  @string instClass #if "" -> all instructions.
+  -> @string name {
+  if enter then name = "enter" else name = "exits" end
+  name += "_"+stage
+  if instClass != "" then
+    name += "_for_"+instClass
+  end
+}
+
+#add and take care of redundant notifications.
+proc addNotification
+  ?let  @bool enter       #enter or exits
+  ?let  @string stage     #name of related stage
+  ?let  @string instClass #if "" -> all instructions.
+  ?! @p2aNotificationMap p2aNotificationMap {
+  @string name = getNotificationName(!enter !stage !instClass)
+  if not [p2aNotificationMap hasKey !name] then
+    #notification was not already defined
+    [!?p2aNotificationMap insertKey !@lstring. new { !name !@location.here} 
+                                    ![p2aNotificationMap count] !enter !stage !instClass]
+  end
+}
+
+proc initNotificationMap 
+  ?let  @stageList stageList
+  ?! @p2aNotificationMap p2aNotificationMap {
+  #notification for each stages for debugging (pipeline trace)
+  #this should be done first because they need to be consecutive.
+  if [option gadl_options.pipelineDebug value] then
+    for (@lstring stageName @stageBodyList stageBodyList) in  stageList do
+      addNotification ( !true ![stageName string] !"" !?p2aNotificationMap)
+    end
+  end
+  #fetch in the First Stage: mandatory for simulation.
+  @lstring firstStageName
+  [stageList first ?firstStageName ?*] 
+  addNotification ( !true ![firstStageName string] !"" !?p2aNotificationMap)
+  #exits of last stage: mandatory to get the real nb of instructions executed.
+  @lstring lastStageName
+  [stageList last ?lastStageName ?*] 
+  addNotification ( !false ![lastStageName string] !"" !?p2aNotificationMap)
+}
+
+func searchPipelineStageForDevice
+  ?let  @stageList stageList
+  ?let  @lstring deviceSrc
+  ?let  @lstring portSrc
+  -> @string pipelineStage {
+  @bool found = false
+  pipelineStage = "error"
+  for (@lstring stageName @stageBodyList stageBodyList) in  stageList while not found do
+    for (@stageBody stageBody) in  stageBodyList while not found do
+      if [[stageBody device] string] == [deviceSrc string] then
+        for (@lstring portName) in  [stageBody portList] while not found do
+          if [portSrc string] == [portName string] then
+            #matching.
+            found = true
+            pipelineStage = [stageName string]
+          end
+        end
+      end
+    end
+  end
+  if not found then
+    @string msg = "The port "+[deviceSrc string]+"."+[portSrc string]+" cannot be found on pipeline "
+    error @location.here: msg
+  end
+}
+
+#notifications related to 'shared port' signals
+proc addSharedPortNotifications
+  ?let  @stageList stageList
+  ?! @p2aNotificationMap p2aNotificationMap
+  ?let  @architectureMap architectureMap
+  ?let  @lstring architectureName {
+  #message "add addSharedPortNotifications\n";
+  @signalConnectPart signalConnectPart
+  [architectureMap searchKey !architectureName ?* ?signalConnectPart]
+  for (@lstring deviceSrc @lstring portSrc ...) in  [signalConnectPart sharedPortActivationList] do
+    @string pipelineStage = searchPipelineStageForDevice(!stageList !deviceSrc !portSrc)
+    #message "add notif for ".pipelineStage."\n";
+    addNotification ( !true !pipelineStage !"" !?p2aNotificationMap)
+  end
+}
+
+#add notifications related to DDC and generate keys for arch.cpp.
+proc DDCNotifications
+  ?let  @lstring pipelineName
+  ?let  @DDCPipelineInfoList DDCPipelineInfoList #DDC related struct.
+  ?let  @lstring DDCResourceStage
+  ?! @p2aNotificationMap p2aNotificationMap
+  ?! @TfieldMap templateStruct {
+  #We need 3 notifications:
+  @bool first = true #TODO: we handle only the first struct in DDCPipelineInfoList
+  for (* @lstring pipelineReadName @lstring pipelineStageReadName @lstring pipelineWriteName @lstring pipelineStageWriteName) in  DDCPipelineInfoList do
+    if first then
+      if [pipelineReadName string] == [pipelineName string] then #ok, good pipeline.
+        # * in the read stage : require
+        addNotification ( !true ![pipelineStageReadName string] !"" !?p2aNotificationMap)
+        addLStringValue ( !?templateStruct !"DDC_READ_STAGE_PIPELINE" !pipelineName)
+        addStringValue ( !?templateStruct !lstringWith(!"DDC_READ_STAGE") ![[pipelineStageReadName string] uppercaseString])
+        # * in the stage just after : lock <=> DDCResourceStage
+        addNotification ( !true ![DDCResourceStage string] !"" !?p2aNotificationMap)
+        addLStringValue ( !?templateStruct !"DDC_LOCK_STAGE_PIPELINE" !pipelineName)
+        addStringValue ( !?templateStruct !lstringWith(!"DDC_LOCK_STAGE") ![[DDCResourceStage string] uppercaseString])
+      end
+      if [pipelineWriteName string] == [pipelineName string] then #ok, good pipeline.
+        # * in the unlock stage
+        addNotification ( !true ![pipelineStageWriteName string] !"" !?p2aNotificationMap)
+        addLStringValue ( !?templateStruct !"DDC_UNLOCK_STAGE_PIPELINE" !pipelineName)
+        addStringValue ( !?templateStruct !lstringWith(!"DDC_UNLOCK_STAGE") ![[pipelineStageWriteName string] uppercaseString])
+      end
+    end
+    first = false
+  end
+}
+
+#translates @p2aNotificationMap to p2a dialect.
+proc notificationDefinitionForP2A
+  ?let  @p2aNotificationMap p2aNotificationMap
+  ?! @string p2aStr {
+  var p2aNSL =@p2aNotificationSortedList.emptySortedList{}
+  for (@lstring key @uint id @bool enter @string stage @string instClass) in  p2aNotificationMap do
+    p2aNSL += !key !id !enter !stage !instClass
+  end
+  
+  for (@lstring key * @bool enter @string stage @string instClass) in  p2aNSL do
+    p2aStr += "add notification "+[key string]+" when instruction "
+    if instClass != "" then
+      p2aStr += instClass+" "
+    end
+    if enter then p2aStr += "enters in" else p2aStr += "exits" end
+    p2aStr += " stage "+stage+"\n"
+  end
+  p2aStr += "\n"
+}
+
+proc generateP2AFiles
+  ?let  @lstring exportDir
+  ?let  @lstring coreName
+  ?let  @pipelineMap pipelineMap
+  ?let  @instructionClassMap icMap
+  ?let  @architectureMap architectureMap
+  ?let  @instructionPipelinePathList ippList
+  ?let  @boolMap devicePortToRemove
+  ?let  @DDCPipelineInfoList DDCPipelineInfoList #DDC related struct.
+  ?! @TfieldMap templateStruct {
+  var resourceDefined =@boolMap.emptyMap{} #to be sure that a resource is defined only once.
+  var a2aFiles =@stringlist.emptyList{}
+  for (@lstring pipelineName @lstring architectureName @stageList stageList) in  pipelineMap do
+    @lstring DDCResourceStage
+    @bool foundDDCStage
+    getDDCResource ( !pipelineName !stageList !DDCPipelineInfoList ?DDCResourceStage ?foundDDCStage)
+
+    @string p2aStr = "version 8\n"
+    p2aStr += "model "+[coreName string]+"\n\n"
+    #define pipeline (with stages)
+    pipelineDefinitionForP2A ( !pipelineName !stageList !?p2aStr)
+    #define resources.
+    resourcesDefinitionForP2A ( !pipelineName !stageList !devicePortToRemove !architectureMap !architectureName !foundDDCStage !?resourceDefined !?p2aStr)
+    #declare instruction classes.
+    instructionClassDefinitionForP2A ( !architectureName !architectureMap !icMap !pipelineName !stageList !resourceDefined !ippList !DDCResourceStage !foundDDCStage !?p2aStr)
+    #declare notifications.
+    var p2aNotificationMap =@p2aNotificationMap.emptyMap{}
+    initNotificationMap ( !stageList !?p2aNotificationMap)
+    addSharedPortNotifications ( !stageList !?p2aNotificationMap !architectureMap !architectureName)
+    DDCNotifications ( !pipelineName !DDCPipelineInfoList !DDCResourceStage !?p2aNotificationMap !?templateStruct)
+    notificationDefinitionForP2A ( !p2aNotificationMap !?p2aStr)
+    
+    createFile ( ![exportDir string] ![pipelineName string]+".config" !p2aStr)
+    a2aFiles += ![pipelineName string]
+  end
+  updateMakefileForPipelines ( !pipelineMap !?templateStruct)
+}
+
+proc updateMakefileForPipelines
+  ?let  @pipelineMap pipelineMap
+  ?! @TfieldMap templateStruct {
+  @string a2aFileStr = ""
+  @string a2cppDepFiles = ""
+  @string a2aFileImplementationStr = ""
+  @string a2cppFileHeaderStr = ""
+  for (@lstring pipelineName ...) in  pipelineMap do
+    @string fileName = [pipelineName string]
+    a2aFileStr += fileName+".a2a"
+    a2aFileImplementationStr += fileName+".cpp "+fileName+"-1.cpp"
+    a2cppFileHeaderStr += fileName+".h"
+    a2cppDepFiles += fileName+".h : "+fileName+".cpp\n"
+    a2cppDepFiles += fileName+"-1.cpp : "+fileName+".cpp\n"
+    a2cppDepFiles += fileName+".cpp : "+fileName+".a2a\n"
+    a2cppDepFiles += "\t$(A2CPP) $<\n"
+  between
+    a2aFileStr += " "
+    a2aFileImplementationStr += " "
+    a2cppFileHeaderStr += " "
+    a2cppDepFiles += "\n"
+  end
+  addStringValue ( !?templateStruct !lstringWith(!"A2AFILES") !a2aFileStr)
+  addStringValue ( !?templateStruct !lstringWith(!"A2CPP_GENERATED") !a2aFileImplementationStr)
+  addStringValue ( !?templateStruct !lstringWith(!"A2CPP_GENERATED_HEADER") !a2cppFileHeaderStr)
+  addStringValue ( !?templateStruct !lstringWith(!"A2CPP_RULES") !a2cppDepFiles)
+}
+
+proc setResourceAccessInInstClass
+  ?let  @lstring architectureName
+  ?let  @architectureMap architectureMap
+  ?let  @string className
+  ?let  @string device 
+  ?let  @string port
+  ?let  @stageList stageList
+  ?let  @boolMap resourceDefined
+  ?! @string p2aStr {
+  for (@lstring stageName @stageBodyList stageBodyList) in  stageList do
+    for (@stageBody stageBody) in  stageBodyList do
+      for (@lstring portName) in  [stageBody portList] do
+        @lstring deviceName = [stageBody device]
+        @string key = [deviceName string]+"."+[portName string]
+        if [resourceDefined hasKey !key] then #there is a resource.
+          if ([deviceName string] == device ) & ([portName string] == port) then      
+            #got one \o/
+            #'depend' is either for internal or external resources.
+            @string resourceName = [deviceName string]+"_"+[portName string]
+            p2aStr += className+" dependResource 1 "+resourceName+" "+stageName+"\n"
+            #'get' and release are only for internal resources
+            @bool isShared = isDevicePortShared(!architectureMap !architectureName !deviceName !portName)
+            if not isShared then
+              p2aStr += className+" getResource 1 "+resourceName+" "+stageName+"\n"
+              cast stageBody
+                case == @isRelease isRelease :
+                  p2aStr += className+" releaseResource 1 "+resourceName+" "+[[isRelease inStage] string]+"\n"
+                else
+                  p2aStr += className+" releaseResource 1 "+resourceName+" "+stageName+"\n"
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+}
+

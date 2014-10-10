@@ -1,0 +1,34 @@
+
+
+###############################################################################
+# functions:
+# * nbBitsToCodeUnsigned
+# * nbBitsToCodeSigned
+#
+###############################################################################
+
+#number of bits required to encode an unsigned number. tested.
+func nbBitsToCodeUnsigned
+  ?@uint64 val
+  -> @uint nbBits {
+  @uint vari = 65 # max 64 loops.
+  nbBits = 0
+  loop( vari)
+  while (val != 0L) do
+    val = val >> 1
+    nbBits = nbBits + 1
+  end
+}
+
+#number of bits required to encode an signed number. tested.
+func nbBitsToCodeSigned
+  ?  @uint64 val
+  -> @uint nbBits {
+  nbBits = nbBitsToCodeUnsigned(!val)
+  if nbBits > 0 then #0 needs 0 bits to be encoded, even in signed.
+    if val >= (1L << (nbBits-1)) then #more than half of the value.
+      nbBits = nbBits + 1
+    end
+  end
+}
+

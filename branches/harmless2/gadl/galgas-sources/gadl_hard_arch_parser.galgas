@@ -1,0 +1,243 @@
+syntax gadl_hard_arch_parser (gadl_lexique) {
+
+rule <signalConnect>
+
+rule <architecture>
+  ?! @architectureMap archMap {
+  $architecture$
+  @lstring architectureName
+  $idf$ ?architectureName
+  ${$
+  @bool fetchFound = false
+  var deviceMap =@deviceMap.emptyMap{}
+  repeat
+  while
+    <device> !?deviceMap !?fetchFound
+  end
+  select
+    <signalConnect>
+  or
+  end
+  var signalConnectionList =@signalConnectionList.emptyList{}  
+  var sharedPortActivationList =@sharedPortActivationList.emptyList{}
+#  select
+#    <signalSection> !deviceMap ?signalConnectionList ?sharedPortActivationList;
+#  or
+#    signalConnectionList := [@signalConnectionList emptyList];
+#    sharedPortActivationList := [@sharedPortActivationList emptyList];
+#  end select;
+  $}$
+  if not fetchFound then
+    error @location.here : "\nThe port named : 'fetch', is not found\n"
+  end
+  @signalConnectPart signalConnectPart = @signalConnectPart. new { !signalConnectionList !sharedPortActivationList}
+  [!?archMap insertKey !architectureName !deviceMap !signalConnectPart]
+}
+
+rule <device>
+  ?! @deviceMap deviceMap
+  ?! @bool fetchFound {
+  var  portMap =@portMap.emptyMap{}
+  var readAliasMap =@aliasMap.emptyMap{}
+  var writeAliasMap =@aliasMap.emptyMap{}
+  $device$
+  @lstring deviceName
+  $idf$ ?deviceName
+  $:$
+  @lstring componentName
+  $idf$ ?componentName
+  ${$
+  repeat
+#  while #deprecated.
+#    <aliasFunction> !?readAliasMap !?writeAliasMap;
+  while
+    @bool isShared
+    select
+      isShared = false
+    or
+      $shared$
+      isShared = true
+    end
+    $port$
+    $idf$ ?var @lstring portName
+    if [portName string] == "fetch" then
+      if fetchFound then
+        error @location.here: "The fetch port must be used only once."
+      end
+      fetchFound = true
+    end
+    @functionAllowedToAPort functionAllowedToAPort
+    select
+      #all functions allowed
+      @luint nbOfPermission
+      select
+        nbOfPermission = @luint. new { !1 !@location.here} #default : 1 access.
+      or
+        <nbPermission> ?nbOfPermission
+      end
+      functionAllowedToAPort = @isAll. new { !nbOfPermission} 
+    or
+      <functionAllowed> ?functionAllowedToAPort
+    end
+    [!?portMap insertKey !portName !isShared !functionAllowedToAPort]
+  end
+  $}$
+  [!?deviceMap insertKey !deviceName !componentName !portMap !readAliasMap !writeAliasMap]
+}
+
+rule <nbPermission>
+  ! @luint nbOfPermission {
+  $($
+  @luint64 tmp
+  $unumber$ ?tmp
+  nbOfPermission = @luint. new { ![[tmp uint64]uint] ![tmp location]}
+  $)$
+}
+
+rule <readOrWrite>
+  ! @lstring idf {
+  select
+    $read$
+    idf = @lstring. new { !"read" !@location.here}
+  or
+    $write$
+    idf = @lstring. new { !"write" !@location.here}
+  end
+}
+
+rule <readOrWriteOrIdf>
+  ! @lstring idf {
+  select
+    $idf$ ?idf
+  or
+    <readOrWrite> ?idf
+  end
+}
+
+#this rule allows to write ":x (2)" or ":x or y or z (2)" or ": except x,y,z".
+rule <functionAllowed>
+  ! @functionAllowedToAPort functionAllowedToAPort {
+  $:$
+  select
+    @lstring functionName
+    <readOrWriteOrIdf> ?functionName
+    select
+      $($
+      @luint64 tmp
+      $unumber$ ?tmp
+      @luint nbOfPermission = @luint. new { ![[tmp uint64]uint] ![tmp location]}
+      $)$
+      functionAllowedToAPort = @isWithNumber. new { !functionName !nbOfPermission}
+    or
+      $or$
+      var functionAllowedList =@lstringlist.emptyList{}
+      functionAllowedList += !functionName
+      repeat
+        @lstring orFunctionAllowed
+        <readOrWriteOrIdf> ?orFunctionAllowed
+        functionAllowedList += !orFunctionAllowed
+      while
+        $or$
+      end
+      @luint nbOfPermission
+      select
+        $($
+        @luint64 tmp
+        $unumber$ ?tmp
+        nbOfPermission = @luint. new { ![[tmp uint64]uint] ![tmp location]}
+        $)$
+      or
+        nbOfPermission = @luint. new { !1 !@location.here}
+      end
+      functionAllowedToAPort = @isOr. new { !functionAllowedList !nbOfPermission}
+    or
+      functionAllowedToAPort = @isWithNumber. new { !functionName !@luint. new { !1 !@location.here}}
+    end
+  or
+    $except$
+    var functionExcludedList =@lstringlist.emptyList{}
+    repeat
+      @lstring functionName
+      <readOrWriteOrIdf> ?functionName
+      functionExcludedList += !functionName
+    while
+      $,$
+    end
+    functionAllowedToAPort = @isExcept. new { !functionExcludedList}
+  end
+}
+
+################################################################################
+# association of signals for timing sections.
+################################################################################
+
+#rule <signalSection>
+#  ?? @deviceMap deviceMap
+#  !  @signalConnectionList signalConnectionList
+#  !  @sharedPortActivationList sharedPortActivationList
+#:
+#  sharedPortActivationList := [@sharedPortActivationList emptyList];
+#  signalConnectionList := [@signalConnectionList emptyList];
+#  $signal$; ${$;
+#  repeat
+#  while
+#    select
+#      <signalConnection> !?signalConnectionList;
+#    or
+#      <sharedPortConnection> !deviceMap !?sharedPortActivationList;
+#    end select;
+#  end repeat;
+#  $}$;
+#end rule;
+#
+#rule <sharedPortConnection>
+#  ?? @deviceMap deviceMap
+#  ?! @sharedPortActivationList sharedPortActivationList
+#:
+#  @lstring deviceSrc;
+#  @lstring portSrc;
+#  @lstring deviceName;
+#  $shared$; $port$;
+#  $idf$ ?deviceSrc; $.$; 
+#  select
+#    $idf$ ?portSrc;
+#  or
+#    $fetch$; portSrc := [@lstring new !"fetch" !here];
+#  end select;
+#  #Check that port and devices are defined, and port is shared.
+#  @portMap portMap;
+#  @bool isShared;
+#  [deviceMap searchKey !deviceSrc ?* ?portMap ?* ?*];
+#  [portMap searchKey !portSrc ?isShared ?*];
+#  if not isShared then
+#    error here : "The port associated to a signal should be declared as \"shared\"";
+#  end if;
+#  $->$;
+#  $idf$ ?deviceName;
+#  sharedPortActivationList += !deviceSrc !portSrc !deviceName;
+#end rule;
+#
+#rule <signalConnection>
+#  ?! @signalConnectionList signalConnectionList
+#:
+#  @lstring devNameSrc;
+#  @lstring devNameDst;
+#  @lstring sigNameSrc;
+#  @lstring sigNameDst;
+#  @bool noDst;
+#  $idf$ ?devNameSrc; $.$; $idf$ ?sigNameSrc;
+#  $->$;
+#  select
+#    $idf$ ?devNameDst; $.$; $idf$ ?sigNameDst;
+#    noDst := false;
+#  or
+#    devNameDst := [@lstring new !"" !here];
+#    sigNameDst := [@lstring new !"" !here];
+#    $*$;
+#    noDst := true;
+#  end select;
+#  signalConnectionList += !devNameSrc !devNameDst !sigNameSrc !sigNameDst !noDst;
+#
+#end rule;
+
+}

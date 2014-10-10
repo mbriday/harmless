@@ -1,0 +1,11 @@
+
+
+#implementation.
+abstract class @instruction {
+  @location loc
+}
+
+list @instructionList {
+  @instruction inst
+}
+

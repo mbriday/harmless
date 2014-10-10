@@ -1,0 +1,224 @@
+
+
+#----------------------------------------------------------------------------
+#--- Pipeline
+#----------------------------------------------------------------------------
+
+#store the body description of a pipeline stage. Example:
+# fetcher : absBranch
+# SRU bypass in <Execute> : write;
+abstract class @stageBody {
+  @lstring device
+  @lstringlist portList
+}
+
+abstract class @releaseOrBypass : @stageBody {  
+  @lstring inStage
+}
+
+class @isRelease : @releaseOrBypass {  
+}
+
+class @isBypass : @releaseOrBypass {  
+}
+
+class @resourceAndPortAllowed : @stageBody {
+}
+
+list @stageBodyList
+{
+  @stageBody stageBody
+}
+
+#list of pipeline stages.
+#This map is included in a @pipelineMap
+#key is the stage name.
+list @stageList
+{
+  @lstring stageName
+  @stageBodyList stageBodyList #Body of the pipeline List
+}
+
+#This map stores the information of different pipelines, the key of the map
+#is the name of pipeline.
+#This is a sequential pipeline.
+map @pipelineMap{
+  @lstring architectureName
+  @stageList stageList
+  insert insertKey error message "the '%K' pipeline is already defined in %L" 
+  search searchKey error message "the '%K' pipeline is not defined in map"
+  remove removeKey error message "the '%K' pipeline is not defined and cannot be removed."
+}
+
+#return the pipeline stage just after a defined stage.
+func getPipelineStageAfter
+  ?let  @stageList stageList
+  ?let  @lstring pipelineStage
+  -> @lstring str {
+  str = @lstring. new { !"" !@location.here}
+  @bool next = false
+  for (@lstring stageName *) in  stageList do
+    if next then
+      str = stageName
+      next = false
+    end
+    if [stageName string] == [pipelineStage string] then next = true end
+  end
+}
+
+#get the pipeline stage corresponding to the device.port access
+#Note: It searches ONLY the first occurence.
+proc getPipelineStageForDevicePort
+  ?let  @pipelineMap pipelineMap
+  ?let  @lstring archName
+  ?let  @lstring deviceName
+  ?let  @string port
+  !  @lstring pipelineName
+  !  @lstring pipelineStageName
+  !  @bool found {
+  pipelineStageName = @lstring. new { !"" !@location.here}
+  pipelineName = @lstring. new { !"" !@location.here}
+  found = false
+  for (@lstring pipeName @lstring architectureName @stageList stageList) in  pipelineMap while not found do
+    if [architectureName string] == [archName string] then #based on same architecture
+      for (@lstring stageName @stageBodyList stageBodyList) in  stageList while not found do
+        for (@stageBody stageBody) in  stageBodyList while not found do
+          if [[stageBody device] string] == [deviceName string] then
+            #same device
+            #now check for port.
+            for (@lstring portName) in  [stageBody portList] while not found do
+              if [portName string] == port then 
+                found = true
+              end
+            end
+            if found then
+              pipelineName = pipeName
+              cast stageBody
+                case >= @releaseOrBypass rob :
+                  pipelineStageName = [rob inStage]
+                case == @resourceAndPortAllowed :
+                  pipelineStageName = stageName
+                else
+                  error @location.here : "internal error: cast error with 'getPipelineStageForDevicePort'"
+              end
+              #message "corresponding stage: ".[pipelineStageName string]."\n";
+            end
+          end
+        end
+      end
+    end
+  end
+}
+
+#----------------------------------------------------------------------------
+#--- Machine
+#----------------------------------------------------------------------------
+
+list @complexPipelineList{
+  @stringlist simplePipelinesList #stores simple pipelines that forms the complex pipeline
+}
+
+abstract class @pipelineExpression {
+}
+abstract method @pipelineExpression parcours ?!@string ioChaine
+abstract method @pipelineExpression buildComplexPipelineList ?!@complexPipelineList complexPipelineList
+
+class @pipelineSequence : @pipelineExpression {
+  @pipelineExpression mLeftOperand
+  @pipelineExpression mRightOperand
+}
+
+override method @pipelineSequence parcours ?!@string ioChaine {
+  ioChaine += "("
+  [mLeftOperand parcours !? ioChaine]
+  ioChaine += ","
+  [mRightOperand parcours !? ioChaine]
+  ioChaine += ")"
+}
+
+override method @pipelineSequence buildComplexPipelineList ?!@complexPipelineList complexPipelineList {
+  [mLeftOperand buildComplexPipelineList !?complexPipelineList]
+  [mRightOperand buildComplexPipelineList !?complexPipelineList]
+}
+
+class @pipelineParallel : @pipelineExpression {
+  @pipelineExpression mLeftOperand
+  @pipelineExpression mRightOperand
+}
+override method @pipelineParallel parcours ?!@string ioChaine {
+  ioChaine += "("
+  [mLeftOperand parcours !? ioChaine]
+  ioChaine += "|"
+  [mRightOperand parcours !? ioChaine]
+  ioChaine += ")"
+}
+
+override method @pipelineParallel buildComplexPipelineList ?!@complexPipelineList complexPipelineList {
+  @complexPipelineList mList = complexPipelineList
+  [mLeftOperand  buildComplexPipelineList !?complexPipelineList]
+  [mRightOperand buildComplexPipelineList !?mList]
+  for (@stringlist simplePipelinesList1) in  mList do
+    @bool exists = false
+    for (@stringlist simplePipelinesList2) in  complexPipelineList while not exists do
+      exists = simplePipelinesList2 == simplePipelinesList1
+    end
+    if not exists then
+      complexPipelineList += ! simplePipelinesList1
+    end
+  end
+}
+
+class @simplePipeline : @pipelineExpression {
+  @lstring mPipelineName
+  @lstring mPipelineAlias
+}
+override method @simplePipeline parcours ?!@string ioChaine {
+  ioChaine += [mPipelineName string]
+  if [mPipelineAlias string] != "" then
+    ioChaine += " " + [mPipelineAlias string]
+  end
+}
+
+override method @simplePipeline buildComplexPipelineList ?!@complexPipelineList complexPipelineList {
+  @complexPipelineList mList = complexPipelineList
+  complexPipelineList = @complexPipelineList. emptyList
+  for () in  mList do
+    @stringlist e = simplePipelinesList
+    e += ![mPipelineName string]
+    complexPipelineList += !e
+  end   
+}
+
+#To store machine and pipeline expression (the key is the name of machine).
+map @machineMap{
+  @pipelineExpression pipelineExpression
+  insert insertKey error message "the '%K' machine is already defined in %L" 
+  search searchKey error message "the '%K' machine is not defined in map"
+  remove removeKey error message "the '%K' machine is not defined and cannot be removed."
+}
+
+#To store machine and pipeline expression (the key is the name of machine).
+map @complexPipelineMap{
+  @complexPipelineList complexPipelineList #stores simple pipelines that forms the complex pipeline for each machine
+  insert insertKey error message "the '%K' complex pipeline is already defined in %L" 
+  search searchKey error message "the '%K' complex pipeline is not defined in map"
+  remove removeKey error message "the '%K' complex pipeline is not defined and cannot be removed."
+}
+
+#Visualization of machine's expression, for example: (((p1 fetch1|p1 fetch2),(p2|p3)),(p4 finish3|p4 finish4))
+proc outputMachineExpression
+  ?let  @machineMap machineMap
+  !  @complexPipelineMap complexPipelineMap {
+  complexPipelineMap = @complexPipelineMap. emptyMap
+  for (@lstring name @pipelineExpression pipelineExpression) in  machineMap do
+  @complexPipelineList complexPipelineList = @complexPipelineList. listWithValue { !@stringlist. emptyList}
+    @string ioChaine = ""
+    [pipelineExpression parcours !?ioChaine]
+#    message ioChaine . "\n";
+    [pipelineExpression buildComplexPipelineList !?complexPipelineList]
+    [!?complexPipelineMap insertKey !name !complexPipelineList]
+#    log complexPipelineList ;
+  end
+#  outputComplexPipeline ?complexPipelineMap;
+}
+                                                                 

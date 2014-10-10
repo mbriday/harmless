@@ -1,0 +1,213 @@
+syntax gadl_instruction_syntax_parser (gadl_lexique) {
+
+
+rule <expression> !@ASTExpression exp
+
+rule <printNumberType>
+  ?! @printNumberTypeMap typeMap {
+  $number$
+  $syntax$
+  @lstring key
+  @lstring printType
+  @string base
+  select
+    $decimal$
+    base = "d"
+  or
+    $hexadecimal$
+    base = "x"
+  or
+    $octal$
+    base = "o"
+  or
+    $binary$
+    base = "b"
+  end
+  select
+    $prefix$
+    $caracterStr$ ?printType
+    key = @lstring. new { !base+"_p" !@location.here}
+  or
+    $suffix$
+    $caracterStr$ ?printType
+    key = @lstring. new { !base+"_s" !@location.here}
+  end
+  [!?typeMap insertKey !key !printType]
+}
+
+rule <ifOrInstruction>
+  ?! @varMap fieldMap
+  ! @syntaxChunkList chunkList {
+  chunkList = @syntaxChunkList. emptyList
+  repeat 
+  while
+    @printInst print
+    <syntaxString> ?print !fieldMap
+    @printChunk pChunk = @printChunk. new { !print} #TODO class printIfchunk
+    chunkList += !pChunk
+  while 
+    <ifBlocSyntax> !?fieldMap !?chunkList
+  end
+}
+
+rule <ifBlocSyntax> 
+  ?! @varMap fieldMap
+  ?! @syntaxChunkList chunkList {
+  var elsifList =@ifElsifList.emptyList{}
+  $if$
+  repeat
+    @ASTExpression ASTexp
+    <expression> ?ASTexp
+    $then$
+    var scl =@syntaxChunkList.emptyList{}
+    <ifOrInstruction> !?fieldMap ?scl
+    elsifList += !ASTexp !scl
+  while
+    $elseif$
+  end
+  var elseList =@syntaxChunkList.emptyList{}
+  select 
+  or
+    $else$
+    <ifOrInstruction> !?fieldMap  ?elseList
+  end
+  @syntaxChunk sc = @ifChunk. new { !elsifList !elseList}
+  chunkList += !sc
+  $end$ $if$
+}
+
+rule <fieldDeclaration>
+  ?! @varMap fieldMap {
+  $field$ 
+  @luint varSize
+  @varBaseType typeBase
+  select 
+    $uvar$ ? varSize
+    typeBase = @varBaseType. new { !@varKind. unsigned ![varSize uint] !@location.here}
+  or
+    $svar$ ? varSize 
+    typeBase = @varBaseType. new { !@varKind. signed ![varSize uint] !@location.here}
+  end
+  @lstring idf
+  $idf$ ?idf
+  @instDeclaration instDec = @instDeclaration. new { !@location.here !typeBase !idf !@varClass. localVar !""}
+  [!?fieldMap insertKey !idf !typeBase !true !@varClass. localVar !instDec]
+}
+
+rule <syntaxString>
+  !  @printInst print
+  ?let  @varMap unused fieldMap {
+  @lstring registerNameOrImmValue
+  $caracterStr$ ?registerNameOrImmValue
+  var args =@syntaxArgsList.emptyList{}
+  repeat
+  while
+    $,$ 
+    @ASTExpression ASTexp
+    <expression> ?ASTexp
+    args += !ASTexp
+  end
+  print = @printInst. new { !registerNameOrImmValue !args}
+}
+
+rule <callSyntax>
+  !  @idfOrRefSyntaxIsIdf idfSyntax {
+  @lstring postRefName
+  @lstring idf
+  $idf$ ? idf
+  select
+    #no post ref name.
+    postRefName = @lstring. new { !"" !@location.here}
+  or
+    $postReference$ ? postRefName
+  end
+  idfSyntax = @idfOrRefSyntaxIsIdf. new { !idf !postRefName}
+}
+
+rule <syntax> #aggregate
+  ?! @syntaxMap syntaxMap
+  ?! @varMap fieldMap 
+  ?! @uint internalSyntaxId {
+  $syntax$
+  @lstring syntaxName
+  $idf$ ?syntaxName
+  @syntaxChunkList chunkList = @syntaxChunkList. emptyList
+  fieldMap = @varMap. emptyMap
+  repeat
+    while
+      <syntaxBody> !?syntaxMap !?chunkList !?fieldMap !?internalSyntaxId
+  end
+  @aggSyntax agg = @aggSyntax. new { !chunkList !fieldMap}
+  [!?syntaxMap insertKey !syntaxName !agg]
+  $end$ $syntax$
+}
+
+rule <syntaxBody>
+  ?! @syntaxMap syntaxMap
+  ?! @syntaxChunkList chunkList
+  ?! @varMap fieldMap
+  ?! @uint internalSyntaxId {
+  select 
+    @lstring ref
+    $reference$ ?ref
+    @idfOrRefSyntaxIsRefDeclaration isLabel = @idfOrRefSyntaxIsRefDeclaration. new { !ref}
+    chunkList += !isLabel
+  or
+    <fieldDeclaration> !?fieldMap
+  or
+    <ifBlocSyntax> !?fieldMap !?chunkList
+  or
+    @idfOrRefSyntaxIsIdf fName
+    <callSyntax> ?fName
+    chunkList += !fName
+  or
+    @printInst print
+    <syntaxString> ?print !fieldMap
+    @printChunk pChunk = @printChunk. new { !print}
+    chunkList += !pChunk
+  or
+    <selectSyntax> !?syntaxMap !fieldMap !?chunkList !?internalSyntaxId
+  end
+}
+
+rule <selectSyntax>
+  ?! @syntaxMap syntaxMap
+  ?let  @varMap fieldMap 
+  ?! @syntaxChunkList chunkList
+  ?! @uint internalSyntaxId {
+  $select$
+  @lstring selectName = @lstring. new { !"select_syntax_"+[internalSyntaxId string] !@location.here}
+  internalSyntaxId = internalSyntaxId + 1
+  var selectChunkList =@syntaxChunkList.emptyList{}
+  @varMap selectFieldMap = fieldMap #inherits variables.
+  repeat
+    while
+      $case$
+      #inside a 'case' is a new aggregate.
+      @lstring caseAggregateName = @lstring. new { !"syntax_case_"+[internalSyntaxId string] !@location.here}
+      internalSyntaxId = internalSyntaxId + 1
+      var selectCaseChunkList =@syntaxChunkList.emptyList{}
+      @varMap selectCaseFieldMap = selectFieldMap #inherits variables.
+      repeat
+        while
+          <syntaxBody> !?syntaxMap !?selectCaseChunkList !?selectCaseFieldMap !?internalSyntaxId
+      end
+      #create the 'aggregate' syntax structure
+      @aggSyntax agg = @aggSyntax. new { !selectCaseChunkList !selectCaseFieldMap}
+      [!?syntaxMap insertKey !caseAggregateName ! agg]
+      #update the alternative to call the new alternative syntax.
+      @lstring postRefName = @lstring. new { !"" !@location.here} #no post ref name (@...).
+      @idfOrRefSyntaxIsIdf idfSyntax = @idfOrRefSyntaxIsIdf. new { !caseAggregateName !postRefName}
+      selectChunkList += !idfSyntax
+  end
+  $end$ $select$
+  #create the alternative syntax structure
+  @altSyntax alt = @altSyntax. new { !selectChunkList !selectFieldMap}
+  [!?syntaxMap insertKey !selectName !alt]
+  #update the aggregate to call the new alternative syntax.
+  @lstring postRefName = @lstring. new { !"" !@location.here} #no post ref name (@...).
+  @idfOrRefSyntaxIsIdf idfSyntax = @idfOrRefSyntaxIsIdf. new { !selectName !postRefName}
+  chunkList += !idfSyntax
+}
+
+}

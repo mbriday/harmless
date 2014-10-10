@@ -1,0 +1,139 @@
+
+
+list @graphNodeList {
+  @graphNode node
+}
+struct @graphNode
+{
+  @lstringlist data
+  @graphNodeList nextNodeList
+  @string uid #unique id.
+}
+
+#this function is used to generate the Unique Id:
+#this is the concatenation of the current node id
+#and the ids of sub nodes.
+func getGraphNodeUniqueId
+  ?let  @string currentNodeId
+  ?let  @graphNodeList nextNodeList
+  -> @string uid {
+  uid = currentNodeId
+  for (@graphNode item) in  nextNodeList do 
+    uid += "_"+[item uid]
+  end
+}
+
+#merge graph node lists, but first
+#verify that a node with the same uid 
+#is not present.
+proc MergeGraphNodeList
+  !  @graphNodeList mergeList
+  ?let  @graphNodeList list1
+  ?let  @graphNodeList list2 {
+  mergeList = list1
+  for (@graphNode item2) in  list2 do
+    @bool found = false
+    for (@graphNode item1) in  list1 while not found do
+      found = [item2 uid] == [item1 uid]
+    end
+    if not found then
+      mergeList += !item2
+    end
+  end
+}
+
+#data structure to store the one graph for each instruction.
+map @graphNodeMap {
+  @graphNode nodeRoot
+  insert insertKey error message "the '%K' instruction has already its graph defined in %L" 
+  search searchKey error message "the '%K' instruction has no graph defined"
+}
+
+#get the string from the lstringlist data member, fields are '.' separated.
+func getGraphDataString
+ ?let  @lstringlist data
+ -> @string out {
+  out = ""
+  for (@lstring str) in  data do
+    out += [str string]
+  between
+    out += "."
+  end
+}
+
+#recursive part of the output of the graph (graphViz format).
+#This routine is called only by 'graphNodeOutput' function.
+proc graphNodeOutputRec
+  ?let  @graphNode node
+  ?! @string out
+  ?! @stringset duplicateSet {
+  @graphNodeList nextNodeList = [node nextNodeList]
+  for (@graphNode next) in  nextNodeList do
+#    message "data str : ".getGraphDataString[![next data]]."\n";
+    #declare next node.
+    @string nodeDeclaration = "\""+[next uid]+"\" [ label = \""+getGraphDataString(![next data])+"\" ];"
+    if not [duplicateSet hasKey !nodeDeclaration] then
+      out += nodeDeclaration+"\n"
+      duplicateSet += !nodeDeclaration
+    end
+    #make the link;
+    @string link = "\""+[node uid]+"\" -> \""+[next uid]+"\""
+    if not [duplicateSet hasKey !link] then
+      out += link+"\n"
+      duplicateSet += !link
+    end
+    #explore subnodes;
+    graphNodeOutputRec ( !next !?out !?duplicateSet)
+  end
+}
+
+#output the graph starting from root 'node' in the graphViz format.
+#Ok. Tested.
+func graphNodeOutput
+  ?let  @graphNode node
+  ?let  @string graphName
+  ->  @string out {
+  #2 nodes may have the same name, so we have to distinguish them.
+  out = "digraph "+graphName+" {\n"
+  out += "size = \"3,4\";\n" #x, y in inches
+  out += "node [shape=box];\n"
+  #declare first node
+  out += "\""+[node uid]+"\" [ label = \""+getGraphDataString(![node data])+"\" ] ;\n"
+  #recursive call to generate the graph (depth)
+  var duplicateSet =@stringset.emptySet{} #used to remove duplicates.
+  graphNodeOutputRec ( !node !?out !?duplicateSet)
+  #epilog
+  out += "}\n"
+}
+
+#test routine (for graphViz export). It create a graph with A, B, C, D, E and F.
+# A gets B and C sub-nodes
+# B gets D, E
+# D, E and C -> F.
+proc testGraph {
+  @graphNode nA = @graphNode. new { !@lstringlist. emptyList !@graphNodeList. emptyList  !"0"}
+  @graphNode nB = @graphNode. new { !@lstringlist. emptyList !@graphNodeList. emptyList  !"1"}
+  @graphNode nC = @graphNode. new { !@lstringlist. emptyList !@graphNodeList. emptyList  !"2"}
+  @graphNode nD = @graphNode. new { !@lstringlist. emptyList !@graphNodeList. emptyList  !"1"}
+  @graphNode nE = @graphNode. new { !@lstringlist. emptyList !@graphNodeList. emptyList  !"1"}
+  @graphNode nF = @graphNode. new { !@lstringlist. emptyList !@graphNodeList. emptyList  !"1"}
+
+  nA.data += !@lstring. new { !"A" !@location.here}
+  nB.data += !@lstring. new { !"B" !@location.here}
+  nC.data += !@lstring. new { !"C" !@location.here}
+  nD.data += !@lstring. new { !"D" !@location.here}
+  nE.data += !@lstring. new { !"E" !@location.here}
+  nF.data += !@lstring. new { !"F" !@location.here}
+
+  nD.nextNodeList += !nF
+  nE.nextNodeList += !nF
+  nC.nextNodeList += !nF
+  nB.nextNodeList += !nD
+  nB.nextNodeList += !nE
+  nA.nextNodeList += !nC
+  nA.nextNodeList += !nB
+
+  @string str = graphNodeOutput(!nA !"testGraph")
+  [str writeToFile !"testGraph.dot"]
+}
+

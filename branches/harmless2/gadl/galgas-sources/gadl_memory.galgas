@@ -1,0 +1,271 @@
+
+  
+
+###############################################################################
+# base file for memory chunks.
+# it defines :
+# * enum @memType (RAM, ROM, ..
+# * class @memoryMapping -> a memory location: address and mem space.
+#
+# * map @ASTmemoryParamMap -> base AST memory map
+# * map @memoryParamMap    -> decorated map: A MEMORY CHUNK
+#
+# * ASTmemSpaceMap : memory space.
+#
+# available readers:
+# * string (for @memType @memoryMapping @ASTmemoryParamMap)
+# * @ASTmemoryParamMap getMemMap -> get decorated structure from AST.
+# 
+# @ASTmemSpaceMap:
+#   * getMemSpaceMap
+#
+# modifier @functionMap
+#   * addMemoryAccess
+###############################################################################
+# map @memSpaceMap is defined in gadl_varIdfStruct.gSemantics
+
+enum @memType {
+  case rom case ram case register case GPR
+}
+
+#now defined in gadl_semantics_AST_implementation.gSemantics because
+#it should be used by some instructions.
+#class @memoryMapping
+#{
+#  @lstring memSpaceName;
+#  @luint64 baseAddress;
+#}
+
+map @ASTmemoryParamMap
+{
+  @uint width
+  @ASTExpression ASTexpSize
+  @memType access
+  @memoryMapping memoryMapping
+  insert insertKey error message "the '%K' memory chunk is declared twice." 
+  search searchKey error message "the '%K' memory chunk is not defined."
+}
+
+map @memoryParamMap
+{
+  @uint width
+  @uint expSize
+  @memType access
+  @memoryMapping memoryMapping
+  insert insertKey error message "the '%K' memory chunk is declared twice." 
+  search searchKey error message "the '%K' memory chunk is not defined."
+  remove removeKey error message "the '%K' memory chunk is not defined and could not be removed."
+}
+
+###############################################################################
+# reader string
+###############################################################################
+
+getter @memoryMapping string -> @string str {
+  str = [memSpaceName string]+":"+[[baseAddress uint64] string]
+}
+
+getter @ASTmemoryParamMap string -> @string str {
+  str = ""
+  for () in  self
+  before str += "\nmemory chunk\n"
+  do
+    str += "\t"+[lkey string]+"\n"
+    str += "\t\twidth  :"+[width string]+"\n"
+    str += "\t\tsize   : (not computed yet)\n"
+    str += "\t\taccess :"+[access string]+"\n"
+    str += "\t\tmapping:"+[memoryMapping string]+"\n"
+  end
+}
+
+getter @memoryParamMap string -> @string str {
+  str = ""
+  for () in  self
+  before str += "\nmemory chunk\n"
+  do
+    str += "\t"+[lkey string]+"\n"
+    str += "\t\twidth  :"+[width string]+"\n"
+    str += "\t\tsize   :"+[expSize string]+"\n"
+    str += "\t\taccess :"+[access string]+"\n"
+    str += "\t\tmapping:"+[memoryMapping string]+"\n"
+  end
+}
+
+getter @memType string -> @string outResult {
+  switch self
+    case rom      : outResult = "a read-only memory"
+    case ram      : outResult = "a read/write memory"
+    case register : outResult = "a register bank"
+    case GPR      : outResult = "a GPR bank"
+  end
+}
+
+getter @memType id -> @uint id {
+  switch self
+    case rom      : id = 0
+    case ram      : id = 1
+    case register : id = 2
+    case GPR      : id = 3
+  end
+}
+###############################################################################
+# getMemMap
+###############################################################################
+getter @ASTmemoryParamMap getMemMap
+  -> @memoryParamMap memMap {
+  memMap = @memoryParamMap. emptyMap
+  @expressionContext ctx = @expressionContext. memory
+  var symbolMap =@symbolValueMap.default
+  var idfStruct =@varIdfStruct.default #no symbol here.
+  
+  for () in  self do
+    #expression related to size.
+    @expression expSize = [[ASTexpSize getExp !ctx !symbolMap !idfStruct] eval !symbolMap]
+    if not (expSize is >= @expIntConst) then
+      error lkey: "The memory size expression cannot statically be computed to an integer."
+    else
+      @expIntConst intExp = ( expSize as@expIntConst)
+      if [intExp negative] then
+        error lkey: "the memory size should not be negative"
+      end
+      [!?memMap insertKey !lkey !width ![[intExp value] uint] !access !memoryMapping]
+    end
+  end
+}
+
+map @ASTmemSpaceMap 
+{
+  @uint width
+  @bool isProgram
+  @uint stride #default value, a power of 2
+  insert insertKey error message "the '%K' memory chunk is declared twice." 
+  search searchKey error message "the '%K' memory chunk is not defined."
+}
+
+method @ASTmemSpaceMap checkProgramSpace {
+  #check that there is one and only one program chunk
+  @bool hasProgram = false
+  for () in  self do
+    if isProgram then
+      if hasProgram then
+        error lkey: "Only one memory space should be declared."
+      end
+      hasProgram = true
+    end
+  end
+  if not hasProgram then
+    error @location.here: "There is no memory space defined to get the program. Use to 'program' keyword before the memory space definition to define one."
+  end
+}
+
+getter @ASTmemSpaceMap getMemSpaceMap
+  -> @memSpaceMap memSpaceMap {
+  [self checkProgramSpace]
+  memSpaceMap = @memSpaceMap. emptyMap
+  for () in  self do
+    var methodMap =@functionMap.emptyMap{}
+    #add accessors for the current width, and 8, 16 and 32 bits.
+    [!?methodMap addMemoryAccess !width ![lkey location]]
+    if width > 8 then
+      [!?methodMap addMemoryAccess !8 ![lkey location]]
+      if width > 16 then
+        [!?methodMap addMemoryAccess !16 ![lkey location]]
+        if width > 32 then
+          [!?methodMap addMemoryAccess !32 ![lkey location]]
+        end
+      end
+    end
+    #the stride
+    # -> remove 1: 4 becomes 3 => needs 2 bits to be encoded
+    @uint strideBits = nbBitsToCodeUnsigned(![stride uint64]-1L) 
+    if stride != (1<<strideBits) then
+      error lkey: "The stride in the memory definition should be a power of Two."
+    end
+    [!?memSpaceMap insertKey !lkey !width !methodMap !isProgram !strideBits]
+  end
+}
+
+setter @functionMap addMemoryAccess
+ ?let  @uint width
+ ?let  @location loc {
+  #TODO address space is limited to 32 bits at this date.
+  @varBaseType addressType = @varBaseType. new { !@varKind. unsigned !32 !loc}
+  @lstring addStr = @lstring. new { !"_addr" !loc} #internal name.
+  #read
+  @lstring nameRead = @lstring. new { !"read"+[width string] !loc}
+  @varBaseType outTypeRead = @varBaseType. new { !@varKind. unsigned !width !loc}
+  var paramRead =@parameterDefList.emptyList{}
+  paramRead += !false !addressType !addStr
+  [!?self insertKey !nameRead !paramRead !outTypeRead !@instructionList. emptyList]
+  #write
+  @lstring nameWrite = @lstring. new { !"write"+[width string] !loc}
+  @lstring wrStr = @lstring. new { !"_value" !loc} #internal name.
+  @varBaseType outTypeWrite = @varBaseType. new { !@varKind. unsigned !0 !loc} #void
+  @varBaseType typeWrite = @varBaseType. new { !@varKind. unsigned !width !loc}
+  var paramWrite =@parameterDefList.emptyList{}
+  paramWrite += !false !addressType !addStr
+  paramWrite += !false !typeWrite !wrStr
+  [!?self insertKey !nameWrite !paramWrite !outTypeWrite !@instructionList. emptyList]
+}
+
+method @memoryParamMap setInTemplate
+  ?let  @lstring name
+  ?! @TfieldMap templateStruct {
+  var memMapTpl =@TfieldMapList.emptyList{}
+  for () in  self do
+    var memParamTplBody =@TfieldMap.emptyMap{}
+    addLStringValue ( !?memParamTplBody !"name" !lkey)
+
+    addUnsignedValue ( !?memParamTplBody !lstringWith(!"width")   ![width uint64])
+    addUnsignedValue ( !?memParamTplBody !lstringWith(!"size") ![expSize uint64])
+    addUnsignedValue ( !?memParamTplBody !lstringWith(!"type")  ![[access id] uint64])
+
+    addLStringValue ( !?memParamTplBody !"memSpaceName"  ![memoryMapping memSpaceName])
+    addLUnsignedValue ( !?memParamTplBody !"baseAddress"  ![memoryMapping baseAddress])
+
+    memMapTpl += !memParamTplBody    
+  end
+  addListValue ( !?templateStruct !name !memMapTpl)  
+}
+
+getter @memoryParamMap memSpaceWithRegisterBank
+  ?let  @memSpaceMap memSpaceMap
+  -> @intMap memSpaceWithRegister {
+  memSpaceWithRegister = @intMap. emptyMap
+  for () in  self do
+    if access == @memType. GPR then
+      #mathing.
+      @lstring memSpace = [memoryMapping memSpaceName]
+      if not [memSpaceWithRegister hasKey ![memSpace string]] then
+        [memSpaceMap searchKey !memSpace ?* ?* ?* ?var @uint stride]
+        [!?memSpaceWithRegister insertKey !memSpace !stride]
+      end
+    end
+  end
+}
+
+method @memSpaceMap setInTemplate
+  ?! @TfieldMap templateStruct {
+  #to be done in a memSpaceMap category
+  var memSpaceListTpl =@TfieldMapList.emptyList{}  
+  for () in  self do
+    var memSpaceMapBody =@TfieldMap.emptyMap{}
+    addLStringValue ( !?memSpaceMapBody !"name" !lkey)
+    addUnsignedValue ( !?memSpaceMapBody !lstringWith(!"width") ![width uint64]) #bus width
+    addBoolValue ( !?memSpaceMapBody !lstringWith(!"isProgram") !isProgram)
+    addUnsignedValue ( !?memSpaceMapBody !lstringWith(!"stride")  ![stride uint64])
+    var memSpaceAccessSizeTpl =@TfieldMapList.emptyList{}
+    for () in  methodMap do
+      var methodMapBody =@TfieldMap.emptyMap{}
+      @uint methodSize = [[outType getBaseType] size]
+      if methodSize > 0 then #return u0 in write accessor.
+        addUnsignedValue ( !?methodMapBody !lstringWith(!"size") ![methodSize uint64]) #method size (access)
+        memSpaceAccessSizeTpl += !methodMapBody    
+      end
+    end
+    addListValue ( !?memSpaceMapBody !lstringWith(!"methodSizeList") !memSpaceAccessSizeTpl)
+    memSpaceListTpl += !memSpaceMapBody    
+  end
+  addListValue ( !?templateStruct !lstringWith(!"memSpaceList") !memSpaceListTpl)
+}
+

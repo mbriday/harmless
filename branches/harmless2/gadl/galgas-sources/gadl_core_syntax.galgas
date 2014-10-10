@@ -1,0 +1,111 @@
+syntax gadl_core_syntax (gadl_lexique) {
+
+rule <memoryChunk>
+  ?! @ASTmemoryParamMap ASTmemChunk 
+  ?! @stringlist memChunkOrder
+rule <memorySpace> ?! @ASTmemSpaceMap ASTmemSpaceMap
+rule  <architecture> ?! @architectureMap archMap
+#for constructor.
+rule <typeDeclaration> ! @varAbstractType type
+#from gadl_function_parser
+#not the outType and functionName in the rule due to grammar LL1 restrictions.
+rule <functionDef> 
+  ?let  @varAbstractType outType
+  ?let  @lstring functionName
+  ?! @ASTFunctionMap ASTFunctionMap
+
+#pipeline
+rule  <pipeline> 
+  ?let  @architectureMap architectureMap
+  ?! @pipelineMap pipelineMap
+
+#assembly of global pipeline
+rule <machine>
+  ?! @machineMap machineMap
+  ?let  @pipelineMap pipelineMap
+
+rule <import>
+  ?let  @bool fromCPU
+  ?! @lstringMap importCoreMap
+  ?! @lstringMap importIsaMap
+  ?! @ASTperipheralMap ASTperipheralMap
+
+rule <deviceDeclaration>
+  ?let  @bool memoryAccessIsLocal #true if a device is declared inside a peripheral (same mem chunk).
+  ?let  @ASTperipheralMap ASTperipheralMap
+  !  @ASTInstDeclarationDevice deviceDec
+
+#called from a cpu part.
+rule <core> 
+  ?! @ASTCoreMap ASTcoreMap
+  ?! @ASTmemSpaceMap ASTmemSpaceMap {
+  #memory stuff
+  var ASTmemChunk =@ASTmemoryParamMap.emptyMap{}
+  var memChunkOrder =@stringlist.emptyList{}
+  #importing isa
+  var importIsaMap =@lstringMap.emptyMap{}
+  #peripherals
+  var ASTperipheralMap =@ASTperipheralMap.emptyMap{}
+ 
+  repeat
+  while
+    #local mem space definition.
+    <memorySpace> !?ASTmemSpaceMap
+  while
+    #ISA or periph importation
+    var importCoreMap =@lstringMap.emptyMap{} #unused.
+    <import> !false !?importCoreMap !?importIsaMap !?ASTperipheralMap
+  end
+
+  $core$ $idf$ ?var @lstring coreName
+  $:$ $isa$ $idf$ ?var @lstring isaNameInCore
+  [importIsaMap searchKey !isaNameInCore ?var @lstring isaFileName]
+  grammar gadl_isa_grammar in isaFileName ?let @ASTIsa ASTIsa
+  ${$
+    <coreBody> !?ASTmemChunk !?memChunkOrder ?var @architectureMap archMap ?var @pipelineMap pipelineMap ?var @machineMap machineMap ?var @ASTFunctionMap ASTCoreConstructorMap ?var @ASTInstructionList ASTDeviceDecList !coreName !ASTperipheralMap
+  $}$
+  [!?ASTcoreMap insertKey !coreName !ASTIsa !ASTmemChunk !memChunkOrder !archMap !pipelineMap !machineMap !ASTCoreConstructorMap !ASTDeviceDecList]
+}
+
+rule <coreBody>
+  ?! @ASTmemoryParamMap ASTmemChunk
+  ?! @stringlist memChunkOrder
+  !  @architectureMap archMap
+  !  @pipelineMap pipelineMap
+  !  @machineMap machineMap
+  !  @ASTFunctionMap ASTCoreConstructorMap
+  !  @ASTInstructionList ASTDeviceDecList
+  ?let  @lstring coreName
+  ?let  @ASTperipheralMap ASTperipheralMap {
+  archMap = @architectureMap. emptyMap
+  pipelineMap = @pipelineMap. emptyMap
+  machineMap = @machineMap. emptyMap
+  ASTCoreConstructorMap = @ASTFunctionMap. emptyMap
+  #core internal devices.
+  ASTDeviceDecList = @ASTInstructionList. emptyList
+  repeat
+  while
+    <memoryChunk> !?ASTmemChunk !?memChunkOrder
+  while
+    <architecture> !?archMap
+  while
+    <pipeline> !archMap !?pipelineMap
+  while
+    <machine> !?machineMap !pipelineMap
+  while #constructor.
+    <typeDeclaration> ?var @varAbstractType type
+    if not [type isVoid] then #should return void
+      error @location.here: "The core constructor should return void"
+    end
+    $idf$ ?var @lstring idf
+    if [idf string] != [coreName string] then
+      error idf: "the constructor should have the same name than the core :"+[coreName string]
+    end
+    <functionDef> !type !idf !?ASTCoreConstructorMap
+  while
+    <deviceDeclaration> !false !ASTperipheralMap ?var @ASTInstDeclarationDevice deviceDec
+    ASTDeviceDecList += !deviceDec
+  end
+}
+
+}

@@ -1,0 +1,109 @@
+
+
+# class @componentMap 
+# -> reader getInstList
+# 
+#----------------------------------------------------------------------------
+# components
+#----------------------------------------------------------------------------
+
+#the componentMap structure is declared in gadl_varIdfStruct.gSemantics (galgas restriction).
+#map @componentMap {
+#  @functionMap methodMap;
+#  #idfStruct that embedds local vars (in varMap) and types
+#  @varIdfStruct idfStruct;
+#  #instructions dedicated to type definitions and local var declaration.
+#  @instructionList instDeclareList;
+#  insert insertKey error message "the '%K' component is already defined in %L" ; 
+#  search searchKey error message "the '%K' component is not defined" ;
+#  remove removeKey error message "the '%K' component is not defined and cannot be removed." ;
+#}
+
+
+
+#used during parsing.
+map @ASTComponentMap {
+  @ASTFunctionMap ASTmethodMap
+  @ASTInstructionList regDefList
+  insert insertKey error message "the '%K' component is already defined in %L" 
+  search searchKey error message "the '%K' component is not defined"
+  remove removeKey error message "the '%K' component is not defined and cannot be removed."
+}
+
+
+method @ASTComponentMap getComponentMap
+  ?! @varIdfStruct varIdfStruct
+  ?let  @lstringMap componentMapOrder {
+  @expressionContext ctx = @expressionContext. component
+  var componentMap =@componentMap.emptyMap{}
+  var componentMapProto =@componentMap.emptyMap{} #without methods body.
+  #one should have exactly the same order as in the description
+  #because registers are global and may be used in other components
+  for (* @lstring componentName) in  componentMapOrder do
+    #first get the AST component data, in the description order
+    [self searchKey !componentName ?var @ASTFunctionMap ASTmethodMap ?var @ASTInstructionList regDefList]
+    #then, do the job.
+    #prepare empty structures
+#    @varIdfStruct varIdfStructLocalCopy := varIdfStruct;
+    var symbolMap =@symbolValueMap.emptyMap{}
+#    @instructionList instDeclareList [emptyList]; #declare and type defs.
+    #set a prefix for local vars implementation.
+    #varIdfStructLocalCopy->idfPrefixLocal := [componentName string]."_";
+    #get local vars and typedefs.
+    #-> it sets the idfStruct with varMap and type definitions.
+    for (@ASTInstruction ASTinst) in  regDefList do
+      @instruction inst
+      [ASTinst getInst !ctx !?symbolMap !?varIdfStruct ?inst]
+#      instDeclareList += !inst;
+#      #registers should be inserted in the varMap, and stay as global definition.
+#      #so, it is both inserted in the varIdfStructLocalCopy, and in varIdfStruct
+#      if(inst is >= @instDeclaration) then #including @instDeclarationRegSlice
+#        @instDeclaration iDec := (cast inst : @instDeclaration);
+#        switch [iDec access]
+#        when localVar,field: #nothing -> stay local var.
+#        when programCounter,GPR,SFR,registerSlice:
+#          #should be set in global varMap
+#          #re-genere the instruction, with other idfStruct.
+#          [ASTinst getInst !ctx !?symbolMap !?varIdfStruct ?inst];
+#        end switch;
+#      end if;
+    end
+    #functions.
+    #-> first insert prototype.
+    @functionMap methodPrototypeMap = [ASTmethodMap getFunctionPrototypeMap]
+    [!?componentMapProto insertKey !componentName !methodPrototypeMap]
+    varIdfStruct.componentMap = componentMapProto
+
+    #->then compute the body of methods
+    #  -> may use methods defined elsewhere in the component.
+    @functionMap methodMap = [ASTmethodMap getFunctionMap !ctx !varIdfStruct]
+    [!?componentMap insertKey !componentName !methodMap]    
+  end
+
+  varIdfStruct.componentMap = componentMap
+}
+
+method @componentMap setInTemplate
+  ?! @TfieldMap templateStruct {
+  var componentTpl =@TfieldMapList.emptyList{}
+  for () in  self do
+    var componentTplBody =@TfieldMap.emptyMap{}
+    addLStringValue ( !?componentTplBody !"name" !lkey)
+
+    #@string declareLocals := generateCode[!instDeclareList !2 ![@codeCtx C]];
+    #addStringValue !?componentTplBody !lstringWith[!"declareLocals"] !declareLocals;
+    addListValue ( !?componentTplBody !lstringWith(!"methodList") ![methodMap getFunctionTemplate])
+    componentTpl += !componentTplBody
+  end
+  addListValue (   !?templateStruct !lstringWith(!"componentList") !componentTpl)
+}
+
+getter @componentMap getInstList
+  ?let  @idfItemList idfList
+  -> @instructionList instList {
+  @lstring compName = [idfList idfAtIndex !0]
+  @lstring funcName = [idfList idfAtIndex !1]
+  [self searchKey !compName ?var @functionMap funcMap]
+  [funcMap searchKey !funcName ?* ?* ?instList]
+}
+

@@ -1,0 +1,57 @@
+ #ASTInstructionList
+
+list @ASTTimingInstructionList {
+  @ASTTimingInstruction ASTTinst
+}
+
+abstract class @ASTTimingInstruction {
+  @location loc
+}
+
+map @ASTTimingMap
+{
+  @bool externalActivation #deprecated?
+  @boolMap signalIn
+  @boolMap signalOut
+  @ASTTimingInstructionList ASTTinstList
+  @ASTExpression ASTExpEnable 
+
+  insert insertKey error message "the '%K' timing is already defined in %L" 
+  search searchKey error message "the '%K' timing is not defined"
+  remove removeKey error message "the '%K' timing is not defined. Can't remove it."
+}
+
+class @ASTTEmit : @ASTTimingInstruction {
+  @lstring name
+  @bool broadcast
+}
+
+class @ASTTWaitSignal : @ASTTimingInstruction {
+  @lstring name
+}
+
+class @ASTTWaitCycle : @ASTTimingInstruction {
+  @ASTExpression ASTExpCycle
+}
+
+class @ASTTIf :  @ASTTimingInstruction {
+  @ASTExpression ASTExpIf
+  @ASTTimingInstructionList ASTTinstListThen
+  @ASTTimingInstructionList ASTTinstListElse
+}
+
+class @ASTTLoop :  @ASTTimingInstruction {
+  @bool forever
+  @ASTExpression ASTexpLoopValue
+  @ASTExpression ASTexpCondValue
+  @ASTTimingInstructionList ASTTinstLoopList
+}
+
+class @ASTTAssignOrCall :  @ASTTimingInstruction {
+  @ASTInstructionList ASTinstList
+}
+
+class @ASTTDeclaration :  @ASTTimingInstruction {
+  @ASTInstructionList ASTinstList
+}
+

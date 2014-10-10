@@ -1,0 +1,455 @@
+
+# Basic definition of variables.
+# The variable kind can be:
+#  * unsigned, signed or float;
+#  * custom (for structures, and other objects (peripherals));
+
+# data structure is based on the 'varAbstractType' abstract type with:
+#  * varBaseType    for classical scalar types.
+#  * varStructType  for custom types
+#  * varTabularType for tabulars of scalar or custom types.
+#  * varDeviceType  for device types (instances of peripherals).
+
+#  * map @varBaseTypeMap -> map of varBaseType.
+
+# useful readers for varAbstractType:
+#  * getDeclaration -> return the declaration (for implementation).
+#  * string         -> return the debug/information string.
+#  * checkBool      -> generate an error if type is not u1.
+#  * checkKind      -> generate an error if type is not the one expected (scalar, ..)
+#  * getBaseType    -> return the base type, and generate an error otherwise.
+#  * loc            -> return the location (for error generation).
+#  * sizeInBits     -> return the size in bits for a scalar, the size of one elt for a tab, an error for struct.
+#  * isVoid         -> return true for u0/s0/f0 (void) and false otherwise.
+#  * checkEqual     -> check if types are equals
+#  * getFinalType   -> used for tabulars. Return the type of an element (recursively in case of tab of tabs…).
+#  * getCType       -> return the string of the C type (for tabulars, the type of the base type).
+
+# readers for varBaseType:
+#  * getCSize       -> return the size of the corresponding C var.
+#  * getUppaalType  -> return the size for Uppaal TODO: define a more realistic 'max'.
+
+# other useful functions/methods:
+# function getCSize ?uint size -> return the size of the corresponding C var (unsigned)
+
+enum @varKind {
+  case unsigned  case signed  case float  case custom  case tabular
+}
+
+getter @varKind msg -> @string outResult {
+  switch self
+    case unsigned : outResult = "an unsigned integer"
+    case signed   : outResult = "a signed integer"
+    case float    : outResult = "a float"
+    case custom   : outResult = "a custom type"
+    case tabular  : outResult = "a tabular type"
+  end
+}
+
+###############################################################################
+# TODO: should it be set here?
+###############################################################################
+
+#generation context
+#for a specific target.
+enum @codeCtx{
+  case C 
+  case Uppaal
+}
+getter @codeCtx msg -> @string out {
+  switch self
+    case C      : out = "generate a C code"
+    case Uppaal : out = "generate code for Uppaal"
+  end
+}
+
+###############################################################################
+# variable related classes
+###############################################################################
+
+#base for any variable.
+abstract class @varAbstractType {
+  @varKind kind
+}
+
+#basic type: unsigned, signed or float.
+class @varBaseType : @varAbstractType {
+  @uint size #size in bits.
+  @location location
+}
+
+#a variable that matches a structure (like in C).
+#a structure should be defined using a 'typedef'
+class @varStructType : @varAbstractType {
+  @lstring typeName
+}
+
+class @varTabularType : @varAbstractType {
+  @varAbstractType type
+  @uint length #nb items.
+}
+
+#a variable that refers to a device (same as a truct in fact...)
+class @varDeviceType : @varAbstractType {
+  @lstring typeName
+}
+
+# This map should contains field names with the suffix (@SRC...)
+map @varBaseTypeMap {
+  @varBaseType type
+  insert insertKey error message "the '%K' data field is declared twice in the instruction" 
+  search searchKey error message "the '%K' data field is not defined in the instruction"
+}
+
+###############################################################################
+## get final type -> for a tabular, give the type of elements.
+## result should not be a tabular.
+###############################################################################
+getter @varAbstractType getFinalType
+  -> @varAbstractType finalType {
+  finalType = self
+}
+
+override getter @varTabularType getFinalType
+  -> @varAbstractType finalType {
+  finalType = [[self type] getFinalType] #recursive way.
+}
+
+###############################################################################
+## get location of type
+###############################################################################
+abstract getter @varAbstractType loc -> @location l
+
+override getter @varBaseType loc -> @location l {
+  l = location
+}
+
+override getter @varStructType loc -> @location l {
+  l = [typeName location]
+}
+
+override getter @varDeviceType loc -> @location l {
+  l = [typeName location]
+}
+
+override getter @varTabularType loc -> @location l {
+  l = [type loc]
+}
+###############################################################################
+## update location for type.
+###############################################################################
+abstract getter @varAbstractType changeLoc ?let  @location l -> @varAbstractType newType
+
+override getter @varBaseType changeLoc ?let  @location l -> @varAbstractType newType {
+  newType = @varBaseType. new { !kind !size !l}
+}
+
+override getter @varStructType changeLoc ?let  @location l -> @varAbstractType newType {
+  newType = @varStructType. new { !kind !@lstring. new { ![typeName string] !l}}
+}
+
+override getter @varDeviceType changeLoc ?let  @location l -> @varAbstractType newType {
+  newType = @varDeviceType. new { !kind !@lstring. new { ![typeName string] !l}}
+}
+
+override getter @varTabularType changeLoc ?let  @location l -> @varAbstractType newType {
+  newType = @varTabularType. new { !kind ![type changeLoc !l] !length}
+}
+
+
+###############################################################################
+## return the C type of a variable.
+###############################################################################
+getter @varBaseType getCSize -> @uint Csize {
+  if kind == @varKind. unsigned | kind == @varKind. signed then
+    if size <= 8 then Csize = 8
+    elsif size <= 16 then Csize = 16
+    elsif size <= 32 then Csize = 32
+    elsif size <= 64 then Csize = 64
+    elsif size <= 128 then Csize = 128
+    else Csize = 0 error location : "cannot handle variable size considered (> 128 bits)"
+    end
+  elsif kind == @varKind. float then
+    if size <= 32 then Csize = 32
+    elsif size <= 64 then Csize = 64
+    else Csize = 0 error location : "cannot handle float size considered (> 64 bits)"
+    end
+  else
+    error location: "internal error: unable to determine the kind of variable":Csize
+  end 
+}
+
+abstract getter @varAbstractType getCType -> @string str
+
+override getter @varBaseType getCType
+  -> @string str {
+  if kind == @varKind. unsigned & (size == 0) then str = "void"
+  else
+    #kind
+    if kind == @varKind. unsigned then 
+      str = "u" 
+    elsif kind == @varKind. signed then 
+      str = "s"
+    elsif kind == @varKind. float then 
+      str = "f"
+    else
+      error location: "internal error: unable to determine the kind of variable" :str
+    end
+    #size.
+    str += [[self getCSize] string]
+  end 
+}
+
+override getter @varStructType getCType
+  -> @string str {
+  str = "gadl_struct_"+[typeName string]
+}
+
+override getter @varDeviceType getCType
+  -> @string str {
+  str = "periph_"+[typeName string]
+}
+
+override getter @varTabularType getCType
+  -> @string str {
+  str = [type getCType]
+}
+
+###############################################################################
+## return the Uppaal type of a variable.
+## TODO: to update with the 'max' field of the variable.
+###############################################################################
+getter @varBaseType getUppaalType
+  -> @string str {
+  if kind != @varKind. unsigned then
+    warning location : "error here: only unsigned ints are supported for Uppaal export."
+  end
+  str = "int[0,"
+  @uint max = (1 << size) - 1
+#  if size > 8 then
+#    warning location: "The variable size may be difficult to handle by the ".
+#              "Uppaal model checker. Consider using variables of smaller size";
+#  end if;
+  str += [max string]+"]"
+}
+
+###############################################################################
+## check for equality.
+###############################################################################
+
+abstract getter @varAbstractType checkEqual
+  ?let  @varAbstractType otherType
+  -> @bool ok
+
+override getter @varStructType checkEqual
+  ?let  @varAbstractType otherType
+  -> @bool ok {
+  let @varStructType typeCast = ( otherType as @varStructType)
+  ok = [[self typeName] string] == [[typeCast typeName] string]
+}
+
+override getter @varTabularType checkEqual
+  ?let  @varAbstractType otherType
+  -> @bool ok {
+  let @varTabularType typeCast = ( otherType as @varTabularType)
+  ok = [self length] == [typeCast length]
+  ok = ok & [[self type] checkEqual ![typeCast type]]
+}
+
+override getter @varDeviceType checkEqual
+  ?let  @varAbstractType otherType
+  -> @bool ok {
+  let @varDeviceType typeCast = ( otherType as @varDeviceType)
+  ok = [[self typeName] string] == [[typeCast typeName] string]
+}
+
+override getter @varBaseType checkEqual
+  ?let  @varAbstractType otherType
+  -> @bool ok {
+  #first, a base type.
+  let @varBaseType typeCast = ( otherType as @varBaseType)
+  ok = [self kind] == [typeCast kind] & [self size] == [typeCast size]
+  if not ok then
+    error [self location]:" the variable has not the same type than the one defined in "+[[typeCast location] locationString]
+    error [typeCast location]:" the variable has not the same type than the one defined in "+[[self location] locationString]
+  end
+}
+###############################################################################
+## getDeclaration => implementation part??
+## return the code associated to a declaration of a type.
+###############################################################################
+
+abstract getter @varAbstractType getDeclaration 
+  ?let  @string idf
+  ?let  @codeCtx cgc  
+  -> @string code
+
+override getter @varBaseType getDeclaration 
+  ?let  @string idf
+  ?let  @codeCtx cgc
+  -> @string code {
+  if cgc == @codeCtx. C then
+    code= [self  getCType]+" "+idf
+  elsif cgc == @codeCtx. Uppaal then
+    code= [self  getUppaalType]+" "+idf
+  else
+    error location: "internal error: unknown code context": code
+  end
+}
+
+override getter @varStructType getDeclaration 
+  ?let  @string  idf
+  ?let  @codeCtx cgc
+  -> @string code {
+  code= [self  getCType]+" "+idf
+  if cgc == @codeCtx. Uppaal then
+    warning typeName: "no structure code generation for Uppaal export at this date"
+  end
+}
+
+override getter @varDeviceType getDeclaration 
+  ?let  @string  idf
+  ?let  @codeCtx cgc
+  -> @string code {
+  code= "periph_"+[typeName string]+" *"+idf
+  if cgc == @codeCtx. Uppaal then
+    warning typeName: "no device code generation for Uppaal export at this date"
+  end
+}
+
+override getter @varTabularType getDeclaration 
+  ?let  @string  idf
+  ?let  @codeCtx cgc  
+  -> @string code {
+  code = [type getDeclaration !idf !cgc]+"["+length+"]"
+}
+
+###############################################################################
+## string -> debug or information purpose.
+###############################################################################
+abstract getter @varAbstractType string -> @string str
+override getter @varBaseType string -> @string str {
+  if kind == @varKind. unsigned then 
+    str = "u" 
+  elsif kind == @varKind. signed then 
+    str = "s"
+  elsif kind == @varKind. float then 
+    str = "f"
+  else
+      error location: "internal error: unable to determine the kind of variable" :str
+  end
+  str += [size string]
+}
+
+override getter @varStructType string -> @string str {
+  str = [self  getCType] #return internal name directly.
+}
+
+override getter @varDeviceType string -> @string str {
+  str = "device "+[self  getCType] #return internal name directly.
+}
+
+override getter @varTabularType string -> @string str {
+  str = [type string]+"["+length+"]"
+}
+###############################################################################
+# getBaseType: return the scalar type, otherwise generate an error
+###############################################################################
+
+getter @varAbstractType getBaseType -> @varBaseType type {
+  error [self loc]: "The type considered is not scalar" : type
+}
+
+override getter @varBaseType getBaseType -> @varBaseType type {
+  type = self
+}
+###############################################################################
+# checkBool
+###############################################################################
+method @varAbstractType checkBool {
+  error [self loc]: "The type considered is not a boolean:"+[self string]
+}
+
+#check that the type is a boolean.
+override method @varBaseType checkBool {
+  if ((size != 1) | (kind != @varKind. unsigned)) then
+    error location: "the type must be a boolean (u1) and is "+[self string]
+  end
+}
+
+###############################################################################
+# checkKind
+###############################################################################
+
+method @varAbstractType checkKind
+ ?let  @varKind typeToCheck {
+  error [self loc]: "The type awaited is "+[typeToCheck msg]+", but we have: "+[self string]
+}
+
+override method @varBaseType checkKind
+ ?let  @varKind typeToCheck {
+  if (kind != typeToCheck) then
+    error [self loc]: "The type awaited is "+[typeToCheck msg]+", but we have: "+[self string]
+  end
+}
+
+###############################################################################
+## useful functions.
+###############################################################################
+func getCSize
+  ?let  @uint size
+  ->  @uint CSize {
+  @varBaseType varType = @varBaseType. new { !@varKind. unsigned !size !@location.here}
+  CSize = [varType getCSize]
+}
+
+#This function cast the input:
+# *if this is a varBaseType, it is returned
+# *otherwise : it generates an error.
+func shouldBeVarBaseType
+  ?let  @varAbstractType type
+  ?let  @string errorMsg
+  -> @varBaseType out {
+  cast type
+  case == @varBaseType vbt :
+    out = vbt
+  else
+    @string msg = "a basic types is mandatory "
+    if errorMsg != "" then
+      msg += "("+errorMsg+")"
+    end
+    error [type loc]: errorMsg:out
+  end
+}
+
+###############################################################################
+# size in bits (not for structs!). Useful for masks.
+##############################################################################
+getter @varAbstractType sizeInBits -> @uint bits {
+  error [self loc]: "Cannot get the size in bits for a struct." : bits
+}
+
+override getter @varBaseType sizeInBits -> @uint bits {
+  bits = size
+}
+
+#TODO: tabular of tabular not taken into account.
+#should be a simple tabular.
+override getter @varTabularType sizeInBits -> @uint bits {
+  if (type is >= @varTabularType) then
+    error [type loc] : "internal error: cannot yet handle tabs of tabs"
+  end
+  bits = [type sizeInBits]
+}
+
+
+getter @varAbstractType isVoid -> @bool result {
+  cast self
+  case == @varBaseType vbt :
+    result = ([vbt size] == 0)
+  else
+    result = false
+  end
+  
+}
+

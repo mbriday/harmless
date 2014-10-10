@@ -1,0 +1,142 @@
+
+  
+
+#useful functions:
+# checkTypeExists -> check recursively that member types are defined: 
+#                    generate an error if there is a pb.
+
+#variables declared in implementation parts. May be either:
+#  * a classic variable (use of a C++ internal type during generation)
+#  * a register
+
+enum @varClass {
+  case programCounter 
+  case GPR             #will be used in data dependency controller
+  case SFR 
+  case registerSlice 
+  case localVar 
+  case field 
+  case device        #a device defined inside a peripheral.
+}
+
+getter @varClass msg -> @string outResult {
+  switch self
+    case programCounter : outResult = "the program counter"
+    case GPR            : outResult = "a general purpose register"
+    case SFR            : outResult = "a special function register" 
+    case registerSlice  : outResult = "a register slice" 
+    case localVar       : outResult = "a local variable"     
+    case field          : outResult = "a binary field of instruction"     
+    case device         : outResult = "a device"
+  end
+}
+
+#reader for template export. not very clean
+getter @varClass id -> @uint64 outResult {
+  switch self
+    case programCounter : outResult = 0L
+    case GPR            : outResult = 1L
+    case SFR            : outResult = 2L
+    case registerSlice  : outResult = 3L
+    case localVar       : outResult = 4L
+    case field          : outResult = 5L
+    case device         : outResult = 6L
+  end
+}
+
+map @varMap {
+  #3 first arguments are redondants with instDeclaration…
+  @varAbstractType type#return type:scalar, custom or tabular.
+  @bool constant #true if the variable should not be modified.
+  @varClass varClass
+  @instDeclaration inst
+  insert insertKey error message "the '%K' symbol is already defined in %L" 
+  search searchKey error message "the '%K' symbol is not defined"
+  remove removeKey error message "the '%K' symbol is not defined. Can't remove it."
+}
+
+#check that the program counter is:
+# * is defined
+# * is not defined twice
+# * has a correct type (varBaseType, unsigned)
+# * is not constant
+# -> return the type.
+method @varMap checkProgramCounter
+  ! @varBaseType typePC
+  ! @lstring name {
+  name = @lstring. new { !"" !@location.here} #dummy init
+  typePC = @varBaseType. new { !@varKind. unsigned !1 !@location.here}
+  @bool found = false
+  for () in  self do
+    if varClass == @varClass. programCounter then
+      if not found then
+        #Ok. First time found.
+        name = lkey
+        typePC = [type getBaseType]
+        if [typePC kind] != @varKind. unsigned then
+          error lkey: "The program counter type should be unsigned. It is defined as "+[[typePC kind] msg]
+        end
+        if constant then
+          error lkey: "The program counter should not be declared constant"
+        end
+        found = true
+      else
+        #error: 2 program counters.
+        error lkey: "The program counter is defined twice, this is not allowed in description"
+        error name: "The program counter is defined twice, this is not allowed in description"
+      end
+    end
+  end
+  if not found then
+    error @location.here: "No program counter defined in Instruction Set Architecture."
+  end
+}
+
+
+getter @varMap string
+  -> @string str {
+  str = "\n"
+  for () in  self do
+    str += "\t"+[lkey string]+" -> "+[varClass msg]
+    if constant then str += ", const" end
+    str += " ("+[type string]+")"
+  between str += "\n"
+  end
+}
+
+#*****************************************************************************
+#* maps related to structured types (custom)
+#*****************************************************************************
+
+map @typedefMemberMap {
+  @varAbstractType type
+  insert insertKey error message "the '%K' member is already defined in %L" 
+  search searchKey error message "the '%K' member is not defined in map"
+}
+
+map @typedefMap {
+  @typedefMemberMap typedefMemberMap
+  insert insertKey error message "the '%K' member is already defined in %L" 
+  search searchKey error message "the '%K' member is not defined in map"
+}
+
+func getRegSliceName
+  ?let  @string registerName
+  ?let  @string sliceName
+  -> @string regSliceName {
+  regSliceName = registerName+"_"+sliceName
+}
+
+
+#*****************************************************************************
+#  @instDeclaration should be declared here, because of varMap.
+#*****************************************************************************
+
+class @instDeclaration : @instruction {
+  @varAbstractType type
+  @lstring idf %nogetter #should not be used directly -> use the 'name' reader instead.
+  @varClass access
+  @string prefixLocal #used to get a unique local var name.
+}
+
+

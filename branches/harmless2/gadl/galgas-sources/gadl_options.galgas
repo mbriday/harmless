@@ -1,0 +1,21 @@
+option gadl_options {
+
+@bool templateLogFile: '\0', "template-log"
+      -> "Generate a template log file in xml format. The file embedds all symbols that are exported to the template processor. Use for debugging purpose only"
+
+@string template_dir    : '\0', "templates" -> "Template directory"
+
+@bool noCheck: 'c', "no-check" 
+      -> "Remove time consuming checks: coherence of instruction set."
+
+@bool noDesassemble: 'a', "no-deasm" 
+      -> "does not take into account instruction syntax part. It is not possible to generate a dissassembler"
+
+@bool warnIfResultMayBeTruncated : 'w', "warn-trunc" 
+      -> "Warn if the result of an expression may be truncated"
+
+@bool pipelineDebug: 'p', "pipeline-debug"
+      -> "pipeline debug: generate notifications for each pipeline stage to reconstruct the pipeline content. It may slow the simulation."
+
+}
+# vim:ft=ggs:ts=2:sw=2

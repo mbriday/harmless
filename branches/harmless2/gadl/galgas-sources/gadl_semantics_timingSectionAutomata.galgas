@@ -1,0 +1,812 @@
+ #timing
+
+
+######################################################
+#Adjacency matrix
+######################################################
+list @luint64list
+{
+  @luint64 val
+}
+
+# store information about a state.
+list @timingStateList{
+  @string info %setter
+  @expressionlist invariantList %setter
+  @expressionlist waitCycleList %setter
+}
+
+#store information about a transtion.
+class @timingTransition {
+  @instructionList updateList #code that should be executed
+  @expressionlist guardList  #condition list.
+  @stringlist synchroInList   #synchronization (wait for)
+  @stringlist synchroOutList  #synchronization (emit)
+  @stringlist synchroOutBroadcastList  #(emit without waiting) 
+}
+
+array @timingStateArray : @timingTransition[2]
+
+#Adjacency matrix
+#contains an array of dim x dim places
+#first  dimension is destination d
+#second dimension is source s
+#if there is a transition from state s to d, then
+# -> [stateArray valueAtIndex !destination! source] should return the @timingTransition
+class @adjMat{
+  @uint dim
+  @timingStateList stateList
+  @timingStateArray stateArray
+}
+
+#***************************************************************************
+# routines
+#***************************************************************************
+setter @timingTransition addUpdate
+  ?let  @instruction inst {
+  updateList += !inst
+}
+
+setter @timingTransition addGuard
+  ?let  @expression exp {
+  guardList += !exp
+}
+
+setter @timingTransition addSynchro
+  ?let  @string signalName
+  ?let  @bool sigIn
+  ?let  @bool broadcast {
+  if sigIn then synchroInList += ! signalName #wait
+  else 
+    if broadcast then
+      synchroOutBroadcastList += !signalName #emit without waiting
+    else
+      synchroOutList += !signalName #emit with rendez-vous
+    end
+  end
+}
+
+setter @adjMat addState
+  ?let  @string info   # information about the node
+  !  @uint   nodeId {
+  nodeId = [stateList length]
+  @timingStateList tmp = stateList
+  tmp += !info !@expressionlist. emptyList !@expressionlist. emptyList
+  stateList = tmp
+}
+
+setter @adjMat updateStateInfo
+  ?let  @uint nodeId
+  ?let  @string info {
+  @timingStateList tsList = stateList
+  if nodeId >= [tsList length] then
+    error @location.here: "internal error in timing section: try to update a non existing state"
+  else
+    @string newInfo = [tsList infoAtIndex !nodeId]
+    if newInfo != "" then newInfo += "," end
+    newInfo += info
+    [!?tsList setInfoAtIndex !newInfo !nodeId]
+  end
+  stateList = tsList 
+}
+
+setter @adjMat addStateInvariant
+  ?let  @uint nodeId
+  ?let  @expression invariant {
+  @timingStateList tsList = stateList
+  if nodeId >= [tsList length] then
+    error @location.here: "internal error in timing section: try to update a non existing state"
+  else
+    @expressionlist invList = [tsList invariantListAtIndex !nodeId]
+    invList += !invariant
+    [!?tsList setInvariantListAtIndex !invList !nodeId]    
+  end
+  stateList = tsList 
+}
+
+setter @adjMat addWaitCycle
+  ?let  @uint nodeId
+  ?let  @expression cycle {
+  @timingStateList tsList = stateList
+  if nodeId >= [tsList length] then
+    error @location.here: "internal error in timing section: try to update a non existing state"
+  else
+    @expressionlist waitCycleList = [tsList waitCycleListAtIndex !nodeId]
+    waitCycleList += !cycle
+    [!?tsList setWaitCycleListAtIndex !waitCycleList !nodeId]    
+  end
+  stateList = tsList 
+}
+
+getter @adjMat getTransition
+  ?let  @uint dst
+  ?let  @uint src
+  -> @timingTransition transition {
+   @bool valid =  [stateArray isValueValidAtIndex !dst !src]
+   if not valid then 
+     error @location.here:"internal error: try to read a non existing transition"
+   end
+   transition = [stateArray valueAtIndex !dst !src]
+}
+
+#add information on a transition.
+setter @adjMat updateTransition
+  ?let  @uint dst
+  ?let  @uint src
+  ?let  @timingTransition transition {
+   [!?stateArray setValueAtIndex !transition !dst !src]
+}
+
+getter @adjMat getIncomingTransitions 
+ ?let  @uint dst
+ -> @uintlist transitionList {
+  @range dimSrc= [stateArray rangeForAxis !1]
+  transitionList = @uintlist. emptyList
+  for src in dimSrc do
+    @bool valid =  [stateArray isValueValidAtIndex !dst !src]
+    if valid then  
+      transitionList += !src
+    end
+  end
+}
+
+getter @adjMat getOutputTransitions 
+ ?let  @uint src
+ -> @uintlist transitionList {
+  @range dimDst= [stateArray rangeForAxis !0]
+  transitionList = @uintlist. emptyList
+  for dst in dimDst do
+    @bool valid =  [stateArray isValueValidAtIndex !dst !src]
+    if valid then  
+      transitionList += !dst
+    end
+  end
+}
+
+setter @adjMat addTransition 
+  ?let  @uint source
+  ?let  @uint destination
+  ?let  @timingTransition transition {
+  @bool update = false
+  if [stateArray sizeForAxis !0] > destination &
+     [stateArray sizeForAxis !1] > source then
+     #array is currently large enough -> we have to update transition?
+     @bool b =  [stateArray isValueValidAtIndex !destination !source]
+     if b then 
+       error @location.here :"internal error: There is already a transition"
+     end
+  end
+  if not update then
+    [!?stateArray forceValueAtIndex !transition !destination !source]   
+  end
+}
+
+#this reader should not be called directly: it gets the label for a transition.
+getter @timingTransition getGraphVizExport
+  -> @string dotFile {
+  dotFile = "[label = \""
+  #update list.
+  for(@instruction inst) in  updateList
+  before dotFile += "up :"
+  do 
+    dotFile += [inst generateCode !0 !@codeCtx. Uppaal]
+  between dotFile += ", "
+  end
+  #guard list
+  for(@expression exp) in  guardList
+  before dotFile += "guard :"
+  do 
+    dotFile += [exp generateCode !@codeCtx. Uppaal]
+  between dotFile += ", "
+  end
+  #signals
+  for(@string sig) in  synchroInList
+  before dotFile += "wait for :"
+  do 
+    dotFile += sig
+  between dotFile += ", "
+  end
+  for(@string sig) in  synchroOutList
+  before dotFile += "emit :"
+  do 
+    dotFile += sig
+  between dotFile += ", "
+  end
+  for(@string sig) in  synchroOutBroadcastList
+  before dotFile += "broadcast emit :"
+  do 
+    dotFile += sig
+  between dotFile += ", "
+  end
+  dotFile += "\"];"
+}
+
+getter @adjMat getGraphVizExport
+  -> @string dotFile {
+  dotFile = "digraph timingAutomata{\n"
+  @uint nodeId = 0
+  for (@string name @expressionlist invList @expressionlist waitCycleList) in  stateList do
+    @string invariantStr=""  
+    for (@expression exp) in  invList do
+      invariantStr += [exp generateCode !@codeCtx. Uppaal]
+    between invariantStr += ", "
+    end
+    dotFile += " \""+[nodeId string ] +"\" [label=\""+name
+    if invariantStr != "" & name != "" then
+      dotFile += " - "
+    end
+    dotFile += invariantStr
+    for (@expression exp) in  waitCycleList
+    before if invariantStr != "" then dotFile += ", " end dotFile += "wait for "
+    do 
+      @string waitStr = [exp generateCode !@codeCtx. Uppaal]
+      dotFile += waitStr
+    between dotFile += "+"
+    after dotFile += " cycles"
+    end
+    dotFile += "\" ];\n"
+    nodeId = nodeId + 1
+  end
+
+  @range dstRange= [stateArray rangeForAxis !0]
+  @range srcRange= [stateArray rangeForAxis !1]
+  for dst in dstRange  do
+    for src in srcRange do
+      @bool b =  [stateArray isValueValidAtIndex !dst !src]
+      if b then 
+        dotFile +=" \""+[src string]+"\" -> \""+[dst string]+"\" "
+        @timingTransition transition = [stateArray valueAtIndex !dst !src]
+        dotFile += [transition getGraphVizExport]
+        dotFile +="\n"
+      end
+    end
+  end
+  dotFile += "}\n"
+}
+
+#################################################################################
+# method to update the matrix.
+# here is a modifier associated to each 
+# instruction that updates the adjacency matrix
+# to construct the automata.
+#
+# the matrix models the HARMLESS automata, i.e. a "Wait for xx cycle" timing
+# is done in one state, contrary to the Uppaal approach.
+#################################################################################
+abstract method @timingInstruction buildAdjMatrix 
+  ?! @adjMat unused mat
+  ?! @uintlist unused stack
+  ?! @uint unused current
+  ?let  @bool unused uppaalExport
+
+override method @tAssignOrCall buildAdjMatrix
+  ?! @adjMat mat
+  ?! @uintlist unused stack
+  ?! @uint current
+  ?let  @bool uppaalExport {
+  if not uppaalExport then #not exported to Uppaal -> only related to communicate with the simulator.
+    @uint newStateId
+    [!?mat addState !"" ?newStateId]
+    var transition =@timingTransition.default
+    for () in  instList do
+      [!?transition addUpdate !inst]
+    end
+    [!?mat addTransition !current !newStateId !transition]
+    current = newStateId
+  end
+}
+
+override method @tDeclaration buildAdjMatrix
+  ?! @adjMat mat
+  ?! @uintlist unused stack
+  ?! @uint current
+  ?let  @bool uppaalExport {
+  #this can be a "declare and assign instruction"
+  #first remove all declaration.
+  var instListWithoutDeclare =@instructionList.emptyList{}
+  for () in  instList do
+    if not (inst is >= @instDeclaration) then
+      instListWithoutDeclare += !inst
+    end
+  end
+  #if there are assign, it works as a tAssignOrCall
+  if [instListWithoutDeclare length] > 0 then    
+    if not uppaalExport then #not exported to Uppaal -> only related to communicate with the simulator.
+      @uint newStateId
+      [!?mat addState !"" ?newStateId]
+      var transition =@timingTransition.default
+      for () in  instListWithoutDeclare do
+        [!?transition addUpdate !inst]
+      end
+      [!?mat addTransition !current !newStateId !transition]
+      current = newStateId
+    end
+  end
+}
+
+override method @tWaitSignal buildAdjMatrix
+  ?! @adjMat mat
+  ?! @uintlist unused stack
+  ?! @uint current
+  ?let  @bool unused uppaalExport {
+  @uint newStateId
+  [!?mat addState !"" ?newStateId]
+  #add transition beween current and emit
+  var transition =@timingTransition.default
+  [!?transition addSynchro ![name string] !true !false] #wait, no broadcast (not used).
+  [!?mat addTransition !current !newStateId !transition]
+  current = newStateId
+}
+
+override method @tEmit buildAdjMatrix
+  ?! @adjMat mat
+  ?! @uintlist unused stack
+  ?! @uint current
+  ?let  @bool unused uppaalExport {
+  @uint newStateId
+  [!?mat addState !"" ?newStateId]
+  #add transition beween current and emit
+  var transition =@timingTransition.default
+  [!?transition addSynchro ![name string] !false !broadcast]
+  [!?mat addTransition !current !newStateId !transition]
+  current = newStateId
+}
+
+override method @tWaitCycle buildAdjMatrix
+  ?! @adjMat mat
+  ?! @uintlist unused stack
+  ?! @uint current
+  ?let  @bool uppaalExport {
+  if uppaalExport then
+    #   - init a clock from incoming transitions (to the state that waits): clock = 0
+    #   - add an invariant (clock <= xx) into the state
+    #   - add a guard to output transitions (clock == xx)
+
+    var idfList =@idfItemList.emptyList{}
+    idfList += !@lstring. new { !"cycle" !@location.here} !@idfItemType. basic 
+               !@expressionlist. emptyList !@idfItemSpecType. standard !"" !""
+    @varBaseType type = @varBaseType. new { !@varKind. unsigned !32 !@location.here}
+    @expIdf clockIdf = @expIdf. new { !type !idfList !@idfType. localVar !false}
+    @expIntConst expZero = @expIntConst. new { !type !0L !false}
+    @varBaseType boolOutType = @varBaseType. new { !@varKind. unsigned !1 !@location.here} #return type of exp: bool
+    #get predecessors (incoming transitions)
+    @uintlist predList = [mat getIncomingTransitions !current]
+    for (@uint src) in  predList do 
+      #update transition from predecessor to stateId node.
+      #build instruction "clock = 0" and affect to update list of transition
+      @timingTransition transition = [mat getTransition !current !src]
+      @instAssignment assign = @instAssignment. new { !@location.here !clockIdf !clockIdf !@fieldList. emptyList !expZero}
+      [!?transition addUpdate !assign]
+      [!?mat updateTransition !current !src !transition]
+    end
+    #add invariant condition on stateId node.
+    @expBinary comp = @expBinary. new { !boolOutType !clockIdf !expCycle !9} # '<='
+    [!?mat addStateInvariant !current !comp] #clock <= cycle
+    #add a guard on output transition: clock = cycle
+    @uint newStateId
+    [!?mat addState !"" ?newStateId]
+    var transition =@timingTransition.default
+    @expBinary equ = @expBinary. new { !boolOutType !clockIdf !expCycle !11} # '='
+    [!?transition addGuard !equ]
+    [!?mat addTransition !current !newStateId !transition]
+    current = newStateId
+  else 
+    #simulation: associate a waiting period to the state.
+    [!?mat addWaitCycle !current !expCycle]
+  end
+}
+
+
+override method @tLoop buildAdjMatrix
+  ?! @adjMat mat
+  ?! @uintlist stack
+  ?! @uint current
+  ?let  @bool uppaalExport {
+  #build an @expIdf (identifier as an expression) to model the "invariant" idf.
+  #and other stuff to build expressions and instructions.
+  @lstring idfName =  @lstring. new { !"invLoop_"+internalId !loc}
+  var idfList =@idfItemList.emptyList{}
+  idfList += !idfName!@idfItemType. basic
+             !@expressionlist. emptyList !@idfItemSpecType. standard !"" !""
+  @varBaseType type = @varBaseType. new { !@varKind. unsigned !32 !@location.here}
+  @expIdf loopIdf = @expIdf. new { !type !idfList !@idfType. localVar !false}
+  @expIntConst expZero = @expIntConst. new { !type !0L !false}
+  @expIntConst expOne  = @expIntConst. new { !type !1L !false}
+  @expIntConst expLoop = @expIntConst. new { !type !loopValue !false}
+  @varBaseType boolOutType = @varBaseType. new { !@varKind. unsigned !1  !@location.here} #return type of exp: bool
+  @varBaseType u32OutType  = @varBaseType. new { !@varKind. unsigned !32 !@location.here} #return type of exp: u32
+  #store the state that evaluates condition loop.
+  stack += !current
+  #each pred init the clock.
+  @uintlist predList = [mat getIncomingTransitions !current]
+  for (@uint x) in  predList  do 
+    @timingTransition transition = [mat getTransition !current !x]
+    @instAssignment assign = @instAssignment. new { !@location.here !loopIdf !loopIdf !@fieldList. emptyList !expZero}
+    [!?transition addUpdate !assign]
+    [!?mat updateTransition !current !x !transition]
+  end
+  #condition true.
+  @uint newStateId
+  [!?mat addState !"" ?newStateId]
+  var transitionTrue =@timingTransition.default
+  if uppaalExport then
+    #limit only in Uppaal with the max nb of loops.
+    @expBinary comp = @expBinary. new { !boolOutType !loopIdf !expLoop !9} #  'loopIdf <= expLoop'    
+    [!?transitionTrue addGuard !comp] 
+  else
+    [!?transitionTrue addGuard !conditionExp] 
+  end
+  [!?mat addTransition !current !newStateId !transitionTrue]
+  current = newStateId
+  #loop if the condition is true
+  for (@timingInstruction t) in  tInstLoopList do
+    [t buildAdjMatrix !?mat !?stack !?current !uppaalExport]
+  end
+  #get back the state that evaluates condition loop.
+  @uint id
+  [!?stack popLast ?id]
+  #and close the loop.
+  var transitionInc =@timingTransition.default
+  @expBinary inc = @expBinary. new { !u32OutType !loopIdf !expOne !3}  # 'invLoop+1'
+  @instAssignment assignInc = @instAssignment. new { !@location.here !loopIdf !loopIdf !@fieldList. emptyList !inc} #invLoop = invLoop+1;
+#  @cBinaryBasicOp inc := [@cBinaryBasicOp new !LoopVarType !loopIdf !expOne !3]; # 'invLoop+1'
+#  @cAssign assignInc := [@cAssign new !here !loopLeftPart !inc !0]; #invLoop = invLoop+1;
+  [!?transitionInc addUpdate !assignInc]
+  [!?mat addTransition !current !id !transitionInc]
+  current = id
+  #exit transition. (false condition)
+  [!?mat addState !"" ?newStateId]
+  var transitionFalse =@timingTransition.default
+  @expUnary expFalse = @expUnary. new { !boolOutType !conditionExp !0} #!(exp)
+  if not uppaalExport then #can always exit in Uppaal
+    [!?transitionFalse addGuard !expFalse]
+  end
+  [!?mat addTransition !current !newStateId !transitionFalse]
+  current = newStateId
+}
+
+override method @tIf buildAdjMatrix
+  ?! @adjMat mat
+  ?! @uintlist stack
+  ?! @uint current
+  ?let  @bool uppaalExport {
+  @string ifIdStr = [current string]
+  @varBaseType boolOutType = @varBaseType. new { !@varKind. unsigned !1 !@location.here} #return type of exp: bool
+  #add a node to start evaluate the if :-/ really needed?
+  @uint newStateId
+  [!?mat addState !"if_"+ifIdStr ?newStateId]
+  [!?mat addTransition !current !newStateId !@timingTransition.default]
+  current = newStateId
+  stack += !current
+  
+  #branch if the condition is true.
+  var transition =@timingTransition.default
+  if not uppaalExport then # no condition in Uppaal
+    [!?transition addGuard !expIf]
+  end
+  [!?mat addState !"condOk_"+ifIdStr ?newStateId]
+  [!?mat addTransition !current !newStateId !transition]
+  current = newStateId
+  
+  for (@timingInstruction t) in  tInstListThen do
+    [t buildAdjMatrix !?mat !?stack !?current !uppaalExport]
+  end
+
+  #end of the 'if' branch
+  [!?mat addState !"endIf_"+ifIdStr ?newStateId]
+  [!?mat addTransition !current !newStateId !@timingTransition.default]
+  current =newStateId
+
+  #get back the state that is the start of the 'if'
+  @uint id
+  [!?stack popLast ?id] 
+  #and put the last state of the if ('end if')
+  stack += !current
+  #generate the else branch (from 'id').
+  current = id
+  [!?mat addState !"else"+ifIdStr ?newStateId]
+  var transitionFalse =@timingTransition.default
+  @expUnary expFalse = @expUnary. new { !boolOutType !expIf !0} #!(exp)
+  if not uppaalExport then # no condition in Uppaal
+    [!?transitionFalse addGuard !expFalse]
+  end
+  [!?mat addTransition !current !newStateId !transitionFalse]
+  current = newStateId
+  for (@timingInstruction t) in  tInstListElse do
+    [t buildAdjMatrix !?mat !?stack !?current !uppaalExport]
+  end
+  #get back the "end if" state (i.e. last state of the if branch).
+  [!?stack popLast ?id] 
+  [!?mat addTransition !current !id !@timingTransition.default]
+  current =id
+}
+
+#function that generate an expression that is the sum of
+#the expressions in the list.
+func getExpSum
+  ?let  @expressionlist expList
+  -> @expression sum {
+  if [expList length] == 0 then
+    @varBaseType type = @varBaseType. new { !@varKind. unsigned !1 !@location.here}
+    sum = @expIntConst. new { !type !0L !false} #return 0
+  else
+    @expressionlist expListMod = expList
+    @expression left
+    [!?expListMod popFirst ?left]
+    for (@expression exp) in  expListMod do
+      @expression right
+      [!?expListMod popFirst ?right]
+       @varBaseType outType =typeAdd(![[left type] getBaseType] ![[right type] getBaseType])
+      left = @expBinary. new { !outType !left !right !3} #'+'
+    end
+    sum = left
+  end
+}
+
+#transform the Harmless automata into an Uppaal compliant automata:
+#Changes are:
+# * remove the 'wait xx cycle' in states and
+#   - init a clock from incoming transitions (to the state that waits): clock = 0
+#   - add an invariant (clock <= xx) into the state
+#   - add a guard to output transitions (clock == xx)
+func buildUppaalAutomata 
+  ?let  @adjMat harmlessAutomata
+  -> @adjMat uppaalAutomata {
+  uppaalAutomata = harmlessAutomata
+  #for each state.
+  @uint stateId = 0
+  for (* * @expressionlist waitCycleList) in  [uppaalAutomata stateList] do
+    #if there is a wait, generate the Uppaal related transitions.
+    if [waitCycleList length] > 0 then
+      #build a @cIdf (identifier as an expression) to model the "cycle" idf.
+      #and other stuff to build expressions and instructions.
+#      @varType clockType := [@varType new ![@varKind unsigned] !32 !here];
+#      @classicVar clockVar := [@classicVar new !clockType !false !"" !""];
+#      @cIdf clockIdf := getExpIdf[![@varKind unsigned] !32 !false !"" !"" ![@lstring new !"cycle" !here]];
+#      @leftAssignPart leftPartClock [emptyList];
+#      leftPartClock += !clockIdf ![@fieldList emptyList];  
+#      @cExpression expCycle:=getExpSum[!waitCycleList];
+#      @varTypeList boolOutType := getTypeListFrom[!getBoolVarType[]]; #return type of exp: bool
+#      @cIntConst expZero := getExpUint[!1 !0L];  
+      var idfList =@idfItemList.emptyList{}
+      idfList += !@lstring. new { !"cycle" !@location.here} !@idfItemType. basic 
+                 !@expressionlist. emptyList !@idfItemSpecType. standard !"" !""
+      @varBaseType type = @varBaseType. new { !@varKind. unsigned !32 !@location.here}
+      @expIdf clockIdf = @expIdf. new { !type !idfList !@idfType. localVar !false}
+      @expression expCycle=getExpSum(!waitCycleList)
+      @expIntConst expZero = @expIntConst. new { !type !0L !false}
+      @varBaseType boolOutType = @varBaseType. new { !@varKind. unsigned !1 !@location.here} #return type of exp: bool
+
+      #get predecessors (incoming transitions)
+      @uintlist predList = [uppaalAutomata getIncomingTransitions !stateId]
+      for (@uint src) in  predList do 
+        #update transition from predecessor to stateId node.
+        #build instruction "cycle = 0" and affect to update list of transition
+        @timingTransition transition = [uppaalAutomata getTransition !stateId !src]
+        @instAssignment assign = @instAssignment. new { !@location.here !clockIdf !clockIdf !@fieldList. emptyList !expZero}
+        [!?transition addUpdate !assign]
+        [!?uppaalAutomata updateTransition !stateId !src !transition]
+      end
+      #add invariant condition on stateId node.
+      @expBinary comp = @expBinary. new { !boolOutType !clockIdf !expCycle !9} # '<='
+      [!?uppaalAutomata addStateInvariant !stateId !comp] #cycle < sum.
+      #add a guard on output transitions: cycle = sum
+      @uintlist nextList = [uppaalAutomata getOutputTransitions !stateId]      
+      for (@uint dst) in  nextList do
+        #update output transition to add guard: cycle = sum
+        @timingTransition transition = [uppaalAutomata getTransition !dst !stateId]
+        @expBinary equ = @expBinary. new { !boolOutType !clockIdf !expCycle !11} # '='
+        [!?transition addGuard !equ]
+        [!?uppaalAutomata updateTransition !dst !stateId !transition]
+      end      
+    end
+    stateId = stateId + 1
+  end
+}
+
+
+func computeMatAdj
+  ?let  @timingInstructionList instList
+  ?let  @bool externalActivation # if there is an external activation, we have to generate an empty last state.
+  ?let  @bool uppaalExport #true if Uppaal export, false if simulation.
+  -> @adjMat automata {
+  var stateList =@timingStateList.emptyList{}
+  @timingStateArray tb =  @timingStateArray.  new { !1 !1}
+  automata = @adjMat. new { !1 !stateList !tb}
+  var stack =@uintlist.emptyList{}
+  @uint firstState
+  @uint current
+  
+  #we have to generate 2 states, because the first one does NOT have incoming transitions at this time.
+  #Other call to 'buildAdjMatrix' may generate incorrect behavior if they call the 'getIncomingTransitions' modifier.
+  #The set of incoming transitions to the second state will not change.
+  [!?automata addState !"start" ?firstState]
+  [!?automata addState !"startEnd" ?current]
+  [!?automata addTransition !firstState !current !@timingTransition.default]
+  for (@timingInstruction t) in  instList do
+      [t buildAdjMatrix !?automata !?stack !?current !uppaalExport]
+  end
+  if externalActivation then
+    #with external activation, we have to set another state 'last'. When we are in this state, one loop
+    #of the automata have been done.
+    @uint previous = current
+    [!?automata addState !"last" ?current]
+    [!?automata addTransition !previous !current !@timingTransition.default]
+  end
+  [!?automata addTransition !current !firstState !@timingTransition.default] #loop from the last state to init. 
+}
+
+func getTemplateExpList
+  ?let  @expressionlist expList
+  ?let  @bool uppaalExport
+  -> @TfieldMapList expTplList {
+  expTplList = @TfieldMapList. emptyList
+  #registers declaration.
+  for (@expression exp) in  expList do
+    var expTplBody =@TfieldMap.emptyMap{}
+    if uppaalExport then
+      @string expStr = [exp generateCode !@codeCtx. Uppaal]
+      addStringValue ( !?expTplBody !lstringWith(!"exp") !getXMLCompliant(!expStr))
+    else
+      @string expStr = [exp generateCode !@codeCtx. C]
+      addStringValue ( !?expTplBody !lstringWith(!"exp") !expStr)      
+    end
+    #end
+    expTplList += !expTplBody
+  end
+}
+
+# this routine give information about adjacency matrix to be used 
+# in the template subsystem.
+proc adjacencyMatrixTemplate
+  ?let  @adjMat mat
+  ?! @TfieldMap templateStruct
+  ?let  @bool uppaalExport #true if Uppaal export, false if simulation.
+  ?let  @pointList stateCoordinateList {
+  @string uppaalStr = ""
+  @codeCtx codeContext
+  if uppaalExport then 
+    #Uppaal export
+    uppaalStr = "Uppaal"
+    codeContext = @codeCtx. Uppaal
+  else
+    #simulation
+    codeContext = @codeCtx. C
+  end
+  var timingPointListTpl =@TfieldMapList.emptyList{}
+  #state list.
+  var stateListTpl =@TfieldMapList.emptyList{}
+  @uint stateId = 0
+  #if we do not have coordinates...
+  @pointList stateCoordinateListUpdated
+  if uppaalExport then
+    @uint nbStates = [[mat stateList] length]
+    if [stateCoordinateList length] != nbStates then #there was a pb with the 'dot' program
+      if [option .verbose_output value] then
+        message "*** To have a more readable Uppaal export, consider installing graphviz tool\n"
+        message "*** -> sudo apt-get install graphviz on Debian/Ubuntu.\n"
+      end
+      stateCoordinateListUpdated = @pointList. emptyList
+      @uint id = 0
+      for (...) in  [mat stateList] do
+        stateCoordinateListUpdated += !id !0 !0
+        id = id + 1
+      end
+    else
+      stateCoordinateListUpdated = stateCoordinateList
+    end
+  else
+    stateCoordinateListUpdated = stateCoordinateList
+  end
+
+  for (@string info @expressionlist invariantList @expressionlist waitCycleList) in  [mat stateList], (@uint id @uint x @uint y) in  stateCoordinateListUpdated do
+    var stateListTplBody =@TfieldMap.emptyMap{}
+    #state information
+    if info != "" then
+      addStringValue ( !?stateListTplBody !lstringWith(!"info") !info)
+    end
+    if uppaalExport then #specific to Uppaal
+      #no invariant in simulation.
+      addListValue ( !?stateListTplBody !lstringWith(!"invariant") !getTemplateExpList(!invariantList !true))
+      #is state urgent?
+      #state is urgent, until if we should wait in the state or there are synchro on output edges.
+      @bool urgent = [invariantList length] == 0 #wait in that state?
+      if urgent then
+        @uintlist nextList = [mat getOutputTransitions !stateId]      
+        for (@uint dst) in  nextList do
+          @timingTransition transition = [mat getTransition !dst !stateId]
+          if [[transition synchroInList] length] > 0 then urgent = false end
+          if [[transition synchroOutList] length] > 0 then urgent = false end
+          if [[transition synchroOutBroadcastList] length] > 0 then urgent = false end
+        end
+      end
+      addBoolValue ( !?stateListTplBody !lstringWith(!"urgent") !urgent)
+    else #specific to simulation.
+      #wait cycles.
+      addListValue ( !?stateListTplBody !lstringWith(!"waitCycles") !getTemplateExpList(!waitCycleList !true))
+    end
+    #state coordinates
+    addUnsignedValue ( !?stateListTplBody !lstringWith(!"id") ![id uint64])
+    addUnsignedValue ( !?stateListTplBody !lstringWith(!"x") ![x uint64])
+    addUnsignedValue ( !?stateListTplBody !lstringWith(!"y") ![y uint64])
+    stateListTpl += !stateListTplBody
+    stateId = stateId+1
+  end
+  addListValue ( !?templateStruct !lstringWith(!"stateList"+uppaalStr) !stateListTpl)  
+  #transitions
+  @timingStateArray stateArray = [mat stateArray]
+  var transitionListTpl =@TfieldMapList.emptyList{}
+  @range dimSrc= [stateArray rangeForAxis !1]
+  @range dimDst= [stateArray rangeForAxis !0]
+  for src in dimSrc do
+    for dst in dimDst do
+      @bool valid =  [stateArray isValueValidAtIndex !dst !src]
+      if valid then
+        var transitionListTplBody =@TfieldMap.emptyMap{}  
+        @timingTransition transition = [stateArray valueAtIndex !dst !src]
+        #src transition
+        addUnsignedValue ( !?transitionListTplBody !lstringWith(!"src") ![src uint64])
+        #dst transition
+        addUnsignedValue ( !?transitionListTplBody !lstringWith(!"dst") ![dst uint64])
+        #guard transition
+        addListValue ( !?transitionListTplBody !lstringWith(!"guardList") !getTemplateExpList(![transition guardList] !uppaalExport))  
+        #synchro
+        addStringlist ( !?transitionListTplBody !lstringWith(!"waitSignalList") !lstringWith(!"name") ![transition synchroInList])
+        addStringlist ( !?transitionListTplBody !lstringWith(!"emitSignalList") !lstringWith(!"name") ![transition synchroOutList])
+        addStringlist ( !?transitionListTplBody !lstringWith(!"emitBroadcastSignalList") !lstringWith(!"name") ![transition synchroOutBroadcastList])
+        #update
+        var updateList =@stringlist.emptyList{}
+        for (@instruction inst) in  [transition updateList] do
+          updateList += ![inst generateCode !0 !codeContext]
+        end
+        addStringlist ( !?transitionListTplBody !lstringWith(!"updateList") !lstringWith(!"str") !updateList)
+        #store in structure.
+        transitionListTpl += !transitionListTplBody
+      end      
+    end
+  end
+  addListValue ( !?templateStruct !lstringWith(!"transitionList"+uppaalStr) !transitionListTpl)  
+}
+
+
+list @pointList {
+  @uint id
+  @uint x
+  @uint y
+}
+#this routine: 
+# * generates the .dot file (graphviz)
+# * call the external 'dot' program to get back state coordinates
+# * return coordinates of each states.
+proc getAutomataCoordinates
+  ?let  @string exportDir
+  ?let  @adjMat automata
+  ?let  @lstring timingName
+  !  @pointList pointList {
+  pointList = @pointList. emptyList
+  @string dotFile = [automata getGraphVizExport]
+  let @string filename = exportDir+"/log/timing_"+[timingName string]+"Uppaal.dot"
+  createFile ( !exportDir+"/log/" !"timing_"+[timingName string]+"Uppaal.dot" !dotFile)
+  let @string command = "python "+exportDir+"/getCoordFromDot.py "+filename
+  #run script
+  @string result = [command popen]
+  #result format for each line:%d %d %d //-> 'state id' 'x location' 'y location'
+  @stringlist lineList = [result componentsSeparatedByString !"\n"]
+  for (@string line) in  lineList do
+    if line != "" then
+      @stringlist itemList = [line componentsSeparatedByString !" "]
+      @string item
+      [!?itemList popFirst ?item]
+      if item == "point" then
+        [!?itemList popFirst ?item]
+        @uint id = [item decimalUnsignedNumber]
+        [!?itemList popFirst ?item]
+        @uint x = [item decimalUnsignedNumber]
+        [itemList first ?item] 
+        @uint y = [item decimalUnsignedNumber]
+        pointList += !id !x !y
+      end
+    end
+  end
+}
+
