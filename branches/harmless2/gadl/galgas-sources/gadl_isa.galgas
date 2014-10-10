@@ -68,3 +68,4 @@ method @ASTIsa getIsa
   isa = @Isa. new { !impMap !decodedBehaviorMap !branchInstMap !defaultValues}
 }
 
+# vim:ft=galgas:ts=2:sw=2:tw=0

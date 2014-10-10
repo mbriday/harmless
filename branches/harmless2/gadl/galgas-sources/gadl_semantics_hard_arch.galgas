@@ -84,3 +84,4 @@ map @architectureMap{
   remove removeKey error message "the '%K' architecture is not defined and cannot be removed."
 }
 
+# vim:ft=galgas:ts=2:sw=2:tw=0

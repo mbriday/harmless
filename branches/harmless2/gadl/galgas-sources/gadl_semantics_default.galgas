@@ -122,3 +122,4 @@ method @defaultSection updateTemplate
   addLStringValue ( !?templateStruct !"fetchAddressMethodName" !fetchAddressMethodName)
 }
 
+# vim:ft=galgas:ts=2:sw=2:tw=0

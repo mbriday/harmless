@@ -21,3 +21,4 @@ method @architectureMap check
   end
 }
 
+# vim:ft=galgas:ts=2:sw=2:tw=0

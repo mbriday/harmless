@@ -311,4 +311,4 @@ rule '\u0001'-> ' ' | ';'{
 
 
 }
-# vim:ft=ggs:ts=2:sw=2
+# vim:ft=galgas:ts=2:sw=2:tw=0
