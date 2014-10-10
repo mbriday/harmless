@@ -137,3 +137,4 @@ proc testGraph {
   [str writeToFile !"testGraph.dot"]
 }
 
+# vim:ft=galgas:ts=2:sw=2:tw=0

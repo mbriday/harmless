@@ -123,10 +123,10 @@ method @varIdfStruct setInTemplate
 
     if varClass != @varClass. device then
       #myGetter code.
-      addStringValue ( !?varMapRegBody !lstringWith(!"myGetter") ![inst myGetter !true])
-      addStringValue ( !?varMapRegBody !lstringWith(!"myGetterNoLocal") ![inst myGetter !false])
+      addStringValue ( !?varMapRegBody !lstringWith(!"getter") ![inst myGetter !true])
+      addStringValue ( !?varMapRegBody !lstringWith(!"getterNoLocal") ![inst myGetter !false])
       #mySetter code.
-      addStringValue ( !?varMapRegBody !lstringWith(!"mySetter") ![inst mySetter])
+      addStringValue ( !?varMapRegBody !lstringWith(!"setter") ![inst mySetter])
     end
 
     #declaration (if appropriate).
@@ -143,4 +143,4 @@ method @varIdfStruct setInTemplate
   addStructValue ( !?templateStruct !lstringWith(!"idfStruct") !idfStructBody)
 }
 
-
+# vim:ft=galgas:ts=2:sw=2:tw=0

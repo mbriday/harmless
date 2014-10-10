@@ -81,3 +81,4 @@ override getter @expBinary getIdf
              [expRight getIdf !@expIdfList. emptyList]
 }
 
+# vim:ft=galgas:ts=2:sw=2:tw=0

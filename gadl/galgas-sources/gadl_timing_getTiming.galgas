@@ -178,3 +178,4 @@ override method @ASTTDeclaration getTiming
   Tinst = @tDeclaration. new { !loc !instList} 
 }
 
+# vim:ft=galgas:ts=2:sw=2:tw=0

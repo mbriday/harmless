@@ -69,3 +69,4 @@ method @ASTCoreMap coreSemantic
   addListValue ( !?templateStruct !lstringWith(!"coreList") !coreTpl)
 }
 
+# vim:ft=galgas:ts=2:sw=2:tw=0

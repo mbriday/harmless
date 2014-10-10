@@ -1532,3 +1532,4 @@ proc typeError
   end
   error inFunctionName : m
 }
+# vim:ft=galgas:ts=2:sw=2:tw=0

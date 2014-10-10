@@ -634,3 +634,4 @@ func generateLockDDCWriteRegs #deprecated (no more used in templates).
     lockTplList += !lockTplBody
   end
 }
+# vim:ft=galgas:ts=2:sw=2:tw=0

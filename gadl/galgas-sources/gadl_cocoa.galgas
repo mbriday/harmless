@@ -32,3 +32,4 @@ with lexique template_scanner {
 }
 
 }
+# vim:ft=galgas:ts=2:sw=2:tw=0

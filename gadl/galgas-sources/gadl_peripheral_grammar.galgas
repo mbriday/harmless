@@ -12,4 +12,4 @@ syntax gadl_deviceAndSignal_syntax
  <peripheralSet> ?! @ASTperipheralMap ASTperipheralMap
 
 }
-# vim:ft=ggs:ts=2:sw=2
+# vim:ft=galgas:ts=2:sw=2:tw=0

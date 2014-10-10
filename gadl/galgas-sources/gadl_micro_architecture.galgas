@@ -139,3 +139,4 @@ proc microArchPart
   addBoolValue ( !?templateStruct !lstringWith(!"useCAS") !useCAS)
   addAddressSpaceWithRegTemplates ( !?templateStruct !memSpaceWithRegister)
 }
+# vim:ft=galgas:ts=2:sw=2:tw=0

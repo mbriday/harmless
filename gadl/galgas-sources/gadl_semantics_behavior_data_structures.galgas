@@ -209,3 +209,4 @@ map @decodedBehaviorMap {
 #  search searchKey error message "the '%K' branch instruction is not defined" ;
 #}
 #
+# vim:ft=galgas:ts=2:sw=2:tw=0

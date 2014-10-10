@@ -453,3 +453,4 @@ getter @varAbstractType isVoid -> @bool result {
   
 }
 
+# vim:ft=galgas:ts=2:sw=2:tw=0

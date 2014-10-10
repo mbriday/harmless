@@ -27,3 +27,4 @@ map @ASTregisterPeriphDefMap
 #  remove removeKey error message "the '%K' peripheral is not defined. Can't remove it." ;
 #}
 
+# vim:ft=galgas:ts=2:sw=2:tw=0

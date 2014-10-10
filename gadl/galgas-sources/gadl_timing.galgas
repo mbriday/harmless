@@ -65,3 +65,4 @@ class @tDeclaration : @timingInstruction {
   @instructionList instList
 }
 
+# vim:ft=galgas:ts=2:sw=2:tw=0

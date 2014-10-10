@@ -95,3 +95,4 @@ func CType ?let @uint64 size -> @string result {
 #end function;
 
 
+# vim:ft=galgas:ts=2:sw=2:tw=0
