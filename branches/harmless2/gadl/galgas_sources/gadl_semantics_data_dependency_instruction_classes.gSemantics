@@ -159,8 +159,8 @@ routine getPortsWithMethod
     @bool portFound := false;
     cast functionAllowedToAPort
       when == @isOr FAPIsOr :
-        foreach [FAPIsOr functionAllowedList] (@lstring func) while not portFound do
-          portFound := [func string] == methodToSearch;
+        foreach [FAPIsOr functionAllowedList] (@lstring funcName) while not portFound do
+          portFound := [funcName string] == methodToSearch;
         end foreach;
       when == @isWithNumber FAPNumber :
         portFound := [[FAPNumber functionAllowedName] string] == methodToSearch;
@@ -168,8 +168,8 @@ routine getPortsWithMethod
         portFound := true;
       when == @isExcept FAPExcept :
         portFound := true;
-        foreach [FAPExcept functionExcludedList] (@lstring func) while portFound do
-          portFound := [func string] == methodToSearch;
+        foreach [FAPExcept functionExcludedList] (@lstring funcName) while portFound do
+          portFound := [funcName string] == methodToSearch;
         end foreach;
       else
         error here : "internal error: cast error with 'functionAllowedToAPort'";
@@ -340,28 +340,28 @@ reader @memoryParamMap getDDCMemoryRegisterInfoMap
        #chunk 0 for regular regs, chunk1 for mem spaces.
   # 3: totalSize+initOffset <= 64 -> one mask for all (good luck!).
        #chunk 0 for all.
-  @uint case;
+  @uint caseId;
   if totalSize+initOffset > 64 then 
     if totalSize > 64 then 
-      case := 1; 
+      caseId := 1; 
     else
-      case := 2;
+      caseId := 2;
     end if;
   else
-    case := 3;
+    caseId := 3;
   end if;
-  #message "case : ".[case string]." -> ".[initOffset string]."\n";
+  #message "case : ".[caseId string]." -> ".[initOffset string]."\n";
 
   #init for case 3 (modify for other cases).
   @uint currentOffset := initOffset;
   @uint chunkId := 0;
-  if case == 2 then
+  if caseId == 2 then
     chunkId := 1; #one chunk id for all mem spaces, at id 1.
     currentOffset := 0;
   end if;
   DDCMemoryRegisterInfoMap := [@DDCMemoryRegisterInfoMap emptyMap];
   foreach memSpaceWithRegister : ms_ do #foreach memspace (prefix ms_)
-    if case == 1 then #case 1
+    if caseId == 1 then #case 1
       chunkId := chunkId + 1; #one chunk per mem space, starting at 1.
       currentOffset := 0;
     end if;

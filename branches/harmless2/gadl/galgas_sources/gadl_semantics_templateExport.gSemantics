@@ -3,35 +3,35 @@ semantics gadl_semantics_templateExport :
   import "gadl_semantics_implementation_code_generation.gSemantics" ;
   import "gadl_semantics_implementation.gSemantics" ;
 
-# reader @instDeclaration setter
-# reader @instDeclaration getter
+# reader @instDeclaration mySetter #setter is a keyword in galgas 3
+# reader @instDeclaration myGetter
 # method @varIdfStruct setProgramCounterInTemplate
 # method @varIdfStruct setInTemplate
 
 
-## setter for instDeclaration (for getter function in generated code).
-reader @instDeclaration setter
+## mySetter for instDeclaration (for myGetter function in generated code).
+reader @instDeclaration mySetter
   -> @string str
 :
   switch access
   when programCounter,GPR,SFR:
     str := "\t\t\tm_".[[selfcopy name] string]." = value;";
   when registerSlice:
-    error here: "internal error: @instDeclaration setter with slice":str;
+    error here: "internal error: @instDeclaration mySetter with slice":str;
   when device:
-    error here: "internal error: @instDeclaration setter with device":str;
+    error here: "internal error: @instDeclaration mySetter with device":str;
   when localVar, field:
     str := [[selfcopy name] string];
   end switch;
 end reader;
 
 
-override reader @instDeclarationRegSlice setter
+override reader @instDeclarationRegSlice mySetter
   -> @string str
 :
   switch access
   when programCounter,GPR,SFR,localVar, field,device:
-    error here: "internal error: @instDeclaration setter":str;
+    error here: "internal error: @instDeclaration mySetter":str;
   when registerSlice:
     str := "\t\t\t".[[type getBaseType] getCType] ." __temp = ".[idf string]."();\n";
     str .= "\t\t\t__temp = ".[fieldList getAssignCode ![@codeCtx C] !"__temp" !"value"].";\n";
@@ -39,8 +39,8 @@ override reader @instDeclarationRegSlice setter
   end switch;
 end reader;
 
-## getter for instDeclaration (for getter function in generated code).
-reader @instDeclaration getter
+## myGetter for instDeclaration (for myGetter function in generated code).
+reader @instDeclaration myGetter
   ?? @bool unused useLocal #can use local variable (optimisation for components).
   -> @string str
 :
@@ -48,21 +48,21 @@ reader @instDeclaration getter
   when programCounter,GPR,SFR:
     str := "return m_".[[selfcopy name] string].";";
   when registerSlice:
-    error here: "internal error: @instDeclaration getter with slice":str;
+    error here: "internal error: @instDeclaration myGetter with slice":str;
   when device:
-    error here: "internal error: @instDeclaration getter with device":str;
+    error here: "internal error: @instDeclaration myGetter with device":str;
   when localVar, field:
     str := [[selfcopy name] string];
   end switch;
 end reader;
 
-override reader @instDeclarationRegSlice getter
+override reader @instDeclarationRegSlice myGetter
   ?? @bool useLocal #can use local variable (optimisation for components).
   -> @string str
 :
   switch access
   when programCounter,GPR,SFR,localVar, field,device:
-    error here: "internal error: @instDeclaration getter with slice":str;
+    error here: "internal error: @instDeclaration myGetter with slice":str;
   when registerSlice:
     @string name;
     if useLocal then
@@ -132,11 +132,11 @@ method @varIdfStruct setInTemplate
     addUnsignedValue !?varMapRegBody !lstringWith[!"size"] ![size uint64]; #size in bits.
 
     if varClass != [@varClass device] then
-      #getter code.
-      addStringValue !?varMapRegBody !lstringWith[!"getter"] ![inst getter !true];
-      addStringValue !?varMapRegBody !lstringWith[!"getterNoLocal"] ![inst getter !false];
-      #setter code.
-      addStringValue !?varMapRegBody !lstringWith[!"setter"] ![inst setter];
+      #myGetter code.
+      addStringValue !?varMapRegBody !lstringWith[!"myGetter"] ![inst myGetter !true];
+      addStringValue !?varMapRegBody !lstringWith[!"myGetterNoLocal"] ![inst myGetter !false];
+      #mySetter code.
+      addStringValue !?varMapRegBody !lstringWith[!"mySetter"] ![inst mySetter];
     end if;
 
     #declaration (if appropriate).
