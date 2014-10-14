@@ -10,7 +10,7 @@ rule <deviceDeclaration>
   ?let  @bool memoryAccessIsLocal #true if a device is declared inside a peripheral (same mem chunk).
   ?let  @ASTperipheralMap ASTperipheralMap
   !  @ASTInstDeclarationDevice deviceDec
-rule <signalConnect>
+rule <signalConnect> ?! @ASTSignalConnectionList ASTSignalConnectionList
 
 rule <import>
   ?let  @bool fromCPU
@@ -46,7 +46,7 @@ rule <cpu> {
   #memory stuff
   var ASTmemChunk =@ASTmemoryParamMap.emptyMap{}
   var memChunkOrder =@stringlist.emptyList{}
-  
+  var idfStruct = @varIdfStruct.default #global varIdfStruct
   repeat
   while
     #global mem space definition.
@@ -59,7 +59,6 @@ rule <cpu> {
     var importIsaMap =@lstringMap.emptyMap{} #unused here.
     <import> !true !?importCoreMap !?importIsaMap !?ASTperipheralMap
   end
-
   $cpu$ $idf$ ?var @lstring cpuName
   ${$
   #associate core type and a name 
@@ -74,7 +73,8 @@ rule <cpu> {
   var ASTDeviceDecList =@ASTInstructionList.emptyList{}
   #map of cpu.
   var ASTCpuMap =@ASTCpuMap.emptyMap{}
-
+  #connexions between signals. 
+  @ASTSignalConnectionList ASTSignalConnectionList = .emptyList
   repeat
   while
     <memoryChunk> !?ASTmemChunk !?memChunkOrder
@@ -84,11 +84,13 @@ rule <cpu> {
     <deviceDeclaration> !false !ASTperipheralMap ?var @ASTInstDeclarationDevice deviceDec
     ASTDeviceDecList += !deviceDec
   while
-    <signalConnect>
+    <signalConnect> !?ASTSignalConnectionList;
   end
-  [!?ASTCpuMap insertKey !cpuName !ASTcoreInstanceMap !ASTcoreMap !ASTDeviceDecList !ASTmemChunk !memChunkOrder]
+
+  [!?ASTCpuMap insertKey !cpuName !ASTcoreInstanceMap !ASTcoreMap !ASTDeviceDecList !ASTmemChunk !memChunkOrder !ASTSignalConnectionList]
   $}$
-  
+  idfStruct.ASTperipheralMap = ASTperipheralMap
+
   @lstring exportDir = cpuName
   #Ok. Parsing done. Now apply semantic.
   ###########################################################################
@@ -104,6 +106,7 @@ rule <cpu> {
   ###########################################################################
   @memSpaceMap memSpaceMap = [ASTmemSpaceMap getMemSpaceMap]
   [memSpaceMap setInTemplate !?templateStruct]
+  idfStruct.memSpaceMap = memSpaceMap
 
   ###########################################################################
   # peripherals
@@ -114,7 +117,7 @@ rule <cpu> {
   ###########################################################################
   # cpu generation.
   ###########################################################################
-  [ASTCpuMap cpuSemantic !memSpaceMap !?templateStruct]
+  [ASTCpuMap cpuSemantic !idfStruct !?templateStruct]
 
   ###########################################################################
   # template generation

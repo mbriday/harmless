@@ -1,0 +1,54 @@
+%template headerC%
+#ifndef __TIMING_RDV_H__
+#define __TIMING_RDV_H__
+
+#include "types.h"
+#include <iostream>
+#include <string>
+
+class timingBase;
+
+class timingRdv {
+	public:
+		typedef enum {
+			NOBODY_HERE  =0,
+			EMIT_HERE    =1,
+			RECEIVE_HERE =2
+		} enumRdvState;
+		
+		typedef enum {
+			STANDARD       =0,
+			BROADCAST      =1,
+			MULTI_EMITTER  =2,
+			MULTI_RECEIVER =3
+		} enumRdvType;
+		
+		//the data transmitted through channel
+		u32 m_data;
+		//state of the rendez-vous: who's here?
+		enumRdvState m_state;
+		//identity of the emitter (only one at this date)
+		timingBase *m_emitter;
+		//identity of the receiver (only one at this date)
+		timingBase *m_receiver;
+		//type of rendez-vous (std, broadcast, multi emitter, etc
+        const enumRdvType m_type;
+	public:
+		//constructor
+		timingRdv(enumRdvType type);
+
+        u32 data() const;
+        void setData(const u32 &data);
+
+        enumRdvState state() const;
+        void setState(const enumRdvState &state);
+
+        timingBase *emitter() const;
+        void setEmitter(timingBase *emitter);
+
+        timingBase *receiver() const;
+        void setReceiver(timingBase *receiver);
+
+        enumRdvType type() const;
+};
+#endif //__TIMING_RDV_H__

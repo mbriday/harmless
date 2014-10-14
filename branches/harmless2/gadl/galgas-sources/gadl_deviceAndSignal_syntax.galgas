@@ -6,10 +6,11 @@ rule <idf> !@ASTExpression exp
 rule <deviceDeclaration>
   ?let  @bool memoryAccessIsLocal #true if a device is declared inside a peripheral (same mem chunk).
   ?let  @ASTperipheralMap ASTperipheralMap
-  !  @ASTInstDeclarationDevice deviceDec {
+  !  @ASTInstDeclarationDevice deviceDec
+{
   @varAbstractType type
   $device$ $idf$ ?var @lstring deviceType
-  [ASTperipheralMap searchKey !deviceType ?* ?* ?* ?* ?* ?* ?* ?*] #check that peripheral is defined.
+  [ASTperipheralMap searchKey !deviceType ?* ?* ?* ?* ?* ?* ?* ?* ?*] #check that peripheral is defined.
   @varAbstractType typeBase = @varDeviceType. new { !@varKind. custom !deviceType}
   select #code extracted from rule <typeDeclaration>
     @luint64 tabLength
@@ -36,7 +37,9 @@ rule <deviceDeclaration>
   deviceDec = @ASTInstDeclarationDevice. new { !@location.here !@varClass. device !type !deviceName !memoryMapping}
 }
 
-rule <signalConnect> {
+rule <signalConnect>
+  ?! @ASTSignalConnectionList ASTSignalConnectionList
+{
   $signal$ ${$
   repeat
   while
@@ -53,12 +56,18 @@ rule <signalConnect> {
   while
     <idf> ?var @ASTExpression ASTExpFromSignal
     $->$
+    var @ASTExpression ASTExpToSignal
+    @bool notConnected
     select
-      <idf> ?var @ASTExpression ASTExpToSignal
+      <idf> ?ASTExpToSignal
+      notConnected = false
     or
       $*$ #joker
+      ASTExpToSignal = @ASTIntConst.new {!@location.here !1L !false !@varKind. unsigned} #dummy value
+      notConnected = true
     end
-  while
+    ASTSignalConnectionList += !ASTExpFromSignal !ASTExpToSignal !notConnected;
+  while #really useful?
     $export$
     select
       $in$

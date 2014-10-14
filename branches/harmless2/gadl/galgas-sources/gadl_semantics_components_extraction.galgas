@@ -77,7 +77,7 @@ override method @expIdf getComponents
   !  @graphNodeList rootNodeList {
   rootNodeList = @graphNodeList. emptyList
   switch detectedType
-    case unknown,registerAccess,registerBitField,localVar,periphCall: #nothing.
+    case unknown,registerAccess,registerBitField,localVar,periphCall,timing,signal: #nothing.
     case structMember,tabularAccess: #maybe in parameter, or in the tab index.
       @graphNodeList currentNextNodeList = nextNodeList
       for > () in  idfList do

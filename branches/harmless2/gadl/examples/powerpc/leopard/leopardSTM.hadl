@@ -56,7 +56,7 @@ peripheral STM memory size \x5c {
   }
 
   signal {
-    export out itSTM
+--    export out itSTM
   }
 }
 

@@ -108,9 +108,9 @@ CFLAGS += $(DEFINES)
 ########################################################
 OBJ_DIR = .build
 
-.PHONY: ALL
-ALL: OBJ_DIR_CREATE $(EXEC) $(PYTHON_LIB)
+.PHONY: all
 
+all: standalone
 standalone: OBJ_DIR_CREATE $(STAND_ALONE_EXEC_NAME)
 python: OBJ_DIR_CREATE $(PYTHON_LIB)
 gdb: OBJ_DIR_CREATE $(GDB_SERVER_EXEC_NAME)

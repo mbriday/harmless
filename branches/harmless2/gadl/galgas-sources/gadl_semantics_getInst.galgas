@@ -144,7 +144,7 @@ override method @ASTInstFunctionCall getInst
   switch [expIdf detectedType]
   case unknown:
     error loc: "The identifier is unknown in function call"
-  case structMember,localVar,tabularAccess,registerAccess,registerBitField:
+  case structMember,localVar,tabularAccess,registerAccess,registerBitField,timing,signal:
     error loc: "This is not a function call, but it was excepted here."
   case componentCall,memoryAccess,periphCall:
     #checkCorrectAssignType ![expIdf type] !newExp ![expIdf lstring];
@@ -195,6 +195,10 @@ override method @ASTInstAssignment getInst
     checkCorrectAssignType ( ![expIdfAssign type] !newExp ![expIdfAssign lstring])
   case componentCall,memoryAccess,periphCall:
     error loc: "Cannot assign a function call or a memory access"
+  case signal:
+    error loc: "Cannot assign a signal"
+  case timing:
+    error loc: "Cannot assign a timing"
   end
   #get the intruction.
   @fieldList flist = fieldListFromAST(!ctx !symbolMap !idfStruct !astFList)  

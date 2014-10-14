@@ -62,7 +62,7 @@ getter @timingMap getEnableConditionIdf
     @expIdfList idfList = [expEnable getIdf !@expIdfList. emptyList]
     for () in  idfList do #with each identifier found in the 'enable' expression:
       switch [idf detectedType] #check correct type
-        case unknown, structMember, localVar, tabularAccess, componentCall, periphCall, memoryAccess:
+        case unknown, structMember, localVar, tabularAccess, componentCall, periphCall, memoryAccess,timing,signal:
           error [lkey location]: "The condition to enable the timing should not have an identifier with "+
                                   [[idf detectedType] string]+". Only registers are allowed"
         case registerAccess, registerBitField :

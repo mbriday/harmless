@@ -1,6 +1,6 @@
 syntax gadl_peripheral_parser (gadl_lexique) { #@ASTTimingMap
 
-#from gadl_implementation_parser.gSyntax
+#from gadl_implementation_parser.galgas
 rule <typeDefinition> ?! @ASTInstructionList instList
 rule <typeDeclaration> ! @varAbstractType type
 rule <registerBitAccessDef>
@@ -14,7 +14,7 @@ rule <deviceDeclaration>
   ?let  @bool memoryAccessIsLocal #true if a device is declared inside a peripheral (same mem chunk).
   ?let  @ASTperipheralMap ASTperipheralMap
   !  @ASTInstDeclarationDevice deviceDec
-rule <signalConnect>
+rule <signalConnect> ?! @ASTSignalConnectionList ASTSignalConnectionList
 
 
 #from gadl_function_parser
@@ -68,6 +68,7 @@ rule <peripheral>
   var ASTTypeDefList =@ASTInstructionList.emptyList{}
   var ASTLocalVarList =@ASTInstructionList.emptyList{}
   var ASTTimingMap =@ASTTimingMap.emptyMap{}
+  @ASTSignalConnectionList ASTSignalConnectionList = .emptyList
   $peripheral$
   $idf$ ?var @lstring peripheralName
   $memory$ $size$ $unumber$ ?var @luint64 lsize
@@ -94,7 +95,7 @@ rule <peripheral>
     while
       <timing> !?ASTTimingMap
     while
-      <signalConnect>
+      <signalConnect> !?ASTSignalConnectionList;
     end
   $}$
   #problem:
@@ -107,7 +108,7 @@ rule <peripheral>
   for () in  ASTregDefMap do
     getInst ( !ASTregDecList !ctx !symbolMap !?idfStruct ?*)
   end
-  [!?ASTperipheralMap insertKey !peripheralName !lsize !ASTregDefMap !ASTFunctionMap !ASTDeviceDecList !ASTTypeDefList !ASTLocalVarList !idfStruct.varMap !ASTTimingMap]
+  [!?ASTperipheralMap insertKey !peripheralName !lsize !ASTregDefMap !ASTFunctionMap !ASTDeviceDecList !ASTTypeDefList !ASTLocalVarList !idfStruct.varMap !ASTTimingMap !ASTSignalConnectionList]
 }
 
 }

@@ -220,7 +220,7 @@ override getter @expIdf generateCode
   switch detectedType
   case unknown:
     error [self lstring]: "The identifier is unknown (code generation) :"+[self string]
-  case structMember,localVar,tabularAccess,componentCall,memoryAccess,periphCall:
+  case structMember,localVar,tabularAccess,componentCall,memoryAccess,periphCall,signal,timing:
     #ok, nothing to add.
   case registerAccess,registerBitField:
     #registers are accessed through functions, but as normal var in description.

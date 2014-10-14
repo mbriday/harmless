@@ -401,10 +401,11 @@ override method @tLoop buildAdjMatrix
   ?! @adjMat mat
   ?! @uintlist stack
   ?! @uint current
-  ?let  @bool uppaalExport {
+  ?let  @bool uppaalExport
+{
   #build an @expIdf (identifier as an expression) to model the "invariant" idf.
   #and other stuff to build expressions and instructions.
-  @lstring idfName =  @lstring. new { !"invLoop_"+internalId !loc}
+  @lstring idfName =  @lstring.new { !"invLoop_"+internalId !loc}
   var idfList =@idfItemList.emptyList{}
   idfList += !idfName!@idfItemType. basic
              !@expressionlist. emptyList !@idfItemSpecType. standard !"" !""

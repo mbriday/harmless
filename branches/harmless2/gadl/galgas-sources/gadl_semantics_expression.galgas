@@ -90,7 +90,7 @@ list @idfItemList
 
 getter @idfItemList string -> @string name {
   name = ""
-  for (@lstring idf @idfItemType type ...) in  self 
+  for (@lstring idf @idfItemType type ...) in self 
     do 
       name+=[idf string]
       if type == @idfItemType. functionCall then name += "(..)" end
@@ -112,6 +112,8 @@ enum @idfType
   case componentCall     #(fetcher.fetch())
   case periphCall        #(device.method() or method() inside a peripheral).
   case memoryAccess      #(memSpace.read8())
+  case timing            #(periphName.T0) (automata inside peripheral)
+  case signal            #(periph.T0.sigO1).
 }
 
 getter @idfType string -> @string out {
@@ -125,6 +127,8 @@ getter @idfType string -> @string out {
     case componentCall    : out = "a component call"
     case periphCall       : out = "a peripheral's method call"
     case memoryAccess     : out = "a memory access"
+    case timing           : out = "a timing inside a peripheral"
+    case signal           : out = "a signal used to synchronise timings"
   end
 }
 
