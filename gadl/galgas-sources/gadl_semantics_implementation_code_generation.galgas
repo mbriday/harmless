@@ -243,8 +243,8 @@ override getter @instAssignment generateCode
     case registerAccess,registerBitField: #register
       leftPart = [idfAssign generateSetterCode !cgc]+"("
       postInstruction = ")"
-    case componentCall,memoryAccess,periphCall:
-      error loc: "Cannot assign a function call or memory access.":leftPart
+    case componentCall,memoryAccess,periphCall,timing,signal:
+      error loc: "Cannot assign a "+[[idfAssign detectedType] string]:leftPart
     end
 
     #right part (in case of fields)

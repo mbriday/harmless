@@ -23,15 +23,15 @@ foreach step in timingPart::timingStepList do
   end foreach
   #synchro:
   foreach synchro in step::synchroInList do
-    %\tconst bool result = m_peripheral->timingSynchroWait(this,m_inOffset + SIGNAL_WAIT_%!className%_%!synchro::str%);\n%
+    %\tconst bool result = true;//m_peripheral->timingSynchroWait(this,m_inOffset + SIGNAL_WAIT_%!className%_%!synchro::str%);\n%
     let canResume := "result"
   end foreach
   foreach synchro in step::synchroOutList do
-    %\tconst bool result = m_peripheral->timingSynchroEmit(this,m_outOffset + SIGNAL_EMIT_%!className%_%!synchro::str%, false);\n%
+    %\tconst bool result = true;//m_peripheral->timingSynchroEmit(this,m_outOffset + SIGNAL_EMIT_%!className%_%!synchro::str%, false);\n%
     let canResume := "result"
   end foreach
   foreach synchro in step::synchroOutBroadcastList do
-    %\tconst bool result = m_peripheral->timingSynchroEmit(this,m_outOffset + SIGNAL_EMIT_%!className%_%!synchro::str%, true);\n%
+    %\tconst bool result = true;//m_peripheral->timingSynchroEmit(this,m_outOffset + SIGNAL_EMIT_%!className%_%!synchro::str%, true);\n%
     let canResume := "result"
   end foreach
   #wait:

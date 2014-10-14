@@ -1,0 +1,55 @@
+-- dummy peripheral that uses signals.
+peripheral dummySignal memory size 8 {
+
+  timing T1
+    signal out: sigO1, sigO2, sigO3
+    signal in : sigI1, sigI2
+  {
+    wait 10 cycle
+		emit signal sigO1
+    wait 10 cycle
+		emit signal sigO2
+    wait 10 cycle
+		emit signal sigO3
+    wait 10 cycle
+		wait for signal sigI1
+		wait for signal sigI2
+  }
+
+  timing T2
+    signal out: sig2O1, sig2O2
+    signal in : sig2I1, sig2I2
+
+  {
+		wait for signal sig2I1
+		wait for signal sig2I2
+    wait 15 cycle
+		emit signal sig2O1
+    wait 10 cycle
+		emit signal sig2O2
+  }
+  --connexions
+  signal {
+    T1.sigO1  -> T2.sig2I1
+		T1.sigO1  -> *
+--    T1.sigO2  -> T2.sig2I2
+--    T1.sigO2  -> * -- not connected, else error TODO
+--    T2.sig2I1 -> T1.sigI1
+--    T2.sig2I2 -> T1.sigI2
+  }
+  -- scenario
+  -- date     -- T1          --   T2
+  --  0->10      wait time           wait sig sig2I1
+  --     10      emit sigO1     RDV  wait sig sig2I1
+  -- 10->20      wait time           wait sig sig2I2
+  --     20      emit sigO2     RDV  wait sig sig2I2
+  -- 20->30      wait time           wait time
+  --     30      emit sigO3          wait time
+  -- 30->35      wait time           wait time
+  -- 35->40      wait time           try emit sig2O1
+  --     40      wait sig sigI1 RDV  emit sig2O1
+  -- 40..50      wait sig sigI2      wait time
+  --     50      wait sig sigI2 RDV  emit sig2O2
+}
+
+-- vim:ft=harmlesscore:ts=2:sw=2:tw=0

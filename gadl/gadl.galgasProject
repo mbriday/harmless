@@ -114,6 +114,8 @@ project (0:8:1) -> "gadl" {
   "galgas-sources/gadl_semantics_timingSectionAutomata.galgas" #
   #transform Harmless automata into simulation steps.
   "galgas-sources/gadl_semantics_timingSimulationStep.galgas"
+  #signal part
+  "galgas-sources/gadl_signal.galgas"
 
 #####################################################################
 # new template management, included from galgas SVN (common with goil)
@@ -202,4 +204,4 @@ project (0:8:1) -> "gadl" {
   "galgas-sources/gadl_program.galgas"
 }
 
-# vim:ft=ggs:ts=2:sw=2
+# vim:ft=galgas:ts=2:sw=2

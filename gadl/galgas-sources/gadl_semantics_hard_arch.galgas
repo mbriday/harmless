@@ -55,14 +55,15 @@ map @deviceMap{
 }
 
 #signal related structure
-list @signalConnectionList {
-    @lstring devNameSrc
-    @lstring devNameDst
-    @lstring sigNameSrc
-    @lstring sigNameDst
-    @bool noDst
-}
-
+#list @signalConnectionList {
+#    @lstring devNameSrc
+#    @lstring devNameDst
+#    @lstring sigNameSrc
+#    @lstring sigNameDst
+#    @bool noDst
+#}
+#
+#This part is used by the pipeline model to generate a notification if port is used.
 list @sharedPortActivationList {
   @lstring deviceSrc
   @lstring portSrc
@@ -70,7 +71,7 @@ list @sharedPortActivationList {
 }
 
 class @signalConnectPart {
-  @signalConnectionList signalConnectionList
+#  @signalConnectionList signalConnectionList
   @sharedPortActivationList sharedPortActivationList
 }
 

@@ -1,0 +1,74 @@
+#################################################################################
+# connection between different signals.
+# syntax part in file: gadl_deviceAndSignal_syntax.galgas
+#################################################################################
+
+#periph.timing.signal (inside cpu, core)
+# => core0.ICache.memStart -> mem.memStart
+#timing.signal (inside periph)
+# => T1.sigO1  -> T2.sig2I1
+#device.port (inside architecture)
+# => shared port MemDev.fetch -> ICache.memFetch wait ICache.memFetchOk
+
+list @ASTSignalConnectionList
+{
+  @ASTExpression ASTExpFromSignal
+  @ASTExpression ASTExpToSignal
+  @bool notConnected #joker '*' for the signal destination.
+}
+
+#decorated structure
+list @signalConnectionList
+{
+  @expression ASTExpFromSignal
+  @expression ASTExpToSignal
+  @bool notConnected #joker '*' for the signal destination.
+
+}
+
+getter @expression isSignal
+ ?let @bool out #awaited signal type.
+ -> @bool ok
+{
+  ok = true
+  if not ([self type] is >= @varSignalType) then
+    error [[self type] loc]: "a signal is awaited here";
+    ok = false
+  else
+    let @varSignalType typeCast = ([self type] as @varSignalType);
+    if out && not [typeCast out] then 
+      error [typeCast loc]: "error, signal defined as output, but used as an input"
+      ok = false
+    elsif not out && [typeCast out] then 
+      error [typeCast loc]: "error, signal defined as input, but used as an output"
+      ok = false
+    end%if
+  end%if
+}
+
+getter @ASTSignalConnectionList getSignalConnectionList
+  ?let @symbolValueMap symbolMap
+  ?let @varIdfStruct idfStruct
+  -> @signalConnectionList sc
+{
+  @expressionContext ctx = @expressionContext.peripheral;
+  sc = .emptyList;
+  for () in self do
+    #get expressions 
+    @expression expFromSignal = [ASTExpFromSignal getExp !ctx !symbolMap !idfStruct];
+    @expression expToSignal = [ASTExpToSignal getExp !ctx !symbolMap !idfStruct];
+    #test that signals are used correctly (check that is a signal)
+    @bool ok = true
+    if [expFromSignal isSignal !true] then #first is an output signal
+      if not notConnected then #second is an input signal (if not a '*')
+        if not [expToSignal isSignal !false] then ok = false end
+      end%if
+    else ok = false
+    end%if
+    if ok then
+      sc += !expFromSignal !expToSignal !notConnected;
+    end%if
+  end
+}
+
+# vim:ft=galgas:ts=2:sw=2:tw=0

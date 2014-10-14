@@ -42,21 +42,21 @@ proc microArchTemplate
     addListValue ( !?archTplBody !lstringWith(!"deviceList") !deviceListTpl)
 
     #signals.
-    @signalConnectionList signalConnectionList = [signalConnectPart signalConnectionList]
+    #@signalConnectionList signalConnectionList = [signalConnectPart signalConnectionList]
     @sharedPortActivationList sharedPortActivationList = [signalConnectPart sharedPortActivationList]
-    #signal connection 
-    var signalConnectListTpl =@TfieldMapList.emptyList{}
-    for (@lstring devNameSrc @lstring devNameDst @lstring sigNameSrc @lstring sigNameDst @bool noDst) in  signalConnectionList 
-    do
-      var signalConnectListTplBody =@TfieldMap.emptyMap{}
-      addLStringValue ( !?signalConnectListTplBody !"devNameSrc" !devNameSrc)
-      addLStringValue ( !?signalConnectListTplBody !"devNameDst" !devNameDst)
-      addLStringValue ( !?signalConnectListTplBody !"sigNameSrc" !sigNameSrc)
-      addLStringValue ( !?signalConnectListTplBody !"sigNameDst" !sigNameDst)
-      signalConnectListTpl += !signalConnectListTplBody
-    end
-    addListValue ( !?archTplBody !lstringWith(!"signalConnectList") !signalConnectListTpl)
-    #signal connection to shared port
+    ##signal connection 
+    #var signalConnectListTpl =@TfieldMapList.emptyList{}
+    #for (@lstring devNameSrc @lstring devNameDst @lstring sigNameSrc @lstring sigNameDst @bool noDst) in  signalConnectionList 
+    #do
+    #  var signalConnectListTplBody =@TfieldMap.emptyMap{}
+    #  addLStringValue ( !?signalConnectListTplBody !"devNameSrc" !devNameSrc)
+    #  addLStringValue ( !?signalConnectListTplBody !"devNameDst" !devNameDst)
+    #  addLStringValue ( !?signalConnectListTplBody !"sigNameSrc" !sigNameSrc)
+    #  addLStringValue ( !?signalConnectListTplBody !"sigNameDst" !sigNameDst)
+    #  signalConnectListTpl += !signalConnectListTplBody
+    #end
+    #addListValue ( !?archTplBody !lstringWith(!"signalConnectList") !signalConnectListTpl)
+    ##signal connection to shared port
     var sharedPortActivationListTpl =@TfieldMapList.emptyList{}
     for(@lstring deviceSrc @lstring portSrc @lstring deviceName) in  sharedPortActivationList
     do

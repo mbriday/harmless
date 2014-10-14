@@ -4,11 +4,13 @@
 #  * unsigned, signed or float;
 #  * custom (for structures, and other objects (peripherals));
 
+
 # data structure is based on the 'varAbstractType' abstract type with:
 #  * varBaseType    for classical scalar types.
 #  * varStructType  for custom types
 #  * varTabularType for tabulars of scalar or custom types.
 #  * varDeviceType  for device types (instances of peripherals).
+#  * varSignalType  for signal types
 
 #  * map @varBaseTypeMap -> map of varBaseType.
 
@@ -33,7 +35,11 @@
 # function getCSize ?uint size -> return the size of the corresponding C var (unsigned)
 
 enum @varKind {
-  case unsigned  case signed  case float  case custom  case tabular
+  case unsigned
+  case signed
+  case float
+  case custom
+  case tabular
 }
 
 getter @varKind msg -> @string outResult {
@@ -94,6 +100,12 @@ class @varDeviceType : @varAbstractType {
   @lstring typeName
 }
 
+#a variable that refers to a signal.
+class @varSignalType : @varAbstractType {
+  @bool out #true->out, false, in
+  @lstring sigName
+}
+
 # This map should contains field names with the suffix (@SRC...)
 map @varBaseTypeMap {
   @varBaseType type
@@ -135,6 +147,11 @@ override getter @varDeviceType loc -> @location l {
 override getter @varTabularType loc -> @location l {
   l = [type loc]
 }
+
+override getter @varSignalType loc -> @location l {
+  l = [sigName location]
+}
+
 ###############################################################################
 ## update location for type.
 ###############################################################################
@@ -154,6 +171,10 @@ override getter @varDeviceType changeLoc ?let  @location l -> @varAbstractType n
 
 override getter @varTabularType changeLoc ?let  @location l -> @varAbstractType newType {
   newType = @varTabularType. new { !kind ![type changeLoc !l] !length}
+}
+
+override getter @varSignalType changeLoc ?let  @location l -> @varAbstractType newType {
+  newType = @varSignalType.new { !kind !out !@lstring.new { ![sigName string] !l}}
 }
 
 
@@ -215,6 +236,11 @@ override getter @varTabularType getCType
   str = [type getCType]
 }
 
+override getter @varSignalType getCType
+  -> @string str {
+  str = "signal_"+[sigName string] #should not be used...
+}
+
 ###############################################################################
 ## return the Uppaal type of a variable.
 ## TODO: to update with the 'max' field of the variable.
@@ -274,6 +300,15 @@ override getter @varBaseType checkEqual
     error [typeCast location]:" the variable has not the same type than the one defined in "+[[self location] locationString]
   end
 }
+
+override getter @varSignalType checkEqual
+  ?let  @varAbstractType otherType
+  -> @bool ok {
+  let @varSignalType typeCast = ( otherType as @varSignalType)
+  ok = [self kind] == [typeCast kind]
+     & [self out] == [typeCast out]
+     & [self sigName] == [typeCast sigName]
+}
 ###############################################################################
 ## getDeclaration => implementation part??
 ## return the code associated to a declaration of a type.
@@ -324,6 +359,14 @@ override getter @varTabularType getDeclaration
   code = [type getDeclaration !idf !cgc]+"["+length+"]"
 }
 
+override getter @varSignalType getDeclaration 
+  ?let  @string  unused idf
+  ?let  @codeCtx unused cgc
+  -> @string code {
+    warning sigName: "no code generation for signals"
+    code = ""
+}
+
 ###############################################################################
 ## string -> debug or information purpose.
 ###############################################################################
@@ -352,6 +395,12 @@ override getter @varDeviceType string -> @string str {
 override getter @varTabularType string -> @string str {
   str = [type string]+"["+length+"]"
 }
+
+override getter @varSignalType string -> @string str {
+  str = "signal "+sigName
+  if out then str+="(out)" else str+="(in)" end
+}
+
 ###############################################################################
 # getBaseType: return the scalar type, otherwise generate an error
 ###############################################################################

@@ -307,7 +307,7 @@ override getter @ASTExpInstructionSize getExp
   ?let  @symbolValueMap unused symbolMap
   ?let  @varIdfStruct unused idfStruct
   -> @expression exp {
-  if ctx != @expressionContext. timing then
+  if ctx != @expressionContext.timing then
     error loc : "The 'instruction size' expression should only be used in a timing view. Here is "+[ctx msg]
   end
   @varBaseType outType = @varBaseType. new { !@varKind. unsigned !8 !loc} #instruction size -> u8
@@ -369,8 +369,10 @@ proc handleUnknownType
   ?! @string prefix
   ?! @string suffix
   ?! @parameterDefList paramDef #param definition to check.
-  ?! @location locDef {
+  ?! @location locDef 
+{
   detectedType = @idfType. unknown #it should already be set like this.
+  #first, search in the VarMap -> variable.
   if [idfStruct.varMap hasKey ![idf string]] |
      [idfStruct.varMapFriend hasKey ![idf string]] then
     @varAbstractType type
@@ -429,7 +431,7 @@ proc handleUnknownType
     case == @varDeviceType vdt:
       #got a peripheral access -> return the type of the device (peripheral name)
       typeName = [vdt typeName]
-      detectedType = @idfType. periphCall
+      detectedType = @idfType.periphCall
       shouldStop = false
       suffix = "->"
     else
@@ -452,14 +454,21 @@ proc handleUnknownType
     #current peripheral. Can call a method.
     [idfStruct.ASTperipheralMap searchKey !idfStruct.currentPeriphName ?* ?*
        ?var @ASTFunctionMap ASTFunctionMap
-       ?* ?* ?* ?* ?*]
+       ?* ?* ?* ?* ?var @ASTTimingMap ASTTimingMap ?*]
     if [ASTFunctionMap hasKey ![idf string]] then
       [ASTFunctionMap searchKey !idf ?paramDef ?outType ?*]
       locDef = [ASTFunctionMap locationForKey ![idf string]]    
       shouldStop = true
       isConst = true
-      detectedType = @idfType. periphCall
+      detectedType = @idfType.periphCall
       prefix = "method_"
+    elsif [ASTTimingMap hasKey ![idf string]] then
+      locDef = [ASTTimingMap locationForKey ![idf string]]
+      shouldStop = false #cannot have directly a timing.
+      isConst = true
+      detectedType = @idfType.timing
+      prefix = "prefix_TIMING_TODO_"
+      typeName = idfStruct.currentPeriphName #peripheral.
     #should not take care of peripherals'registers here, because they are in the varMap
     #(current peripheral).
     else
@@ -510,7 +519,8 @@ proc handleRegisterType
   ?! @idfType detectedType
   ?! @lstring typeName #name of the item or struct detected (to further search into structures).
   ?! @varAbstractType outType
-  ?! @bool shouldStop {
+  ?! @bool shouldStop
+{
   @idfItemList currentItemListCopy = currentItemList
   [!?currentItemListCopy popLast ?var @lstring regName ?* ?* ?* ?* ?*]
   #we detected a register access, while it may be a register slice access.
@@ -531,7 +541,7 @@ proc handleRegisterType
     shouldStop = true
     detectedType = @idfType. registerBitField
   elsif [idfStruct.ASTperipheralMap hasKey ![typeName string]] then #register slice inside a peripheral
-    [idfStruct.ASTperipheralMap searchKey !typeName ?* ?* ?* ?* ?* ?* ?var @varMap regMap ?*]
+    [idfStruct.ASTperipheralMap searchKey !typeName ?* ?* ?* ?* ?* ?* ?var @varMap regMap ?* ?*]
     [regMap searchKey !@lstring. new { !regSlice !@location.here} ?outType ?isConst ?var @varClass varClass ?*]
     if varClass != @varClass. registerSlice then
       error idf : "internal error: detect a register slice, while variable map does not have the same type"
@@ -570,7 +580,8 @@ proc handleMemoryType
   ?! @varAbstractType outType
   ?! @bool shouldStop
   ?! @parameterDefList paramDef #param definition to check.
-  ?! @location locDef {
+  ?! @location locDef
+{
   @idfItemList currentItemListCopy = currentItemList
   [!?currentItemListCopy popLast ?var @lstring memSpaceName ?* ?* ?* ?* ?*]
   @functionMap methodMap
@@ -594,10 +605,11 @@ proc handlePeriphCallType
   ?! @string prefix
   ?! @string suffix
   ?! @parameterDefList paramDef #param definition to check.
-  ?! @location locDef {
+  ?! @location locDef 
+{
   @ASTregisterPeriphDefMap ASTregisterPeriphDefMap
   @ASTFunctionMap ASTFunctionMap
-  [idfStruct.ASTperipheralMap searchKey !typeName ?* ?ASTregisterPeriphDefMap ?ASTFunctionMap ?* ?* ?* ?* ?*]
+  [idfStruct.ASTperipheralMap searchKey !typeName ?* ?ASTregisterPeriphDefMap ?ASTFunctionMap ?* ?* ?* ?* ?var @ASTTimingMap ASTTimingMap ?*]
   #search for a register.
   if [ASTregisterPeriphDefMap hasKey ![idf string]] then
     [ASTregisterPeriphDefMap searchKey !idf ?* ?* ?* ?* ?outType]
@@ -608,6 +620,7 @@ proc handlePeriphCallType
     isConst = false
     shouldStop = false
     if idfStruct.assign then prefix += "set" end
+  #search for a method
   elsif [ASTFunctionMap hasKey ![idf string]] then
     #message "This is a function call\n";
     [ASTFunctionMap searchKey !idf ?paramDef ?outType ?*]
@@ -615,9 +628,50 @@ proc handlePeriphCallType
     shouldStop = true
     isConst = true
     prefix = "method_"
+  elsif [ASTTimingMap hasKey ![idf string]] then
+      locDef = [ASTTimingMap locationForKey ![idf string]]
+      shouldStop = false #cannot have directly a timing.
+      isConst = true
+      detectedType = @idfType.timing
+      prefix = "prefix_TIMING_TODO_"
   else
     error idf: "in peripheral "+[typeName string]+", the identifier "+idf+" is not found"
   end
+}
+
+proc handleTimingType
+  ?let  @idfItemList currentItemList #items already parsed.
+  ?let  @lstring idf 
+  ?let  @varIdfStruct idfStruct
+  ?! @bool isConst  
+  ?! @idfType detectedType
+  ?! @lstring typeName #here: name of the peripheral.
+  ?! @varAbstractType outType
+  ?! @bool shouldStop
+  ?! @location locDef
+{
+  #we have the peripheral name in 'typeName'
+  #As this is a timing type, the last item is the timing name.
+  @idfItemList currentItemListCopy = currentItemList
+  [!?currentItemListCopy popLast ?var @lstring timingName ?* ?* ?* ?* ?*]
+  [idfStruct.ASTperipheralMap searchKey !typeName ?* ?* ?*
+       ?* ?* ?* ?* ?var @ASTTimingMap ASTTimingMap ?*]
+  [ASTTimingMap searchKey !timingName ?* ?var @boolMap signalIn
+       ?@boolMap signalOut ?* ?*]
+  @bool out = true
+  if [signalIn hasKey ![idf string]] then
+    out = false
+    detectedType = @idfType.signal
+  elsif [signalOut hasKey ![idf string]] then
+    out = true
+    detectedType = @idfType.signal
+  else
+    detectedType = @idfType.unknown
+  end%if
+  isConst = true
+  shouldStop = true
+  locDef = [ASTTimingMap locationForKey ![timingName string]]
+  outType = @varSignalType.new {!@varKind.custom !out !idf}
 }
 
 proc handleIdf 
@@ -636,7 +690,8 @@ proc handleIdf
   ?! @lstring typeName            #type detected in the previous item.
   !  @bool shouldStop             #the previous item should be the last of the list.
   ?! @parameterDefList paramDef   #param definition to check.
-  ?! @location locDef {
+  ?! @location locDef
+{
   shouldStop = true #default.
   outType = @varBaseType. new { !@varKind. unsigned !0 !@location.here} #dummy u0.
   switch detectedType
@@ -661,6 +716,12 @@ proc handleIdf
     case memoryAccess     :
       handleMemoryType ( !currentItemList !idf !idfStruct !?isConst 
                        !?outType !?shouldStop !?paramDef!?locDef)
+    case timing     :
+      handleTimingType ( !currentItemList !idf !idfStruct !?isConst !?detectedType
+                       !?typeName !?outType !?shouldStop !?locDef)
+    case signal     : #nothing, as a signal should not have another idf after.
+      error @location.here :"a signal should not have any identifier after"
+                       
   end
 }
 
@@ -673,7 +734,7 @@ override getter @ASTIdf getExp
   #message [idfStruct string];
   #message "To parse : ". [idfList string]."\n";
   #the final type of idf (the one returned by the exp)
-  @varAbstractType outType = @varBaseType. new { !@varKind. unsigned !0 !@location.here} #dummy u0.
+  @varAbstractType outType = @varBaseType. new { !@varKind.unsigned !0 !@location.here} #dummy u0.
   @idfType detectedType = @idfType. unknown
   @bool isConst = false
   var itemList =@idfItemList.emptyList{}
@@ -722,7 +783,7 @@ override getter @ASTIdf getExp
     end
     #message "type detected is ".[detectedType string]." <--\n";
     #error detection
-    if detectedType == @idfType. unknown then #not found
+    if detectedType == @idfType.unknown then #not found
       error idf: "The identifier cannot be determined: "+[idfList string]
       shouldStop = true
     end

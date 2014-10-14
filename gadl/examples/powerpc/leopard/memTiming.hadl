@@ -11,8 +11,8 @@ peripheral memTiming memory size 0 {
   }
 
   signal {
-    export in  memStart
-    export out memEnd
+--    export in  memStart
+--    export out memEnd
   }
 }
 

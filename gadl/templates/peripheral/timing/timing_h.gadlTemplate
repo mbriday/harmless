@@ -10,8 +10,35 @@
 
 class %!baseName%;
 class timingRun;
+class timingRdv; //synchronisation.
 
 class %!className% : public timingBase {\n
+	typedef enum {
+%let sigId := 0
+foreach sig in timingPart::signalEmit do
+%		%!sig::name%=%!sigId
+let sigId := sigId+1
+between %,\n%
+end foreach
+let nbSigOut := sigId%
+	} enumSigOut;
+	static const size_t NB_SIG_OUT = %!sigId%; 
+ 
+ 	typedef enum {
+%let sigId := 0
+foreach sig in timingPart::signalWait do
+%		%!sig::name%=%!sigId
+let sigId := sigId+1
+between %,\n%
+end foreach
+let nbSigIn := sigId%
+	} enumSigIn;
+	static const size_t NB_SIG_IN = %!sigId%;
+
+	//pointers to synchronisation objects.
+%if nbSigOut!=0 then%	timingRdv *m_sigOut [NB_SIG_OUT];%end if%
+%if nbSigIn!=0 then%	timingRdv *m_sigIn [NB_SIG_IN];%end if%
+
 	%!baseName% *m_peripheral; 
 	const unsigned int m_inOffset;
 	const unsigned int m_outOffset;

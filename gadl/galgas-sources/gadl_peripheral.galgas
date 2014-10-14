@@ -20,6 +20,7 @@ map @peripheralMap
   @instructionList instDeviceDecList
   @varIdfStruct idfStruct
   @timingMap timingMap
+  @signalConnectionList signalConnectionList
 
   insert insertKey error message "the '%K' peripheral is already defined in %L" 
   search searchKey error message "the '%K' peripheral is not defined"
@@ -100,8 +101,10 @@ getter @ASTperipheralMap getPeriphMap
     @functionMap functionMap = [ASTFunctionMap getFunctionMap !ctx !idfStruct]
     #timing part.
     @timingMap timingMap = [ASTTimingMap getTimingMap !symbolMap !idfStruct]
+    #signal connection part.
+    @signalConnectionList scList = [ASTSignalConnectionList getSignalConnectionList !symbolMap !idfStruct]
     #add in the final object.
-    [!?peripheralMap insertKey !lkey !size !registerPeriphDefMap !functionMap !instDeviceDecList !idfStruct !timingMap]
+    [!?peripheralMap insertKey !lkey !size !registerPeriphDefMap !functionMap !instDeviceDecList !idfStruct !timingMap !scList]
   end
 }
 

@@ -49,7 +49,7 @@ struct @varIdfStruct {
   @componentMap componentMap
   @lstring currentPeriphName #to get prototypes of methods defined in the current periph.
   #@ASTFunctionMap currentPeriphMethods; #to get prototypes of methods defined in the current periph.
-  @ASTperipheralMap ASTperipheralMap #peripheral map.
+  @ASTperipheralMap ASTperipheralMap #peripheral map (see gadl_peripheral_AST.galgas)
   #if an idf is in this map, it should be replaced in the code. This is used
   #when inlining a function with a 'out' parameter.
   @lstringMap replaceMap
@@ -201,22 +201,6 @@ map @functionMap {
   search searchKey error message "the '%K' component method is not defined"
 }
 
-#not yet decorated map for a peripheral (see gadl_peripheral_AST.gSemantics)
-map @ASTperipheralMap
-{
-  @luint64 size
-  @ASTregisterPeriphDefMap ASTregisterPeriphDef
-  @ASTFunctionMap ASTFunctionMap
-  @ASTInstructionList ASTDeviceDecList
-  @ASTInstructionList ASTTypeDefList#type defs.
-  @ASTInstructionList ASTLocalVarList
-  @varMap varMap #registers and register slices only!
-  @ASTTimingMap ASTTimingMap
-  insert insertKey error message "the '%K' peripheral is already defined in %L" 
-  search searchKey error message "the '%K' peripheral is not defined"
-  remove removeKey error message "the '%K' peripheral is not defined. Can't remove it."
-}
-
 map @memSpaceMap 
 {
   @uint width
@@ -236,26 +220,5 @@ method @componentMap checkComponentMethod
   end
 }
 
-getter @ASTperipheralMap string
-  -> @string str {
-  str = ""
-  for () in  self
-  before str += "AST peripheral Map:\n"  
-  do
-    str+= "\t"+[lkey string]+" ("+[size string]+" bytes):\n"
-    for () in  ASTregisterPeriphDef 
-    before
-    str+= "\t\tregisters :\n"
-    do
-      str+= "\t\t\t"+[lkey string]+"\n"
-    end
-    for () in  ASTFunctionMap 
-    before
-    str+= "\t\tmethods :\n"
-    do
-      str+= "\t\t\t"+[lkey string]+"\n"
-    end
-  end
-}
 
 # vim:ft=galgas:ts=2:sw=2:tw=0

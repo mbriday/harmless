@@ -262,12 +262,12 @@ peripheral ICacheE200Z4 memory size \x14 {
   }
   
   signal {
-    --internal connection.
-    memFetch.fillBuffer -> ICacheE200Z4LineBuffer.fillBuffer
-    ICacheE200Z4LineBuffer.bufferData -> memFetch.bufferData
-    -- should be connected: memStart, memEnd, memFetch, memFetchOk
-    export in  memEnd, memFetch
-    export out memStart, memFetchOk
+--    --internal connection.
+--    memFetch.fillBuffer -> ICacheE200Z4LineBuffer.fillBuffer
+--    ICacheE200Z4LineBuffer.bufferData -> memFetch.bufferData
+--    -- should be connected: memStart, memEnd, memFetch, memFetchOk
+--    export in  memEnd, memFetch
+--    export out memStart, memFetchOk
   }
 }
 -- vim:ft=harmlesscore:ts=2:sw=2:tw=0

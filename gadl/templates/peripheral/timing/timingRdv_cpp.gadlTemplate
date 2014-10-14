@@ -1,0 +1,59 @@
+#include "timingRdv.h"
+#include "timingBase.h"
+using namespace std;
+
+timingRdv::timingRdv(enumRdvType type) :
+    m_data(0),
+    m_state(NOBODY_HERE),
+    m_emitter(NULL),
+    m_receiver(NULL),
+    m_type(type)
+{
+
+};
+
+u32 timingRdv::data() const
+{
+    return m_data;
+}
+
+void timingRdv::setData(const u32 &data)
+{
+    m_data = data;
+}
+
+timingRdv::enumRdvState timingRdv::state() const
+{
+    return m_state;
+}
+
+void timingRdv::setState(const timingRdv::enumRdvState &state)
+{
+    m_state = state;
+}
+
+timingBase *timingRdv::emitter() const
+{
+    return m_emitter;
+}
+
+void timingRdv::setEmitter(timingBase *emitter)
+{
+    m_emitter = emitter;
+}
+
+timingBase *timingRdv::receiver() const
+{
+    return m_receiver;
+}
+
+void timingRdv::setReceiver(timingBase *receiver)
+{
+    m_receiver = receiver;
+}
+
+
+timingRdv::enumRdvType timingRdv::type() const
+{
+    return m_type;
+}

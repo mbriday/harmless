@@ -84,11 +84,11 @@ core e200z4 : isa powerpc
     }
 
     signal {
-      --implicit value: address and data, both u32 (or u64?)
-      -- signals exported from devices.
-      -- the shared port is set to busy until the answer is received
-      shared port MemDev.fetch -> ICache.memFetch wait ICache.memFetchOk
-      shared port loadStore    -> * -- no pb.
+--      --implicit value: address and data, both u32 (or u64?)
+--      -- signals exported from devices.
+--      -- the shared port is set to busy until the answer is received
+--      shared port MemDev.fetch -> ICache.memFetch wait ICache.memFetchOk
+--      shared port loadStore    -> * -- no pb.
     }
 
   }  

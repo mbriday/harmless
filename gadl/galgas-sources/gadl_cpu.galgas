@@ -23,6 +23,8 @@ map @ASTCpuMap
   #memory defined in cpu.
   @ASTmemoryParamMap ASTmemChunk
   @stringlist memChunkOrder
+  #signal connections between peripherals
+  @ASTSignalConnectionList ASTSignalConnectionList
   insert insertKey error message "the '%K' cpu is already defined in %L" 
   search searchKey error message "the '%K' cpu is not defined"
 }
@@ -75,13 +77,14 @@ getter @ASTcoreInstanceMap getCoreInstanceMap
 }
 
 method @ASTCpuMap cpuSemantic
-  ?let  @memSpaceMap memSpaceMap
-  ?! @TfieldMap templateStruct {
+  ?let @varIdfStruct varIdfStruct
+  ?! @TfieldMap templateStruct
+{
   @expressionContext ctx = @expressionContext. peripheral #context cpu?
   var cpuTpl =@TfieldMapList.emptyList{}
   for () in  self do #only one cpu at this date.
     var symbolMap =@symbolValueMap.emptyMap{}
-    var idfStruct =@varIdfStruct.default
+    var idfStruct = varIdfStruct #copy.
     var cpuTplBody =@TfieldMap.emptyMap{}
     @lstring cpuName = lkey
     addLStringValue ( !?cpuTplBody !"NAME" !cpuName)
@@ -94,7 +97,7 @@ method @ASTCpuMap cpuSemantic
     # cores
     ###########################################################################
     #cores defined as global, not inside a cpu.
-    [ASTCoreMap coreSemantic !lkey !memSpaceMap !?templateStruct]
+    [ASTCoreMap coreSemantic !lkey !idfStruct.memSpaceMap !?templateStruct]
     @coreInstanceMap coreInstanceMap = [ASTcoreInstanceMap getCoreInstanceMap !ctx !symbolMap !idfStruct]
     [coreInstanceMap setInTemplate !lstringWith(!"coreInstanceList") !?templateStruct]
     #check constructor parameters.
@@ -111,6 +114,10 @@ method @ASTCpuMap cpuSemantic
     #TODO in templates.
     getInst ( !ASTDeviceDecList !ctx !symbolMap !?idfStruct ?var @instructionList instDeviceDecList)
     [instDeviceDecList setDeviceInTemplate !?cpuTplBody] #devices.
+    ###########################################################################
+    # signal connection part.
+    ###########################################################################
+    @signalConnectionList scList = [ASTSignalConnectionList getSignalConnectionList !symbolMap !idfStruct]
     #end.
     cpuTpl += !cpuTplBody
   end

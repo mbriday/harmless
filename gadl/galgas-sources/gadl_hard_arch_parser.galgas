@@ -1,6 +1,6 @@
 syntax gadl_hard_arch_parser (gadl_lexique) {
 
-rule <signalConnect>
+rule <signalConnect> ?!@ASTSignalConnectionList ASTSignalConnectionList
 
 rule <architecture>
   ?! @architectureMap archMap {
@@ -9,17 +9,18 @@ rule <architecture>
   $idf$ ?architectureName
   ${$
   @bool fetchFound = false
+  @ASTSignalConnectionList ASTSignalConnectionList = .emptyList
   var deviceMap =@deviceMap.emptyMap{}
   repeat
   while
     <device> !?deviceMap !?fetchFound
   end
   select
-    <signalConnect>
+    <signalConnect> !?ASTSignalConnectionList
   or
   end
-  var signalConnectionList =@signalConnectionList.emptyList{}  
-  var sharedPortActivationList =@sharedPortActivationList.emptyList{}
+#  var signalConnectionList =@signalConnectionList.emptyList{}  
+#  var sharedPortActivationList =@sharedPortActivationList.emptyList{}
 #  select
 #    <signalSection> !deviceMap ?signalConnectionList ?sharedPortActivationList;
 #  or
@@ -30,7 +31,8 @@ rule <architecture>
   if not fetchFound then
     error @location.here : "\nThe port named : 'fetch', is not found\n"
   end
-  @signalConnectPart signalConnectPart = @signalConnectPart. new { !signalConnectionList !sharedPortActivationList}
+#  @signalConnectPart signalConnectPart = @signalConnectPart.new { !signalConnectionList !sharedPortActivationList}
+  @signalConnectPart signalConnectPart = .default
   [!?archMap insertKey !architectureName !deviceMap !signalConnectPart]
 }
 

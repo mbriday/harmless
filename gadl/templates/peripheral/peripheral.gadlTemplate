@@ -26,6 +26,15 @@ write to exportDir."/timingBase.cpp":
 end write
 %timingBase.cpp \\\n%
 
+#generate class for timing synchronisation
+write to exportDir."/timingRdv.h":
+  template timingRdv_h in "peripheral/timing"
+end write
+write to exportDir."/timingRdv.cpp":
+  template timingRdv_cpp in "peripheral/timing"
+end write
+%timingRdv.cpp \\\n%
+
 #each peripheral has its own class.
 if exists peripheralList then
   foreach peripheral in peripheralList do

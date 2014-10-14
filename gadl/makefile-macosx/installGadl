@@ -2,6 +2,6 @@
 echo "un coup de galgas"
 galgas -T ../gadl.galgasProject &&
 echo "make gadl.." &&
-time make gadl 
+time make gadl -j `sysctl -n hw.ncpu`
 #echo "install gadl in the editor bundle."
 #cp ./gadl64 /Applications/Harmless.app/Contents/Resources/gadl
