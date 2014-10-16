@@ -103,7 +103,9 @@ class @varDeviceType : @varAbstractType {
 #a variable that refers to a signal.
 class @varSignalType : @varAbstractType {
   @bool out #true->out, false, in
-  @lstring sigName
+  @lstring peripheralName
+  @lstring timingName
+  @lstring signalName
 }
 
 # This map should contains field names with the suffix (@SRC...)
@@ -149,7 +151,7 @@ override getter @varTabularType loc -> @location l {
 }
 
 override getter @varSignalType loc -> @location l {
-  l = [sigName location]
+  l = [signalName location]
 }
 
 ###############################################################################
@@ -174,7 +176,7 @@ override getter @varTabularType changeLoc ?let  @location l -> @varAbstractType 
 }
 
 override getter @varSignalType changeLoc ?let  @location l -> @varAbstractType newType {
-  newType = @varSignalType.new { !kind !out !@lstring.new { ![sigName string] !l}}
+  newType = @varSignalType.new { !kind !out !peripheralName !timingName !@lstring.new { ![signalName string] !l}}
 }
 
 
@@ -238,7 +240,7 @@ override getter @varTabularType getCType
 
 override getter @varSignalType getCType
   -> @string str {
-  str = "signal_"+[sigName string] #should not be used...
+  str = "periph_"+peripheralName+"_timing_"+timingName+"::"+signalName
 }
 
 ###############################################################################
@@ -307,7 +309,9 @@ override getter @varSignalType checkEqual
   let @varSignalType typeCast = ( otherType as @varSignalType)
   ok = [self kind] == [typeCast kind]
      & [self out] == [typeCast out]
-     & [self sigName] == [typeCast sigName]
+     & [[self peripheralName] string] == [[typeCast peripheralName] string]
+     & [[self timingName] string] == [[typeCast timingName] string]
+     & [[self signalName] string] == [[typeCast signalName] string]
 }
 ###############################################################################
 ## getDeclaration => implementation part??
@@ -363,7 +367,7 @@ override getter @varSignalType getDeclaration
   ?let  @string  unused idf
   ?let  @codeCtx unused cgc
   -> @string code {
-    warning sigName: "no code generation for signals"
+    warning signalName: "no code generation for signals"
     code = ""
 }
 
@@ -397,7 +401,7 @@ override getter @varTabularType string -> @string str {
 }
 
 override getter @varSignalType string -> @string str {
-  str = "signal "+sigName
+  str = "signal "+[self  getCType]
   if out then str+="(out)" else str+="(in)" end
 }
 

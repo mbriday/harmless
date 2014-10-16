@@ -15,6 +15,16 @@ peripheral STM_Channel memory size 16 {
   {
     return oldVal & ~val;
   }
+
+  timing test 
+    signal out: sigO1
+  {
+		wait 10 cycle
+    emit signal sigO1
+  }
+
+
+
 }
 
 -- System Timer Module

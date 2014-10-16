@@ -32,7 +32,7 @@ rule <registerPeriphDef>
   <typeDeclaration> ?var @varAbstractType type
   $idf$ ?var @lstring idf
   $maps$ $to$ $unumber$ ?var @luint64 address
-  ASTregDecList += !@ASTInstDeclaration. new { !@location.here !@varClass. SFR !type !idf}
+  ASTregDecList += !@ASTInstDeclaration.new { !@location.here !@varClass.SFR !type !idf}
   select
   or
     <registerBitAccessDef> !idf !type !?ASTregDecList
@@ -40,8 +40,8 @@ rule <registerPeriphDef>
   #is there a callBack?
   @bool hasReadFuncCall = false
   @bool hasWriteFuncCall = false
-  @lstring readFuncCall = @lstring. new { !"" !@location.here}
-  @lstring writeFuncCall = @lstring. new { !"" !@location.here}
+  @lstring readFuncCall = @lstring.new { !"" !@location.here}
+  @lstring writeFuncCall = @lstring.new { !"" !@location.here}
   repeat
   while
     if hasReadFuncCall then
@@ -82,7 +82,7 @@ rule <peripheral>
       $idf$ ?var @lstring idf
       select
         #this is a local var.
-        ASTLocalVarList += !@ASTInstDeclaration. new { !@location.here !@varClass. localVar !type !idf}  
+        ASTLocalVarList += !@ASTInstDeclaration.new { !@location.here !@varClass.localVar !type !idf}  
       or
         #this is a local method.
         <functionDef> !type !idf !?ASTFunctionMap
@@ -101,8 +101,8 @@ rule <peripheral>
   #problem:
   #We need a varMap for register slices access (in other peripherals)
   #and ASTperipheralMap (embedded in the idfStruct) does not have it.
-  #-> we extract it here from the registers definitions.  
-  @expressionContext ctx = @expressionContext. peripheral
+  #-> we extract it here from the registers definitions.
+  @expressionContext ctx = @expressionContext.peripheral
   var symbolMap =@symbolValueMap.emptyMap{}
   var idfStruct =@varIdfStruct.default
   for () in  ASTregDefMap do
