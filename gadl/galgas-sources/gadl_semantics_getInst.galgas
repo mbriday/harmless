@@ -20,7 +20,7 @@ proc getInst
   !  @instructionList instList {
   #check correct use of 'return'
   @symbolValueMap symbolMapCopy = symbolMap
-  instList = @instructionList. emptyList
+  instList = @instructionList.emptyList
   for (@ASTInstruction ASTinst) in  ASTInstList do
     @instruction inst
     [ASTinst getInst !ctx !?symbolMapCopy !?idfStruct ?inst]
@@ -68,7 +68,7 @@ override method @ASTInstIf getInst
   checkNoReturn ( !instIfList)
   checkNoReturn ( !instElseList)
 
-  inst = @instIf. new { !loc !newCond !instIfList !instElseList}
+  inst = @instIf.new { !loc !newCond !instIfList !instElseList}
   #TODO: merge symbolMap
 }
 
@@ -78,7 +78,7 @@ override method @ASTInstReturn getInst
   ?! @varIdfStruct idfStruct
   !  @instruction inst {
   @expression newExp = [exp getExp !ctx !symbolMap !idfStruct]
-  inst = @instReturn. new { !loc !newExp}
+  inst = @instReturn.new { !loc !newExp}
 }
 
 override method @ASTInstNop getInst
@@ -87,7 +87,7 @@ override method @ASTInstNop getInst
   ?! @varIdfStruct idfStruct
   !  @instruction inst {
   @expression newExp = [exp getExp !ctx !symbolMap !idfStruct]
-  inst = @instNop. new { !loc !ctx !newExp}
+  inst = @instNop.new { !loc !ctx !newExp}
 }
 
 override method @ASTInstLoop getInst
@@ -101,7 +101,7 @@ override method @ASTInstLoop getInst
   @instructionList newLoopInstList = getInst(!loopInstList !ctx !symbolMap !idfStruct)
   checkNoReturn ( !newLoopInstList)
 
-  inst = @instLoop. new { !loc !newGuard !newExpCondition !newLoopInstList}
+  inst = @instLoop.new { !loc !newGuard !newExpCondition !newLoopInstList}
 }
 
 override method @ASTInstError getInst
@@ -109,7 +109,7 @@ override method @ASTInstError getInst
   ?! @symbolValueMap unused symbolMap
   ?! @varIdfStruct unused idfStruct
   !  @instruction inst {
-  inst = @instError. new { !loc !onlyWarn !msg}
+  inst = @instError.new { !loc !onlyWarn !msg}
 }
 
 override method @ASTInstPrint getInst
@@ -118,7 +118,7 @@ override method @ASTInstPrint getInst
   ?! @varIdfStruct idfStruct
   !  @instruction inst {
   @expression newExp = [exp getExp !ctx !symbolMap !idfStruct]
-  inst = @instPrint. new { !loc !newExp}
+  inst = @instPrint.new { !loc !newExp}
 }
 
 override method @ASTInstMessage getInst
@@ -126,7 +126,7 @@ override method @ASTInstMessage getInst
   ?! @symbolValueMap unused symbolMap
   ?! @varIdfStruct unused idfStruct
   !  @instruction inst {
-  inst = @instMessage. new { !loc !msg}
+  inst = @instMessage.new { !loc !msg}
 }
 
 override method @ASTInstFunctionCall getInst
@@ -149,7 +149,7 @@ override method @ASTInstFunctionCall getInst
   case componentCall,memoryAccess,periphCall:
     #checkCorrectAssignType ![expIdf type] !newExp ![expIdf lstring];
   end
-  inst = @instFunctionCall. new { !loc !expIdf}
+  inst = @instFunctionCall.new { !loc !expIdf}
 }
 
 override method @ASTInstAssignment getInst
@@ -202,7 +202,7 @@ override method @ASTInstAssignment getInst
   end
   #get the intruction.
   @fieldList flist = fieldListFromAST(!ctx !symbolMap !idfStruct !astFList)  
-  inst = @instAssignment. new { !loc !expIdfAssign !expIdfRead !flist !newExp}
+  inst = @instAssignment.new { !loc !expIdfAssign !expIdfRead !flist !newExp}
 }
 
 override method @ASTInstDeclaration getInst
@@ -234,12 +234,12 @@ override method @ASTInstDeclaration getInst
     #name of the var, using the suffix
     @lstring idfFull = [idfStruct getIdfPrePost !idf]
     #message "declare local var   ".idfFull."\n";
-    @instDeclaration instDec = @instDeclaration. new { !loc !type !idfFull !access !idfStruct.idfPrefixLocal}
+    @instDeclaration instDec = @instDeclaration.new { !loc !type !idfFull !access !idfStruct.idfPrefixLocal}
     [!?idfStruct.varMap insertKey !idfFull !type !false !access !instDec]
     inst = instDec
   case field: #a field used in the behavior view (ISA description).
-    if ctx != @expressionContext. behavior then
-      error loc: "internal error in @ASTInstDeclaration. Have a 'field', but context is not behavior"
+    if ctx != @expressionContext.behavior then
+      error loc: "internal error in @ASTInstDeclaration.Have a 'field', but context is not behavior"
     end
     if not (type is >= @varBaseType) then
       error loc: "A 'field' can only be associated with a basic type (unsigned/signed/float)"
@@ -247,11 +247,11 @@ override method @ASTInstDeclaration getInst
     #a constant, without any prefix.
     @lstring idfField = [idfStruct getIdfPost !idf]
     #message "declare field       ".idfField."\n";
-    @instDeclaration instDec = @instDeclaration. new { !loc !type !idfField !access !""}
-    [!?idfStruct.varMap insertKey !idfField !type !true !@varClass. localVar !instDec]
+    @instDeclaration instDec = @instDeclaration.new { !loc !type !idfField !access !""}
+    [!?idfStruct.varMap insertKey !idfField !type !true !@varClass.localVar !instDec]
     inst = instDec
   case programCounter,GPR,SFR:
-    @instDeclaration instDec = @instDeclaration. new { !loc !type !idf !access !""}
+    @instDeclaration instDec = @instDeclaration.new { !loc !type !idf !access !""}
     [!?idfStruct.varMap insertKey !idf !type !false !access !instDec]
     inst = instDec
   case device:
@@ -267,10 +267,10 @@ override method @ASTInstDeclarationDevice getInst
   ?! @symbolValueMap unused symbolMap
   ?! @varIdfStruct idfStruct
   !  @instruction inst {
-  if access != @varClass. device then
+  if access != @varClass.device then
     error loc: "internal error: a device varClass is expected in @ASTInstDeclarationDevice"
   end
-  @instDeclarationDevice instDec = @instDeclarationDevice. new { !loc !type !idf !access !"" !address}
+  @instDeclarationDevice instDec = @instDeclarationDevice.new { !loc !type !idf !access !"" !address}
   [!?idfStruct.varMap insertKey !idf !type !true !access !instDec]
   inst = instDec
 }
@@ -286,16 +286,16 @@ override method @ASTInstDeclarationRegSlice getInst
   #check that types exists.
   #check that we have the right to do that. TODO
   @fieldList flist = fieldListFromAST(!ctx !symbolMap !idfStruct !ASTfieldList)
-  @varBaseType sliceType = @varBaseType. new { !@varKind. unsigned ![flist fieldsize !symbolMap] ![sliceName location]}
+  @varBaseType sliceType = @varBaseType.new { !@varKind.unsigned ![flist fieldsize !symbolMap] ![sliceName location]}
   #base register should be a varBaseType
   @varBaseType regType = ( type as @varBaseType)
   if [regType size] < [sliceType size] then
     error sliceName: "The slice size is bigger than its base register."
   end
-  if access != @varClass. registerSlice then
+  if access != @varClass.registerSlice then
     error sliceName: "internal error: a registerSlice is expected in @ASTInstDeclarationRegSlice"
   end
-  @instDeclarationRegSlice instRegSlice = @instDeclarationRegSlice. new { !loc !type !idf !access !"" !sliceName !flist}
+  @instDeclarationRegSlice instRegSlice = @instDeclarationRegSlice.new { !loc !type !idf !access !"" !sliceName !flist}
   [!?idfStruct.varMap insertKey ![instRegSlice name] !sliceType !false !access !instRegSlice]
   inst = instRegSlice
 }
@@ -307,7 +307,7 @@ override method @ASTInstTypeDefinition getInst
   !  @instruction inst {
   #check that it does not exists yet.
   #check recursively that types in members exists.
-  inst = @instTypeDefinition. new { !loc !idf !memberList}
+  inst = @instTypeDefinition.new { !loc !idf !memberList}
   #check recursively.
   for (* @varAbstractType memberType) in  memberList do
     checkTypeExists ( !memberType !idfStruct)

@@ -1,7 +1,8 @@
 
 
 method @registerPeriphDefMap setInTemplate
-  ?! @TfieldMap templateStruct {
+  ?! @TfieldMap templateStruct 
+{
   var registerPeriphDefTplList =@TfieldMapList.emptyList{}
   for () in  self do
     var regPeriphDefTplBody =@TfieldMap.emptyMap{}
@@ -39,6 +40,8 @@ method @peripheralMap setInTemplate
     [instDeviceDecList setDeviceInTemplate !?peripheralBody]
     #timing
     [timingMap setInTemplate !exportDir !?peripheralBody]
+    #signals
+    [signalConnectionList setInTemplate !?peripheralBody]
     #typedef (type definitions)
     peripheralList += !peripheralBody
   end
@@ -68,7 +71,7 @@ method @instructionList setDeviceInTemplate
     end
     addUnsignedValue ( !?deviceDecListTplBody !lstringWith(!"nb") ![nbDev uint64])
     #this information is also present in the IdfStruct, if any.
-    addStringValue ( !?deviceDecListTplBody !lstringWith(!"declare") ![inst generateCode !1 !@codeCtx. C])
+    addStringValue ( !?deviceDecListTplBody !lstringWith(!"declare") ![inst generateCode !1 !@codeCtx.C])
     deviceDecListTpl += !deviceDecListTplBody
   end
   addListValue ( !?templateWithDev !lstringWith(!"deviceList") !deviceDecListTpl)

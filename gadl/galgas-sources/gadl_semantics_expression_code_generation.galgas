@@ -29,9 +29,9 @@ func getMaskFor
   ->   @string maskStr {
   if nbBits < 32 then
     @uint mask = (1 << nbBits) - 1
-    if cgc == @codeCtx. C then 
+    if cgc == @codeCtx.C then 
       maskStr = [mask hexString]
-    elsif cgc == @codeCtx. Uppaal then 
+    elsif cgc == @codeCtx.Uppaal then 
       maskStr = [mask string]
     else error @location.here : "Unknown generation language (nor C or Uppaal)": maskStr
     end
@@ -49,7 +49,7 @@ func getMaskFor
     maskStr = "0"
     error loc :"cannot handle a variable >= 128 bits :-/. Mask requires "+[nbBits string]+" bits."
   end
-  if (cgc == @codeCtx. Uppaal) & (nbBits > 32) then
+  if (cgc == @codeCtx.Uppaal) & (nbBits > 32) then
     error @location.here: "Try to handle a var of size > 32 bits. This not usable for Uppaal code generation."
   end
 }
@@ -67,11 +67,11 @@ proc castCode
   @string toTypeC = [toTypeBase getCType]
   @string expCode = [expression generateCode !cgc]
   #cast.
-  if cgc != @codeCtx. Uppaal then #no cast in Uppaal mode.
+  if cgc != @codeCtx.Uppaal then #no cast in Uppaal mode.
     @uint toCSize = [toTypeBase getCSize]
     #mask for assign type.
     @string maskStr = getMaskFor (!toCSize ![toTypeBase location] !cgc)
-    if [toType kind] == @varKind. signed then
+    if [toType kind] == @varKind.signed then
       #cast to signed. May need a sign extension
       if [fromTypeBase size] > [toTypeBase size] then
         if truncate then
@@ -83,7 +83,7 @@ proc castCode
           code += expCode
         end
       elsif [fromTypeBase size] == [toTypeBase size] then
-        if [fromType kind] == @varKind. signed then 
+        if [fromType kind] == @varKind.signed then 
           #nothing to do (signed to signed).
           code += expCode
         else #change sign or get it from float.
@@ -94,12 +94,12 @@ proc castCode
         #value is extended. May need a sign extension.
         code += "("+toTypeC+")("
         if truncate then code += "(" end
-        if [fromTypeBase kind] == @varKind. signed then 
+        if [fromTypeBase kind] == @varKind.signed then 
           #signed to signed value. Sign extension required.
           # if type of a is s7, then (s10)(a) should genererate (s16)(SIGN_EXTEND(a,7,10) & 0x3FF)
           code += "SIGN_EXTEND("+expCode
           code += ","+[[fromTypeBase size] string]+"U,"+[[toTypeBase size] string]+"U)"
-        elsif [fromTypeBase kind] == @varKind. unsigned then
+        elsif [fromTypeBase kind] == @varKind.unsigned then
           #unsigned to signed value. Sign extension not required.
           # if type of a is u7, then (s10)(a) should genererate (s16)(a & 0x3FF)
           code += expCode
@@ -110,9 +110,9 @@ proc castCode
         code += ")"
         if truncate then code += " & "+maskStr+")" end
       end
-    elsif [toType kind] == @varKind. unsigned then
+    elsif [toType kind] == @varKind.unsigned then
       if [fromTypeBase size] == [toTypeBase size] then
-        if [fromTypeBase kind] == @varKind. unsigned then
+        if [fromTypeBase kind] == @varKind.unsigned then
           #nothing to do
           code += expCode
         else
@@ -128,7 +128,7 @@ proc castCode
         code += expCode+")"
         if truncate then code += " & "+maskStr+")" end
       end
-    elsif [toType kind] == @varKind. float then
+    elsif [toType kind] == @varKind.float then
       #no restriction to cast to a float.
       code += "("+toTypeC+")("+expCode+")"
     else
@@ -163,7 +163,7 @@ override getter @expIntConst generateCode
   end
   if value > 0xFFFFFFFFL then suffix += "LL" end
 
-  if cgc == @codeCtx. C then #suffix only for C generation.
+  if cgc == @codeCtx.C then #suffix only for C generation.
     code += suffix
   end
 }
@@ -188,17 +188,16 @@ getter @expIdf generateIdfListCode
   code = ""
   for (@lstring idf @idfItemType type @expressionlist paramList * @string prefix @string suffix) in  idfList do
     #TODO: should be corrected for complex types, inlining, @..
-    @string fullIdf = prefix+[idf string]+suffix
-    if type == @idfItemType. basic then
+    if type == @idfItemType.basic then
       code += prefix+[idf string]+suffix
-    elsif type == @idfItemType. functionCall then
+    elsif type == @idfItemType.functionCall then
       code += prefix+[idf string]+"("
       for(@expression exp) in  paramList
       do code += [exp generateCode !cgc]
       between code += ", "
       end
       code += ")"+suffix
-    elsif type == @idfItemType. tabular then
+    elsif type == @idfItemType.tabular then
       code += prefix+[idf string]+"["
       if [paramList length] != 1 then error idf: "tabular index not handled correctly" end
       for(@expression exp) in  paramList do
@@ -207,7 +206,6 @@ getter @expIdf generateIdfListCode
       code += "]"+suffix
     else error idf: "internal error: unknown idf type" #should not happen.
     end
- # between code .= "_"; #TODO: a revoir…
   end
 }
 

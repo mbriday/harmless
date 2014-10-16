@@ -33,8 +33,8 @@ method @ASTregisterPeriphDefMap getRegisterPeriphDefMap
   ?let  @ASTFunctionMap ASTFunctionMap
   ?let  @luint64 periphSize
   !  @registerPeriphDefMap registerPeriphDefMap {
-  @expressionContext ctx = @expressionContext. peripheral
-  registerPeriphDefMap = @registerPeriphDefMap. emptyMap
+  @expressionContext ctx = @expressionContext.peripheral
+  registerPeriphDefMap = @registerPeriphDefMap.emptyMap
   for () in  self do
     #extract instruction declaration
     getInst ( !ASTregDecList !ctx !symbolMap !?idfStruct ?var @instructionList regDecList)
@@ -49,11 +49,11 @@ method @ASTregisterPeriphDefMap getRegisterPeriphDefMap
       [ASTFunctionMap searchKey !readFuncCall ?var @parameterDefList param ?var @varAbstractType outType ?*]
       #one parameter valued with the current data in mem.
       var paramExpected =@parameterDefList.emptyList{}
-      paramExpected += !false !vbt !@lstring. new { !"data" !@location.here}
+      paramExpected += !false !vbt !@lstring.new { !"data" !@location.here}
       if not [param checkEqual !paramExpected ![readFuncCall location]] then
         error [readFuncCall location] : "The 'read' callback does not have correct parameters"
       end
-      #check return type. 
+      #check return type.
       if not [outType checkEqual !vbt] then
         error [readFuncCall location] : "The 'read' should return the value updated by the read handler"
       end
@@ -62,8 +62,8 @@ method @ASTregisterPeriphDefMap getRegisterPeriphDefMap
       [ASTFunctionMap searchKey !writeFuncCall ?var @parameterDefList param ?var @varAbstractType outType ?*]
       #param: 2 parameters (data and old data), same type as the register size.
       var paramExpected =@parameterDefList.emptyList{}
-      paramExpected += !false !vbt !@lstring. new { !"data" !@location.here}
-      paramExpected += !false !vbt !@lstring. new { !"oldData" !@location.here}
+      paramExpected += !false !vbt !@lstring.new { !"data" !@location.here}
+      paramExpected += !false !vbt !@lstring.new { !"oldData" !@location.here}
       if not [param checkEqual !paramExpected ![writeFuncCall location]] then
         error [writeFuncCall location] : "The 'write' callback does not have correct parameters"
       end
@@ -79,8 +79,8 @@ method @ASTregisterPeriphDefMap getRegisterPeriphDefMap
 
 getter @ASTperipheralMap getPeriphMap
   ->  @peripheralMap peripheralMap {
-  peripheralMap = @peripheralMap. emptyMap
-  @expressionContext ctx = @expressionContext. peripheral
+  peripheralMap = @peripheralMap.emptyMap
+  @expressionContext ctx = @expressionContext.peripheral
 
   for () in  self do
     #for each peripheral

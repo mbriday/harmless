@@ -93,8 +93,8 @@ getter @idfItemList string -> @string name {
   for (@lstring idf @idfItemType type ...) in self 
     do 
       name+=[idf string]
-      if type == @idfItemType. functionCall then name += "(..)" end
-      if type == @idfItemType. tabular then name += "[..]" end
+      if type == @idfItemType.functionCall then name += "(..)" end
+      if type == @idfItemType.tabular then name += "[..]" end
     between name+="." 
   end
 }
@@ -163,7 +163,7 @@ getter @expIdf lstring -> @lstring name {
     [idfList first ?first ?* ?* ?* ?* ?*]
     loc = [first location]
   end
-  name = @lstring. new { !str !loc}
+  name = @lstring.new { !str !loc}
 }
 
 class @expIdf : @expression {
@@ -211,7 +211,7 @@ getter @expression getLocalVar
   -> @lstring idf {
   if (self is == @expIdf) then
     let @expIdf expIdf = ( self as @expIdf)
-    if [expIdf detectedType] == @idfType. localVar then
+    if [expIdf detectedType] == @idfType.localVar then
       #ok, only one item.
       [[expIdf idfList] first ?idf ?* ?* ?* ?* ?*]
     else

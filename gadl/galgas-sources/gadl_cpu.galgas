@@ -18,7 +18,7 @@ map @ASTCpuMap
   @ASTcoreInstanceMap ASTcoreInstanceMap
   #map of cores, key is the type.
   @ASTCoreMap ASTCoreMap
-  #cpu devices.  
+  #cpu devices.
   @ASTInstructionList ASTDeviceDecList
   #memory defined in cpu.
   @ASTmemoryParamMap ASTmemChunk
@@ -54,7 +54,7 @@ method @coreInstanceMap setInTemplate
 
     @string code = ""
     for(@expression exp) in  coreParamExpList
-    do code += [exp generateCode !@codeCtx. C]
+    do code += [exp generateCode !@codeCtx.C]
     between code += ", "
     end
     addStringValue ( !?coreInstanceMapTplBody !lstringWith(!"paramCall") !code)
@@ -69,7 +69,7 @@ getter @ASTcoreInstanceMap getCoreInstanceMap
   ?let  @symbolValueMap symbolMap
   ?let  @varIdfStruct idfStruct
   -> @coreInstanceMap coreInstanceMap {
-  coreInstanceMap = @coreInstanceMap. emptyMap
+  coreInstanceMap = @coreInstanceMap.emptyMap
   for () in  self do
     @expressionlist expList = [coreParamExpList getExp !ctx !symbolMap !idfStruct]
     [!?coreInstanceMap insertKey !lkey !type !id !expList]
@@ -80,7 +80,7 @@ method @ASTCpuMap cpuSemantic
   ?let @varIdfStruct varIdfStruct
   ?! @TfieldMap templateStruct
 {
-  @expressionContext ctx = @expressionContext. peripheral #context cpu?
+  @expressionContext ctx = @expressionContext.peripheral #context cpu?
   var cpuTpl =@TfieldMapList.emptyList{}
   for () in  self do #only one cpu at this date.
     var symbolMap =@symbolValueMap.emptyMap{}
@@ -118,6 +118,15 @@ method @ASTCpuMap cpuSemantic
     # signal connection part.
     ###########################################################################
     @signalConnectionList scList = [ASTSignalConnectionList getSignalConnectionList !symbolMap !idfStruct]
+    for () in scList do
+      message "signal cpu (test)\n"
+      message [expFromSignal generateCode !@codeCtx.C]
+      let @varSignalType sigType = ([expFromSignal type] as @varSignalType);    
+      message "\tperipheral "+[sigType peripheralName]+"\n"
+      message "\ttiming     "+[sigType timingName]+"\n"
+      message "\tsignal     "+[sigType signalName]+"\n"
+      message "\n"
+    end%for
     #end.
     cpuTpl += !cpuTplBody
   end

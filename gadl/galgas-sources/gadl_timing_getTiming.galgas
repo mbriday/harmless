@@ -4,10 +4,10 @@ getter @ASTTimingMap getTimingMap
   ?let  @symbolValueMap symbolMap
   ?let  @varIdfStruct idfStruct  
   -> @timingMap timingMap {
-  timingMap = @timingMap. emptyMap
+  timingMap = @timingMap.emptyMap
   for () in  self do
     #message "timing map ".[lkey string]."\n";
-    @expressionContext ctx = @expressionContext. timing  
+    @expressionContext ctx = @expressionContext.timing  
     @symbolValueMap symbolMapCopy = symbolMap
     @varIdfStruct idfStructCopy = idfStruct
     #expEnable expression is in the timing structure, however, it is called
@@ -15,7 +15,7 @@ getter @ASTTimingMap getTimingMap
     @expression expEnable = [ASTExpEnable getExp !ctx !symbolMap !idfStructCopy]
     #move varMap of peripheral to the 'friend' varMap.
     idfStructCopy.varMapFriend = idfStruct.varMap
-    idfStructCopy.varMap = @varMap. emptyMap
+    idfStructCopy.varMap = @varMap.emptyMap
     idfStructCopy.friendAccessPrefix = "m_peripheral->"
     idfStructCopy.idfPrefixCore = "m_peripheral->" #for registers…
    
@@ -41,7 +41,7 @@ method @ASTTimingInstructionList getTimingList
   ?! @varIdfStruct idfStruct
   ?! @uint internalId
   !  @timingInstructionList tInstList {
-  tInstList = @timingInstructionList. emptyList
+  tInstList = @timingInstructionList.emptyList
   for () in  self do
     [ASTTinst getTiming !signalIn !signalOut !?symbolMap !?idfStruct !?internalId ?var @timingInstruction Tinst]
     tInstList += !Tinst
@@ -59,7 +59,7 @@ override method @ASTTEmit getTiming
   if not [signalOut hasKey ![name string]] then
     error loc:"try to emit signal "+[name string]+", but this signal is not declared."
   end
-  Tinst = @tEmit. new { !loc !name !broadcast}
+  Tinst = @tEmit.new { !loc !name !broadcast}
 }
 
 override method @ASTTWaitSignal getTiming
@@ -73,7 +73,7 @@ override method @ASTTWaitSignal getTiming
   if not [signalIn hasKey ![name string]] then
     error @location.here:"try to wait for signal "+[name string]+", but it is not declared."
   end
-  Tinst = @tWaitSignal. new { !loc !name}
+  Tinst = @tWaitSignal.new { !loc !name}
 }
 
 override method @ASTTWaitCycle getTiming
@@ -83,9 +83,9 @@ override method @ASTTWaitCycle getTiming
   ?! @varIdfStruct idfStruct
   ?! @uint unused internalId
   !  @timingInstruction Tinst {
-  @expressionContext ctx = @expressionContext. timing
+  @expressionContext ctx = @expressionContext.timing
   @expression expCycle = [ASTExpCycle getExp !ctx !symbolMap !idfStruct]
-  Tinst = @tWaitCycle. new { !loc !expCycle}
+  Tinst = @tWaitCycle.new { !loc !expCycle}
 }
 
 override method @ASTTIf getTiming
@@ -95,7 +95,7 @@ override method @ASTTIf getTiming
   ?! @varIdfStruct idfStruct
   ?! @uint internalId
   !  @timingInstruction Tinst {
-  @expressionContext ctx = @expressionContext. timing
+  @expressionContext ctx = @expressionContext.timing
   @expression expIf = [ASTExpIf getExp !ctx !symbolMap !idfStruct]
   #check that it is a boolean.
   [[expIf type] checkBool]
@@ -104,7 +104,7 @@ override method @ASTTIf getTiming
                     !?idfStruct !?internalId ?var @timingInstructionList tInstThenList]
   [ASTTinstListElse getTimingList !signalIn !signalOut !?symbolMap
                     !?idfStruct !?internalId ?var @timingInstructionList tInstListElse]
-  Tinst = @tIf. new { !loc !expIf !tInstThenList !tInstListElse}
+  Tinst = @tIf.new { !loc !expIf !tInstThenList !tInstListElse}
 }
 
 override method @ASTTLoop getTiming
@@ -114,7 +114,7 @@ override method @ASTTLoop getTiming
   ?! @varIdfStruct idfStruct
   ?! @uint internalId  
   !  @timingInstruction Tinst {
-  @expressionContext ctx = @expressionContext. timing
+  @expressionContext ctx = @expressionContext.timing
   @expression expLoopValue = [ASTexpLoopValue getExp !ctx !symbolMap !idfStruct]
   @expression expLoopValueEval = [expLoopValue eval !symbolMap]
   @uint64 loopValue = 0L
@@ -132,13 +132,13 @@ override method @ASTTLoop getTiming
   @expression expCondValue = [ASTexpCondValue getExp !ctx !symbolMap !idfStruct]
   [ASTTinstLoopList getTimingList !signalIn !signalOut !?symbolMap !?idfStruct
                     !?internalId ?var @timingInstructionList tInstLoopList]
-  Tinst = @tLoop. new { !loc !forever !loopValue !expCondValue !tInstLoopList !internalId}
+  Tinst = @tLoop.new { !loc !forever !loopValue !expCondValue !tInstLoopList !internalId}
   #insert internal var into varMap
-  @lstring idf =  @lstring. new { !"invLoop_"+internalId !loc}
-  @varBaseType type = @varBaseType. new { !@varKind. unsigned !32 !@location.here}
-  @instDeclaration instDec = @instDeclaration. new { !loc !type !idf !@varClass. localVar !""}
+  @lstring idf =  @lstring.new { !"invLoop_"+internalId !loc}
+  @varBaseType type = @varBaseType.new { !@varKind.unsigned !32 !@location.here}
+  @instDeclaration instDec = @instDeclaration.new { !loc !type !idf !@varClass.localVar !""}
   #message "insert id ".[internalId string]." - ".[idf string]."\n";
-  [!?idfStruct.varMap insertKey !idf !type !false !@varClass. localVar !instDec]
+  [!?idfStruct.varMap insertKey !idf !type !false !@varClass.localVar !instDec]
   internalId = internalId+1
 }
 
@@ -149,7 +149,7 @@ override method @ASTTAssignOrCall getTiming
   ?! @varIdfStruct idfStruct
   ?! @uint unused internalId    
   !  @timingInstruction Tinst {
-  @expressionContext ctx = @expressionContext. timing
+  @expressionContext ctx = @expressionContext.timing
   var instList =@instructionList.emptyList{}
   #message "##########\n";
   #message [idfStruct string];
@@ -159,7 +159,7 @@ override method @ASTTAssignOrCall getTiming
     [ASTinst getInst !ctx !?symbolMap !?idfStruct ?var @instruction inst]
     instList += !inst
   end
-  Tinst = @tAssignOrCall. new { !loc !instList}  
+  Tinst = @tAssignOrCall.new { !loc !instList}  
 }
 
 override method @ASTTDeclaration getTiming
@@ -169,13 +169,13 @@ override method @ASTTDeclaration getTiming
   ?! @varIdfStruct idfStruct
   ?! @uint unused internalId
   !  @timingInstruction Tinst {
-  @expressionContext ctx = @expressionContext. timing
+  @expressionContext ctx = @expressionContext.timing
   var instList =@instructionList.emptyList{}
   for (@ASTInstruction ASTinst) in  ASTinstList do
     [ASTinst getInst !ctx !?symbolMap !?idfStruct ?var @instruction inst]
     instList += !inst
   end
-  Tinst = @tDeclaration. new { !loc !instList} 
+  Tinst = @tDeclaration.new { !loc !instList} 
 }
 
 # vim:ft=galgas:ts=2:sw=2:tw=0

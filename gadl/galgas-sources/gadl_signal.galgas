@@ -20,8 +20,8 @@ list @ASTSignalConnectionList
 #decorated structure
 list @signalConnectionList
 {
-  @expression ASTExpFromSignal
-  @expression ASTExpToSignal
+  @expression expFromSignal
+  @expression expToSignal
   @bool notConnected #joker '*' for the signal destination.
 
 }
@@ -69,6 +69,27 @@ getter @ASTSignalConnectionList getSignalConnectionList
       sc += !expFromSignal !expToSignal !notConnected;
     end%if
   end
+}
+
+method @signalConnectionList setInTemplate
+  ?! @TfieldMap templateStruct
+{
+  #Ok. We need to export:
+  #the device name (if not 'self')
+  #the peripheral name
+  #the timing name
+  #the signal name.
+  #a type (because there are other types of signals to add after).
+  #TODO
+  for () in self do
+    message "signal\n"
+    message [expFromSignal generateCode !@codeCtx.C]
+    let @varSignalType sigType = ([expFromSignal type] as @varSignalType);    
+    message "\tperipheral "+[sigType peripheralName]+"\n"
+    message "\ttiming     "+[sigType timingName]+"\n"
+    message "\tsignal     "+[sigType signalName]+"\n"
+    message "\n"
+  end%for
 }
 
 # vim:ft=galgas:ts=2:sw=2:tw=0
