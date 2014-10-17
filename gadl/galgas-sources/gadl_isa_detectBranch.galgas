@@ -238,7 +238,7 @@ getter @varMap isProgramCounter
   result = false
   if [idf detectedType] == @idfType. registerAccess then
     @lstring name
-    [[idf idfList] first ?name ?* ?* ?* ?* ?*]
+    [[idf idfList] first ?name ?* ?* ?* ?* ?* ?*]
     if [self hasKey ![name string]] then
       @varClass varClass
       [self searchKey !name ?* ?* ?varClass ?*]
@@ -261,7 +261,7 @@ override method  @instAssignment processBranchTarget
   end
   if [idfAssign detectedType] == @idfType. registerAccess |
      [idfAssign detectedType] == @idfType. localVar then
-     [[idfAssign idfList] first ?var @lstring name ?* ?* ?* ?* ?*]
+     [[idfAssign idfList] first ?var @lstring name ?* ?* ?* ?* ?* ?*]
      updateSymbolMap ( !?symbolValueMap !name !exp)
   end
 }
@@ -284,10 +284,10 @@ method @varIdfStruct getComponentMethodCode
   @idfItemList idfListCopy = [idf idfList]
   #first item  -> component name
   #second item -> method name
-  [!?idfListCopy popFirst ?var @lstring componentName ?var @idfItemType CompType ?var @expressionlist compParamList ?* ?* ?*]
+  [!?idfListCopy popFirst ?var @lstring componentName ?var @idfItemType CompType ?var @expressionlist compParamList ?* ?* ?* ?*]
   if [self.componentMap hasKey ![componentName string]] then 
     #ok, it is a component call.
-    [!?idfListCopy popFirst ?var @lstring methodName ?var @idfItemType methType ?methParamList ?* ?* ?*]
+    [!?idfListCopy popFirst ?var @lstring methodName ?var @idfItemType methType ?methParamList ?* ?* ?* ?*]
     #and only 2 items.
     if [idfListCopy length] != 0 then
       error componentName: "a component call should have bot the component name and the associated method name"

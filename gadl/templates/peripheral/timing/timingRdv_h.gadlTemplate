@@ -32,7 +32,7 @@ class timingRdv {
 		//identity of the receiver (only one at this date)
 		timingBase *m_receiver;
 		//type of rendez-vous (std, broadcast, multi emitter, etc
-        const enumRdvType m_type;
+        enumRdvType m_type;
 	public:
 		//constructor
 		timingRdv(enumRdvType type);
@@ -43,12 +43,15 @@ class timingRdv {
         enumRdvState state() const;
         void setState(const enumRdvState &state);
 
-        timingBase *emitter() const;
-        void setEmitter(timingBase *emitter);
+        //return the emitter that is waitting, or NULL.
+        timingBase *emitterWaiting() const;
+        bool synchroEmit(timingBase *emitter, bool type);
 
-        timingBase *receiver() const;
-        void setReceiver(timingBase *receiver);
+        timingBase *receiverWaiting() const;
+        bool synchroReceive(timingBase *receiver);
 
         enumRdvType type() const;
+        
+        void debug();
 };
 #endif //__TIMING_RDV_H__

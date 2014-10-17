@@ -3,7 +3,8 @@
 #in fact, not only setInTemplate -> do most of the job.
 method @timingMap setInTemplate
   ?let  @string exportDir
-  ?! @TfieldMap templateStruct {
+  ?! @TfieldMap templateStruct 
+{
   var timingTpl =@TfieldMapList.emptyList{}
   var signalSet =@stringset.emptySet{}
   for () in  self do

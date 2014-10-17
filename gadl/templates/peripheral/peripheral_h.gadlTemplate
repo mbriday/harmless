@@ -131,6 +131,7 @@ end foreach
 		%\n\t\t}\n%
 	end foreach
 %
+	virtual std::string name() {return std::string("%!baseName%");};
 };
 
 #endif

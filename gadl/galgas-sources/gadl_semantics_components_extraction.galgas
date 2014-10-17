@@ -179,11 +179,11 @@ proc getInstructionComponentGraph
     #we add the implicit fetch.
     var idfList =@idfItemList.emptyList{}
     if not isThereAUserFetch(!defaultValues) then
-      idfList += !lstringWith(!"__fetch_component") !@idfItemType. basic !@expressionlist. emptyList !@idfItemSpecType. standard !"" !""
-      idfList += !lstringWith(!"__implicit_fetch") !@idfItemType. functionCall !@expressionlist. emptyList !@idfItemSpecType. standard !"" !""
+      idfList += !lstringWith(!"__fetch_component") !@idfItemType. basic !@expressionlist. emptyList !@idfItemSpecType. standard !"" !"" !false
+      idfList += !lstringWith(!"__implicit_fetch") !@idfItemType. functionCall !@expressionlist. emptyList !@idfItemSpecType. standard !"" !"" !false
     else
-      idfList += ![defaultValues fetchComponentName] !@idfItemType. basic !@expressionlist. emptyList !@idfItemSpecType. standard !"" !""
-      idfList += ![defaultValues fetchMethodName] !@idfItemType. functionCall !@expressionlist. emptyList !@idfItemSpecType. standard !"" !""
+      idfList += ![defaultValues fetchComponentName] !@idfItemType. basic !@expressionlist. emptyList !@idfItemSpecType. standard !"" !"" !false
+      idfList += ![defaultValues fetchMethodName] !@idfItemType. functionCall !@expressionlist. emptyList !@idfItemSpecType. standard !"" !"" !false
     end
     @varBaseType dummyType = @varBaseType. new { !@varKind. unsigned !0 !@location.here}
     @expIdf idf = @expIdf. new { !dummyType !idfList !@idfType. componentCall !false}

@@ -1,6 +1,7 @@
 %template headerC%
 
 #include "%!baseName%.h"
+#include "timingRdv.h"
 
 typedef u32 (%!baseName%::*__func_%!peripheral::name%_w)(u32 ,u32);
 typedef u32 (%!baseName%::*__func_%!peripheral::name%_r)(u32);
@@ -103,6 +104,28 @@ do
     %\tnew peripheralActionRead_%!peripheral::name%(this,address+%!reg::address%,&%!baseName%::method_%!reg::readFunc%);\n%
   end if
 end foreach
+#connection with signals
+if exists signalConnectList then
+  let rdvId := 0
+  foreach conn in peripheral::signalConnectList 
+  before
+  %\t//signal connection\n%
+  do
+    if not conn::notConnected then
+      let rdv := "rdv_".[rdvId string]
+      %\ttimingRdv *%!rdv% = new timingRdv(timingRdv::STANDARD);\n%
+      let timingFrom := "periph_".conn::fromPeriph.
+                       "_timing_".conn::fromTiming
+      %\t%!conn::fromDev%m_%!timingFrom%->setRdvForEmitSignal(%!rdv%,%
+          !timingFrom%::%!conn::fromSignal%);\n%
+      let timingTo := "periph_".conn::toPeriph.
+                       "_timing_".conn::toTiming
+      %\t%!conn::toDev%m_%!timingTo%->setRdvForWaitSignal(%!rdv%,%
+          !timingTo%::%!conn::toSignal%);\n%
+      let rdvId := rdvId+1
+    end if
+  end foreach
+end if
 %
 }
 %# get Chunk part, only if there are included devices (else use default).

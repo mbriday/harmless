@@ -2,8 +2,8 @@
 #ifndef __PERIPHERAL_H__
 #define __PERIPHERAL_H__
 
+#include <string>
 #include "storage.h"
-#include <string.h> //required by Linux for memcpy...
 #include "timingBase.h"
 
 class timingRun; //code that call timings.
@@ -28,7 +28,7 @@ class peripheral : public rwStorage
 //	void timingWaitForCycles(timingBase *,const u64 nbCycles) {};
 	bool timingSynchroEmit(timingBase *,unsigned int sigName, const bool broadcast) {return true;};
 	bool timingSynchroWait(timingBase *,unsigned int sigName) {return true;};
-
+	virtual std::string name() {return std::string("timingBase");};
 };
 
 #endif

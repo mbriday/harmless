@@ -80,16 +80,39 @@ method @signalConnectionList setInTemplate
   #the timing name
   #the signal name.
   #a type (because there are other types of signals to add after).
-  #TODO
+  #for () in self do
+  #  message "signal\n"
+  #  message "\tdevice     "+[expFromSignal generateCode !@codeCtx.C]+"\n"
+  #  let @varSignalType sigType = ([expFromSignal type] as @varSignalType);    
+  #  message "\tperipheral "+[sigType peripheralName]+"\n"
+  #  message "\ttiming     "+[sigType timingName]+"\n"
+  #  message "\tsignal     "+[sigType signalName]+"\n"
+  #  message "\n"
+  #end%for
+  var signalConTpl =@TfieldMapList.emptyList{}
   for () in self do
-    message "signal\n"
-    message [expFromSignal generateCode !@codeCtx.C]
-    let @varSignalType sigType = ([expFromSignal type] as @varSignalType);    
-    message "\tperipheral "+[sigType peripheralName]+"\n"
-    message "\ttiming     "+[sigType timingName]+"\n"
-    message "\tsignal     "+[sigType signalName]+"\n"
-    message "\n"
+    var sigConTplBody =@TfieldMap.emptyMap{}
+    setSignalInTemplate(!expFromSignal !"from" !?sigConTplBody)
+    if not notConnected then
+      setSignalInTemplate(!expToSignal !"to" !?sigConTplBody)
+    end%if
+    addBoolValue (!?sigConTplBody !lstringWith(!"notConnected") !notConnected) 
+    signalConTpl += !sigConTplBody
   end%for
+  addListValue (!?templateStruct !lstringWith(!"signalConnectList") !signalConTpl)
 }
 
+#the expression SHOULD return a @varSignalType!!
+proc setSignalInTemplate
+  ? let @expression expSig
+  ? let @string prefix
+  ?! @TfieldMap sigConTplBody
+{
+    var dev = [expSig generateCode !@codeCtx.C]
+    let @varSignalType sigType = ([expSig type] as @varSignalType);        
+    addStringValue (!?sigConTplBody !lstringWith(!prefix+"Dev") !dev)
+    addLStringValue ( !?sigConTplBody !prefix+"Periph" ![sigType peripheralName])
+    addLStringValue ( !?sigConTplBody !prefix+"Timing" ![sigType timingName])
+    addLStringValue ( !?sigConTplBody !prefix+"Signal" ![sigType signalName])
+}
 # vim:ft=galgas:ts=2:sw=2:tw=0

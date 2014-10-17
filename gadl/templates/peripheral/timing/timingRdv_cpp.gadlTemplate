@@ -9,7 +9,7 @@ timingRdv::timingRdv(enumRdvType type) :
     m_receiver(NULL),
     m_type(type)
 {
-
+	cout << "create timingRdv" << endl;
 };
 
 u32 timingRdv::data() const
@@ -32,28 +32,39 @@ void timingRdv::setState(const timingRdv::enumRdvState &state)
     m_state = state;
 }
 
-timingBase *timingRdv::emitter() const
+timingBase *timingRdv::emitterWaiting() const
 {
     return m_emitter;
 }
 
-void timingRdv::setEmitter(timingBase *emitter)
+bool timingRdv::synchroEmit(timingBase *emitter, bool type)
 {
     m_emitter = emitter;
+    if(type) m_type = BROADCAST; else m_type = STANDARD;
+    //TODO -> synchro.
+    return true;
 }
 
-timingBase *timingRdv::receiver() const
+timingBase *timingRdv::receiverWaiting() const
 {
     return m_receiver;
 }
 
-void timingRdv::setReceiver(timingBase *receiver)
+bool timingRdv::synchroReceive(timingBase *receiver)
 {
     m_receiver = receiver;
+    //TODO: synchro.
+    return true;
 }
-
 
 timingRdv::enumRdvType timingRdv::type() const
 {
     return m_type;
+}
+
+void timingRdv::debug()
+{
+	cout << "timingRdv:" << endl;
+	if(m_emitter)  cout << "\temitter : " << m_emitter->name() << endl;
+	if(m_receiver) cout << "\treceiver: " << m_receiver->name() << endl;
 }

@@ -65,6 +65,6 @@ class timingBase {
 		(this->*stateTransitionTab[(m_currentState << 2) | newState])(newState);
 	}
 	inline int const currentState() {return m_currentState;};
-	
+	virtual std::string name() {return std::string("timingBase");};
 };
 #endif //__TIMING_BASE_H__

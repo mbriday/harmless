@@ -70,7 +70,7 @@ rule <cpu> {
   #set of core types, to parse only one time each core type.
   var coreSet =@stringset.emptySet{}
   #cpu devices.
-  var ASTDeviceDecList =@ASTInstructionList.emptyList{}
+  var ASTDeviceDecMap =@ASTDeviceDecMap.emptyMap
   #map of cpu.
   var ASTCpuMap =@ASTCpuMap.emptyMap{}
   #connexions between signals. 
@@ -82,12 +82,12 @@ rule <cpu> {
     <coreInstantiation> !?ASTcoreInstanceMap !?ASTcoreMap !?coreSet !?ASTmemSpaceMap !?coreId !importCoreMap
   while
     <deviceDeclaration> !false !ASTperipheralMap ?var @ASTInstDeclarationDevice deviceDec
-    ASTDeviceDecList += !deviceDec
+    [!?ASTDeviceDecMap insertKey ![deviceDec idf] !deviceDec];
   while
     <signalConnect> !?ASTSignalConnectionList;
   end
 
-  [!?ASTCpuMap insertKey !cpuName !ASTcoreInstanceMap !ASTcoreMap !ASTDeviceDecList !ASTmemChunk !memChunkOrder !ASTSignalConnectionList]
+  [!?ASTCpuMap insertKey !cpuName !ASTcoreInstanceMap !ASTcoreMap !ASTDeviceDecMap !ASTmemChunk !memChunkOrder !ASTSignalConnectionList]
   $}$
   idfStruct.ASTperipheralMap = ASTperipheralMap
 

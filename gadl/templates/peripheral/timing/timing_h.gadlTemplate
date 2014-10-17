@@ -3,6 +3,7 @@
 #define __TIMING_%!className%_H__
 
 #include <iostream>
+#include <string>
 #include "timingBase.h"
 #include "types.h"
 #include "fifo.h"
@@ -13,6 +14,7 @@ class timingRun;
 class timingRdv; //synchronisation.
 
 class %!className% : public timingBase {\n
+	public:
 	typedef enum {
 %let sigId := 0
 foreach sig in timingPart::signalEmit do
@@ -22,7 +24,6 @@ between %,\n%
 end foreach
 let nbSigOut := sigId%
 	} enumSigOut;
-	static const size_t NB_SIG_OUT = %!sigId%; 
  
  	typedef enum {
 %let sigId := 0
@@ -33,7 +34,10 @@ between %,\n%
 end foreach
 let nbSigIn := sigId%
 	} enumSigIn;
-	static const size_t NB_SIG_IN = %!sigId%;
+
+	private:
+	static const size_t NB_SIG_OUT = %!nbSigOut%; 
+	static const size_t NB_SIG_IN = %!nbSigIn%;
 
 	//pointers to synchronisation objects.
 %if nbSigOut!=0 then%	timingRdv *m_sigOut [NB_SIG_OUT];%end if%
@@ -64,6 +68,12 @@ end foreach
 		init();
 	};
 
+	//signal connection
+%if nbSigOut!=0 then
+%	void setRdvForEmitSignal(timingRdv *rdv,enumSigOut sigName); %end if%
+%if nbSigIn!=0 then
+%	void setRdvForWaitSignal(timingRdv *rdv,enumSigIn sigName); %end if%
+
 	virtual void run() {
 		while(currentState() == READY) 
 		{
@@ -91,5 +101,6 @@ end foreach
 //	{
 //		m_accessFifo->write(addr);
 //	}	
+	virtual std::string name() {return std::string("%!className%");};
 };
 #endif // __TIMING_%!className%_H__

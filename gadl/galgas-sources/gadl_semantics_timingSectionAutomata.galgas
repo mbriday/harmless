@@ -364,7 +364,7 @@ override method @tWaitCycle buildAdjMatrix
 
     var idfList =@idfItemList.emptyList{}
     idfList += !@lstring. new { !"cycle" !@location.here} !@idfItemType. basic 
-               !@expressionlist. emptyList !@idfItemSpecType. standard !"" !""
+               !@expressionlist. emptyList !@idfItemSpecType. standard !"" !"" !false
     @varBaseType type = @varBaseType. new { !@varKind. unsigned !32 !@location.here}
     @expIdf clockIdf = @expIdf. new { !type !idfList !@idfType. localVar !false}
     @expIntConst expZero = @expIntConst. new { !type !0L !false}
@@ -408,7 +408,7 @@ override method @tLoop buildAdjMatrix
   @lstring idfName =  @lstring.new { !"invLoop_"+internalId !loc}
   var idfList =@idfItemList.emptyList{}
   idfList += !idfName!@idfItemType. basic
-             !@expressionlist. emptyList !@idfItemSpecType. standard !"" !""
+             !@expressionlist. emptyList !@idfItemSpecType. standard !"" !"" !false
   @varBaseType type = @varBaseType. new { !@varKind. unsigned !32 !@location.here}
   @expIdf loopIdf = @expIdf. new { !type !idfList !@idfType. localVar !false}
   @expIntConst expZero = @expIntConst. new { !type !0L !false}
@@ -571,7 +571,7 @@ func buildUppaalAutomata
 #      @cIntConst expZero := getExpUint[!1 !0L];  
       var idfList =@idfItemList.emptyList{}
       idfList += !@lstring. new { !"cycle" !@location.here} !@idfItemType. basic 
-                 !@expressionlist. emptyList !@idfItemSpecType. standard !"" !""
+                 !@expressionlist. emptyList !@idfItemSpecType. standard !"" !"" !false
       @varBaseType type = @varBaseType. new { !@varKind. unsigned !32 !@location.here}
       @expIdf clockIdf = @expIdf. new { !type !idfList !@idfType. localVar !false}
       @expression expCycle=getExpSum(!waitCycleList)
