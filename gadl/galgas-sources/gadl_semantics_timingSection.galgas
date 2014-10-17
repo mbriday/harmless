@@ -55,7 +55,8 @@ method @timingMap setInTemplate
 # * the key is the register name (or field)
 # * the value is a map of timing names.
 getter @timingMap getEnableConditionIdf
-  -> @boolMapMap timerCondMap {
+  -> @boolMapMap timerCondMap
+{
   timerCondMap = @boolMapMap.emptyMap
   for () in  self do #each timing
     #we get the list of identifiers in the 'enable' expression
@@ -107,8 +108,9 @@ getter @timingMap getEnableConditionIdf
 
 
 getter @timingInstructionList getDeclarationList
-  ?let  @codeCtx cgc              ## generation code context (C, Uppaal, ..)
-  -> @TfieldMapList varMapTplList {
+  ?  let @codeCtx cgc              ## generation code context (C, Uppaal, ..)
+  -> @TfieldMapList varMapTplList
+{
   varMapTplList = @TfieldMapList.emptyList
   for () in  self do
     if (inst is >=  @tDeclaration) then
@@ -125,7 +127,11 @@ getter @timingInstructionList getDeclarationList
         end
       end
       #end
-      varMapTplList += !varMapTplBody    
+      varMapTplList += !varMapTplBody
+    elsif (inst is >=  @tLoop) then
+      var instLoop = (inst as @tLoop)
+      var varMapTplLoopList = [[instLoop tInstLoopList] getDeclarationList !cgc]
+      varMapTplList = varMapTplList+varMapTplLoopList
     end
   end
 }
@@ -134,7 +140,8 @@ proc addBoolMap
   ?let  @boolMap boolmap
   ?let  @string key
   ?let  @string mapName
-  ?! @TfieldMap templateStruct {
+  ?! @TfieldMap templateStruct
+{
   var itemList =@TfieldMapList.emptyList{}
   for (@lstring val) in  boolmap do
     var itemBody =@TfieldMap.emptyMap{}  
