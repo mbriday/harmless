@@ -86,6 +86,7 @@ list @idfItemList
   @idfItemSpecType specificType #specific type (register, peripheral method, …)
   @string prefix #for code generation
   @string suffix #for code generation
+  @bool noCode   #for code generation -> the item has no code (used for signals for instance).
 }
 
 getter @idfItemList string -> @string name {
@@ -160,7 +161,7 @@ getter @expIdf lstring -> @lstring name {
   @location loc = @location.here
   if [idfList length] > 0 then
     @lstring first
-    [idfList first ?first ?* ?* ?* ?* ?*]
+    [idfList first ?first ?* ?* ?* ?* ?* ?*]
     loc = [first location]
   end
   name = @lstring.new { !str !loc}
@@ -213,7 +214,7 @@ getter @expression getLocalVar
     let @expIdf expIdf = ( self as @expIdf)
     if [expIdf detectedType] == @idfType.localVar then
       #ok, only one item.
-      [[expIdf idfList] first ?idf ?* ?* ?* ?* ?*]
+      [[expIdf idfList] first ?idf ?* ?* ?* ?* ?* ?*]
     else
       error expLoc: "The expression should be a local variable" : idf
     end

@@ -370,6 +370,7 @@ proc handleUnknownType
   ?! @string suffix
   ?! @parameterDefList paramDef #param definition to check.
   ?! @location locDef 
+  ?! @bool noCode
 {
   detectedType = @idfType.unknown #it should already be set like this.
   #first, search in the VarMap -> variable.
@@ -468,7 +469,7 @@ proc handleUnknownType
       isConst = true
       detectedType = @idfType.timing
       typeName = idfStruct.currentPeriphName #peripheral.
-      prefix = "periph_"+typeName+"_timing_"
+      noCode = true
     #should not take care of peripherals'registers here, because they are in the varMap
     #(current peripheral).
     else
@@ -522,7 +523,7 @@ proc handleRegisterType
   ?! @bool shouldStop
 {
   @idfItemList currentItemListCopy = currentItemList
-  [!?currentItemListCopy popLast ?var @lstring regName ?* ?* ?* ?* ?*]
+  [!?currentItemListCopy popLast ?var @lstring regName ?* ?* ?* ?* ?* ?*]
   #we detected a register access, while it may be a register slice access.
   @string regSlice = getRegSliceName(![regName string] ![idf string])
   if [idfStruct.varMap hasKey !regSlice] |
@@ -563,7 +564,7 @@ proc handleComponentType
   ?! @parameterDefList paramDef #param definition to check.
   ?! @location locDef {
   @idfItemList currentItemListCopy = currentItemList
-  [!?currentItemListCopy popLast ?var @lstring compName ?* ?* ?* ?* ?*]
+  [!?currentItemListCopy popLast ?var @lstring compName ?* ?* ?* ?* ?* ?*]
   #message "I've just discover a component ".compName .".".idf."\n";
   [idfStruct.componentMap searchKey !compName ?var @functionMap methodMap]
   [methodMap searchKey !idf ?paramDef ?outType ?*]
@@ -583,7 +584,7 @@ proc handleMemoryType
   ?! @location locDef
 {
   @idfItemList currentItemListCopy = currentItemList
-  [!?currentItemListCopy popLast ?var @lstring memSpaceName ?* ?* ?* ?* ?*]
+  [!?currentItemListCopy popLast ?var @lstring memSpaceName ?* ?* ?* ?* ?* ?*]
   @functionMap methodMap
   [idfStruct.memSpaceMap searchKey !memSpaceName ?* ?methodMap ?* ?*]
   locDef = [idfStruct.memSpaceMap locationForKey ![memSpaceName string]]
@@ -606,13 +607,13 @@ proc handlePeriphCallType
   ?! @string suffix
   ?! @parameterDefList paramDef #param definition to check.
   ?! @location locDef 
+  ?! @bool noCode
 {
   @ASTregisterPeriphDefMap ASTregisterPeriphDefMap
   @ASTFunctionMap ASTFunctionMap
-  [idfStruct.ASTperipheralMap searchKey !typeName ?* ?ASTregisterPeriphDefMap ?ASTFunctionMap ?var @ASTInstructionList ASTDeviceDecList ?* ?* ?* ?var @ASTTimingMap ASTTimingMap ?*]
-  log ASTDeviceDecList;
-  #search for a register.
+  [idfStruct.ASTperipheralMap searchKey !typeName ?* ?ASTregisterPeriphDefMap ?ASTFunctionMap ?var @ASTDeviceDecMap ASTDeviceDecMap ?* ?* ?* ?var @ASTTimingMap ASTTimingMap ?*]
   if [ASTregisterPeriphDefMap hasKey ![idf string]] then
+    #This is a search for a register.
     [ASTregisterPeriphDefMap searchKey !idf ?* ?* ?* ?* ?outType]
     detectedType = @idfType.registerAccess
     if not lastIdf then #case for a register slice.
@@ -621,7 +622,6 @@ proc handlePeriphCallType
     isConst = false
     shouldStop = false
     if idfStruct.assign then prefix += "set" end
-  #search for a method
   elsif [ASTFunctionMap hasKey ![idf string]] then
     #message "This is a function call\n";
     [ASTFunctionMap searchKey !idf ?paramDef ?outType ?*]
@@ -630,11 +630,21 @@ proc handlePeriphCallType
     isConst = true
     prefix = "method_"
   elsif [ASTTimingMap hasKey ![idf string]] then
-      locDef = [ASTTimingMap locationForKey ![idf string]]
-      shouldStop = false #cannot have directly a timing.
-      isConst = true
-      detectedType = @idfType.timing
-      prefix = "periph_"+typeName+"_timing_"
+    #This is a timing
+    locDef = [ASTTimingMap locationForKey ![idf string]]
+    shouldStop = false #cannot have directly a timing.
+    isConst = true
+    detectedType = @idfType.timing
+    noCode = true
+  elsif [ASTDeviceDecMap hasKey ![idf string]] then
+    #This is an internal device (check correct type)
+    [ASTDeviceDecMap searchKey !idf ?var deviceDec];
+    @varAbstractType typeWithoutTab = removeTabInIdf(![deviceDec type])
+    @varDeviceType vdt = (typeWithoutTab as @varDeviceType)
+    typeName = [vdt typeName]
+    detectedType = @idfType.periphCall
+    shouldStop = false
+    suffix = "->"
   else
     error idf: "in peripheral "+[typeName string]+", the identifier "+idf+" is not found"
   end
@@ -649,13 +659,13 @@ proc handleTimingType
   ?! @lstring typeName #here: name of the peripheral.
   ?! @varAbstractType outType
   ?! @bool shouldStop
-  ?! @string prefix
   ?! @location locDef
+  ?! @bool noCode #timings and signals do not generate code.
 {
   #we have the peripheral name in 'typeName'
   #As this is a timing type, the last item is the timing name.
   @idfItemList currentItemListCopy = currentItemList
-  [!?currentItemListCopy popLast ?var @lstring timingName ?* ?* ?* ?* ?*]
+  [!?currentItemListCopy popLast ?var @lstring timingName ?* ?* ?* ?* ?* ?*]
   [idfStruct.ASTperipheralMap searchKey !typeName ?* ?* ?*
        ?* ?* ?* ?* ?var @ASTTimingMap ASTTimingMap ?*]
   [ASTTimingMap searchKey !timingName ?* ?var @boolMap signalIn
@@ -674,7 +684,7 @@ proc handleTimingType
   shouldStop = true
   locDef = [ASTTimingMap locationForKey ![timingName string]]
   outType = @varSignalType.new {!@varKind.custom !out !typeName !timingName !idf}
-  prefix = "::"
+  noCode = true #a signal does not generate code.
 }
 
 proc handleIdf 
@@ -694,13 +704,14 @@ proc handleIdf
   !  @bool shouldStop             #the previous item should be the last of the list.
   ?! @parameterDefList paramDef   #param definition to check.
   ?! @location locDef
+  ?! @bool noCode                 #does the current will generate code?
 {
   shouldStop = true #default.
   outType = @varBaseType.new { !@varKind.unsigned !0 !@location.here} #dummy u0.
   switch detectedType
     case unknown          : #first pass
       handleUnknownType ( !idf !idfItemType !idfStruct !?isConst !?detectedType !lastIdf
-                        !?typeName !?outType !?shouldStop !?prefix !?suffix !?paramDef !?locDef)
+                        !?typeName !?outType !?shouldStop !?prefix !?suffix !?paramDef !?locDef !?noCode)
     case structMember     :
       handleStructMember ( !idf !idfStruct !?detectedType !lastIdf
                         !?typeName !?outType !?suffix !?shouldStop)
@@ -715,13 +726,13 @@ proc handleIdf
                           !?outType !?shouldStop !?paramDef !?locDef)    
     case periphCall       :
       handlePeriphCallType ( !idf !idfItemType !idfStruct !?isConst !?detectedType !lastIdf
-                        !?typeName !?outType !?shouldStop !?prefix  !?suffix !?paramDef !?locDef)
+                        !?typeName !?outType !?shouldStop !?prefix  !?suffix !?paramDef !?locDef !?noCode)
     case memoryAccess     :
       handleMemoryType ( !currentItemList !idf !idfStruct !?isConst 
                        !?outType !?shouldStop !?paramDef!?locDef)
     case timing     :
       handleTimingType ( !currentItemList !idf !idfStruct !?isConst !?detectedType
-                       !?typeName !?outType !?shouldStop !?prefix !?locDef)
+                       !?typeName !?outType !?shouldStop !?locDef !?noCode)
     case signal     : #nothing, as a signal should not have another idf after.
       error @location.here :"a signal should not have any identifier after"
                        
@@ -758,6 +769,7 @@ override getter @ASTIdf getExp
     #handle the idf
     @string prefix = ""
     @string suffix = ""
+    @bool noCode = false #for idf item that should not generate any code.
     @idfItemSpecType specificType = @idfItemSpecType.unknown
     @lstring finalIdf = idf #the idf that will be stored in expIdf.
     #handle parameters
@@ -767,22 +779,22 @@ override getter @ASTIdf getExp
       #First, search using both prefix and suffix...
       finalIdf = [idfStruct getReplacedIdf ![idfStruct getIdfPrePost !idf]]
       handleIdf ( !itemList !finalIdf !type !idfStruct !ctx !?detectedType !?isConst ?outType !lastIdf
-                !?specificType !?prefix !?suffix !?typeName ?shouldStop !?paramDef !?locDef)
+                !?specificType !?prefix !?suffix !?typeName ?shouldStop !?paramDef !?locDef !?noCode)
       if detectedType == @idfType.unknown then #not found
         #not found: try without the prefix -> fields.
         finalIdf = [idfStruct getReplacedIdf ![idfStruct getIdfPost !idf]]
         handleIdf ( !itemList !finalIdf !type !idfStruct !ctx !?detectedType !?isConst ?outType !lastIdf 
-                  !?specificType !?prefix !?suffix !?typeName ?shouldStop !?paramDef !?locDef)
+                  !?specificType !?prefix !?suffix !?typeName ?shouldStop !?paramDef !?locDef !?noCode)
         if detectedType == @idfType.unknown then #not found
           #then without anything.
           finalIdf = [idfStruct getReplacedIdf !idf]        
           handleIdf ( !itemList !finalIdf !type !idfStruct !ctx !?detectedType !?isConst ?outType !lastIdf
-                    !?specificType !?prefix !?suffix !?typeName ?shouldStop !?paramDef !?locDef)
+                    !?specificType !?prefix !?suffix !?typeName ?shouldStop !?paramDef !?locDef !?noCode)
         end
       end
     else #not first
       handleIdf ( !itemList !finalIdf !type !idfStruct !ctx !?detectedType !?isConst ?outType !lastIdf
-                !?specificType !?prefix !?suffix !?typeName ?shouldStop !?paramDef !?locDef)
+                !?specificType !?prefix !?suffix !?typeName ?shouldStop !?paramDef !?locDef !?noCode)
     end
     #message "type detected is ".[detectedType string]." <--\n";
     #error detection
@@ -798,7 +810,7 @@ override getter @ASTIdf getExp
       paramDef = @parameterDefList.emptyList
     end
     #add in the output itemList.
-    itemList += !finalIdf !type !paramList !specificType !prefix !suffix
+    itemList += !finalIdf !type !paramList !specificType !prefix !suffix !noCode
   end
   @varAbstractType idfExpTypeWithLoc = [outType changeLoc !loc]
   exp = @expIdf.new { !idfExpTypeWithLoc !itemList !detectedType !isConst}

@@ -6,6 +6,7 @@
 #include "%!className%.h"
 #include "%!baseName%.h"
 #include "timingRun.h"
+#include "timingRdv.h"
 
 //state related code\n%
 let id := 0
@@ -23,15 +24,15 @@ foreach step in timingPart::timingStepList do
   end foreach
   #synchro:
   foreach synchro in step::synchroInList do
-    %\tconst bool result = true;//m_peripheral->timingSynchroWait(this,m_inOffset + SIGNAL_WAIT_%!className%_%!synchro::str%);\n%
+      %\tconst bool result = m_sigIn[%!synchro::str%]->synchroReceive(this);\n%
     let canResume := "result"
   end foreach
   foreach synchro in step::synchroOutList do
-    %\tconst bool result = true;//m_peripheral->timingSynchroEmit(this,m_outOffset + SIGNAL_EMIT_%!className%_%!synchro::str%, false);\n%
+    %\tconst bool result = m_sigOut[%!synchro::str%]->synchroEmit(this,false);\n%
     let canResume := "result"
   end foreach
   foreach synchro in step::synchroOutBroadcastList do
-    %\tconst bool result = true;//m_peripheral->timingSynchroEmit(this,m_outOffset + SIGNAL_EMIT_%!className%_%!synchro::str%, true);\n%
+    %\tconst bool result = m_sigOut[%!synchro::str%]->synchroEmit(this,true);\n%
     let canResume := "result"
   end foreach
   #wait:
@@ -69,4 +70,17 @@ foreach step in timingPart::timingStepList do
   end if
   let id := id + 1
  between %\n%
-end foreach
+end foreach #step code.
+
+if [timingPart::signalEmit length] > 0 then%
+void %!className%::setRdvForEmitSignal(timingRdv *rdv,enumSigOut sigName)
+{
+	m_sigOut[sigName] = rdv;
+}
+%end if #nbSigOut
+if [timingPart::signalWait length] > 0 then%
+void %!className%::setRdvForWaitSignal(timingRdv *rdv,enumSigIn sigName)
+{
+	m_sigIn[sigName] = rdv;
+}
+%end if #nbSigIn

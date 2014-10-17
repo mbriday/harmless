@@ -12,12 +12,22 @@ map @ASTregisterPeriphDefMap
   remove removeKey error message "the '%K' peripheral register is not defined. Can't remove it."
 }
 
+#structure used when a device is declared:
+map @ASTDeviceDecMap
+{
+  @ASTInstDeclarationDevice deviceDec
+  insert insertKey error message "the '%K' device is already defined in %L" 
+  search searchKey error message "the '%K' device is not defined"
+  remove removeKey error message "the '%K' device is not defined. Can't remove it."  
+}
+
 map @ASTperipheralMap
 {
   @luint64 size
   @ASTregisterPeriphDefMap ASTregisterPeriphDef
   @ASTFunctionMap ASTFunctionMap
-  @ASTInstructionList ASTDeviceDecList
+  @ASTDeviceDecMap ASTDeviceDecMap
+  #@ASTInstructionList ASTDeviceDecList
   @ASTInstructionList ASTTypeDefList#type defs.
   @ASTInstructionList ASTLocalVarList
   @varMap varMap #registers and register slices only!
@@ -50,5 +60,13 @@ getter @ASTperipheralMap string
   end
 }
 
+getter @ASTDeviceDecMap instList
+-> @ASTInstructionList instList
+{
+  instList = .emptyList
+  for () in self do
+    instList += !deviceDec
+  end
+}
 
 # vim:ft=galgas:ts=2:sw=2:tw=0

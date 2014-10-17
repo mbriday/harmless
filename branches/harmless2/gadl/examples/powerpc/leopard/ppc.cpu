@@ -27,6 +27,7 @@ cpu leopard {
 
   signal {
     testSig.T1.sigO1  -> testSig.T2.sig2I1
+    stm.chan[2].test.sigO1 -> testSig.T2.sig2I1
   --  -- timer interrupt
   --  stm.itSTM -> * -- not used.
   --  -- mem access to core0

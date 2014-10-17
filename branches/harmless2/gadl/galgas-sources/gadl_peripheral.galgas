@@ -96,7 +96,7 @@ getter @ASTperipheralMap getPeriphMap
     #extract register code.
     [ASTregisterPeriphDef getRegisterPeriphDefMap !symbolMap !?idfStruct !ASTFunctionMap !size ?registerPeriphDefMap]
     #declare internal devices
-    getInst ( !ASTDeviceDecList !ctx !symbolMap !?idfStruct ?var @instructionList instDeviceDecList)
+    getInst ( ![ASTDeviceDecMap instList] !ctx !symbolMap !?idfStruct ?var @instructionList instDeviceDecList)
     #generate methods.
     @functionMap functionMap = [ASTFunctionMap getFunctionMap !ctx !idfStruct]
     #timing part.

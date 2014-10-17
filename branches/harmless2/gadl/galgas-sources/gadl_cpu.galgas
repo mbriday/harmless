@@ -19,7 +19,7 @@ map @ASTCpuMap
   #map of cores, key is the type.
   @ASTCoreMap ASTCoreMap
   #cpu devices.
-  @ASTInstructionList ASTDeviceDecList
+  @ASTDeviceDecMap ASTDeviceDecMap
   #memory defined in cpu.
   @ASTmemoryParamMap ASTmemChunk
   @stringlist memChunkOrder
@@ -112,21 +112,13 @@ method @ASTCpuMap cpuSemantic
     # devices
     ###########################################################################
     #TODO in templates.
-    getInst ( !ASTDeviceDecList !ctx !symbolMap !?idfStruct ?var @instructionList instDeviceDecList)
+    getInst (![ASTDeviceDecMap instList] !ctx !symbolMap !?idfStruct ?var @instructionList instDeviceDecList)
     [instDeviceDecList setDeviceInTemplate !?cpuTplBody] #devices.
     ###########################################################################
     # signal connection part.
     ###########################################################################
     @signalConnectionList scList = [ASTSignalConnectionList getSignalConnectionList !symbolMap !idfStruct]
-    for () in scList do
-      message "signal cpu (test)\n"
-      message [expFromSignal generateCode !@codeCtx.C]
-      let @varSignalType sigType = ([expFromSignal type] as @varSignalType);    
-      message "\tperipheral "+[sigType peripheralName]+"\n"
-      message "\ttiming     "+[sigType timingName]+"\n"
-      message "\tsignal     "+[sigType signalName]+"\n"
-      message "\n"
-    end%for
+    [scList setInTemplate !?templateStruct]
     #end.
     cpuTpl += !cpuTplBody
   end

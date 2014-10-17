@@ -64,7 +64,7 @@ rule <peripheral>
   ?! @ASTperipheralMap ASTperipheralMap {
   var ASTregDefMap =@ASTregisterPeriphDefMap.emptyMap{}
   var ASTFunctionMap =@ASTFunctionMap.emptyMap{}
-  var ASTDeviceDecList =@ASTInstructionList.emptyList{}
+  var ASTDeviceDecMap =@ASTDeviceDecMap.emptyMap
   var ASTTypeDefList =@ASTInstructionList.emptyList{}
   var ASTLocalVarList =@ASTInstructionList.emptyList{}
   var ASTTimingMap =@ASTTimingMap.emptyMap{}
@@ -89,7 +89,7 @@ rule <peripheral>
       end
     while
       <deviceDeclaration> !true !ASTperipheralMap ?var @ASTInstDeclarationDevice deviceDec
-      ASTDeviceDecList += !deviceDec
+      [!?ASTDeviceDecMap insertKey ![deviceDec idf] !deviceDec];
     while
       <typeDefinition> !? ASTTypeDefList
     while
@@ -108,7 +108,7 @@ rule <peripheral>
   for () in  ASTregDefMap do
     getInst ( !ASTregDecList !ctx !symbolMap !?idfStruct ?*)
   end
-  [!?ASTperipheralMap insertKey !peripheralName !lsize !ASTregDefMap !ASTFunctionMap !ASTDeviceDecList !ASTTypeDefList !ASTLocalVarList !idfStruct.varMap !ASTTimingMap !ASTSignalConnectionList]
+  [!?ASTperipheralMap insertKey !peripheralName !lsize !ASTregDefMap !ASTFunctionMap !ASTDeviceDecMap !ASTTypeDefList !ASTLocalVarList !idfStruct.varMap !ASTTimingMap !ASTSignalConnectionList]
 }
 
 }

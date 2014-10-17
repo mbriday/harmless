@@ -106,7 +106,7 @@ override getter @expIdf eval
   #not for tabulars nor function calls.
   @bool mayBeInSymbolMap = true
   @string key = ""
-  for(@lstring idf @idfItemType type @expressionlist paramList * * *) in  idfList while mayBeInSymbolMap do
+  for(@lstring idf @idfItemType type @expressionlist paramList * * * *) in  idfList while mayBeInSymbolMap do
     key += [idf string]
     if type != @idfItemType. basic then 
       mayBeInSymbolMap = false
