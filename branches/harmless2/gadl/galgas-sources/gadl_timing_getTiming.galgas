@@ -18,7 +18,7 @@ getter @ASTTimingMap getTimingMap
     idfStructCopy.varMap = @varMap.emptyMap
     idfStructCopy.friendAccessPrefix = "m_peripheral->"
     idfStructCopy.idfPrefixCore = "m_peripheral->" #for registers…
-   
+
     @uint timingInternalId = 0
     [ASTTinstList getTimingList !signalIn !signalOut !?symbolMapCopy !?idfStructCopy
                   !?timingInternalId ?var @timingInstructionList tInstList]
@@ -113,7 +113,8 @@ override method @ASTTLoop getTiming
   ?! @symbolValueMap symbolMap
   ?! @varIdfStruct idfStruct
   ?! @uint internalId  
-  !  @timingInstruction Tinst {
+  !  @timingInstruction Tinst 
+{
   @expressionContext ctx = @expressionContext.timing
   @expression expLoopValue = [ASTexpLoopValue getExp !ctx !symbolMap !idfStruct]
   @expression expLoopValueEval = [expLoopValue eval !symbolMap]
@@ -132,13 +133,18 @@ override method @ASTTLoop getTiming
   @expression expCondValue = [ASTexpCondValue getExp !ctx !symbolMap !idfStruct]
   [ASTTinstLoopList getTimingList !signalIn !signalOut !?symbolMap !?idfStruct
                     !?internalId ?var @timingInstructionList tInstLoopList]
-  Tinst = @tLoop.new { !loc !forever !loopValue !expCondValue !tInstLoopList !internalId}
+
   #insert internal var into varMap
   @lstring idf =  @lstring.new { !"invLoop_"+internalId !loc}
   @varBaseType type = @varBaseType.new { !@varKind.unsigned !32 !@location.here}
   @instDeclaration instDec = @instDeclaration.new { !loc !type !idf !@varClass.localVar !""}
   #message "insert id ".[internalId string]." - ".[idf string]."\n";
   [!?idfStruct.varMap insertKey !idf !type !false !@varClass.localVar !instDec]
+  #add the loop var as a declaration.
+  var instList = @instructionList.emptyList{}
+  instList += !instDec
+  tInstLoopList += !@tDeclaration.new {!loc !instList}
+  Tinst = @tLoop.new { !loc !forever !loopValue !expCondValue !tInstLoopList !internalId}
   internalId = internalId+1
 }
 
@@ -168,7 +174,8 @@ override method @ASTTDeclaration getTiming
   ?! @symbolValueMap symbolMap
   ?! @varIdfStruct idfStruct
   ?! @uint unused internalId
-  !  @timingInstruction Tinst {
+  !  @timingInstruction Tinst 
+{
   @expressionContext ctx = @expressionContext.timing
   var instList =@instructionList.emptyList{}
   for (@ASTInstruction ASTinst) in  ASTinstList do

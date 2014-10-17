@@ -40,15 +40,16 @@ let nbSigIn := sigId%
 	static const size_t NB_SIG_IN = %!nbSigIn%;
 
 	//pointers to synchronisation objects.
-%if nbSigOut!=0 then%	timingRdv *m_sigOut [NB_SIG_OUT];%end if%
-%if nbSigIn!=0 then%	timingRdv *m_sigIn [NB_SIG_IN];%end if%
-
+%if nbSigOut!=0 then%	timingRdv *m_sigOut [NB_SIG_OUT];\n%end if
+if nbSigIn!=0 then%	timingRdv *m_sigIn [NB_SIG_IN];\n%end if
+%
 	%!baseName% *m_peripheral; 
 	const unsigned int m_inOffset;
 	const unsigned int m_outOffset;
 %foreach var in timingPart::localVar do
-%	%!var::declare% \n%
+  !var::declare%\n%
 end foreach
+
 let id := 0
 %	//declare simulation steps\n%
 foreach step in timingPart::timingStepList do
