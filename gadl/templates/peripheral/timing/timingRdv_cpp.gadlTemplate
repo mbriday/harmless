@@ -37,9 +37,8 @@ timingBase *timingRdv::emitterWaiting() const
     return m_emitter;
 }
 
-bool timingRdv::synchroEmit(timingBase *emitter, bool type)
+void timingRdv::synchroEmit(timingBase *emitter, bool type)
 {
-	bool emitterCanResume = false;
     if(type) m_type = BROADCAST; else m_type = STANDARD;
     //synchro.
 	if(m_receiver) //an automata is waiting
@@ -48,26 +47,23 @@ bool timingRdv::synchroEmit(timingBase *emitter, bool type)
 		cout << "rdv: " << emitter->name() << " -> " << m_receiver->name() << endl;
 		//reset signal
 		m_receiver = NULL;
-		rec->run();
-		emitterCanResume = true;
+		rec->setState(READY);
 	} else { //no one is waiting
 		switch(m_type) {
 			case STANDARD:
 				cout << "wait (tx): " << emitter->name() << endl;
 				//no automata is waiting: no rendez-vous. Should wait.
-				emitterCanResume = false;
-			    m_emitter = emitter;	
+				m_emitter = emitter;
+				m_emitter->setState(WAITEVENT);
 				break;
 			case BROADCAST:
 				cout << "nowait bc (tx): " << emitter->name() << endl;
 				//broadcast => non blocking signal.
-				emitterCanResume = true;
 				break;
 			default:
 				cerr << "unimplemented rendez-vous" << endl;
 		}
 	}
-    return emitterCanResume;
 }
 
 timingBase *timingRdv::receiverWaiting() const
@@ -75,9 +71,8 @@ timingBase *timingRdv::receiverWaiting() const
     return m_receiver;
 }
 
-bool timingRdv::synchroReceive(timingBase *receiver)
+void timingRdv::synchroReceive(timingBase *receiver)
 {
-	bool receiverCanResume = false;
     //synchro.
 	if(m_emitter) //an automata (emitter) is waiting
 	{
@@ -85,14 +80,12 @@ bool timingRdv::synchroReceive(timingBase *receiver)
 		cout << "rdv: " << m_emitter->name() << " -> " << receiver->name() << endl;
 		//reset signal
 		m_emitter = NULL;
-		emit->run();
-		receiverCanResume = true;
+		emit->setState(READY);
 	} else { //no one is waiting -> stop
 		cout << "wait (rx): " << receiver->name() << endl;
 		m_receiver = receiver;
-		receiverCanResume = false;
+		m_receiver->setState(WAITEVENT);
 	}
-    return receiverCanResume;
 }
 
 void timingRdv::debug()

@@ -131,6 +131,9 @@ end foreach
 		%\n\t\t}\n%
 	end foreach
 %
+	//this function should be called at startup to start timings. (after creation)
+	virtual void startTimings();
+
 	virtual std::string name() {return std::string("%!baseName%");};
 };
 

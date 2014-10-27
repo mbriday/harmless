@@ -31,9 +31,8 @@ peripheral dummySignal memory size 8 {
   --connexions
   signal {
     T1.sigO1  -> T2.sig2I1
-		T1.sigO1  -> *
     T1.sigO2  -> T2.sig2I2
-    T1.sigO2  -> * -- not connected, else error TODO
+    T1.sigO3  -> * -- not connected, else error TODO
     T2.sig2O1 -> T1.sigI1
     T2.sig2O2 -> T1.sigI2
   }

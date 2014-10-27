@@ -30,11 +30,10 @@ class timingBase {
 	//functions related to state change.
 	typedef void (timingBase::* changeStateFunc)(int);
 	void changeStateNOK(const int newState);
+	void changeStateBase(const int newState); //no special behaviour
 	void changeStateSuspToReady(const int newState);
 	void changeStateWaittimeToSusp(const int newState);
-	void changeStateWaittimeToReady(const int newState);
-	void changeStateReadyToWaittime(const int newState);
-	void changeStateReadyToSusp(const int newState);
+	void changeStateWaitToReady(const int newState);
 	//tabular that stores state transition functions.
 	//column is the new state id
 	//row is the current state.
