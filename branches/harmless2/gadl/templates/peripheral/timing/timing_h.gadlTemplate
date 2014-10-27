@@ -61,10 +61,10 @@ end foreach
 //	fifo<u32> *m_accessFifo;
 	public:
 	%!className%(timingRun *tr, %!baseName% *peripheral, const unsigned int inOffset, const unsigned int outOffset) : 
-	timingBase(tr),
-	m_peripheral(peripheral),
-	m_inOffset(inOffset),
-	m_outOffset(outOffset)
+		timingBase(tr),
+		m_peripheral(peripheral),
+		m_inOffset(inOffset),
+		m_outOffset(outOffset)
 	{
 		init();
 	};
@@ -102,6 +102,6 @@ end foreach
 //	{
 //		m_accessFifo->write(addr);
 //	}	
-	virtual std::string name() {return std::string("%!className%");};
+	virtual std::string name() {return std::string("%!timingPart::name%");};
 };
 #endif // __TIMING_%!className%_H__

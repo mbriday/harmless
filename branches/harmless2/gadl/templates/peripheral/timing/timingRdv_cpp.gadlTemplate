@@ -39,10 +39,35 @@ timingBase *timingRdv::emitterWaiting() const
 
 bool timingRdv::synchroEmit(timingBase *emitter, bool type)
 {
-    m_emitter = emitter;
+	bool emitterCanResume = false;
     if(type) m_type = BROADCAST; else m_type = STANDARD;
-    //TODO -> synchro.
-    return true;
+    //synchro.
+	if(m_receiver) //an automata is waiting
+	{
+		timingBase *rec = m_receiver;
+		cout << "rdv: " << emitter->name() << " -> " << m_receiver->name() << endl;
+		//reset signal
+		m_receiver = NULL;
+		rec->run();
+		emitterCanResume = true;
+	} else { //no one is waiting
+		switch(m_type) {
+			case STANDARD:
+				cout << "wait (tx): " << emitter->name() << endl;
+				//no automata is waiting: no rendez-vous. Should wait.
+				emitterCanResume = false;
+			    m_emitter = emitter;	
+				break;
+			case BROADCAST:
+				cout << "nowait bc (tx): " << emitter->name() << endl;
+				//broadcast => non blocking signal.
+				emitterCanResume = true;
+				break;
+			default:
+				cerr << "unimplemented rendez-vous" << endl;
+		}
+	}
+    return emitterCanResume;
 }
 
 timingBase *timingRdv::receiverWaiting() const
@@ -52,14 +77,22 @@ timingBase *timingRdv::receiverWaiting() const
 
 bool timingRdv::synchroReceive(timingBase *receiver)
 {
-    m_receiver = receiver;
-    //TODO: synchro.
-    return true;
-}
-
-timingRdv::enumRdvType timingRdv::type() const
-{
-    return m_type;
+	bool receiverCanResume = false;
+    //synchro.
+	if(m_emitter) //an automata (emitter) is waiting
+	{
+		timingBase *emit = m_emitter;
+		cout << "rdv: " << m_emitter->name() << " -> " << receiver->name() << endl;
+		//reset signal
+		m_emitter = NULL;
+		emit->run();
+		receiverCanResume = true;
+	} else { //no one is waiting -> stop
+		cout << "wait (rx): " << receiver->name() << endl;
+		m_receiver = receiver;
+		receiverCanResume = false;
+	}
+    return receiverCanResume;
 }
 
 void timingRdv::debug()
