@@ -24,11 +24,10 @@ class peripheral : public rwStorage
 		else return NULL;
 	};
 
-	//TODO
-//	void timingWaitForCycles(timingBase *,const u64 nbCycles) {};
-	bool timingSynchroEmit(timingBase *,unsigned int sigName, const bool broadcast) {return true;};
-	bool timingSynchroWait(timingBase *,unsigned int sigName) {return true;};
-	virtual std::string name() {return std::string("timingBase");};
+	virtual std::string name() {return std::string("peripheral");};
+
+	//this function should be called at startup to start timings. (after creation)
+	virtual void startTimings() {};
 };
 
 #endif

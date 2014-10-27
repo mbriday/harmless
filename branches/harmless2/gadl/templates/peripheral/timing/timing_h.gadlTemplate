@@ -53,21 +53,13 @@ end foreach
 let id := 0
 %	//declare simulation steps\n%
 foreach step in timingPart::timingStepList do
-%	bool step_%!id%();
+%	void step_%!id%();
 %let id := id + 1
 end foreach
-%	typedef bool (%!className%::* stepPtr)();
+%	typedef void (%!className%::* stepPtr)();
 	stepPtr nextStep; //points to the next step
-//	fifo<u32> *m_accessFifo;
 	public:
-	%!className%(timingRun *tr, %!baseName% *peripheral, const unsigned int inOffset, const unsigned int outOffset) : 
-		timingBase(tr),
-		m_peripheral(peripheral),
-		m_inOffset(inOffset),
-		m_outOffset(outOffset)
-	{
-		init();
-	};
+	%!className%(timingRun *tr, %!baseName% *peripheral, const unsigned int inOffset, const unsigned int outOffset);
 
 	//signal connection
 %if nbSigOut!=0 then
@@ -94,14 +86,9 @@ end foreach
 %	}
 	virtual void init() {
 		nextStep = &%!className%::step_0;
-//		m_accessFifo = new fifo<u32>("timing %!className% fifo",16); //arbitrary max val
 	};
 	bool isInit() {return nextStep == &%!className%::step_0;};
 	virtual std::string toString() {return std::string("%!className%");};
-//	void insertInDataCacheFifo(const u32 addr)
-//	{
-//		m_accessFifo->write(addr);
-//	}	
 	virtual std::string name() {return std::string("%!timingPart::name%");};
 };
 #endif // __TIMING_%!className%_H__

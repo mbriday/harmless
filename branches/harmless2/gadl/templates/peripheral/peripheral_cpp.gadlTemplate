@@ -149,7 +149,8 @@ end foreach
 %	//not found in included devices
 	if(matchAddress(address)) return this;
 	else return NULL;
-}%
+}
+%
 end if
 
 #generate method that checks the enable condition
@@ -164,4 +165,24 @@ foreach timingPart in peripheral::timingList do
   %}\n%
   between %\n%
 end foreach
+
+%\nvoid %!baseName%::startTimings()
+{
+%#included peripherals
+foreach dev in peripheral::deviceList do
+  if dev::nb == 1 then #only one.
+    %\t%!dev::name%->startTimings();\n%
+  else #tabular
+  	%\tfor(unsigned int i=0; i < %!dev::nb%; i++)\n%
+	%\t{\n%
+	%\t\t%!dev::name%[i]->startTimings();\n%
+	%\t}\n%
+  end if
+end foreach
+#local timings
+foreach timingPart in peripheral::timingList do
+%\tcheckEnableTiming_%!timingPart::name%();\n%
+end foreach
+%}
+
 

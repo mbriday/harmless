@@ -45,10 +45,10 @@ class timingRdv {
 
         //return the emitter that is waitting, or NULL.
         timingBase *emitterWaiting() const;
-        bool synchroEmit(timingBase *emitter, bool type);
+        void synchroEmit(timingBase *emitter, bool type);
 
         timingBase *receiverWaiting() const;
-        bool synchroReceive(timingBase *receiver);
+        void synchroReceive(timingBase *receiver);
 
         enumRdvType type() const;
         

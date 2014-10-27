@@ -37,6 +37,12 @@ end foreach
 foreach core in coreInstanceList do
 %	m_coreTab[%!core::id%] = m_%!core::name%;\n%
 end foreach
+
+  foreach dev in cpu::deviceList
+  before %\t//start peripheral timings\n%
+  do
+    %\t%!dev::name%->startTimings();\n%
+  end foreach
 %
 }
 
