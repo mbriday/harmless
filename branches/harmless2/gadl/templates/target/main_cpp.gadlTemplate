@@ -1,5 +1,6 @@
 %template headerC%
 #include "utils.h"
+#include "logManager.h"
 %if exists cpuList then #is there a cpu?
   %#include "cpu.h"\n%
 end if
@@ -36,6 +37,7 @@ int main(int argc, char *argv[])
 			cout << nbInst << " instructions executed" << endl;
 			cout << c->getNBCycles() << " cycles executed" << endl;
 		}
+		log()->testOut();
 	}
 %
  else

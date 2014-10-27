@@ -24,6 +24,15 @@ write to exportDir."/utils.h":
   template utils_h in "utils"
 end write
 
+write to exportDir."/logManager.cpp":
+  template logManager_cpp in "utils"
+end write
+%logManager.cpp \\\n%
+
+write to exportDir."/logManager.h":
+  template logManager_h in "utils"
+end write
+
 write to exportDir."/fifo.h":
   template fifo_h in "utils"
 end write
