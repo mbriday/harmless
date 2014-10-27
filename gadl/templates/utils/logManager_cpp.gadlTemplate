@@ -1,0 +1,61 @@
+#include <iostream>
+#include <sstream> //stringstream
+#include "logManager.h"
+//#define NDEBUG (uncomment to disable assert())
+#include <cassert>
+#include "timingBase.h"
+using namespace std;
+
+bool logManager::alreadyCreated = false;
+logManager _logManager; //unique instance.
+logManager *log()
+{
+	return &_logManager;
+}
+
+logEventTiming::logEventTiming(timingBase *timing,int fromState,int toState)
+{
+	assert(timing != NULL);
+	m_date = timing->nbCycles();
+	m_timing = timing;
+	m_fromState = fromState;
+	m_toState = toState;
+}
+
+string logEventTiming::data(outFormat format)
+{
+	string state[4] = {"SUSPENDED","READY","WAITTIME","WAITEVENT"};
+	stringstream result;
+	switch(format) {
+		case txt: 
+			result << "date " << m_date << " ";
+			result << m_timing->name() << "\t:";
+			result << state[m_fromState] << " -> " << state[m_toState];
+			break;
+		case xml:
+			result << "<timingEvent";
+			result << " id=\"" << m_timing->name() << "\"";
+			result << " date=\"" << m_date  << "\"";
+			result << " from=\"" << state[m_fromState] << "\"";
+			result << " to=\""   << state[m_toState]   << "\"";
+			result << "/>";
+			break;
+	}
+	return result.str();
+}
+
+void logManager::addLogTiming(timingBase *timing, int fromState, int toState)
+{
+	m_eventList.push_back(new logEventTiming(timing,fromState,toState));
+}
+
+//TODO: tmp
+void logManager::testOut()
+{
+	const int size = m_eventList.size();
+	for(int i=0;i<size;i++)
+	{
+		cout << m_eventList[i]->data(logEvent::txt) << endl;
+	}
+}
+

@@ -1,0 +1,55 @@
+#ifndef __LOG_MANAGER_H__
+#define __LOG_MANAGER_H__
+
+#include <string>
+#include <iostream>
+#include <vector>
+#include "types.h"
+
+class timingBase;
+
+class logEvent {
+	public:
+	typedef enum {
+		txt,
+		xml
+	} outFormat;
+	virtual std::string data(outFormat format) = 0;
+};
+
+//This class sote a single event about timing states
+//i.e. a timing that changes its state (SUSPENDED, etc)
+class logEventTiming : public logEvent {
+	u64 m_date;
+	timingBase *m_timing;
+	int m_fromState;
+	int m_toState;
+
+	public:
+	logEventTiming(timingBase *timing,int fromState,int toState);
+	virtual std::string data(outFormat format);
+
+};
+
+//This class get log information from simulation
+//and outputs it in a pretty way (xml, txt, …)
+//It uses the singleton design pattern
+// --> only one instance, accessed from everywhere with 
+// function log() (defined below).
+class logManager {
+	std::vector<logEvent *> m_eventList;
+	static bool alreadyCreated;
+
+	public:
+	logManager() {
+		if(alreadyCreated) 
+			std::cerr << "error: more than one instance of logManager" << std::endl;
+		alreadyCreated = true;
+	};
+	void addLogTiming(timingBase *timing, int fromState, int toState);
+	void testOut();
+};
+
+//singleton management.
+extern logManager *log();
+#endif
