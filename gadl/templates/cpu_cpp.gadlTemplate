@@ -11,7 +11,7 @@ end foreach
 %
 cpu::cpu()
 {
-	logConfigItem *config = new logConfigItem(logConfigItem::cpu,"%!cpu::NAME%","cpu");
+	logConfigItem *config = new logConfigItem(logConfigItem::cpu,"%!cpu::NAME%","cpu",this);
 %
   foreach dev in cpu::deviceList
   before %\t//cpu devices\n%
@@ -44,7 +44,7 @@ end foreach
 
 %
 	//log configuration of the cpu.
-	log()->addItem(config);
+	log()->addConfigItem(config);
 \n%
 
   foreach dev in cpu::deviceList

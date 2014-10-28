@@ -218,7 +218,7 @@ void storage::debugMemoryAccessRead(const u32 address, const unsigned int value,
 
 logConfigItem *storage::getLogConfig()
 {
-	return new logConfigItem(logConfigItem::memory,"memory",name());
+	return new logConfigItem(logConfigItem::memory,"memory",name(),this);
 }
 
 bool dumStorage::matchAddress(const u32 address)

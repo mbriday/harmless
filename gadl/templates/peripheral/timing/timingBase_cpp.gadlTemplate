@@ -22,9 +22,7 @@ timingBase::timingBase(timingRun *tr) : m_timingRun(tr),m_nbCyclesToDo(0) {
 
 void timingBase::debugState(int from,int to)
 {
-	string state[4] = {"SUSPENDED","READY","WAITTIME","WAITEVENT"};
-	cout << "date " << nbCycles() << " " << name() << "\t:" << state[from] << " -> " << state[to] << endl;
-	log()->addLogTiming(this,from,to);
+	log()->addEventItem(new logEventTiming(this,from,to));
 }
 
 void timingBase::changeStateNOK(const int newState)
