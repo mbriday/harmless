@@ -87,5 +87,5 @@ void %!className%::setRdvForWaitSignal(timingRdv *rdv,enumSigIn sigName)
 %end if #nbSigIn
 
 %logConfigItem *%!className%::getLogConfig() {
-	return new logConfigItem(logConfigItem::timing,toString(),name());
+	return new logConfigItem(logConfigItem::timing,toString(),name(),this);
 }

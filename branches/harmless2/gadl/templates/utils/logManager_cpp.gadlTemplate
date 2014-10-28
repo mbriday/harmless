@@ -22,11 +22,11 @@ logEventTiming::logEventTiming(timingBase *timing,int fromState,int toState)
 	m_toState = toState;
 }
 
-string logEventTiming::data(outFormat format,int nbTab)
+string logEventTiming::data(outFormat format,logManager *mng,int nbTab)
 {
 	string state[4] = {"SUSPENDED","READY","WAITTIME","WAITEVENT"};
 	stringstream result;
-	result << string(nbTab,'\t');
+	result << string(nbTab,'	');
 	switch(format) {
 		case txt: 
 			result << "date " << m_date << " ";
@@ -35,7 +35,7 @@ string logEventTiming::data(outFormat format,int nbTab)
 			break;
 		case xml:
 			result << "<timingEvent";
-			result << " id=\"" << m_timing->name() << "\"";
+			result << " id=\"" << mng->getId(m_timing) << "\"";
 			result << " date=\"" << m_date  << "\"";
 			result << " from=\"" << state[m_fromState] << "\"";
 			result << " to=\""   << state[m_toState]   << "\"";
@@ -45,59 +45,80 @@ string logEventTiming::data(outFormat format,int nbTab)
 	return result.str();
 }
 
-void logManager::addLogTiming(timingBase *timing, int fromState, int toState)
-{
-	m_eventList.push_back(new logEventTiming(timing,fromState,toState));
-}
-
-void logManager::addItem(logItem *item)
+void logManager::addEventItem(logItem *item)
 {
 	m_eventList.push_back(item);
+}
+
+void logManager::addConfigItem(logConfigItem *item)
+{
+	m_configList.push_back(item);
+	generateId();
 }
 
 //TODO: tmp
 void logManager::testOut(logItem::outFormat format)
 {
-	cout << prologue(format);
-	const int size = m_eventList.size();
-	for(int i=0;i<size;i++)
+	stringstream result;
+	result << prologue(format,main);
+	//config
+	result << prologue(format,config);
+	const int sizeConfig = m_configList.size();
+	for(int i=0;i<sizeConfig;i++)
 	{
-		cout << m_eventList[i]->data(format) << endl;
+		result << m_configList[i]->data(format,this) << endl;
 	}
-	cout << epilogue(format);
+	result << epilogue(format,config);
+	//events
+	result << prologue(format,event);
+	const int sizeEvent = m_eventList.size();
+	for(int i=0;i<sizeEvent;i++)
+	{
+		result << m_eventList[i]->data(format,this) << endl;
+	}
+	result << epilogue(format, event);
+	result << epilogue(format, main);
+	cout << result.str();
 }
 
-string logManager::prologue(logItem::outFormat format)
+string logManager::prologue(logItem::outFormat format, logPart part)
 {
+	string partStr[] = {"root", "configs", "events"};
 	stringstream result;
 	switch(format) {
-		case logItem::txt: 
+		case logItem::txt:
+			result << "**** " << partStr[part] << " ****" << endl;
 			break;
 		case logItem::xml:
-			result << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n";
-			result << "<root><events>\\n";
+			if(part == main)
+				result << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
+			result << "<" << partStr[part] <<">" << endl;
 			break;
 	}
 	return result.str();
 }
 
-string logManager::epilogue(logItem::outFormat format)
+string logManager::epilogue(logItem::outFormat format, logPart part)
 {
+	string partStr[] = {"root", "configs", "events"};
+
 	stringstream result;
 	switch(format) {
-		case logItem::txt: 
+		case logItem::txt:
+			result << "----------------" << endl;
 			break;
 		case logItem::xml:
-			result << "</events>\\n</root>\\n";
+			result << "</" << partStr[part] <<">" << endl;
 			break;
 	}
 	return result.str();
 }
 
-logConfigItem::logConfigItem(configType type, std::string name, std::string instanceName) :
+logConfigItem::logConfigItem(configType type, std::string name, std::string instanceName, void *uid) :
 	m_type(type),
 	m_name(name),
-	m_instanceName(instanceName)
+	m_instanceName(instanceName),
+	m_uid(uid)
 {
 }
 
@@ -106,11 +127,11 @@ void logConfigItem::addItem(logConfigItem *item)
 	m_itemList.push_back(item);
 }
 
-string logConfigItem::data(outFormat format,int nbTab)
+string logConfigItem::data(outFormat format,logManager *mng,int nbTab)
 {
 	string type[] = {"cpu","peripheral","timing","memory"};
 	stringstream result;
-	string tabs = string(nbTab,'\t');
+	string tabs = string(nbTab,'	');
 	result << tabs;
 	switch(format) {
 		case logItem::txt: 
@@ -119,15 +140,54 @@ string logConfigItem::data(outFormat format,int nbTab)
 			result << "<config type=\""+type[m_type]+"\" ";
 			result << "name=\""<<m_name<<"\" ";
 			result << "instance=\""<<m_instanceName<<"\" ";
-			result << ">\\n";
+			result << ">" << endl;
 			const int size = m_itemList.size();
 			for(int i=0;i<size;i++)
 			{
-				result << m_itemList[i]->data(format,nbTab+1);
+				result << m_itemList[i]->data(format,mng,nbTab+1);
 			}
-			result << tabs << "</config>\\n";
+			result << tabs << "</config>" << endl;
 			break;
 	}
 	return result.str();
+}
+
+void logManager::generateId()
+{
+	const int size = m_configList.size();
+	for(int i=0;i<size;i++)
+	{
+		m_configList[i]->generateId("",this);
+	}
+}
+
+void logManager::addId(void *uid, std::string id)
+{
+	//cout << "add " << id << " -> " << hex << (u64)uid << endl;
+	//check that it does not exists…
+	map<void *, string>::iterator it = m_uidToIdMap.find(uid);
+	assert(it == m_uidToIdMap.end());
+	//add.
+	m_uidToIdMap[uid] = id;
+}
+
+void logConfigItem::generateId(std::string prefix, logManager *mng)
+{
+	//current item
+	string name = prefix+m_instanceName;
+	mng->addId(m_uid,name);
+	//sub items
+	const int size = m_itemList.size();
+	for(int i=0;i<size;i++)
+	{
+		m_itemList[i]->generateId(name+".",mng);
+	}
+}
+
+std::string logManager::getId(void *uid)
+{
+	map<void *, string>::iterator it = m_uidToIdMap.find(uid);
+	assert(it != m_uidToIdMap.end());
+	return (*it).second;	
 }
 

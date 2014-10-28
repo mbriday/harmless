@@ -191,7 +191,7 @@ end foreach
 
 
 logConfigItem *%!baseName%::getLogConfig() {
-	logConfigItem *config = new logConfigItem(logConfigItem::peripheral,"%!baseName%",instanceName());
+	logConfigItem *config = new logConfigItem(logConfigItem::peripheral,"%!baseName%",instanceName(),this);
 %foreach dev in peripheral::deviceList do
 	if dev::nb == 1 then #only one.
 		%\tconfig->addItem(%!dev::name%->getLogConfig();\n%
