@@ -9,6 +9,7 @@
 
 class peripheral;
 class timingRun;
+class logConfigItem;
 #include "timingRun.h"
 
 //states of timings. No RUN state yet.
@@ -65,5 +66,7 @@ class timingBase {
 	}
 	inline int const currentState() {return m_currentState;};
 	virtual std::string name() {return std::string("timingBase");};
+	//this function is used to get back configuration (to logManager).
+	virtual logConfigItem *getLogConfig() = 0;
 };
 #endif //__TIMING_BASE_H__

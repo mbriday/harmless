@@ -1,7 +1,8 @@
 %template headerC%
 #include <iostream>
 #include "types.h"
-//#include "timingSignal.h"
+
+#include "logManager.h"
 
 #include "%!className%.h"
 #include "%!baseName%.h"
@@ -84,3 +85,7 @@ void %!className%::setRdvForWaitSignal(timingRdv *rdv,enumSigIn sigName)
 	m_sigIn[sigName] = rdv;
 }
 %end if #nbSigIn
+
+%logConfigItem *%!className%::getLogConfig() {
+	return new logConfigItem(logConfigItem::timing,toString(),name());
+}

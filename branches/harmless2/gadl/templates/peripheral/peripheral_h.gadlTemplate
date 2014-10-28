@@ -1,6 +1,7 @@
 %template headerC%
 #ifndef __PERIPH_%!peripheral::name%_H__
 #define __PERIPH_%!peripheral::name%_H__
+#include <string>
 
 #include "peripheral.h"
 #include "macro.h"
@@ -60,7 +61,7 @@ end foreach
 
 %
 	public:
-		%!baseName%(const u32 address, timingRun *);
+		%!baseName%(std::string instanceName, const u32 address, timingRun *);
 
 %if [peripheral::deviceList length] > 0 then
 	%\tvirtual peripheral *chunk(u32 address);\n%
@@ -135,6 +136,8 @@ end foreach
 	virtual void startTimings();
 
 	virtual std::string name() {return std::string("%!baseName%");};
+	//this function is used to get back configuration (to logManager).
+	virtual logConfigItem *getLogConfig();
 };
 
 #endif

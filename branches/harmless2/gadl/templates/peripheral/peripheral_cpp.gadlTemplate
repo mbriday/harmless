@@ -1,7 +1,9 @@
 %template headerC%
-
+#include <sstream>  //ostringstream
+using namespace std;
 #include "%!baseName%.h"
 #include "timingRdv.h"
+#include "logManager.h"
 
 typedef u32 (%!baseName%::*__func_%!peripheral::name%_w)(u32 ,u32);
 typedef u32 (%!baseName%::*__func_%!peripheral::name%_r)(u32);
@@ -70,18 +72,20 @@ bool peripheralActionRead_%!peripheral::name%::trigger(storage *, u32 &data)
 }
 %# constructor part.
 %
-%!baseName%::%!baseName%(const u32 address,timingRun *tr) : peripheral("%!peripheral::name%", %!peripheral::memSize%, address, tr)
+%!baseName%::%!baseName%(string instanceName, const u32 address,timingRun *tr) : peripheral(instanceName, %!peripheral::memSize%, address, tr)
 {
 %
 foreach dev in peripheral::deviceList
 before %\t//device instantiation.\n%
 do
   if dev::nb == 1 then #only one.
-    %\t%!dev::name% = new periph_%!dev::type%(address+%!dev::baseAddress%,tr);\n%
+    %\t%!dev::name% = new periph_%!dev::type%(%!dev::name%,address+%!dev::baseAddress%,tr);\n%
   else #tabular
   	%\tfor(unsigned int i=0, offset = 0; i < %!dev::nb%; i++)\n%
 	%\t{\n%
-	%\t\t%!dev::name%[i] = new periph_%!dev::type%(address+%!dev::baseAddress%+offset,tr);\n%
+	%\t\tostringstream instanceName;\n%
+	%\t\tinstanceName << "%!dev::name%[" << i << ']';\n%
+	%\t\t%!dev::name%[i] = new periph_%!dev::type%(instanceName.str(), address+%!dev::baseAddress%+offset,tr);\n%
 	%\t\toffset += %!dev::name%[i]->size();\n%
 	%\t}\n%
   end if
@@ -186,3 +190,24 @@ end foreach
 %}
 
 
+logConfigItem *%!baseName%::getLogConfig() {
+	logConfigItem *config = new logConfigItem(logConfigItem::peripheral,"%!baseName%",instanceName());
+%foreach dev in peripheral::deviceList do
+	if dev::nb == 1 then #only one.
+		%\tconfig->addItem(%!dev::name%->getLogConfig();\n%
+	else #tabular
+  	%\tfor(unsigned int i=0; i < %!dev::nb%; i++)\n%
+	%\t{\n%
+	%\t\tconfig->addItem(%!dev::name%[i]->getLogConfig());\n%
+	%\t}\n%
+	end if
+end foreach
+foreach timingPart in peripheral::timingList do
+  let className := baseName."_timing_".timingPart::name
+  let instanceName := "m_".className
+  %\tconfig->addItem(%!instanceName%->getLogConfig());\n%
+end foreach
+%
+	return config;
+
+}

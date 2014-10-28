@@ -1,8 +1,10 @@
 %template headerC%
 #include "peripheral.h"
 
-peripheral::peripheral(std::string name, u32 size, u32 offset, timingRun *tr) : 
-  rwStorage(name,size,offset),
+peripheral::peripheral(std::string instanceName, u32 size, u32 offset, timingRun *tr) :
+  m_instanceName(instanceName),
+  rwStorage(instanceName,size,offset),
   m_timingRun(tr)
 {
 }
+

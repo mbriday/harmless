@@ -90,5 +90,7 @@ end foreach
 	bool isInit() {return nextStep == &%!className%::step_0;};
 	virtual std::string toString() {return std::string("%!className%");};
 	virtual std::string name() {return std::string("%!timingPart::name%");};
+	//this function is used to get back configuration (to logManager).
+	virtual logConfigItem *getLogConfig();
 };
 #endif // __TIMING_%!className%_H__

@@ -38,6 +38,8 @@
 	#include "action.h"	//defines actions triggered by memory accesses
 #endif
 
+class logConfigItem;
+
 /**
  * most generic storage class: May be used by any component 
  * that can have an address: 
@@ -51,10 +53,15 @@ class storage
 		void insertActionAtEnd(action *actStart, action *actToInsert);
 		void removeAllActionsFrom(action *actStart);
 	#endif
+
+	/// name of the memory chunk. Used for debug.
+	std::string m_name;
+
 	public:
-	storage() {};
+	storage(std::string name) : m_name(name) {};
 	virtual ~storage() {};
 	
+	std::string name() {return m_name;};
 	/**
 	 * read in memory: may trigger an action. 
 	 * \param address is the address of the memory access.
@@ -105,7 +112,8 @@ class storage
 	virtual void dump(const unsigned int min, const unsigned int nbVal) {};
 	void debugMemoryAccessRead(const u32 address, const unsigned int value, const unsigned char sizeInBytes);
 	void debugMemoryAccessWrite(const u32 address, const unsigned int value, const unsigned char sizeInBytes);
-    
+    //this function is used to get back configuration (to logManager).
+	virtual logConfigItem *getLogConfig();
 };
     
 class dumStorage : public storage
@@ -148,8 +156,6 @@ class dumStorage : public storage
 	#endif
     
   protected:
-	/// name of the memroy chunk. Used for debug.
-	std::string m_name;
 
   	/// size of the memory chunk.
   	/// addressable memory is in the 

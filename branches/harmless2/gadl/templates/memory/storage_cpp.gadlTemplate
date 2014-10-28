@@ -3,6 +3,7 @@
 #include <stdlib.h>  //size_t
 #include <iomanip> //setioflags (setw)
 #include "utils.h" //SEGFAULTIF
+#include "logManager.h"
 
 using namespace std;
 
@@ -123,7 +124,7 @@ dumStorage::~dumStorage()
 #endif
 
 dumStorage::dumStorage(string name,u32 size, u32 offset, int alignment) :
-    m_name(name),
+    storage(name),
 	m_size(size),
     m_offset(offset),
     m_alignment(alignment)
@@ -195,7 +196,7 @@ dumStorage::dumStorage(const dumStorage &mem) : storage(mem)
 void dumStorage::checkForValidAddress(u32 address)
 {
 	if(!matchAddress(address)){
-		cerr << "Invalid Memory access for " << m_name << endl;
+		cerr << "Invalid Memory access for " << name() << endl;
 		cerr << "\taddress is 0x" << hex << address << endl;
 		cerr << "\trange is 0x" << hex << m_offset;
 		cerr << " -> 0x" << hex << m_offset+m_size-1 << endl;
@@ -213,6 +214,11 @@ void storage::debugMemoryAccessRead(const u32 address, const unsigned int value,
 {
 	cout << "Read access at 0x" << hex << address << ", read value: 0x" 
 		 << setw(sizeInBytes<<1) << value << " (" << dec << value << ")" << endl;
+}
+
+logConfigItem *storage::getLogConfig()
+{
+	return new logConfigItem(logConfigItem::memory,"memory",name());
 }
 
 bool dumStorage::matchAddress(const u32 address)

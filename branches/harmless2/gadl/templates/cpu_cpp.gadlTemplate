@@ -1,5 +1,6 @@
 %template headerC%
 #include <iostream>
+#include "logManager.h"
 #include "cpu.h"
 %
 #includes related to cores
@@ -10,11 +11,13 @@ end foreach
 %
 cpu::cpu()
 {
+	logConfigItem *config = new logConfigItem(logConfigItem::cpu,"%!cpu::NAME%","cpu");
 %
   foreach dev in cpu::deviceList
   before %\t//cpu devices\n%
   do
-    %\t%!dev::name% = new periph_%!dev::type%(%!dev::baseAddress%,this);\n%
+    %\t%!dev::name% = new periph_%!dev::type%("%!dev::name%",%!dev::baseAddress%,this);\n%
+    %\tconfig->addItem(%!dev::name%->getLogConfig());\n%
   end foreach
 %
 	///cpu memory chunks
@@ -26,6 +29,7 @@ cpu::cpu()
     end if
     %("%!storageName%", % #name
     !memInCpu::size%, %!memInCpu::baseAddress%);\n%
+    %\tconfig->addItem(%!storageName%->getLogConfig());\n%
   end foreach
 %	///cpu cores
 %
@@ -37,6 +41,11 @@ end foreach
 foreach core in coreInstanceList do
 %	m_coreTab[%!core::id%] = m_%!core::name%;\n%
 end foreach
+
+%
+	//log configuration of the cpu.
+	log()->addItem(config);
+\n%
 
   foreach dev in cpu::deviceList
   before %\t//start peripheral timings\n%
