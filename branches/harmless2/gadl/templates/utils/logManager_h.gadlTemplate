@@ -1,3 +1,4 @@
+%template headerC%
 #ifndef __LOG_MANAGER_H__
 #define __LOG_MANAGER_H__
 
@@ -8,6 +9,7 @@
 
 class timingBase;
 
+//an event to log. abstract class for all events.
 class logEvent {
 	public:
 	typedef enum {
@@ -17,7 +19,7 @@ class logEvent {
 	virtual std::string data(outFormat format) = 0;
 };
 
-//This class sote a single event about timing states
+//This class store a single event about timing states
 //i.e. a timing that changes its state (SUSPENDED, etc)
 class logEventTiming : public logEvent {
 	u64 m_date;
@@ -39,7 +41,9 @@ class logEventTiming : public logEvent {
 class logManager {
 	std::vector<logEvent *> m_eventList;
 	static bool alreadyCreated;
-
+	std::string prologue(logEvent::outFormat format);
+	std::string epilogue(logEvent::outFormat format);
+	
 	public:
 	logManager() {
 		if(alreadyCreated) 
@@ -47,7 +51,7 @@ class logManager {
 		alreadyCreated = true;
 	};
 	void addLogTiming(timingBase *timing, int fromState, int toState);
-	void testOut();
+	void testOut(logEvent::outFormat format);
 };
 
 //singleton management.

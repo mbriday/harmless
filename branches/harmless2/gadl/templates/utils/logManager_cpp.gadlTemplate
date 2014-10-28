@@ -29,7 +29,7 @@ string logEventTiming::data(outFormat format)
 	switch(format) {
 		case txt: 
 			result << "date " << m_date << " ";
-			result << m_timing->name() << "\t:";
+			result << m_timing->name() << "	:";
 			result << state[m_fromState] << " -> " << state[m_toState];
 			break;
 		case xml:
@@ -50,12 +50,41 @@ void logManager::addLogTiming(timingBase *timing, int fromState, int toState)
 }
 
 //TODO: tmp
-void logManager::testOut()
+void logManager::testOut(logEvent::outFormat format)
 {
+	cout << prologue(format);
 	const int size = m_eventList.size();
 	for(int i=0;i<size;i++)
 	{
-		cout << m_eventList[i]->data(logEvent::txt) << endl;
+		cout << m_eventList[i]->data(format) << endl;
 	}
+	cout << epilogue(format);
+}
+
+string logManager::prologue(logEvent::outFormat format)
+{
+	stringstream result;
+	switch(format) {
+		case logEvent::txt: 
+			break;
+		case logEvent::xml:
+			result << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n";
+			result << "<root><events>\\n";
+			break;
+	}
+	return result.str();
+}
+
+string logManager::epilogue(logEvent::outFormat format)
+{
+	stringstream result;
+	switch(format) {
+		case logEvent::txt: 
+			break;
+		case logEvent::xml:
+			result << "</events>\\n</root>\\n";
+			break;
+	}
+	return result.str();
 }
 
