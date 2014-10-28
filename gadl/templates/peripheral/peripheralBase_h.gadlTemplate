@@ -6,16 +6,19 @@
 #include "storage.h"
 #include "timingBase.h"
 
+class logConfigItem;
 class timingRun; //code that call timings.
 
 class peripheral : public rwStorage
 {
+	std::string m_instanceName;
+
 	protected:
 	timingRun *m_timingRun;
 
 	public:
 	//constructor
-	peripheral(std::string name, u32 size, u32 offset, timingRun *);
+	peripheral(std::string instanceName, u32 size, u32 offset, timingRun *);
 	
 	//return the memory chunk.
 	virtual peripheral *chunk(const u32 address)
@@ -25,9 +28,13 @@ class peripheral : public rwStorage
 	};
 
 	virtual std::string name() {return std::string("peripheral");};
+	std::string instanceName() {return m_instanceName;};
 
 	//this function should be called at startup to start timings. (after creation)
 	virtual void startTimings() {};
+
+	//this function is used to get back configuration (to logManager).
+	virtual logConfigItem *getLogConfig() = 0;
 };
 
 #endif

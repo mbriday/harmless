@@ -18,7 +18,7 @@ using namespace std;
 int main(int argc, char *argv[])
 { 
 %if exists cpuList then #is there a cpu?
-%	cpu *simulator = new cpu();\n
+%	cpu *simulator = new cpu();
 	if(argc != (simulator->nbCores()+2))
 		cout << "please specify a code file foreach core and a number of instruction to execute. " << endl;
 	else
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
 			cout << nbInst << " instructions executed" << endl;
 			cout << c->getNBCycles() << " cycles executed" << endl;
 		}
-		log()->testOut(logEvent::xml);
+		log()->testOut(logItem::xml);
 	}
 %
  else

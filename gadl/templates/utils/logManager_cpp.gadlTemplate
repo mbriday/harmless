@@ -22,10 +22,11 @@ logEventTiming::logEventTiming(timingBase *timing,int fromState,int toState)
 	m_toState = toState;
 }
 
-string logEventTiming::data(outFormat format)
+string logEventTiming::data(outFormat format,int nbTab)
 {
 	string state[4] = {"SUSPENDED","READY","WAITTIME","WAITEVENT"};
 	stringstream result;
+	result << string(nbTab,'\t');
 	switch(format) {
 		case txt: 
 			result << "date " << m_date << " ";
@@ -49,8 +50,13 @@ void logManager::addLogTiming(timingBase *timing, int fromState, int toState)
 	m_eventList.push_back(new logEventTiming(timing,fromState,toState));
 }
 
+void logManager::addItem(logItem *item)
+{
+	m_eventList.push_back(item);
+}
+
 //TODO: tmp
-void logManager::testOut(logEvent::outFormat format)
+void logManager::testOut(logItem::outFormat format)
 {
 	cout << prologue(format);
 	const int size = m_eventList.size();
@@ -61,13 +67,13 @@ void logManager::testOut(logEvent::outFormat format)
 	cout << epilogue(format);
 }
 
-string logManager::prologue(logEvent::outFormat format)
+string logManager::prologue(logItem::outFormat format)
 {
 	stringstream result;
 	switch(format) {
-		case logEvent::txt: 
+		case logItem::txt: 
 			break;
-		case logEvent::xml:
+		case logItem::xml:
 			result << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n";
 			result << "<root><events>\\n";
 			break;
@@ -75,14 +81,51 @@ string logManager::prologue(logEvent::outFormat format)
 	return result.str();
 }
 
-string logManager::epilogue(logEvent::outFormat format)
+string logManager::epilogue(logItem::outFormat format)
 {
 	stringstream result;
 	switch(format) {
-		case logEvent::txt: 
+		case logItem::txt: 
 			break;
-		case logEvent::xml:
+		case logItem::xml:
 			result << "</events>\\n</root>\\n";
+			break;
+	}
+	return result.str();
+}
+
+logConfigItem::logConfigItem(configType type, std::string name, std::string instanceName) :
+	m_type(type),
+	m_name(name),
+	m_instanceName(instanceName)
+{
+}
+
+void logConfigItem::addItem(logConfigItem *item)
+{
+	m_itemList.push_back(item);
+}
+
+string logConfigItem::data(outFormat format,int nbTab)
+{
+	string type[] = {"cpu","peripheral","timing","memory"};
+	stringstream result;
+	string tabs = string(nbTab,'\t');
+	result << tabs;
+	switch(format) {
+		case logItem::txt: 
+			break;
+		case logItem::xml:
+			result << "<config type=\""+type[m_type]+"\" ";
+			result << "name=\""<<m_name<<"\" ";
+			result << "instance=\""<<m_instanceName<<"\" ";
+			result << ">\\n";
+			const int size = m_itemList.size();
+			for(int i=0;i<size;i++)
+			{
+				result << m_itemList[i]->data(format,nbTab+1);
+			}
+			result << tabs << "</config>\\n";
 			break;
 	}
 	return result.str();

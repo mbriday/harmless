@@ -9,19 +9,39 @@
 
 class timingBase;
 
-//an event to log. abstract class for all events.
-class logEvent {
+//abstract base class for all log items.
+class logItem {
 	public:
 	typedef enum {
 		txt,
 		xml
 	} outFormat;
-	virtual std::string data(outFormat format) = 0;
+	virtual std::string data(outFormat format,int nbTab = 0) = 0;
+};
+
+//used to log the configuration (structure)
+class logConfigItem : public logItem {
+	public:
+	typedef enum {
+		cpu,
+		peripheral,
+		timing,
+		memory
+	} configType;
+	private:
+	std::vector<logConfigItem *> m_itemList;
+	configType  m_type; //peripheral, cpu, ...
+	std::string m_name; //'type' of item (TIMER, ...)
+	std::string m_instanceName;
+	public:
+	logConfigItem(configType type, std::string name, std::string instanceName);
+	void addItem(logConfigItem *item);
+	virtual std::string data(outFormat format,int nbTab = 0);
 };
 
 //This class store a single event about timing states
 //i.e. a timing that changes its state (SUSPENDED, etc)
-class logEventTiming : public logEvent {
+class logEventTiming : public logItem {
 	u64 m_date;
 	timingBase *m_timing;
 	int m_fromState;
@@ -29,7 +49,7 @@ class logEventTiming : public logEvent {
 
 	public:
 	logEventTiming(timingBase *timing,int fromState,int toState);
-	virtual std::string data(outFormat format);
+	virtual std::string data(outFormat format,int nbTab = 0);
 
 };
 
@@ -39,10 +59,10 @@ class logEventTiming : public logEvent {
 // --> only one instance, accessed from everywhere with 
 // function log() (defined below).
 class logManager {
-	std::vector<logEvent *> m_eventList;
+	std::vector<logItem *> m_eventList;
 	static bool alreadyCreated;
-	std::string prologue(logEvent::outFormat format);
-	std::string epilogue(logEvent::outFormat format);
+	std::string prologue(logItem::outFormat format);
+	std::string epilogue(logItem::outFormat format);
 	
 	public:
 	logManager() {
@@ -51,7 +71,8 @@ class logManager {
 		alreadyCreated = true;
 	};
 	void addLogTiming(timingBase *timing, int fromState, int toState);
-	void testOut(logEvent::outFormat format);
+	void addItem(logItem *item);
+	void testOut(logItem::outFormat format);
 };
 
 //singleton management.
