@@ -56,10 +56,10 @@ def downloadGalgas(URLGalgas,galgasVersion,forceSrc,scriptWorkingDir):
 			archiveType = 'dmg'
 		elif uname[0] == 'Linux':
 			if uname[4] == 'x86_64':
-				archiveName = "galgas-x86_64-linux.zip"
+				archiveName = "galgas-x86-linux64.zip"
 				archiveType = 'zip'
 			elif uname[4][0] == 'i' and uname[4][2:4] == '86': #ix86
-				archiveName = "galgas-i386-linux.zip"
+				archiveName = "galgas-x86-linux32.zip"
 				archiveType = 'zip'
 			else:
 				print "The Linux host does not seem to be an x86 or x86_64 processor: "+uname[4]
