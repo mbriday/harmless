@@ -75,7 +75,7 @@ def downloadGalgas(URLGalgas,galgasVersion,forceSrc,scriptWorkingDir):
 	try:
 		#get last revision of Galgas
 		#http://galgas.rts-software.org/download/lastRelease.php -> 2.3.7
-		#http://galgas.rts-software.org/download/2.3.7/galgas-i386-linux.zip
+		#http://galgas.rts-software.org/download/2.3.7/galgas-x86-linux32.zip
 		URLGalgasArchive = URLGalgas+galgasVersion+'/'+archiveName
 		print ' -> download last release of the Galgas compiler ('+URLGalgasArchive+')'
 		urllib.urlretrieve(URLGalgasArchive, scriptWorkingDir+'/'+archiveName, reporthook)
@@ -107,9 +107,9 @@ def downloadGalgas(URLGalgas,galgasVersion,forceSrc,scriptWorkingDir):
 		popenTar = subprocess.Popen(['tar','xjf',archiveName],cwd=scriptWorkingDir) #decompress
 		popenTar.wait()		
 		subprocess.call(['mv',scriptWorkingDir+'/'+'galgas',scriptWorkingDir+'/'+'galgasSrc']) #rename source directory
-		popenBuildGalgas = subprocess.Popen(["make","galgas"],cwd=scriptWorkingDir+'/galgasSrc/makefile_unix') #assume a 32-bit Unix host
+		popenBuildGalgas = subprocess.Popen(["make","galgas"],cwd=scriptWorkingDir+'/galgasSrc/makefile-unix') #assume a 32-bit Unix host
 		popenBuildGalgas.wait() 
-		subprocess.call(['mv',scriptWorkingDir+'/galgasSrc/makefile_unix/galgas',scriptWorkingDir]) #get back galgas binary
+		subprocess.call(['mv',scriptWorkingDir+'/galgasSrc/makefile-unix/galgas',scriptWorkingDir]) #get back galgas binary
 		subprocess.call(['rm','-rf',scriptWorkingDir+'/galgasSrc']) #remove source directory.
 	#Fourth: remove archive.
 	subprocess.call(['rm',scriptWorkingDir+'/'+archiveName])
@@ -215,7 +215,7 @@ if __name__ == '__main__':
 		logPID.close
 
 		step=scriptStep(verbose,step,"generate gadl C++ sources using galgas")
-		popenGalgas = subprocess.Popen([galgasTool,'gadl/galgas_sources/all_gadl.gProject'],cwd=scriptWorkingDir)
+		popenGalgas = subprocess.Popen([galgasTool,'gadl/gadl.galgasProject'],cwd=scriptWorkingDir)
 		popenGalgas.wait()
 
 		step=scriptStep(verbose,step,"compile gadl tool")
@@ -223,10 +223,10 @@ if __name__ == '__main__':
 		host64 = False
 		uname = os.uname()
 		if uname[0] == 'Darwin': #Mac OS.
-			gadlLoc = gadlLoc+"/gadl/makefile_macosx"
+			gadlLoc = gadlLoc+"/gadl/makefile-macosx"
 			host64=True
 		else:
-			gadlLoc = gadlLoc+"/gadl/makefile_unix"
+			gadlLoc = gadlLoc+"/gadl/makefile-unix"
 		popenGADL = subprocess.Popen(["make",'gadl','-f','makefile','-j9'],cwd=gadlLoc)
 		popenGADL.wait()
 		subprocess.call(['mv',gadlLoc+'/gadl',scriptWorkingDir+'/gadl/gadl'])
