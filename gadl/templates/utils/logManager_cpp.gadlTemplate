@@ -1,5 +1,6 @@
 #include <iostream>
 #include <sstream> //stringstream
+#include <fstream> //ofstream
 #include "logManager.h"
 //#define NDEBUG (uncomment to disable assert())
 #include <cassert>
@@ -56,43 +57,50 @@ void logManager::addConfigItem(logConfigItem *item)
 	generateId();
 }
 
-//TODO: tmp
-void logManager::testOut(logItem::outFormat format)
+void logManager::save(std::string filename,logItem::outFormat format)
 {
-	stringstream result;
-	result << prologue(format,main);
-	//config
-	result << prologue(format,config);
-	const int sizeConfig = m_configList.size();
-	for(int i=0;i<sizeConfig;i++)
-	{
-		result << m_configList[i]->data(format,this) << endl;
+	ofstream file;
+	file.open(filename.c_str(), ofstream::out);
+	if(!file)
+		cerr << "open file error :" << filename << " in write mode" << endl;
+	else {
+		file << prologue(format,main);
+		//config
+		file << prologue(format,config);
+		const int sizeConfig = m_configList.size();
+		for(int i=0;i<sizeConfig;i++)
+		{
+			file << m_configList[i]->data(format,this) << endl;
+		}
+		file << epilogue(format,config);
+		//events
+		file << prologue(format,event);
+		const int sizeEvent = m_eventList.size();
+		for(int i=0;i<sizeEvent;i++)
+		{
+			file << m_eventList[i]->data(format,this) << endl;
+		}
+		file << epilogue(format, event);
+		file << epilogue(format, main);
+		file.close();
 	}
-	result << epilogue(format,config);
-	//events
-	result << prologue(format,event);
-	const int sizeEvent = m_eventList.size();
-	for(int i=0;i<sizeEvent;i++)
-	{
-		result << m_eventList[i]->data(format,this) << endl;
-	}
-	result << epilogue(format, event);
-	result << epilogue(format, main);
-	cout << result.str();
 }
 
 string logManager::prologue(logItem::outFormat format, logPart part)
 {
-	string partStr[] = {"root", "configs", "events"};
+	string partStr[] = {"harmless", "configs", "events"};
 	stringstream result;
 	switch(format) {
 		case logItem::txt:
 			result << "**** " << partStr[part] << " ****" << endl;
 			break;
 		case logItem::xml:
-			if(part == main)
+			if(part == main) {
 				result << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
-			result << "<" << partStr[part] <<">" << endl;
+				result << "<harmless version=\"1.0\">" << endl;
+			} else {
+				result << "<" << partStr[part] <<">" << endl;
+			}
 			break;
 	}
 	return result.str();
@@ -100,7 +108,7 @@ string logManager::prologue(logItem::outFormat format, logPart part)
 
 string logManager::epilogue(logItem::outFormat format, logPart part)
 {
-	string partStr[] = {"root", "configs", "events"};
+	string partStr[] = {"harmless", "configs", "events"};
 
 	stringstream result;
 	switch(format) {
