@@ -227,7 +227,8 @@ if __name__ == '__main__':
 			host64=True
 		else:
 			gadlLoc = gadlLoc+"/gadl/makefile-unix"
-		popenGADL = subprocess.Popen(["make",'gadl','-f','makefile','-j9'],cwd=gadlLoc)
+		# popenGADL = subprocess.Popen(["make",'gadl','-f','makefile','-j9'],cwd=gadlLoc)
+		popenGADL = subprocess.Popen(["./build+release.py",'all', '-1'],cwd=gadlLoc) # -1 means processor count + 1
 		popenGADL.wait()
 		subprocess.call(['mv',gadlLoc+'/gadl',scriptWorkingDir+'/gadl/gadl'])
 		print '*'*80
