@@ -1,0 +1,25 @@
+import isa armv6M from "cortex-armv6-M.isa" 
+
+-- 2 memory spaces
+--  => the main memory that get the program
+program memory space mem width 32
+--  => the registers
+memory space reg width 32 stride 4 -- access 32 bits: index 2 means address 2*4 = 0x8
+
+core cortexM0Plus : isa armv6M
+{
+  -- base. Il faudra rajouter certains registres.
+  memory GPR {
+    width  := 32
+    size   := 64 -- 16 registers
+    type   := register
+  } maps to reg:0
+
+  -- constructor.
+  void cortexM0Plus() {
+  }
+
+}
+-- errorformat=%f:%l:%c:%m
+-- makeprg=gadl\ \%
+-- vim:ft=harmlesscore:ts=2:sw=2:tw=0
