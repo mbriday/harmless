@@ -1,0 +1,27 @@
+import core cortexM0Plus from "cortexM0Plus.core"
+-- import peripheral from "serial.hadl"
+
+program memory space mem width 32
+
+cpu samd21 {
+
+  -- pour les essais...
+  memory sharedMem {
+    width  := 32
+    size   := 1mb
+    type   := RAM
+  } maps to mem:0
+
+  -- no multi-core at this date..
+  core cortexM0Plus core0()
+
+  -- pour les tests.
+--  device dummySerial serial maps to mem:1000
+
+  signal {
+  }
+}
+
+-- errorformat=%f:%l:%c:%m
+-- makeprg=gadl\ \%
+-- vim:ft=harmlesscore:ts=2:sw=2:tw=0

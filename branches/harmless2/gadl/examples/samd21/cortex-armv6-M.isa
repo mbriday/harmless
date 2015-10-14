@@ -1,0 +1,69 @@
+-- 
+-- ARMv6-M ISA description (used in the Cortex M0/M0+/M1 core).
+-- This is the little endian version 
+-- 
+-- CURRENTLY MODELLED: nothing :-/
+-- 
+-- TODO : 
+-- 
+-- NOT MODELLED: 
+-- 
+isa {
+
+default {
+  instruction := 16 -- instruction basic chunk on 16 bits.
+  little endian     -- may have big endian!
+}
+
+--##==================================================
+--## Components
+--##==================================================
+
+component fetcher {
+  program counter u32 PC
+
+  void reset() {
+    PC := 0
+  }
+
+  void absBranch(u32 newPC, u1 cond)
+  {
+    if (cond) then 
+      PC := newPC 
+    end if   
+  }
+}
+
+--##==================================================
+--## Behavior description
+--##==================================================
+
+behavior nopInstruction #nop
+  -- nothing to do.
+end behavior
+
+--##==================================================
+--## Format description
+--##==================================================
+
+format Instruction
+  select slice{15..0}
+    --case \b1011_1111_0000_0000 is #nop
+    case \b0100_0110_1100_0000 is #nop -- mov r8,r8
+  end select
+end format
+--##==================================================
+--## Syntax description
+--##==================================================
+
+syntax nopInstruction
+ select
+  case #nop "nop"
+ end select
+end syntax
+ 
+
+}
+-- errorformat=%f:%l:%c:%m
+-- makeprg=gadl\ \%
+-- vim:ft=hadl:ts=2:sw=2:tw=0
