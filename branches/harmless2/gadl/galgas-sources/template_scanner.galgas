@@ -36,7 +36,7 @@ style keywordsStyle -> "Keywords"
 style delimitersStyle -> "Delimiters"
 style nonTerminalStyle -> "Non Terminal Symbols"
 style integerStyle -> "Integer Constants"
-style float_csts -> "Floating Point Constants"
+style floatStyle -> "Floating Point Constants"
 style stringStyle -> "String literals"
 style commentStyle -> "Comments"
 
@@ -101,7 +101,7 @@ rule 'a'->'z' |  'A'->'Z' {
 
 #------------------------------- Integer, floating Point Constant ------------------
 @double floatValue
-$literal_double$ !floatValue !tokenString  style float_csts error message "a float number"
+$literal_double$ !floatValue !tokenString  style floatStyle error message "a float number"
 $unsigned_literal_integer64$ ! uint64value  style integerStyle error message "a 64-bit unsigned decimal number"
 
 message decimalNumberTooLarge : "decimal number too large"

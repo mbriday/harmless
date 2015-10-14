@@ -7,6 +7,7 @@ before {
 #--- 'when' clauses
 case . "core"
 message "a core only description file (with the .core extension)"
+grammar gadl_core_alone_grammar
 ?sourceFilePath:@lstring inSourceFile {
   grammar gadl_core_alone_grammar in inSourceFile
 }
@@ -14,6 +15,7 @@ message "a core only description file (with the .core extension)"
 #--- 'when' clauses
 case . "cpu"
 message "a CPU description, including peripherals and cores (with the .cpu extension)"
+grammar gadl_cpu_grammar
 ?sourceFilePath:@lstring inSourceFile {
   grammar gadl_cpu_grammar in inSourceFile
 }
