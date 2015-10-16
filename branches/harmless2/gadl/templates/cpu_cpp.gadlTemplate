@@ -35,7 +35,11 @@ cpu::cpu()
 %
 let nbCores := 0
 foreach core in coreInstanceList do
-  %\tm_%!core::name% = new %!core::type%_core(%!core::paramCall%, this);\n%
+  %\tm_%!core::name% = new %!core::type%_core(%
+  if core::paramCall != "" then
+    !core::paramCall%, %
+  end if
+  %this);\n%
   let nbCores := nbCores+1
 end foreach
 foreach core in coreInstanceList do

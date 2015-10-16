@@ -186,7 +186,7 @@ if __name__ == '__main__':
 	if galgasTool:
 
 		step=scriptStep(verbose,step,"extract libpm, required by p2a and a2cpp")
-		subprocess.call([galgasTool,'--extract-libpm='+scriptWorkingDir+'/gadl/galgas_sources/GALGAS_OUTPUT/libpm'])
+		subprocess.call([galgasTool,'--extract-libpm='+scriptWorkingDir+'/gadl/libpm'])
 
 		step=scriptStep(verbose,step,"compile p2a tool")
 		popenP2A = subprocess.Popen(["make",'-j9'],cwd=scriptWorkingDir+'/p2a')

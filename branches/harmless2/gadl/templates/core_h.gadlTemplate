@@ -469,12 +469,14 @@ end foreach
 %
 	foreach method in core::coreConstructorList
 	do
+       if method::paramStr != "" then #default constructor instead.
 		%\t\t%!core::NAME%_core(%!method::paramStr if exists cpuList then %, cpu *_cpu%end if%) :\n%
 		%\t\t\tcore(), %if exists cpuList then %m_cpu(_cpu)%end if 
 		%\n\t\t{\n%
 		%\n\t\t\tinit(); //common init part.\n%
 		!method::codeStr
 		%\n\t\t}\n%
+       end if
     end foreach
 
 %		/** components implementation*/

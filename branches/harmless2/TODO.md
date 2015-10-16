@@ -11,4 +11,5 @@
  * ajouter les exemples simples utilisés lors du portage.
  * faire une doc utilisateur (comment lancer les tests, en rajouter, les pré-requis)
 
- ### 
+## modèle armv6-M
+ * faire tourner un modèle vide (constructeur vide, pas d'architecture/pipeline, ...).
