@@ -36,7 +36,7 @@ LDFLAGS +=
 EXTRA_FILES_CLEAN=
 
 #libpm related sources (these files are generated the firt time gadl is compiled).
-LIBPM_PATH = ../gadl/galgas_sources/GALGAS_OUTPUT/libpm
+LIBPM_PATH = ../gadl/libpm
 
 SOURCES_DIR += $(strip $(LIBPM_PATH))/bdd
 SOURCES_DIR += $(strip $(LIBPM_PATH))/cache
@@ -223,7 +223,7 @@ else
 endif
 ########################################################
 
-OBJ_DIR = .build
+OBJ_DIR = build
 
 #OBJ = $(addprefix $(OBJ_DIR)/,$(SRCS:.cpp=.o))
 OBJ = $(foreach source,$(SRCS),$(OBJ_DIR)/$(source).o)
