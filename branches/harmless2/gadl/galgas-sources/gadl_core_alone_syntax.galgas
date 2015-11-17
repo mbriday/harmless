@@ -13,7 +13,10 @@ rule <coreAlone> {
   @lstring coreName = @lstring. new { !"coreName" !@location.here}
   for () in  ASTcoreMap do coreName = lkey end
   @lstring cpuName   = coreName
-  @lstring exportDir = coreName
+  let exportDir = @lstring.new {
+    ![@string.stringWithSourceFilePath stringByDeletingLastPathComponent] + '/' + coreName
+    !coreName.location
+  }
   #Ok. Parsing done. Now apply semantic.
   ###########################################################################
   # init templates.
