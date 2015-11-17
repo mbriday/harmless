@@ -146,7 +146,7 @@ def installGalgas(verbose,scriptWorkingDir):
 			print "Please check your Internet connection."
 			print "You can set your proxy configuration using the command"
 			print "export http_proxy=\"http://proxyIP:proxyPort\""
-			print "(before calling this script"
+			print "(before calling this script)"
 			sys.exit()
 		else:
 			print "I could not find the galgas compiler in the PATH"
@@ -155,7 +155,7 @@ def installGalgas(verbose,scriptWorkingDir):
 		if galgasSiteOk:
 			#note: subprocess.check_output only appeared in v2.7 and is not available on MacOS 10.6
 			output = subprocess.Popen([galgasProg,"--version"], stdout=subprocess.PIPE).communicate()[0]
-			m = re.search(r".*version\s+(.*)$", output)
+                        m = re.search(r".*\s:\s+(.*), build.*$", output)
 			if m != None:
 				if m.group(1) == galgasVersion:
 					if verbose:
