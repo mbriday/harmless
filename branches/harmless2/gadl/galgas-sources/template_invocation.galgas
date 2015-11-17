@@ -257,7 +257,12 @@ proc templateInvocation
     else
      outNoErrorOccured = false
     end
-    grammar template_grammar on templateContents !inPrefix !inPath !inTemplateDirectory !inTemplateVariableMap !?ioResultingString    
+    grammar template_grammar on (templateContents, "")
+      !inPrefix
+      !inPath
+      !inTemplateDirectory
+      !inTemplateVariableMap
+      !?ioResultingString    
   else
     templateName = inTemplateDirectory+templateName
     templateNameWithoutPrefix = inTemplateDirectory+templateNameWithoutPrefix

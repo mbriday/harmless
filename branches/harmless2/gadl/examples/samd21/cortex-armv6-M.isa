@@ -23,7 +23,8 @@ component fetcher {
   program counter u32 PC
 
   void reset() {
-    PC := 0
+    -- SP <- contenu adresse 0
+    PC := 0 -- en fait PC <- (contenu adresse 4) - 1
   }
 
   void absBranch(u32 newPC, u1 cond)
@@ -42,16 +43,56 @@ behavior nopInstruction #nop
   -- nothing to do.
 end behavior
 
+--behavior nopInstruction #moveImmediate -- Page A6-154
+--end behavior
+
 --##==================================================
 --## Format description
 --##==================================================
-
 format Instruction
-  select slice{15..0}
-    --case \b1011_1111_0000_0000 is #nop
-    case \b0100_0110_1100_0000 is #nop -- mov r8,r8
+  select slice{15..10}
+    case \m00---- is arith
+--    case \m010000 is dataProc
+--    case \m010001 is specialAndBex
+--    case \m01001- is loadFromLiteralPool
+--    case \m0101-- or \m011--- or \m100--- is loadStore
+--    case \m10100- is PCRelativeAddress
+--    case \m10101- is SPRelativeAddress
+--    case \m11000- is stm
+--    case \m11001- is ldm
+--    case \m1101-- is condBranchAndSupervisorCall
+--    case \m11100- is unconditionnalBranch
   end select
 end format
+
+format arith
+  select slice{13..9}
+  -- Page A5-85
+    case \m00--- is 
+      select slice{11}
+        case 0 is #left
+        case 1 is #right
+      end select
+      logicalShift
+    case \m010-- is #arithmeticShiftRightImmediate
+    case \m01100 is #addRegister
+    case \m01101 is #subtractRegister
+    case \m01110 is #add3BitImmediate
+    case \m01111 is #subtract3BitImmediate
+    case \m100-- is #moveImmediate  -- Page A6-154
+    case \m101-- is #compareImmediate
+    case \m110-- is #add8BitImmediate
+    case \m111-- is #subtract8BitImmediate
+  end select
+end format
+
+format logicalShift
+  #logicalShift
+  imm5 := slice{10..6}
+  Rm := slice{5..3}
+  Rd := slice{2..0}
+end format
+
 --##==================================================
 --## Syntax description
 --##==================================================
