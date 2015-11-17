@@ -91,7 +91,10 @@ rule <cpu> {
   $}$
   idfStruct.ASTperipheralMap = ASTperipheralMap
 
-  @lstring exportDir = cpuName
+  let exportDir = @lstring.new {
+    ![@string.stringWithSourceFilePath stringByDeletingLastPathComponent] + '/' + cpuName
+    !cpuName.location
+  }
   #Ok. Parsing done. Now apply semantic.
   ###########################################################################
   # init templates.
