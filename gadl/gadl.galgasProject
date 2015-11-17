@@ -3,7 +3,7 @@ project (0:8:1) -> "gadl" {
   %makefile-macosx
   %makefile-unix
   #specific for Mac Cocoa Version:
-  %LatestMacOS
+  %ElCapitanYosemite
   %applicationBundleBase : "fr.irccyn.str"
 
 #--- Source files (relative path from 'galgas_sources' directory)

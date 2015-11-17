@@ -68,14 +68,6 @@ static const char * kSourceFileHelpMessages [] = {
 
 //---------------------------------------------------------------------------*
 
-#ifndef DO_NOT_GENERATE_CHECKINGS
-  static const char * kVersionString = "version 1.0 [debug]" ;
-#else
-  static const char * kVersionString = "version 1.0" ;
-#endif
-
-//---------------------------------------------------------------------------*
-
 //check for arguments.
 /*bool parseArgumentList(int argc, const char *argv[], string &configFilename)
 {
@@ -111,6 +103,18 @@ static const char * kSourceFileHelpMessages [] = {
 
 //---------------------------------------------------------------------------*
 
+const char * galgasVersionString (void) {
+  return "3.1.3" ;
+}
+
+//---------------------------------------------------------------------------*
+
+const char * projectVersionString (void) {
+  return "?" ;
+}
+
+//---------------------------------------------------------------------------*
+
 #include "codeGenerator.h"
 
 int mainForLIBPM (int inArgc, const char * inArgv [])
@@ -118,7 +122,6 @@ int mainForLIBPM (int inArgc, const char * inArgv [])
 //--- Analyze Command Line Options
   TC_UniqueArray <C_String> sourceFilesArray ;
   F_Analyze_CLI_Options (inArgc, inArgv,
-                         kVersionString,
                          sourceFilesArray,
                          kSourceFileExtensions,
                          kSourceFileHelpMessages,

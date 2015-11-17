@@ -4,6 +4,12 @@
 before {
 }
 
+case . "isa"
+message "an isa only description file (with the .isa extension)"
+grammar gadl_isa_grammar
+?sourceFilePath:@lstring inSourceFile {
+  grammar gadl_isa_grammar in inSourceFile ?let @ASTIsa unused ASTIsa
+}
 #--- 'when' clauses
 case . "core"
 message "a core only description file (with the .core extension)"
