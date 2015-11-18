@@ -64,6 +64,8 @@ method @ASTIsa getIsa
   [branchInstMap updateTemplateForJumpInstructions !?templateStruct]
   #defaults
   [defaultValues updateTemplate !?templateStruct]
+  #data to generate log file (.txt) about instructions, using templates.
+  prepareLogTemplates(!impMap !defaultValues !?templateStruct)
 
   isa = @Isa. new { !impMap !decodedBehaviorMap !branchInstMap !defaultValues}
 }

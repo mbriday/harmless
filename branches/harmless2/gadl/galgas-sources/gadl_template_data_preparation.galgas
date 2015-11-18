@@ -1,4 +1,4 @@
- #cDeclareVar
+#used to generate the .xml file that contains data exported to templates
 
 #template related files.
 proc addLstringlist

@@ -80,6 +80,9 @@ project (0:8:1) -> "gadl" {
   "galgas-sources/gadl_semantics_behavior_data_structures.galgas"
   "galgas-sources/gadl_semantics_behavior.galgas"
 
+  #instruction log
+  "galgas-sources/gadl_log_instruction.galgas"
+
 #******************************************************
 # components <-> link ISA to micro-architecture.
 #******************************************************
