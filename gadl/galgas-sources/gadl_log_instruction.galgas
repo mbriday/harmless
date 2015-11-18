@@ -1,0 +1,71 @@
+
+#this file have routines related to instructions that are not reserved
+#for a particular descrption (format, syntax and behavior).
+
+proc getFormatRelatedTemplate
+ ?let  @binaryset binTemp 
+ ?let  @lstringlist instructionSeq
+ ?let  @stringset instSignature
+ ?let  @uint codeLength
+ ?let  @varBaseTypeMap instructionFieldMap
+ ?let  @uint defaultInstSize
+ ?! @TfieldMap instStruct {
+  #Sequence
+  addLstringlist ( !?instStruct !lstringWith(!"formatSeq") !"node" !instructionSeq)
+  #instruction signature.
+  addStringset ( !?instStruct !lstringWith(!"instSignature") !lstringWith(!"tag") !instSignature)
+  #inst code.
+  addUnsignedValue ( !?instStruct !lstringWith(!"codeLength") ![codeLength uint64])
+  #binary coding
+  @binaryset bin
+  @stringlist binStrListTemp
+  var binStrList =@stringlist.emptyList{}
+  getRealInstructionCode ( !binTemp !defaultInstSize !codeLength ?bin)
+  binStrListTemp = [bin compressedStringValueList !defaultInstSize*codeLength]
+  for (@string str) in  binStrListTemp do
+    @string binStr = [str stringByReplacingStringByString !"X" !"-"]
+    binStrList += !binStr
+  end
+  addStringlist ( !?instStruct !lstringWith(!"formatBin") !lstringWith(!"bin") !binStrList)
+  #fields
+  var fieldMapList =@TfieldMapList.emptyList{}
+  for (@lstring ASname @varBaseType VBtype) in  instructionFieldMap do
+    var itemMap =@TfieldMap.emptyMap{}
+    addLStringValue ( !?itemMap !"name" !ASname)
+    addStringValue ( !?itemMap !lstringWith(!"type") ![VBtype string])
+    fieldMapList += !itemMap
+  end
+  addListValue ( !?instStruct !lstringWith(!"formatField") !fieldMapList)
+}
+
+
+proc prepareLogTemplates
+  ?let  @instructionImplementationMap impMap # ISA binary part
+  ?let  @defaultSection defaultValues
+  ?! @TfieldMap cfg { 
+  #get data related to binary operations.
+  var instData =@TfieldMapList.emptyList{}
+  #foreach impMap(@lstring instName * * * * * @uint codeLength *) do
+  for (@lstring instName 
+                  @binaryset binTemp 
+                  * 
+                  @lstringlist instructionSeq
+                  @stringset instSignature
+                  * 
+                  @uint codeLength
+                  @varBaseTypeMap instructionFieldMap) in  impMap do
+    var instStruct =@TfieldMap.emptyMap{}
+    #ID
+    addLStringValue ( !?instStruct !"instID" !instName)
+    #all stuff related to format part.
+    getFormatRelatedTemplate ( !binTemp !instructionSeq !instSignature
+                             !codeLength !instructionFieldMap ![[defaultValues instructionSize] uint]
+                             !?instStruct)
+
+    #end
+    instData += !instStruct
+  end
+  addListValue ( !?cfg !lstringWith(!"instData") !instData)
+}
+
+# vim:ft=galgas:ts=2:sw=2:tw=0
