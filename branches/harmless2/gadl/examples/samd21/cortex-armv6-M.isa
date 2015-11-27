@@ -49,10 +49,10 @@ end behavior
 --##==================================================
 --## Format description
 --##==================================================
-format Instruction
+format Instruction	 -- p A5.84 (ARM DDI 0419C)
   select slice{15..10}
-    case \m00---- is arith
---    case \m010000 is dataProc
+    case \m00---- is arith --ok
+    case \m010000 is dataProc --A5.86
 --    case \m010001 is specialAndBex
 --    case \m01001- is loadFromLiteralPool
 --    case \m0101-- or \m011--- or \m100--- is loadStore
@@ -65,6 +65,27 @@ format Instruction
   end select
 end format
 
+format dataProc
+  select slice {9..6}
+    case \b0000 is #and --A6.116
+    case \b0001 is #eor
+    case \b0010 is #lsl
+    case \b0011 is #lsr
+    case \b0100 is #asr
+    case \b0101 is #adc
+    case \b0110 is #sbc
+    case \b0111 is #ror
+    case \b1000 is #tst
+    case \b1001 is #rsb
+    case \b1010 is #cmp
+    case \b1011 is #cmn
+    case \b1100 is #orr
+    case \b1101 is #mul
+    case \b1110 is #bic
+    case \b1111 is #mvn
+  end select
+end format
+
 format arith
   select slice{13..9}
   -- Page A5-85
@@ -73,24 +94,41 @@ format arith
         case 0 is #left
         case 1 is #right
       end select
-      logicalShift
-    case \m010-- is #arithmeticShiftRightImmediate
-    case \m01100 is #addRegister
-    case \m01101 is #subtractRegister
-    case \m01110 is #add3BitImmediate
-    case \m01111 is #subtract3BitImmediate
-    case \m100-- is #moveImmediate  -- Page A6-154
-    case \m101-- is #compareImmediate
-    case \m110-- is #add8BitImmediate
-    case \m111-- is #subtract8BitImmediate
+      #logicalShift --A6.150/152
+		  Imm5Reg2
+    case \m010-- is #right #arithmeticShift Imm5Reg2 -- A6.117
+    case \m01100 is #add reg3         --A6.109
+    case \m01101 is #sub reg3         --A6.187
+    case \m01110 is #add imm3reg2     --A6.107
+    case \m01111 is #sub imm3reg2		  --A6.185
+    case \m100-- is #move imm8reg1    --A6.154
+    case \m101-- is #compare imm8reg1 --A6.127
+    case \m110-- is #add imm8reg1     --A6.107
+    case \m111-- is #sub imm8reg1     --A6.185
   end select
 end format
 
-format logicalShift
-  #logicalShift
+format Imm5Reg2 #imm5 #Rm #Rd
   imm5 := slice{10..6}
   Rm := slice{5..3}
   Rd := slice{2..0}
+end format
+
+format reg3 #Rm #Rn #Rd
+  Rm := slice{8..6}
+  Rn := slice{5..3}
+  Rd := slice{2..0}
+end format
+
+format imm3reg2 #imm3 #Rn #Rd
+  imm3 := slice{8..6}
+  Rn := slice{5..3}
+  Rd := slice{2..0}
+end format
+
+format imm8reg1 #imm8 #Rd
+  imm8 := slice{7..0}
+  Rd := slice{10..8}
 end format
 
 --##==================================================
