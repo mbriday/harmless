@@ -45,7 +45,7 @@ component fetcher {
 --##==================================================
 --## Format description
 --##==================================================
-format Instruction	 -- p A5.127 (ARM DDI 0403E.b)
+format Instruction16	 -- p A5.127 (ARM DDI 0403E.b)
   select slice{15..10}
     case \m00---- is arith    --A5.128
     case \m010000 is dataProc --A5.129
@@ -55,11 +55,35 @@ format Instruction	 -- p A5.127 (ARM DDI 0403E.b)
     case \m10100- is #ADR imm8reg1  -- A7.197
     case \m10101- is #ADDSP imm8reg1 --A7.193
     case \m1011-- is misc16
---    case \m11000- is stm
---    case \m11001- is ldm
---    case \m1101-- is condBranchAndSupervisorCall
+    case \m11000- is #store #multipleWord lstm
+    case \m11001- is #load  #multipleWord lstm
+    case \m1101-- is condBranchAndSupervisorCall
 --    case \m11100- is unconditionnalBranch
   end select
+end format
+
+format condBranchAndSupervisorCall
+  select slice{11..8}
+    case \m0--- or
+         \m10-- or
+         \m110- is branch #branch #cond
+    case \m1110 is imm8 #udf
+    case \m1111 is imm8 #svc
+  end select  
+end format
+
+format imm8 #imm8
+  imm8 := slice{7..0}
+end format
+
+format branch
+  cond := slice{11..8}
+  imm8 := slice{7..0}
+end format
+
+format lstm -- load/store multipl word
+  regList := slice{7..0}
+  Rn := slice{10..8}
 end format
 
 format misc16 -- A7.132
@@ -77,7 +101,7 @@ format misc16 -- A7.132
     case \m101001- is #rev #reg16 #unsigned reg2
     case \m101011- is #rev #reg16 #signed reg2
     case \m110---- is pop
-    case \m1110--- is #bkpt #imm8 imm8 := slice{7..0}
+    case \m1110--- is #bkpt imm8 
     case \m1111--- is ifThenElseAndHint
   end select
 end format
@@ -267,9 +291,28 @@ format imm8reg1Rt #imm8 #Rt
   Rt := slice{10..8}
 end format
 
+--- Fomat 32 bits
+-- format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
+--   select slice{15..4}+{15}
+--     case \m111_01_00--0--_- is loadStoreMultiple
+--   end select
+-- end format
+-- 
+-- format loadStoreMultiple #multiple
+--   select slice{8..7,4}{-}
+--     case \m01_0 is #store #emptyAscending
+--     case \m01_1 is #load  #fullDescending
+--   end select
+-- end format
+
+
 --##==================================================
 --## Syntax description
 --##==================================================
+
+-- syntax
+-- 
+-- end syntax
 
 }
 -- errorformat=%f:%l:%c:%m
