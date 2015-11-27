@@ -39,25 +39,22 @@ component fetcher {
 --## Behavior description
 --##==================================================
 
-behavior nopInstruction #nop
-  -- nothing to do.
-end behavior
-
 --behavior nopInstruction #moveImmediate -- Page A6-154
 --end behavior
 
 --##==================================================
 --## Format description
 --##==================================================
-format Instruction	 -- p A5.84 (ARM DDI 0419C)
+format Instruction	 -- p A5.127 (ARM DDI 0403E.b)
   select slice{15..10}
-    case \m00---- is arith --ok
-    case \m010000 is dataProc --A5.86
---    case \m010001 is specialAndBex
---    case \m01001- is loadFromLiteralPool
---    case \m0101-- or \m011--- or \m100--- is loadStore
---    case \m10100- is PCRelativeAddress
---    case \m10101- is SPRelativeAddress
+    case \m00---- is arith    --A5.128
+    case \m010000 is dataProc --A5.129
+    case \m010001 is specialAndBex
+    case \m01001- is loadFromLiteralPool --A7.254
+    case \m0101-- or \m011--- or \m100--- is loadStore -- A5.131
+    case \m10100- is #ADR imm8reg1  -- A7.197
+    case \m10101- is #ADDSP imm8reg1 --A7.193
+    case \m1011-- is misc16
 --    case \m11000- is stm
 --    case \m11001- is ldm
 --    case \m1101-- is condBranchAndSupervisorCall
@@ -65,24 +62,131 @@ format Instruction	 -- p A5.84 (ARM DDI 0419C)
   end select
 end format
 
+format misc16 -- A7.132
+  select slice{11..5}
+    case \m0110011 is CPS
+    case \m00000-- is #ADDSP #imm7 imm7 := slice{6..0}
+    case \m00001-- is #SUBSP #imm7 imm7 := slice{6..0}
+    case \m-0-1--- is compareBranch
+    case \m001000- is #XT #signed #reg16   reg2 --sxth
+    case \m001001- is #XT #signed #reg8    reg2 --sxtb
+    case \m001010- is #XT #unsigned #reg16 reg2 --uxth
+    case \m001011- is #XT #unsigned #reg8  reg2 --uxtb
+    case \m010---- is push 
+    case \m101000- is #rev #reg32 reg2
+    case \m101001- is #rev #reg16 #unsigned reg2
+    case \m101011- is #rev #reg16 #signed reg2
+    case \m110---- is pop
+    case \m1110--- is #bkpt #imm8 imm8 := slice{7..0}
+    case \m1111--- is ifThenElseAndHint
+  end select
+end format
+
+format ifThenElseAndHint
+  select slice{7..0}
+    case \m----_0001 or
+         \m----_001- or
+         \m----_01-- or
+         \m----_1--- is ifThen
+    case \m0000_0000 is #nop
+    case \m0001_0000 is #yield
+    case \m0010_0000 is #wfe
+    case \m0011_0000 is #wfi
+    case \m0100_0000 is #sev
+  end select
+end format
+
+format ifThen #ifThen
+  firstCond := slice{7..4}
+  mask := slice{3..0}
+end format
+
+format pop #pop
+  regList := slice{7..0}
+  P := slice{8}
+end format
+
+format push #push
+  regList := slice{7..0}
+  M := slice{8}
+end format
+
+format compareBranch
+  select slice{11}
+    case 0 is #CBZ
+    case 1 is #CBNZ
+  end select
+  imm6 := slice{9,7..3}
+  Rn := slice{2..0}
+end format
+
+format CPS
+  select slice{3..0}
+    case \m0001 or \m001- is #CPS
+  end select
+  Im := slice{4}
+  I  := slice{1}
+  F  := slice{0}
+end format
+
+format loadStore
+  select slice{15..9}
+    case \m0101_000 is reg3Rt #store #reg32
+    case \m0101_001 is reg3Rt #store #reg16
+    case \m0101_010 is reg3Rt #store #reg8
+    case \m0101_011 is reg3Rt #load  #reg8  #signed
+    case \m0101_100 is reg3Rt #load  #reg32
+    case \m0101_101 is reg3Rt #load  #reg16 #unsigned
+    case \m0101_110 is reg3Rt #load  #reg8  #unsigned
+    case \m0101_111 is reg3Rt #load  #reg16 #signed
+    case \m0110_0-- is #store #reg32 regImm5reg2Rt
+    case \m0110_1-- is #load  #reg32 regImm5reg2Rt
+    case \m0111_0-- is #store #reg8  regImm5reg2Rt
+    case \m0111_1-- is #load  #reg8  regImm5reg2Rt
+    case \m1000_0-- is #store #reg16 regImm5reg2Rt
+    case \m1000_1-- is #load  #reg16 regImm5reg2Rt
+    case \m1001_0-- is #store #SP imm8reg1Rt
+    case \m1001_1-- is #load  #SP imm8reg1Rt
+  end select
+end format
+
+format loadFromLiteralPool #Rt #imm8
+  Rt := slice{10..8}
+  imm8 := slice{7..0}
+end format
+
+format specialAndBex
+  select slice {9..6} -- from A5.130
+    case \m00-- is #add reg2_4bits
+    case \m0101 or \m011- or \b0110 is #compare reg2_4bits
+    case \m10-- is #mov reg2_4bits
+    case \m11-- is #bex
+      select slice {7,2..0}
+        case \b0_000 is 
+        case \b1_000 is #link
+      end select
+      Rm := slice{6..3}
+  end select
+end format
+
 format dataProc
-  select slice {9..6}
-    case \b0000 is #and --A6.116
-    case \b0001 is #eor
-    case \b0010 is #lsl
-    case \b0011 is #lsr
-    case \b0100 is #asr
-    case \b0101 is #adc
-    case \b0110 is #sbc
-    case \b0111 is #ror
-    case \b1000 is #tst
-    case \b1001 is #rsb
-    case \b1010 is #cmp
-    case \b1011 is #cmn
-    case \b1100 is #orr
-    case \b1101 is #mul
-    case \b1110 is #bic
-    case \b1111 is #mvn
+  select slice {9..6} -- from A7.129
+    case \b0000 is #and reg2 
+    case \b0001 is #eor reg2
+    case \b0010 is #lsl reg2
+    case \b0011 is #lsr reg2
+    case \b0100 is #asr reg2
+    case \b0101 is #adc reg2
+    case \b0110 is #sbc reg2
+    case \b0111 is #ror reg2
+    case \b1000 is #tst reg2
+    case \b1001 is #rsb reg2Rn
+    case \b1010 is #cmp reg2
+    case \b1011 is #cmn reg2
+    case \b1100 is #orr reg2
+    case \b1101 is #mul reg2
+    case \b1110 is #bic reg2
+    case \b1111 is #mvn reg2
   end select
 end format
 
@@ -94,17 +198,17 @@ format arith
         case 0 is #left
         case 1 is #right
       end select
-      #logicalShift --A6.150/152
+      #logicalShift --A7.298/302
 		  Imm5Reg2
-    case \m010-- is #right #arithmeticShift Imm5Reg2 -- A6.117
-    case \m01100 is #add reg3         --A6.109
-    case \m01101 is #sub reg3         --A6.187
-    case \m01110 is #add imm3reg2     --A6.107
-    case \m01111 is #sub imm3reg2		  --A6.185
-    case \m100-- is #move imm8reg1    --A6.154
-    case \m101-- is #compare imm8reg1 --A6.127
-    case \m110-- is #add imm8reg1     --A6.107
-    case \m111-- is #sub imm8reg1     --A6.185
+    case \m010-- is #right #arithmeticShift Imm5Reg2 -- A7.203
+    case \m01100 is #add reg3         --A7.191
+    case \m01101 is #sub reg3         --A7.350
+    case \m01110 is #add imm3reg2     --A7.189
+    case \m01111 is #sub imm3reg2		  --A7.448
+    case \m100-- is #move imm8reg1    --A7.312
+    case \m101-- is #compare imm8reg1 --A7.229
+    case \m110-- is #add imm8reg1     --A7.189
+    case \m111-- is #sub imm8reg1     --A7.448
   end select
 end format
 
@@ -112,6 +216,33 @@ format Imm5Reg2 #imm5 #Rm #Rd
   imm5 := slice{10..6}
   Rm := slice{5..3}
   Rd := slice{2..0}
+end format
+
+format reg2_4bits #Rm #Rd
+  Rm := slice{6..3}
+  Rd := slice{7,2..0}
+end format
+
+format reg2 #Rm #Rd
+  Rm := slice{5..3}
+  Rd := slice{2..0}
+end format
+
+format reg2Rn #Rm #Rd
+  Rn := slice{5..3}
+  Rd := slice{2..0}
+end format
+
+format regImm5reg2Rt #imm5 #Rn #Rt
+  imm5 := slice{10..6}
+  Rn   := slice{5..3}
+  Rt   := slice{2..0}
+end format
+
+format reg3Rt #Rm #Rn #Rt
+  Rm := slice{8..6}
+  Rn := slice{5..3}
+  Rt := slice{2..0}
 end format
 
 format reg3 #Rm #Rn #Rd
@@ -131,16 +262,14 @@ format imm8reg1 #imm8 #Rd
   Rd := slice{10..8}
 end format
 
+format imm8reg1Rt #imm8 #Rt
+  imm8 := slice{7..0}
+  Rt := slice{10..8}
+end format
+
 --##==================================================
 --## Syntax description
 --##==================================================
-
-syntax nopInstruction
- select
-  case #nop "nop"
- end select
-end syntax
- 
 
 }
 -- errorformat=%f:%l:%c:%m
