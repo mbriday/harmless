@@ -154,7 +154,7 @@ def installGalgas(verbose,scriptWorkingDir):
 	else: #galgas found, check version.
 		if galgasSiteOk:
 			#note: subprocess.check_output only appeared in v2.7 and is not available on MacOS 10.6
-			output = subprocess.Popen([galgasProg,"--version"], stdout=subprocess.PIPE).communicate()[0]
+			output = subprocess.Popen([galgasProg,"--version",'-q'], stdout=subprocess.PIPE).communicate()[0]
                         m = re.search(r".*\s:\s+(.*), build.*$", output)
 			if m != None:
 				if m.group(1) == galgasVersion:
@@ -186,7 +186,7 @@ if __name__ == '__main__':
 	if galgasTool:
 
 		step=scriptStep(verbose,step,"extract libpm, required by p2a and a2cpp")
-		subprocess.call([galgasTool,'--extract-libpm='+scriptWorkingDir+'/gadl/libpm'])
+		subprocess.call([galgasTool,'--extract-libpm='+scriptWorkingDir+'/gadl/libpm','-q'])
 
 		step=scriptStep(verbose,step,"compile p2a tool")
 		popenP2A = subprocess.Popen(["make",'-j9'],cwd=scriptWorkingDir+'/p2a')
@@ -215,7 +215,7 @@ if __name__ == '__main__':
 		logPID.close
 
 		step=scriptStep(verbose,step,"generate gadl C++ sources using galgas")
-		popenGalgas = subprocess.Popen([galgasTool,'gadl/gadl.galgasProject'],cwd=scriptWorkingDir)
+		popenGalgas = subprocess.Popen([galgasTool,'gadl/gadl.galgasProject','-q'],cwd=scriptWorkingDir)
 		popenGalgas.wait()
 
 		step=scriptStep(verbose,step,"compile gadl tool")
