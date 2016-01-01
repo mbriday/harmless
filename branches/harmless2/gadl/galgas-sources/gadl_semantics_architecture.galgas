@@ -92,14 +92,14 @@ proc extractPipelinePaths
     #first, get instruction pipeline paths.
     @string ioChaine = ""
     [pipelineExpression parcours !?ioChaine]
-    if [option .verbose_output value] then
+    if @application.verboseOutput then
       message "machine '"+machineName+"' have the pipeline "+ioChaine+"\n"
     end
     var instructionPipelinePathList =@instructionPipelinePathList.emptyList{}
     var ipp =@instructionPipelinePath.emptyList{}
     instructionPipelinePathList += !ipp
     getInstructionPipelinePath ( !pipelineExpression !?instructionPipelinePathList)
-    if [option .verbose_output value] then
+    if @application.verboseOutput then
       message "instruction paths are\n"
       for (@instructionPipelinePath instructionPath) in  instructionPipelinePathList do
         @string str

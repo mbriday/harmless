@@ -432,7 +432,7 @@ proc outputFormatGraphViz
 #this function is really time consuming :-/
 proc checkISOrthogonality 
   ?let  @instructionImplementationMap impMap {
-  if [option .verbose_output value] then
+  if @application.verboseOutput then
     message "checking instruction binary code coherency..."
   end
   @bool errorFound = false
@@ -463,7 +463,7 @@ proc checkISOrthogonality
     end
     i1 = i1+1
   end
-  if [option .verbose_output value] then
+  if @application.verboseOutput then
     if errorFound then message "failed\n" else message "ok\n" end
   end
 }
@@ -625,7 +625,7 @@ proc generateDecoder
   var decoderFunction =@TfieldMapList.emptyList{}
 
   if [option gadl_options.noCheck value] then 
-    if [option .verbose_output value] then
+    if @application.verboseOutput then
       message "do not search for instruction set format ambiguity (option -c)\n"
     end
   else
@@ -1007,7 +1007,7 @@ proc getBinaryFormat
         nextIsRefAssociatedToAFormat = false #only one time.
       end
     end
-    if [code isEmpty] & [option .verbose_output value] then
+    if [code isEmpty] & @application.verboseOutput then
       @string instID = ""
       printInstructionId ( !instructionID !?instID)
       message "-> instruction "+instID+" does not have a valid binary format (always false).\n"
@@ -1187,14 +1187,14 @@ proc constructFormatInstructionTree
   !  @formatListWithSuffixList instructionList {
   instructionList = @formatListWithSuffixList. emptyList
   @formatMap rootFormatMap
-  if [option .verbose_output value] then
+  if @application.verboseOutput then
     message "contructing format tree..."
   end
   detectRootFormats ( !formatMap ?rootFormatMap)
   @uint nbInstructionAccumulated = 0
 
   for (@lstring formatName *) in  rootFormatMap do
-    if [option .verbose_output value] then
+    if @application.verboseOutput then
       message "\n\tfrom root "+[formatName string]+"..."
     end
 
@@ -1207,7 +1207,7 @@ proc constructFormatInstructionTree
     formatListToCompute += !rootFormat !emptyStringList
     constructFormatInstructionTreeRec ( !formatMap !formatListToCompute !instructionFormatList !?instructionList)
 
-    if [option .verbose_output value] then
+    if @application.verboseOutput then
       @uint temp = [instructionList length] - nbInstructionAccumulated
       message [temp string]+" instruction"
       if temp > 1 then message "s." else message "." end
@@ -1215,7 +1215,7 @@ proc constructFormatInstructionTree
     end
 
   end
-  if [option .verbose_output value] then
+  if @application.verboseOutput then
     message "\nFound a total of "+[[instructionList length] string]+" instructions formats.\n"
   end
 }

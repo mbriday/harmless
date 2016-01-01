@@ -741,7 +741,7 @@ proc extractInstructionClasses
     htmlLog += "<p>instruction class is <a href=\"instructionClass.html#"+instClassName+"\">"+instClassName+"</a></p>\n"
     #addStringValue !?templateStruct !lstringWith[!"HTML_INSTRUCTION_CLASS_EXTRACTION_FOR_INST"] !htmlLog;  
   end
-  if [option .verbose_output value] then
+  if @application.verboseOutput then
     message "There are "+[icMap count]+" instruction classes (before reduction) for "+
             [instToInstructionClassMap count]+" instructions.\n"
   end
@@ -886,7 +886,7 @@ proc updateInstructionClasses
     [!?newInstToInstructionClassMap insertKey !key !newIcName]
   end
   instToInstructionClassMap = newInstToInstructionClassMap
-  if [option .verbose_output value] then
+  if @application.verboseOutput then
     message "After reduction, there are "+[newIcMap count]+" instruction classes\n"
   end
   #debug.
@@ -910,7 +910,7 @@ proc reduceInstructionClasses
   ?! @stringMap instToInstructionClassMap #inst Name is the Key. value is the inst class name.
   ?! @TfieldMap templateStruct
   !  @boolMap devicePortToRemove {
-  if [option .verbose_output value] then
+  if @application.verboseOutput then
     message "reduce instruction classes\n"
   end
   #first get the "removable list": that contains device/port that can be removed:
@@ -949,7 +949,7 @@ proc reduceInstructionClasses
           if reductionPossible then
             @string key = [deviceName string]+"."+[portName string]
             [!?devicePortToRemove insertKey !@lstring. new { !key !@location.here}]
-            if [option .verbose_output value] then
+            if @application.verboseOutput then
               message "\t"+key+" can be removed\n"
             end
           end
