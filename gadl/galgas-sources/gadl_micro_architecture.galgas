@@ -131,7 +131,7 @@ proc microArchPart
     generateP2AFiles ( !exportDir !coreName !pipelineMap !icMap !archMap !ippList !devicePortToRemove !DDCPipelineInfoList !?templateStruct)
     microArchPipelineTemplate ( !?templateStruct !pipelineMap)
   else
-    if [option .verbose_output value] then
+    if @application.verboseOutput then
       message "no micro-architecture defined. ISS simulation only.\n"
     end
   end

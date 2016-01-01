@@ -683,7 +683,7 @@ proc adjacencyMatrixTemplate
   if uppaalExport then
     @uint nbStates = [[mat stateList] length]
     if [stateCoordinateList length] != nbStates then #there was a pb with the 'dot' program
-      if [option .verbose_output value] then
+      if @application.verboseOutput then
         message "*** To have a more readable Uppaal export, consider installing graphviz tool\n"
         message "*** -> sudo apt-get install graphviz on Debian/Ubuntu.\n"
       end

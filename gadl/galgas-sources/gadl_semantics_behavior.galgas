@@ -16,7 +16,7 @@ proc instructionBehaviorPart
   decodedBehaviorMap = [decodedBehaviorList getMap !modelName !impMap]
   [!?decodedBehaviorMap checkInstructionWithFormatPart !impMap]
   updateTemplateForBehavior ( !decodedBehaviorMap !?templateStruct)
-  if [option .verbose_output value] then  
+  if @application.verboseOutput then  
     message "There are "+[decodedBehaviorMap count]+" behavior(s) "+
             "instructions (with a corresponding format)\n"
   end
@@ -247,12 +247,12 @@ func getDecodedBehaviorList
   -> @decodedBehaviorList decodedBehaviorList {
   #Construct the list of chunks for each instruction.
   decodedBehaviorList = @decodedBehaviorList. emptyList
-  if [option .verbose_output value] then
+  if @application.verboseOutput then
     message "contructing behavior tree..."
   end
   @ASTbehaviorMap rootASTbehaviorMap = detectRootBehaviors(!ASTbehaviorMap)
   for () in  rootASTbehaviorMap do
-    if [option .verbose_output value] then
+    if @application.verboseOutput then
       message "\n\tfrom root "+[lkey string]+"..."
     end  
     var current =@decodedBehaviorList.emptyList{}

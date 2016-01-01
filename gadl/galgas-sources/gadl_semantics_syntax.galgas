@@ -341,7 +341,7 @@ proc compareArgsAndAntiSlash
 
 proc checkSyntaxArgs
 ?let  @syntaxMap syntaxMap {
-  if [option .verbose_output value] then
+  if @application.verboseOutput then
     message "Check Syntax Arguments..."
   end
   @bool isError = false
@@ -357,7 +357,7 @@ proc checkSyntaxArgs
     end
   end
   if not isError then
-    if [option .verbose_output value] then
+    if @application.verboseOutput then
       message "ok.\n"
     end
   end
@@ -723,7 +723,7 @@ proc constructSyntaxInstructionTree
   ?let  @lstring modelName #used to check that there is a corresponding format
   ?let  @instructionImplementationMap impMap #used to check that there is a corresponding format
   !  @syntaxChunkListWithSuffixList decodedInstructionList {
-  if [option .verbose_output value] then
+  if @application.verboseOutput then
     message "contructing syntax tree..."
   end
 
@@ -736,7 +736,7 @@ proc constructSyntaxInstructionTree
   detectRootSyntaxs ( !syntaxMap ?rootSyntaxMap)
 
   for (@lstring rootSyntaxName *) in  rootSyntaxMap do
-    if [option .verbose_output value] then
+    if @application.verboseOutput then
       message "\n\tfrom root "+[rootSyntaxName string]+"..."
     end
     @lstring emptyLString = @lstring. new { !"" !@location.here}
@@ -746,7 +746,7 @@ proc constructSyntaxInstructionTree
     syntaxListToCompute += !startSyntax !emptyStringList
     @uint nbInstEvaluated = 0
     constructSyntaxInstructionTreeRec ( !syntaxMap !syntaxListToCompute !syntaxList !modelName !impMap !?decodedInstructionList !?nbInstEvaluated)
-    if [option .verbose_output value] then
+    if @application.verboseOutput then
       @uint temp = [decodedInstructionList length] - nbInstructionAccumulated
       message [temp string]+" instruction"
       if temp > 1 then message "s" end
@@ -755,7 +755,7 @@ proc constructSyntaxInstructionTree
       if nbInstEvaluated > 1 then message "es." else message "." end
     end
   end
-  if [option .verbose_output value] then
+  if @application.verboseOutput then
     message "\nFound a total of "+[[decodedInstructionList length] string]+" instructions syntaxes.\n"
   end
 }

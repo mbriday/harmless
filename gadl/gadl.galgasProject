@@ -5,6 +5,8 @@ project (0:8:1) -> "gadl" {
   #specific for Mac Cocoa Version:
   %ElCapitanYosemite
   %applicationBundleBase : "fr.irccyn.str"
+  #make the compiler quiet by default.
+  %quietOutputByDefault
 
 #--- Source files (relative path from 'galgas_sources' directory)
   "galgas-sources/gadl_options.galgas"

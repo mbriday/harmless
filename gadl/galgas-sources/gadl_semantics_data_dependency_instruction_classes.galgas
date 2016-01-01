@@ -31,12 +31,12 @@ proc DDCfindReadAndWritePipelineStages
   @lstring pipelineStageReadName  = @lstring. new { !"" !@location.here}
   @lstring pipelineWriteName      = @lstring. new { !"" !@location.here}
   @lstring pipelineStageWriteName = @lstring. new { !"" !@location.here}
-  if [option .verbose_output value] then
+  if @application.verboseOutput then
     message "Data dependancy controller generation:\n"
   end
   #for each address Space
   for (@lstring asName ...) in  memSpaceWithRegister do
-    if [option .verbose_output value] then
+    if @application.verboseOutput then
       message "\taddress space is "+[asName string]+"\n"
     end
     @bool found = false
@@ -45,7 +45,7 @@ proc DDCfindReadAndWritePipelineStages
         #is it Dze device?
         found = [addressSpaceName string] == [asName string]
         if found then
-          if [option .verbose_output value] then
+          if @application.verboseOutput then
             message "\t\tdevice for DDC is "+[archName string]+"."+[deviceName string]+"\n"
           end
           #OK, search the "read"
@@ -59,7 +59,7 @@ proc DDCfindReadAndWritePipelineStages
           #OK, only 1 loop. We have found the right port.
           for (@string readPort) in  strReadSet do
             getPipelineStageForDevicePort ( !pipelineMap !archName !deviceName !readPort ?pipelineReadName ?pipelineStageReadName ?okRead)
-            if [option .verbose_output value] then
+            if @application.verboseOutput then
               message "\t\tread is in pipeline  "+[pipelineReadName string]+", stage "+[pipelineStageReadName string]+"\n"
             end          
             #now we have to find the pipeline stage.
@@ -74,7 +74,7 @@ proc DDCfindReadAndWritePipelineStages
           #OK, only 1 loop. We have found the right port.
           for (@string writePort) in  strWriteSet do
             getPipelineStageForDevicePort ( !pipelineMap !archName !deviceName !writePort ?pipelineWriteName ?pipelineStageWriteName ?okWrite)
-            if [option .verbose_output value] then
+            if @application.verboseOutput then
               message "\t\twrite is in pipeline "+[pipelineWriteName string]+", stage "+[pipelineStageWriteName string]+"\n"
             end          
           end
@@ -378,7 +378,7 @@ getter @memoryParamMap getDDCMemoryRegisterInfoMap
     end
     [!?DDCMemoryRegisterInfoMap insertKey !ms_lkey !nbElt !width !chunkId !memSpaceOffset !memChunkOffsetMap]
   end
-  if [option .verbose_output value] then
+  if @application.verboseOutput then
     message [DDCMemoryRegisterInfoMap string]
   end
 }
@@ -397,7 +397,7 @@ getter @varMap getDDCRegMap
   for () in  regMap do
     msg += [lkey string]+" "
   end
-  if [option .verbose_output value] then  
+  if @application.verboseOutput then  
     message msg+"\n"
   end
 }
