@@ -310,10 +310,31 @@ end format
 --## Syntax description
 --##==================================================
 
--- syntax
--- 
--- end syntax
+syntax arith
+  select
+    case #logicalShift "ls" 
+      select 
+        case #left "l"
+        case #right "r"
+      end select
+      "s " Imm5Reg2	--TODO mov if imm5=0
+    case #right #arithmeticShift "asrs " Imm5Reg2
+    case #add "adds " reg3
+    case #sub "subs " reg3
+    case #add "adds " imm3reg2
+    case #sub "subs " imm3reg2
+  end select
+end syntax
 
+syntax imm5 #imm5 field u5 imm5 "#\d",imm5 end syntax
+syntax imm3 #imm3 field u3 imm3 "#\d",imm3 end syntax
+syntax Rm   #Rm   field u3 Rm   "R\d",Rm  end syntax
+syntax Rd   #Rd   field u3 Rd   "R\d",Rd  end syntax
+syntax Rn   #Rn   field u3 Rn   "R\d",Rn  end syntax
+
+syntax Imm5Reg2 Rd "," Rm "," imm5 end syntax
+syntax reg3 Rd "," Rn "," Rm end syntax
+syntax imm3reg2 Rd "," Rn "," imm3 end syntax
 }
 -- errorformat=%f:%l:%c:%m
 -- makeprg=gadl\ \%
