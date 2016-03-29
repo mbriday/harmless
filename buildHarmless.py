@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: UTF-8 -*-
 # vim: set fileencoding=utf-8 :
 # This script is used to build harmless tools automagically.
 # Common build program should be installed (make/gcc/..).
