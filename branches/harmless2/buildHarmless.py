@@ -173,12 +173,20 @@ def installGalgas(verbose,scriptWorkingDir):
 				print "no Internet connexion. Cannot try to update the Galgas compiler."
 	return whereis('galgas',scriptWorkingDir)
 			
+def buildFailed(step):
+    print '*'*80
+    print "build failed at step", step
+    print "You may contact harmless@irccyn.ec-nantes.fr"
+    print '*'*80
+    sys.exit(step)
+
 if __name__ == '__main__':
 	#get script path directory (as built is done relatively to that dir):
 	pathname = os.path.dirname(sys.argv[0])        
 	scriptWorkingDir = os.path.abspath(pathname)
 	
 	verbose = True
+        ok=True
 	step = 1
 	socket.setdefaulttimeout(5) #not to stop the script for a long time if there is no connection.
 	#check if galgas is installed
@@ -187,37 +195,45 @@ if __name__ == '__main__':
 	if galgasTool:
 
 		step=scriptStep(verbose,step,"extract libpm, required by p2a and a2cpp")
-		subprocess.call([galgasTool,'--extract-libpm='+scriptWorkingDir+'/gadl/libpm','-q'])
+                if subprocess.call([galgasTool,'--extract-libpm='+scriptWorkingDir+'/gadl/libpm','-q']):
+                    buildFailed(step-1)
 
 		step=scriptStep(verbose,step,"compile p2a tool")
 		popenP2A = subprocess.Popen(["make",'-j9'],cwd=scriptWorkingDir+'/p2a')
-		popenP2A.wait()
+                if popenP2A.wait():
+                    buildFailed(step-1)
 
 		step=scriptStep(verbose,step,"compile a2cpp tool")
 		popenA2CPP = subprocess.Popen(["make",'-j9'],cwd=scriptWorkingDir+'/a2cpp')
-		popenA2CPP.wait()
+                if popenA2CPP.wait():
+                    buildFailed(step-1)
 
 		step=scriptStep(verbose,step,"compile libelf")
 		libelfFile = 'libelf-0.8.13'
 		logPID = open('./compilationLog.txt', 'w')
 		libelfArchive = libelfFile+'.tar.gz'
 		popenLibElf = subprocess.Popen(['tar','xzf','gadl/'+libelfFile+'.tar.gz'],cwd=scriptWorkingDir)
-		popenLibElf.wait()
+                if popenLibElf.wait():
+                    buildFailed(step-1)
 		print "configure "+libelfFile+"..."
 		popenLibElf = subprocess.Popen(['./configure','--enable-compat',
 			'--enable-shared=no','--prefix='+scriptWorkingDir+'/libelf'],stdout=logPID,cwd=scriptWorkingDir+'/'+libelfFile)
-		popenLibElf.wait()
+                if popenLibElf.wait():
+                    buildFailed(step-1)
 		print "make "+libelfFile+"..."
 		popenLibElf = subprocess.Popen(['make','CFLAGS=-fPIC','LDFLAGS=-fPIC','-j9'],stdout=logPID,cwd=scriptWorkingDir+'/'+libelfFile)
-		popenLibElf.wait()
+                if popenLibElf.wait():
+                    buildFailed(step-1)
 		print "install "+libelfFile+" in ./libelf"
 		popenLibElf = subprocess.Popen(['make','install'],stdout=logPID,cwd=scriptWorkingDir+'/'+libelfFile)
-		popenLibElf.wait()
+                if popenLibElf.wait():
+                    buildFailed(step-1)
 		logPID.close
 
 		step=scriptStep(verbose,step,"generate gadl C++ sources using galgas")
 		popenGalgas = subprocess.Popen([galgasTool,'gadl/gadl.galgasProject','-q'],cwd=scriptWorkingDir)
-		popenGalgas.wait()
+                if popenGalgas.wait():
+                    buildFailed(step-1)
 
 		step=scriptStep(verbose,step,"compile gadl tool")
 		gadlLoc = scriptWorkingDir
@@ -230,7 +246,9 @@ if __name__ == '__main__':
 			gadlLoc = gadlLoc+"/gadl/makefile-unix"
 		# popenGADL = subprocess.Popen(["make",'gadl','-f','makefile','-j9'],cwd=gadlLoc)
 		popenGADL = subprocess.Popen(["./build+release.py",'all', '-1'],cwd=gadlLoc) # -1 means processor count + 1
-		popenGADL.wait()
+                if popenGADL.wait():
+                    buildFailed(step-1)
+
 		subprocess.call(['mv',gadlLoc+'/gadl',scriptWorkingDir+'/gadl/gadl'])
 		print '*'*80
 		print 'test generated compiler:'

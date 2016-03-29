@@ -103,9 +103,9 @@ static const char * kSourceFileHelpMessages [] = {
 
 //---------------------------------------------------------------------------*
 
-const char * galgasVersionString (void) {
-  return "3.1.3" ;
-}
+//const char * galgasVersionString (void) {
+//  return "3.1.3" ;
+//}
 
 //---------------------------------------------------------------------------*
 
