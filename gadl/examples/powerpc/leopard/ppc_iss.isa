@@ -155,6 +155,22 @@ component SRU {
   end if
   return result
  }
+
+  void storeMultiWord(u32 addr, u5 index)
+  {
+    u32 currentAddr
+    u5 currentIndex
+    u32 regVal
+    currentAddr := addr
+    currentIndex := index
+    loop 32
+    while index <= 31 do
+      regVal := reg.read32(currentIndex)
+      mem.write32(currentAddr,regVal)
+      currentAddr := currentAddr + 4
+      currentIndex := currentIndex + 1
+    end loop
+  }
 }
 -- 
 -- -- dummy serial line, debugging purpose.
@@ -192,7 +208,7 @@ component Integer_Unit {
     CR.CR0 := 8 -- LT
    end if
 
-   CR.CR0{0} := XER.SO -- Summary overflow (SO)â€”This is a copy of the final state of XER[SO] at the completion of the instruction.
+   CR.CR0{0} := XER.SO -- Summary overflow (SO)ÑThis is a copy of the final state of XER[SO] at the completion of the instruction.
  }
  
  void updateStatusAndCarry(u33 result){ -- update CR0 when needed
@@ -631,7 +647,7 @@ behavior mul_inst #rd #ra
  end do
 end behavior
 
-behavior cmp_inst #cmp #crfd #l #ra
+behavior cmp_inst #cmp #l #ra #crfd
  field u3 crfD
  field u1 L
  field u5 rA
@@ -676,10 +692,16 @@ behavior cmp_inst #cmp #crfd #l #ra
    end do
  end select
 
- do
-  u32 mask := \xF000_0000 >> (4*crfD)
-  CR := (CR & ~mask) | (result << (28 - 4*crfD))
- end do
+ select 
+   case #CR0 do CR.CR0 := result end do
+   case #CR1 do CR.CR1 := result end do
+   case #CR2 do CR.CR2 := result end do
+   case #CR3 do CR.CR3 := result end do
+   case #CR4 do CR.CR4 := result end do
+   case #CR5 do CR.CR5 := result end do
+   case #CR6 do CR.CR6 := result end do
+   case #CR7 do CR.CR7 := result end do
+ end select
 end behavior
 
 behavior logical_inst #ra #rs
@@ -688,11 +710,11 @@ behavior logical_inst #ra #rs
  u32 op1
  u32 op2
  u32 result
+
  do
   op1 := reg.read32(rS)
  end do
 
- 
  select
   case #rb
    field u5 rB
@@ -968,15 +990,23 @@ behavior branch_inst
   field u5 BO
   field u5 BI
 
-  u1 ctr_ok
   u1 cond_ok
 
-  do
-   ctr_ok := BO{2} | ((CTR != 0) ^ BO{1})
-   cond_ok := BO{4} | (CR{31-BI} = BO{3})
+  select
+    case #noCond do cond_ok := 1 end do
+    case #t do cond_ok := CR{31-BI} = 1 end do
+    case #f do cond_ok := CR{31-BI} = 0 end do
+  end select
 
-   doJump := ctr_ok & cond_ok
-  end do
+  select
+    case #d 
+      u1 ctr_ok
+		  do 
+        ctr_ok := (CTR != 0) ^ BO{1}
+        doJump := ctr_ok & cond_ok
+		  end do
+    case #nd do doJump := cond_ok end do
+  end select
 
   -- create tag tree to match format & syntax
   select
@@ -986,11 +1016,6 @@ behavior branch_inst
      case #nz
     end select
    case #nd
-  end select
-  select
-   case #t
-   case #f
-   case #noCond
   end select
   select
    case #revStatPred
@@ -1122,6 +1147,7 @@ behavior getBaseAddress(out u32 base_addr)  #ra
     end if
    end do
  end select
+ -- memory register rA
 end behavior
 
 -- notu_ra
@@ -1208,6 +1234,7 @@ behavior store_inst  #store
     effective_address_Unit.eff_addr_add (effective_address, base_addr, (u32) (D))
 --    effective_address := (u32)((s32)(base_addr) + (s32)(D))
    end do
+   -- memory offset D
 
   case #x #rb
    field u5 rB
@@ -1215,6 +1242,7 @@ behavior store_inst  #store
     effective_address_Unit.eff_addr_add (effective_address, base_addr, reg.read32(rB))
 --    effective_address := (u32)(base_addr + reg.read32(rB))
    end do
+   -- memory register offset rB
  end select
 
  -- Effective storage
@@ -1240,6 +1268,18 @@ behavior store_inst  #store
  end select
 end behavior
 
+behavior stm #store #mw #notu #d #rs -- store multiple word.
+  u32 base_addr
+  u32 effective_address
+  field s16 D
+  field u5 rS
+  getBaseAddress(base_addr)
+  do
+    effective_address_Unit.eff_addr_add (effective_address, base_addr, (u32) (D))
+    SRU.storeMultiWord(effective_address, rS)
+  end do
+end behavior
+
 behavior load_inst  #load #rd
  field u5 rD
 
@@ -1255,13 +1295,14 @@ behavior load_inst  #load #rd
      effective_address_Unit.eff_addr_add (effective_address, base_addr, (u32) (D))
 --     effective_address := (u32)((s32)(base_addr) + (s32)(D))
    end do
-
+   -- memory offset D
   case #x #rb
    field u5 rB
    do
      effective_address_Unit.eff_addr_add (effective_address, base_addr, reg.read32(rB))
 --     effective_address := (u32)(base_addr + reg.read32(rB))
    end do
+   -- memory register offset rB
  end select
 
  -- Effective loading
@@ -1397,17 +1438,32 @@ end behavior
 behavior move_CR_fields #mcrf #crfs #crfd
  field u3 crfS
  field u3 crfD
-
- do
-  CR{(7-crfD)*4+3..(7-crfD)*4} := CR{(7-crfS)*4+3..(7-crfS)*4}
- end do
+ select -- don't use tags here, only the field.
+   case #CR0 do CR.CR0 := CR{(7-crfS)*4+3..(7-crfS)*4} end do
+   case #CR1 do CR.CR1 := CR{(7-crfS)*4+3..(7-crfS)*4} end do
+   case #CR2 do CR.CR2 := CR{(7-crfS)*4+3..(7-crfS)*4} end do
+   case #CR3 do CR.CR3 := CR{(7-crfS)*4+3..(7-crfS)*4} end do
+   case #CR4 do CR.CR4 := CR{(7-crfS)*4+3..(7-crfS)*4} end do
+   case #CR5 do CR.CR5 := CR{(7-crfS)*4+3..(7-crfS)*4} end do
+   case #CR6 do CR.CR6 := CR{(7-crfS)*4+3..(7-crfS)*4} end do
+   case #CR7 do CR.CR7 := CR{(7-crfS)*4+3..(7-crfS)*4} end do
+ end select
 end behavior
 
 -- Can't test this instruction as it's NOT implemented in PSIM
 behavior move_to_condition_register_from_XER #mcrxr #crfd
  field u3 crfD
+ select
+   case #CR0 do CR.CR0 := XER{31..27} end do
+   case #CR1 do CR.CR1 := XER{31..27} end do
+   case #CR2 do CR.CR2 := XER{31..27} end do
+   case #CR3 do CR.CR3 := XER{31..27} end do
+   case #CR4 do CR.CR4 := XER{31..27} end do
+   case #CR5 do CR.CR5 := XER{31..27} end do
+   case #CR6 do CR.CR6 := XER{31..27} end do
+   case #CR7 do CR.CR7 := XER{31..27} end do
+ end select
  do
-  CR{(7-crfD)*4+3..(7-crfD)*4} := XER{31..27}
   XER{31..27} := (u4)(0)
  end do
 end behavior
@@ -1809,7 +1865,19 @@ end format
 format ra   #ra   rA := slice{20..16} end format
 format simm #simm SIMM := signed slice{15..0} end format
 format rd   #rd   rD := slice{25..21} end format
-format crfd #crfd crfD := slice{25..23} end format
+format crfd #crfd
+  crfD := slice{25..23} -- cr id may be used as a field
+  select slice{25..23}  -- or as a tag.
+    case 0 is #CR0
+    case 1 is #CR1
+    case 2 is #CR2
+    case 3 is #CR3
+    case 4 is #CR4
+    case 5 is #CR5
+    case 6 is #CR6
+    case 7 is #CR7
+  end select
+end format
 format l    #l    L := slice{21} end format
 format uimm #uimm UIMM := slice{15..0} end format
 format bi   #bi   BI := slice{20..16} end format
@@ -2113,27 +2181,44 @@ syntax AMcrbDcrbAcrbB #crbd #crba #crbb
 end syntax
 
 syntax AMcrfD #crfd
- field u3 crfD
- "cr\d",crfD
+  select
+    case #CR0 "cr0"
+    case #CR1 "cr1"
+    case #CR2 "cr2"
+    case #CR3 "cr3"
+    case #CR4 "cr4"
+    case #CR5 "cr5"
+    case #CR6 "cr6"
+    case #CR7 "cr7"
+  end select
 end syntax
 
-syntax AMcrfDcrfS #crfd #crfs
+syntax AMcrfDcrfS #crfs
  AMcrfD
  field u3 crfS
  ",cr\d", crfS
 end syntax
 
-syntax AMcrfDfrAfrB #crfd #fra #frb
+syntax AMcrfDfrAfrB #fra #frb
  AMcrfD
  field u5 frA
  field u5 frB
  ",f\d,f\d", frA, frB
 end syntax
 
-syntax AMcrfDIMM #crfd #imm
- field u5 crfD
+syntax AMcrfDIMM #imm #crfd
  field u4 IMM
- "\d,\d",crfD, IMM
+  select
+    case #CR0 "0"
+    case #CR1 "1"
+    case #CR2 "2"
+    case #CR3 "3"
+    case #CR4 "4"
+    case #CR5 "5"
+    case #CR6 "6"
+    case #CR7 "7"
+  end select
+ ",\d",IMM
 end syntax
 
 syntax AMCRMrS #rs #crm
@@ -2472,7 +2557,7 @@ end syntax
 
 syntax AMRelTargetAddr #li #rel
  field s24 LI
- "\x", (u32)((u32)(LI<<2) + (instruction address) - 4)
+ "\x", (u32)((u32)(LI<<2) + (instruction address))
 end syntax
 
 
@@ -2502,6 +2587,16 @@ syntax addis #addis #rd #ra #simm #noStatus #noOv
 end syntax
 
 syntax cmp #cmp #reg #crfd #l #ra #rb #arith
+  select
+    case #CR0
+    case #CR1
+    case #CR2
+    case #CR3
+    case #CR4
+    case #CR5
+    case #CR6
+    case #CR7
+  end select
  field u1 L
  field u3 crfD
  field u5 rA
@@ -2520,6 +2615,16 @@ syntax cmpi #cmp #immediate #crfd #l #ra #simm #arith
  field u3 crfD
  field u5 rA
  field s16 SIMM
+  select
+    case #CR0
+    case #CR1
+    case #CR2
+    case #CR3
+    case #CR4
+    case #CR5
+    case #CR6
+    case #CR7
+  end select
  if L = 0 then
   if crfD = 0 then
    "cmpwi r\d,\d", rA, SIMM
@@ -2536,6 +2641,16 @@ syntax cmpi #cmp #immediate #crfd #l #ra #simm #arith
 end syntax
 
 syntax cmpl #cmp #logical #reg #crfd #l #ra #rb
+  select
+    case #CR0
+    case #CR1
+    case #CR2
+    case #CR3
+    case #CR4
+    case #CR5
+    case #CR6
+    case #CR7
+  end select
  field u1 L
  field u3 crfD
  field u5 rA
@@ -2552,6 +2667,16 @@ syntax cmpl #cmp #logical #reg #crfd #l #ra #rb
 end syntax
 
 syntax cmpli #cmp #logical #immediate #crfd #l #ra #uimm
+  select
+    case #CR0
+    case #CR1
+    case #CR2
+    case #CR3
+    case #CR4
+    case #CR5
+    case #CR6
+    case #CR7
+  end select
  field u1 L
  field u3 crfD
  field u5 rA
@@ -2912,11 +3037,12 @@ end syntax
 syntax conditionnalBranchRel2Reg #bo #bi
   "b"
  field u5 BI
+  field u5 BO
   select
-  case #bc #ctr #abs  "cctr"  AMPredBranchNotTaken " \d,",BI BISimplified
-  case #bc #ctr #abs #updatelr #SP_Check "cctrl" AMPredBranchNotTaken " \d,",BI BISimplified
-  case #bc #tolr #abs   "clr"   AMPredBranchNotTaken " \d,",BI BISimplified
-  case #bc #tolr #abs #updatelr #SP_Check "clrl"  AMPredBranchNotTaken " \d,",BI BISimplified
+  case #bc #ctr #abs  "cctr"  AMPredBranchNotTaken " \d,",BO BISimplified
+  case #bc #ctr #abs #updatelr #SP_Check "cctrl" AMPredBranchNotTaken " \d,",BO BISimplified
+  case #bc #tolr #abs   "clr"   AMPredBranchNotTaken " \d,",BO BISimplified
+  case #bc #tolr #abs #updatelr #SP_Check "clrl"  AMPredBranchNotTaken " \d,",BO BISimplified
   end select
 
   select
