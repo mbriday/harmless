@@ -47,6 +47,7 @@ core e200z4 : isa powerpc
     device RegDev : reg { -- a component or an address space.
       port rs : read (3)
       port rd : write (2)
+      port storeMultiWord : storeMultiWord
     }
 
 		device SPRDev : SRU {
@@ -119,6 +120,7 @@ core e200z4 : isa powerpc
       
     stage MEM {
         MemDev : loadStore
+        RegDev : storeMultiWord
       }
   
   
