@@ -475,20 +475,4 @@ override getter @expBinary eval
   end
 }
 
-#import "gadl_components.gSemantics";
-#override reader @cComponentMethod eval
-#  ?? @symbolValueMap unused symbolMap
-#  -> @expression result
-#:
-#  result := selfcopy; #TODO.
-#end reader;
-#
-#import "gadl_semantics_function.gSemantics";
-#override reader @cfunctionCall eval
-#  ?? @symbolValueMap unused symbolMap
-#  -> @expression result
-#:
-#  result := selfcopy; #TODO.
-#end reader;
-#
 # vim:ft=galgas:ts=2:sw=2:tw=0

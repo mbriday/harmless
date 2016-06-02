@@ -28,8 +28,9 @@
 getter @ASTFunctionMap getFunctionMap
   ?let  @expressionContext ctx
   ?let  @varIdfStruct idfStruct
-  -> @functionMap functionMap {
-  functionMap = @functionMap. emptyMap
+  -> @functionMap functionMap
+{
+  functionMap = @functionMap.emptyMap
   for (@lstring key @parameterDefList param @varAbstractType outType @ASTInstructionList code) in  self do
     #first add params to varMap
     var varMap =@varMap.mapWithMapToOverride{ ![idfStruct varMap]}
@@ -58,7 +59,7 @@ getter @ASTFunctionMap getFunctionPrototypeMap
 #This reader returns the instructions to generate the function call.
 #when used in an inlining approach (as in behaviors)
 method @parameterDefList getInlinedInsts
-  ?let  @ASTExpressionlist ASTexpList #expression list from the caller.
+  ?let  @expressionlist expList
   ?let  @expressionContext ctx
   ?let  @location callLoc
   ?let  @location defLoc
@@ -70,12 +71,9 @@ method @parameterDefList getInlinedInsts
   #the expression should be computed using the old 'fromIdfStruct'
   #if there is no 'out', the value is constant, but assigned first (TODO)
   instList = @instructionList. emptyList
-  @expressionlist expList = [ASTexpList getExp !ctx !@symbolValueMap. emptyMap !fromIdfStruct]
+#  @expressionlist expList = [ASTexpList getExp !ctx !@symbolValueMap.emptyMap !fromIdfStruct]
 #  @expressionlist expList [emptyList];
   var symbolValueMap =@symbolValueMap.emptyMap{}
-#  foreach ASTexpList(@ASTExpression ASTexp) do
-#    expList += ![ASTexp getExp !ctx !symbolValueMap !fromIdfStruct];
-#  end foreach;
   #check parameters.
   [self checkParams !expList !callLoc !defLoc]
   #then generate the instructions.
@@ -177,6 +175,28 @@ getter @parameterDefList getFunctionParam
     code += [name string]
   between
     code += ", "
+  end
+}
+
+#This method returns a list of assign instructions, so that static 
+#analysis remains possible => dependencies of variables.
+# ex: 
+# u1 myFunc(u8 a) ... #=>def
+# ...
+# myFunc(exp) => call 
+#=> create an assign instruction "a=exp"
+#TODO: does not take care of 'out'
+getter @functionMap getParameterAssignInstList
+  ?let @lstring funcName
+  ?let @expressionlist paramList
+  -> @instructionList instList
+{
+  instList = .emptyList
+  [self searchKey !funcName ?@parameterDefList param ?* ?*]
+  for (@bool out @varAbstractType type @lstring name) in param,
+      (@expression exp) in paramList do
+    #get an expIdf from type and name.
+    
   end
 }
 

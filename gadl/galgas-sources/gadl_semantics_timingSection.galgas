@@ -61,7 +61,7 @@ getter @timingMap getEnableConditionIdf
   for () in  self do #each timing
     #we get the list of identifiers in the 'enable' expression
     @lstring timingName = lkey
-    @expIdfList idfList = [expEnable getIdf !@expIdfList.emptyList]
+    @expIdfList idfList = [expEnable getIdf !@expIdfList.emptyList !@varIdfStruct.default]
     for () in  idfList do #with each identifier found in the 'enable' expression:
       switch [idf detectedType] #check correct type
         case unknown, structMember, localVar, tabularAccess, componentCall, periphCall, memoryAccess,timing,signal:

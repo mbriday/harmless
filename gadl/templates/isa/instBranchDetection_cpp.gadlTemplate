@@ -3,9 +3,9 @@
 #include "%!core::NAME%_core.h"
 #include "%!core::NAME%_instruction.h"
 
-%foreach inst in branchTargetStaticDetect do
+%foreach inst in core::branchInstList do
   if not inst::unknown & inst::unconditionnal then
-  %void %!inst::name%::detectBranch(core *_core){\n%
+  %void %!inst::name%::detectBranch(%!core::NAME%_core *_core){\n%
   !inst::code
   %}\n\n%
   end if

@@ -62,6 +62,9 @@ method @ASTIsa getIsa
   #branch detection
   @branchInstMap branchInstMap = [decodedBehaviorMap getBranchInstructions !idfStruct]
   [branchInstMap updateTemplateForJumpInstructions !?templateStruct]
+  #tmp.
+  @staticInfoMap staticInfoMap = [decodedBehaviorMap getStaticInfo !idfStruct]
+  
   #defaults
   [defaultValues updateTemplate !?templateStruct]
   #data to generate log file (.txt) about instructions, using templates.

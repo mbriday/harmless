@@ -1,3 +1,268 @@
+# new approach, get static info (including branch detection).
+
+# donc staticInfo est une map (clé l'instruction traitée) qui contient 
+# => une map (clé registre en écriture)
+#    Pour chaque registre écrit:
+#     => conditionnellement?
+#     => valeur connu statiquement? => n'est pas redondant avec l'expression?
+#     => expression pour connaitre la valeur dynamiquement.
+# => une map (clé registre en lecture)
+#     => conditionnellement?
+
+# un truc à mettre à jour: TODO TODO TODO!!
+# si on fait un accès à un composant qui retourne une valeur… ça ne marchera pas
+# car l'accès est vu à l'intérieur d'une expression. Il faut toutes les parser :-/
+# TODO: gestion des accès mémoire forcément, ça casse tout :-/
+
+# TODO: pour le isConst, il suffit de parcourir la liste des depList opur tester 
+#       le paramètre isConst… à moins que ce soit le valueUnkown?
+map @staticInfoMapRegWrite {
+  @expIdfList depList      #dependancies, i.e. registers and local vars that affect values.
+  @bool conditionnalAccess #is register access conditionnal?
+  @bool valueUnknown       #true if value may not be known statically.
+  @expression exp          #expression to get value if available
+  insert insertKey error message "the '%K' for static reg write info is already defined in %L" 
+  search searchKey error message "the '%K' for static reg write info is not defined"
+}
+
+map @staticInfoMapRegRead {
+  @bool conditionnalAccess #is register access conditionnal?
+  insert insertKey error message "the '%K' for static reg read info is already defined in %L" 
+  search searchKey error message "the '%K' for static reg read info is not defined"
+}
+
+map @staticInfoMap {
+  @staticInfoMapRegWrite regWriteAccessMap
+  @staticInfoMapRegRead regReadAccessMap
+  insert insertKey error message "the '%K' for static info is already defined in %L" 
+  search searchKey error message "the '%K' for static info is not defined"
+}
+
+getter @decodedBehaviorMap getStaticInfo
+  ?let  @varIdfStruct idfStruct
+  -> @staticInfoMap staticInfoMap
+{
+  staticInfoMap = @staticInfoMap.emptyMap
+  for () in  self do
+    @symbolValueMap symbolValueMap = .emptyMap
+    @staticInfoMapRegWrite regWriteAccessMap = .emptyMap
+    @staticInfoMapRegRead regReadAccessMap = .emptyMap
+#    if [lkey string] == "e200z4_SP_Check_abs_bc_bd_bi_bo_d_f_statPred_updatelr_z" then #complexe
+#    if [lkey string] == "e200z4_SP_Check_abs_b_li_updatelr" then #simple
+     if [lkey string] == "e200z4_br_half_load_notu_ra_rb_rd_x" then
+
+      [instList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?regReadAccessMap !true]
+    end
+    #message "instruction "+[lkey string]+":\n"
+    [[regWriteAccessMap removeDuplicates] debugRegWriteAccessMap]
+    [!?staticInfoMap insertKey !lkey ![regWriteAccessMap removeDuplicates] !regReadAccessMap]
+  end
+}
+
+method @instructionList processStaticInfo
+  ?let  @varIdfStruct idfStruct
+  ?! @symbolValueMap symbolValueMap
+  ?! @staticInfoMapRegWrite regWriteAccessMap
+  ?! @staticInfoMapRegRead regReadAccessMap
+  ?let @bool goInsideFunc
+{
+  for > () in self do #start with last instruction.
+    [inst processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?regReadAccessMap !goInsideFunc]
+    #message [inst generateCode !0 !@codeCtx. C]+"\n";
+  end
+}
+
+method @instruction processStaticInfo
+  ?let  @varIdfStruct unused idfStruct
+  ?! @symbolValueMap unused symbolValueMap
+  ?! @staticInfoMapRegWrite unused regWriteAccessMap
+  ?! @staticInfoMapRegRead unused regReadAccessMap
+  ?let @bool unused goInsideFunc
+  {}
+
+func updateDepsForVar
+  ?let @staticInfoMapRegWrite regWriteAccessMap
+  ?let @lstring varNameWritten
+  ->@staticInfoMapRegWrite newRegWriteAccessMap
+{
+  #we have for instance: C = A+B => C depends on A and B
+  # so, if C is a dep of another idfs, is should be:
+  # - removed from the list of deps to these idfs => fait.
+  # - and replaced by A and B => à rajouter
+  # - update the expression...
+  newRegWriteAccessMap = @staticInfoMapRegWrite.emptyMap
+  for () in regWriteAccessMap do
+    #foreach reg that is written
+    message "check "+[lkey string]+" with "+[varNameWritten string]+"\n"
+    @expIdfList idfDepList = .emptyList
+    for (idfDep) in depList do#@expIdf idf
+      #we check each dependency
+      @bool depUpdated = false
+      if [idfDep detectedType] == @idfType.registerAccess |
+         [idfDep detectedType] == @idfType.localVar then
+         [[idfDep idfList] first ?var @lstring varNameDep ?* ?* ?* ?* ?* ?*]
+         message "\tdep "+[varNameDep string]+"\n"
+         #one dependency is 'varNameWritten'
+         if [varNameDep string] == [varNameWritten string] then
+           message "\t\tupdate "+[varNameWritten string]+" in "+[lkey string]+"\n"
+           depUpdated=true
+         end
+      end
+      #add all except the updated one
+      if not depUpdated then
+        #not updated => the var write does not depends on varNameWritten
+        message "\t\tadd "+[[idfDep idfList] string]+"\n"
+        idfDepList += !idfDep
+      else
+        #updated => the var write depends on varNameWritten,
+        #we should replace it by the dependencies of 'varNameWritten'
+        message "\t\treplacement of "+[varNameWritten string]+" with ";
+        [regWriteAccessMap searchKey !varNameWritten ?@expIdfList depWList ?* ?* ?*]
+        idfDepList += depWList
+      end
+    end
+    [!?newRegWriteAccessMap insertKey !lkey !idfDepList !conditionnalAccess !valueUnknown !exp]
+  end
+}
+
+method @staticInfoMapRegWrite debugRegWriteAccessMap
+{
+  for () in self
+  before message "deps:\n"
+  do
+    message "\t"+[lkey string]+":"
+    for (idfDep) in depList do
+    message [[idfDep idfList] string]
+    between message ", "
+    end
+  between message "\n"
+  after message "\n"
+  end
+}
+
+#in an assigment, we detect the dependencies of a var access.
+override method @instAssignment processStaticInfo
+  ?let  @varIdfStruct idfStruct
+  ?! @symbolValueMap unused symbolValueMap
+  ?! @staticInfoMapRegWrite regWriteAccessMap
+  ?! @staticInfoMapRegRead unused regReadAccessMap
+  ?let @bool unused goInsideFunc
+{
+  #tmp: => TODO: registerBitField, 2 valeurs. Pas dur.
+  if [idfAssign detectedType] == @idfType.registerAccess |
+     [idfAssign detectedType] == @idfType.localVar then
+    [[idfAssign idfList] first ?var @lstring varNameWritten ?* ?* ?* ?* ?* ?*]
+#    message "**** processing write of "+[varNameWritten string]+"****\n"
+    #get deps.
+    @expIdfList depList = .emptyList
+    depList = [exp getIdf !depList !idfStruct]
+
+    #insert reg access (write) into map
+    if not [regWriteAccessMap hasKey ![varNameWritten string]] then 
+      #if it is already ok, don't update, as we
+      #get instructions in reverse order.
+      #TODO: conditionnalAccess to be computed.
+      #TODO: value known
+      [!?regWriteAccessMap insertKey !varNameWritten !depList !false !false !exp]
+    end
+    #We update dependencies
+    regWriteAccessMap = updateDepsForVar(!regWriteAccessMap !varNameWritten)
+    #final    
+#    debugRegWriteAccessMap(!regWriteAccessMap)
+  end
+}
+
+override method @instFunctionCall processStaticInfo
+  ?let @varIdfStruct idfStruct
+  ?! @symbolValueMap symbolValueMap
+  ?! @staticInfoMapRegWrite regWriteAccessMap
+  ?! @staticInfoMapRegRead regReadAccessMap 
+  ?let @bool goInsideFunc
+  {
+    switch [exp detectedType]
+    case unknown,structMember,localVar,tabularAccess,registerAccess,registerBitField:
+      error loc: "internal error: invalid detected type for a function call"+
+                 [[exp detectedType] string]
+    case componentCall:
+      if goInsideFunc then
+        #TODO: alias de variables.
+        @instructionList instList = [idfStruct.componentMap getInstList ![exp idfList]]
+        @parameterDefList paramDef = [idfStruct.componentMap getParamDefList ![exp idfList]]
+        @expressionlist paramList = [[[self exp] idfList] paramListAtIndex !1]
+
+        @varIdfStruct nextIdfStruct = idfStruct 
+        [paramDef getInlinedInsts !paramList !@expressionContext.component 
+                                  !loc !loc
+                                  !idfStruct !?nextIdfStruct 
+                                  ?@instructionList instListCall]
+        @instructionList fullInstList = instListCall+instList
+#        message "code\n"+generateCode(!fullInstList !1 !@codeCtx.C)+"\n"
+        [fullInstList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?regReadAccessMap !goInsideFunc]
+
+      end
+    case memoryAccess:
+      #TODO: on peut recuperer de l'info ici
+    case periphCall,timing,signal: #nothing here.
+  end
+}
+
+override method @instIf processStaticInfo
+  ?let @varIdfStruct idfStruct
+  ?! @symbolValueMap symbolValueMap
+  ?! @staticInfoMapRegWrite regWriteAccessMap
+  ?! @staticInfoMapRegRead regReadAccessMap 
+  ?let @bool goInsideFunc
+{
+  @staticInfoMapRegWrite regWriteAccessMapBefore = regWriteAccessMap
+  #in an if statement, it depends on both if and else.
+  [instIfList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?regReadAccessMap !goInsideFunc]
+  [instElseList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?regReadAccessMap !goInsideFunc]
+  #moreover, for each reg that have been written inside a instIf block, 
+  #it also depends on the condition expression.    
+  for (lkey * * * *) in regWriteAccessMap
+#  before message "***IF***\n"
+  do
+    if not [regWriteAccessMapBefore hasKey ![lkey string]] then
+      @expIdfList depList = [regWriteAccessMap depListForKey ![lkey string]]
+      depList += [cond getIdf !depList !idfStruct]
+      [!?regWriteAccessMap setDepListForKey !depList ![lkey string]]
+#      message "\t => "+[lkey string]+"\n"
+    end
+#  after message "***##***\n"
+  end
+}
+
+#there are duplicates in the dependencies.
+getter @staticInfoMapRegWrite removeDuplicates 
+ -> @staticInfoMapRegWrite newInfoMap
+{
+  newInfoMap = .emptyMap
+  for () in self do
+    @stringset set=.default
+    @expIdfList updatedDepList =.emptyList
+    for (@expIdf idf) in depList do
+      @string key = [idf string]
+      if not [set hasKey !key] then 
+        #not a duplicate
+        updatedDepList += !idf
+        set += !key
+      end
+    end
+    [!?newInfoMap insertKey !lkey !updatedDepList 
+                  !conditionnalAccess !valueUnknown !exp]
+  end
+}
+
+##################################################################
+##################################################################
+##################################################################
+# TODO
+# Ce qui suit est l'ancienne version!!!!
+#
+##################################################################
+##################################################################
+##################################################################
+
 
 
 ##################################################################
@@ -35,9 +300,18 @@ map @branchInstMap {
 method @branchInstMap updateTemplateForJumpInstructions
   ?! @TfieldMap templateStruct {
   var branchTpl =@TfieldMapList.emptyList{}
-  for (@lstring instName * * *) in  self do
+  for (instName instList noCond unknownStaticTarget) in self do
     var branchTplBody =@TfieldMap.emptyMap{}
     addLStringValue ( !?branchTplBody !"name" !instName)
+    #********** TODO ************
+#    message "*************************\n"
+#    message [instName string]+"\n"
+#    message generateCode(!instList !1 !@codeCtx.C)  
+    addStringValue(!?branchTplBody !lstringWith(!"code") !generateCode(!instList !1 !@codeCtx.C))  
+    addBoolValue(!?branchTplBody !lstringWith(!"unconditionnal") !noCond)
+    addBoolValue(!?branchTplBody !lstringWith(!"unknown") !unknownStaticTarget)
+    #********** TODO ************    
+    
     branchTpl += !branchTplBody
   end
   addListValue ( !?templateStruct !lstringWith(!"branchInstList") !branchTpl)
@@ -61,10 +335,11 @@ method @branchInstMap debug {
 #return list of instructions that can modify the PC
 getter @decodedBehaviorMap getBranchInstructions
   ?let  @varIdfStruct idfStruct
-  -> @branchInstMap branchInstMap {
-  branchInstMap = @branchInstMap. emptyMap
+  -> @branchInstMap branchInstMap
+{
+  branchInstMap = @branchInstMap.emptyMap
   for () in  self do
-    var targetEvalInstList =@instructionList.emptyList{}
+    var targetEvalInstList = @instructionList.emptyList
     #becomes true if PC may be written
     @bool isABranch = false
     #is true if PC is always written (unconditional branch)
@@ -72,7 +347,7 @@ getter @decodedBehaviorMap getBranchInstructions
     #become true if it can't be resolved statically (indirect branch for instance).
     @bool unknownStaticTarget = false
     #stores value of symbol if they are constants.
-    var symbolValueMap =@symbolValueMap.emptyMap{}
+    var symbolValueMap = @symbolValueMap.emptyMap
 
     for () in  instList while not isABranch do
       targetEvalInstList += !inst

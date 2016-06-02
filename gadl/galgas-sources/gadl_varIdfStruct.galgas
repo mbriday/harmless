@@ -132,7 +132,8 @@ getter @varIdfStruct getIdfPost
 #*****************************************************************************
 getter @varIdfStruct getReplacedIdf
   ?let  @lstring idf
-  -> @lstring new {
+  -> @lstring new
+{
   if [self.replaceMap hasKey ![idf string]] then
     [self.replaceMap searchKey !idf ?new]
   else

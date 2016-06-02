@@ -218,7 +218,11 @@ proc handleBehBody
       #a refaire: c'est l'ancien idfStruct pour l'exp, et le nouveau (prefix) pour l'idf.
       @instructionList instListToAdd
       @location defLoc = [ASTbehaviorMap locationForKey ![[chCall behaviorCallName] string]]
-      [parameterDefList getInlinedInsts ![chCall idfExpList] !@expressionContext. behavior 
+      @expressionlist expList = [[chCall idfExpList] getExp 
+                                   !@expressionContext.behavior 
+                                   !@symbolValueMap.emptyMap 
+                                   !idfStructCopy]
+      [parameterDefList getInlinedInsts !expList !@expressionContext.behavior 
                                         ![[chCall behaviorCallName] location] !defLoc
                                         !idfStructCopy !?nextIdfStruct ?instListToAdd]
       [!?current addInstForAll !instListToAdd]      

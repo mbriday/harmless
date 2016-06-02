@@ -8,18 +8,6 @@
 #----------------------------------------------------------------------------
 
 #the componentMap structure is declared in gadl_varIdfStruct.gSemantics (galgas restriction).
-#map @componentMap {
-#  @functionMap methodMap;
-#  #idfStruct that embedds local vars (in varMap) and types
-#  @varIdfStruct idfStruct;
-#  #instructions dedicated to type definitions and local var declaration.
-#  @instructionList instDeclareList;
-#  insert insertKey error message "the '%K' component is already defined in %L" ; 
-#  search searchKey error message "the '%K' component is not defined" ;
-#  remove removeKey error message "the '%K' component is not defined and cannot be removed." ;
-#}
-
-
 
 #used during parsing.
 map @ASTComponentMap {
@@ -106,5 +94,16 @@ getter @componentMap getInstList
   [self searchKey !compName ?var @functionMap funcMap]
   [funcMap searchKey !funcName ?* ?* ?instList]
 }
+
+getter @componentMap getParamDefList
+  ?let  @idfItemList idfList
+  -> @parameterDefList param
+{
+  @lstring compName = [idfList idfAtIndex !0]
+  @lstring funcName = [idfList idfAtIndex !1]
+  [self searchKey !compName ?var @functionMap funcMap]
+  [funcMap searchKey !funcName ?param ?* ?*]
+}
+
 
 # vim:ft=galgas:ts=2:sw=2:tw=0

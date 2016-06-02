@@ -6,6 +6,9 @@
 # -> primary usage: the 'enable' condition inside a timing
 #    We have to add an implentation hook in each accessor of the 
 #    idf (associated to a register) to take into account the condition.
+# -> secondary usage: to get the idf used inside an expression for 
+#    static analysis. In an assignment, what are the dependancies
+#    of the idf that is written.
 
 list @expIdfList {
   @expIdf idf
@@ -13,72 +16,103 @@ list @expIdfList {
 
 abstract getter @expression getIdf
   ?let  @expIdfList inList
+  ?let  @varIdfStruct idfStruct
   -> @expIdfList outList
 
 override getter @expDummy getIdf
   ?let  @expIdfList inList
+  ?let  @varIdfStruct unused idfStruct
   -> @expIdfList outList { 
   outList=inList
 }
 
 override getter @expIntConst getIdf
   ?let  @expIdfList inList
+  ?let  @varIdfStruct unused idfStruct
   -> @expIdfList outList { 
   outList=inList
 }
 
 override getter @expInstructionSize getIdf
   ?let  @expIdfList inList
+  ?let  @varIdfStruct unused idfStruct
   -> @expIdfList outList { 
   outList=inList
 }
 
 override getter @expInstructionAddress getIdf
   ?let  @expIdfList inList
+  ?let  @varIdfStruct unused idfStruct
   -> @expIdfList outList { 
   outList=inList
 }
 
 override getter @expIdf getIdf
   ?let  @expIdfList inList
-  -> @expIdfList outList { 
+  ?let  @varIdfStruct idfStruct
+  -> @expIdfList outList
+{ 
   outList=inList
-  outList += !self
+  #TODO: if it is a return from a function call, we should
+  #parse the return instruction of the function
+  switch detectedType
+    case componentCall:
+      @instructionList instList = [idfStruct.componentMap getInstList !idfList]
+      #get the last return instruction
+      @bool found = false
+      for > (inst) in instList while not found do 
+        cast inst
+          case >= @instReturn ret:
+            outList += [[ret exp] getIdf !inList !idfStruct]
+            found = true
+          else
+        end
+      end
+    case unknown,structMember,localVar,tabularAccess,
+         registerAccess,registerBitField,memoryAccess,
+         periphCall,timing,signal: #nothing for now
+      outList += !self
+  end
 }
 
 override getter @expCast getIdf
   ?let  @expIdfList inList
+  ?let  @varIdfStruct idfStruct
   -> @expIdfList outList { 
-  outList = [expCasted getIdf !inList]
+  outList = [expCasted getIdf !inList !idfStruct]
 }
 
 getter @fieldList getIdf
   ?let  @expIdfList inList
+  ?let  @varIdfStruct idfStruct
   -> @expIdfList outList { 
   outList = inList
   for () in  self do
-    outList = outList + [expFrom getIdf !@expIdfList. emptyList] +
-               [expTo   getIdf !@expIdfList. emptyList]
+    outList = outList + [expFrom getIdf !@expIdfList.emptyList !idfStruct] +
+               [expTo   getIdf !@expIdfList.emptyList !idfStruct]
   end
 }
 
 override getter @expBitFieldOp getIdf
   ?let  @expIdfList inList
+  ?let  @varIdfStruct idfStruct
   -> @expIdfList outList { 
-  outList = [expField getIdf !inList] + [fList getIdf !@expIdfList. emptyList]
+  outList = [expField getIdf !inList !idfStruct] + [fList getIdf !@expIdfList.emptyList !idfStruct]
 }
 
 override getter @expUnary getIdf
   ?let  @expIdfList inList
+  ?let  @varIdfStruct idfStruct
   -> @expIdfList outList { 
-  outList = [exp getIdf !inList]
+  outList = [exp getIdf !inList !idfStruct]
 }
 
 override getter @expBinary getIdf
   ?let  @expIdfList inList
+  ?let  @varIdfStruct idfStruct
   -> @expIdfList outList { 
-  outList = inList + [expLeft  getIdf !@expIdfList. emptyList] +
-             [expRight getIdf !@expIdfList. emptyList]
+  outList = inList + [expLeft  getIdf !@expIdfList.emptyList !idfStruct] +
+             [expRight getIdf !@expIdfList.emptyList !idfStruct]
 }
 
 # vim:ft=galgas:ts=2:sw=2:tw=0

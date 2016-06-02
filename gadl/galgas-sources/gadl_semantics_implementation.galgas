@@ -85,6 +85,17 @@ class @instFunctionCall : @instruction {
   @expIdf exp
 }
 
+#This class is used for a function call:
+#example:
+# u1 myFunc(u8 a)
+# ...
+# myFunc(g)
+#=> create an alias u8 a=&g
+#class @instAlias : @instruction {
+#  @lstring idf
+#  @typedefMemberMap memberList
+#}
+
 class @instAssignment : @instruction {
   #got 2 idf, because the code may be different to access the idf for writting and reading.
   @expIdf idfAssign
@@ -115,6 +126,8 @@ class @instTypeDefinition : @instruction {
   @lstring idf
   @typedefMemberMap memberList
 }
+
+
 
 ##########
 ## get name for instDeclaration
