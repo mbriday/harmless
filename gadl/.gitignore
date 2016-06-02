@@ -1,0 +1,5 @@
+build/*
+gadl
+libpm/*
+*.tmp
+.*.swp
