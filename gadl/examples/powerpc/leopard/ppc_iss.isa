@@ -348,8 +348,8 @@ component Integer_Unit {
 }
 
 component effective_address_Unit {
- void eff_addr_add (out u32 rd, u32 ra, u32 rb) {
-  rd := (u32)(ra + rb)
+ u32 eff_addr_add (u32 ra, u32 rb) {
+  return (u32)(ra + rb)
  }
 }
 
@@ -1161,7 +1161,7 @@ behavior load_float #load #fd #frd #d
   do 
     u32 valueL
     u32 valueH
-    effective_address_Unit.eff_addr_add (effective_address, base_addr, (u32) (D))
+    effective_address := effective_address_Unit.eff_addr_add (base_addr, (u32) (D))
     valueL := mem.read32(effective_address)
     valueH := mem.read32(effective_address+4)
     FPR.write32(frD<<1, valueL) --32 bits access at this date.TODO
@@ -1183,7 +1183,7 @@ behavior store_float #store #fd #frs #d
   do 
     u32 valueL
     u32 valueH
-    effective_address_Unit.eff_addr_add (effective_address, base_addr, (u32) (D))
+    effective_address := effective_address_Unit.eff_addr_add (base_addr, (u32) (D))
     valueL := FPR.read32(frS<<1) --32 bits access at this date. TODO
     valueH := FPR.read32(frS<<1+1) --32 bits access at this date.TODO
     mem.write32(effective_address  , valueL)
@@ -1231,7 +1231,7 @@ behavior store_inst  #store
   case #d
    field s16 D
    do
-    effective_address_Unit.eff_addr_add (effective_address, base_addr, (u32) (D))
+    effective_address := effective_address_Unit.eff_addr_add (base_addr, (u32) (D))
 --    effective_address := (u32)((s32)(base_addr) + (s32)(D))
    end do
    -- memory offset D
@@ -1239,7 +1239,7 @@ behavior store_inst  #store
   case #x #rb
    field u5 rB
    do
-    effective_address_Unit.eff_addr_add (effective_address, base_addr, reg.read32(rB))
+    effective_address := effective_address_Unit.eff_addr_add (base_addr, reg.read32(rB))
 --    effective_address := (u32)(base_addr + reg.read32(rB))
    end do
    -- memory register offset rB
@@ -1275,7 +1275,7 @@ behavior stm #store #mw #notu #d #rs -- store multiple word.
   field u5 rS
   getBaseAddress(base_addr)
   do
-    effective_address_Unit.eff_addr_add (effective_address, base_addr, (u32) (D))
+    effective_address := effective_address_Unit.eff_addr_add (base_addr, (u32) (D))
     SRU.storeMultiWord(effective_address, rS)
   end do
 end behavior
@@ -1292,14 +1292,14 @@ behavior load_inst  #load #rd
   case #d
    field s16 D
    do
-     effective_address_Unit.eff_addr_add (effective_address, base_addr, (u32) (D))
+     effective_address := effective_address_Unit.eff_addr_add (base_addr, (u32) (D))
 --     effective_address := (u32)((s32)(base_addr) + (s32)(D))
    end do
    -- memory offset D
   case #x #rb
    field u5 rB
    do
-     effective_address_Unit.eff_addr_add (effective_address, base_addr, reg.read32(rB))
+     effective_address := effective_address_Unit.eff_addr_add (base_addr, reg.read32(rB))
 --     effective_address := (u32)(base_addr + reg.read32(rB))
    end do
    -- memory register offset rB

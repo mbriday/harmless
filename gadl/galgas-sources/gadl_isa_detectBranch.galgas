@@ -16,21 +16,13 @@
 
 # TODO: pour le isConst, il suffit de parcourir la liste des depList opur tester 
 #       le paramètre isConst… à moins que ce soit le valueUnkown?
-map @staticInfoMapRegWrite {
-  @expIdfList depList      #dependancies, i.e. registers and local vars that affect values.
-  @bool conditionnalAccess #is register access conditionnal?
-  @bool valueUnknown       #true if value may not be known statically.
-  @expression exp          #expression to get value if available
-  insert insertKey error message "the '%K' for static reg write info is already defined in %L" 
-  search searchKey error message "the '%K' for static reg write info is not defined"
-}
+#       => non, car il y a les accès mémoire aussi.
 
-map @staticInfoMapRegRead {
-  @bool conditionnalAccess #is register access conditionnal?
-  insert insertKey error message "the '%K' for static reg read info is already defined in %L" 
-  search searchKey error message "the '%K' for static reg read info is not defined"
-}
-
+# This is the main map
+# Key is the instruction.
+# It contains:
+# * regWriteAccessMap: map of reg that are written (key is the var written)
+# * regReadAccessMap: map of reg that are read (key is the var written)
 map @staticInfoMap {
   @staticInfoMapRegWrite regWriteAccessMap
   @staticInfoMapRegRead regReadAccessMap
@@ -38,6 +30,24 @@ map @staticInfoMap {
   search searchKey error message "the '%K' for static info is not defined"
 }
 
+
+map @staticInfoMapRegWrite {
+  @expIdfList depList      #dependancies, i.e. registers and local vars that affect values.
+  @bool memAccess          #does var value depend on mem access
+#  @bool valueUnknown       #true if value may not be known statically.
+#  @expression exp          #expression to get value if available
+  insert insertKey error message "the '%K' for static reg write info is already defined in %L" 
+  search searchKey error message "the '%K' for static reg write info is not defined"
+}
+
+map @staticInfoMapRegRead {
+  @bool memAccess #does var value depend on mem access
+  insert insertKey error message "the '%K' for static reg read info is already defined in %L" 
+  search searchKey error message "the '%K' for static reg read info is not defined"
+}
+
+
+# This is the routine that is called from an external file.
 getter @decodedBehaviorMap getStaticInfo
   ?let  @varIdfStruct idfStruct
   -> @staticInfoMap staticInfoMap
@@ -47,13 +57,21 @@ getter @decodedBehaviorMap getStaticInfo
     @symbolValueMap symbolValueMap = .emptyMap
     @staticInfoMapRegWrite regWriteAccessMap = .emptyMap
     @staticInfoMapRegRead regReadAccessMap = .emptyMap
+    message "instruction "+[lkey string];
 #    if [lkey string] == "e200z4_SP_Check_abs_bc_bd_bi_bo_d_f_statPred_updatelr_z" then #complexe
+      
 #    if [lkey string] == "e200z4_SP_Check_abs_b_li_updatelr" then #simple
-     if [lkey string] == "e200z4_br_half_load_notu_ra_rb_rd_x" then
+#     if [lkey string] == "e200z4_br_half_load_notu_ra_rb_rd_x" then
 
+#    @uint i=500
+#    loop (i)
+#    while i>0 do
+#      i = i-1
       [instList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?regReadAccessMap !true]
-    end
-    #message "instruction "+[lkey string]+":\n"
+#    end
+#    end
+    
+    message ":\n"
     [[regWriteAccessMap removeDuplicates] debugRegWriteAccessMap]
     [!?staticInfoMap insertKey !lkey ![regWriteAccessMap removeDuplicates] !regReadAccessMap]
   end
@@ -86,14 +104,16 @@ func updateDepsForVar
   ->@staticInfoMapRegWrite newRegWriteAccessMap
 {
   #we have for instance: C = A+B => C depends on A and B
-  # so, if C is a dep of another idfs, is should be:
-  # - removed from the list of deps to these idfs => fait.
-  # - and replaced by A and B => à rajouter
-  # - update the expression...
+  # so, if C is a dep of another idfs, let's say:
+  # D = C+E
+  # is should be:
+  # - removed from the list of deps to these idfs (D)
+  # - and replaced by A and B
+  # TODO: remove duplicates.
   newRegWriteAccessMap = @staticInfoMapRegWrite.emptyMap
   for () in regWriteAccessMap do
     #foreach reg that is written
-    message "check "+[lkey string]+" with "+[varNameWritten string]+"\n"
+    #message "check "+[lkey string]+" with "+[varNameWritten string]+"\n"
     @expIdfList idfDepList = .emptyList
     for (idfDep) in depList do#@expIdf idf
       #we check each dependency
@@ -101,36 +121,37 @@ func updateDepsForVar
       if [idfDep detectedType] == @idfType.registerAccess |
          [idfDep detectedType] == @idfType.localVar then
          [[idfDep idfList] first ?var @lstring varNameDep ?* ?* ?* ?* ?* ?*]
-         message "\tdep "+[varNameDep string]+"\n"
+         #message "\tdep "+[varNameDep string]+"\n"
          #one dependency is 'varNameWritten'
          if [varNameDep string] == [varNameWritten string] then
-           message "\t\tupdate "+[varNameWritten string]+" in "+[lkey string]+"\n"
+           #message "\t\tupdate "+[varNameWritten string]+" in "+[lkey string]+"\n"
            depUpdated=true
          end
       end
       #add all except the updated one
       if not depUpdated then
         #not updated => the var write does not depends on varNameWritten
-        message "\t\tadd "+[[idfDep idfList] string]+"\n"
+        #message "\t\tadd "+[[idfDep idfList] string]+"\n"
         idfDepList += !idfDep
       else
         #updated => the var write depends on varNameWritten,
         #we should replace it by the dependencies of 'varNameWritten'
-        message "\t\treplacement of "+[varNameWritten string]+" with ";
-        [regWriteAccessMap searchKey !varNameWritten ?@expIdfList depWList ?* ?* ?*]
+        #message "\t\treplacement of "+[varNameWritten string]+" with ";
+        [regWriteAccessMap searchKey !varNameWritten ?@expIdfList depWList ?*]
         idfDepList += depWList
       end
     end
-    [!?newRegWriteAccessMap insertKey !lkey !idfDepList !conditionnalAccess !valueUnknown !exp]
+    [!?newRegWriteAccessMap insertKey !lkey !idfDepList !memAccess]
   end
 }
 
+#debug method.
 method @staticInfoMapRegWrite debugRegWriteAccessMap
 {
   for () in self
-  before message "deps:\n"
+  before message "\tdeps:\n"
   do
-    message "\t"+[lkey string]+":"
+    message "\t\t"+[lkey string]+":"
     for (idfDep) in depList do
     message [[idfDep idfList] string]
     between message ", "
@@ -148,7 +169,8 @@ override method @instAssignment processStaticInfo
   ?! @staticInfoMapRegRead unused regReadAccessMap
   ?let @bool unused goInsideFunc
 {
-  #tmp: => TODO: registerBitField, 2 valeurs. Pas dur.
+  #tmp: => TODO: registerBitField, 2 valeurs. Pas dur, mais attention si modif
+  # du registre complet!
   if [idfAssign detectedType] == @idfType.registerAccess |
      [idfAssign detectedType] == @idfType.localVar then
     [[idfAssign idfList] first ?var @lstring varNameWritten ?* ?* ?* ?* ?* ?*]
@@ -163,7 +185,7 @@ override method @instAssignment processStaticInfo
       #get instructions in reverse order.
       #TODO: conditionnalAccess to be computed.
       #TODO: value known
-      [!?regWriteAccessMap insertKey !varNameWritten !depList !false !false !exp]
+      [!?regWriteAccessMap insertKey !varNameWritten !depList !false]
     end
     #We update dependencies
     regWriteAccessMap = updateDepsForVar(!regWriteAccessMap !varNameWritten)
@@ -201,7 +223,7 @@ override method @instFunctionCall processStaticInfo
 
       end
     case memoryAccess:
-      #TODO: on peut recuperer de l'info ici
+      #TODO: on peut recuperer de l'info ici => c'est une ecriture
     case periphCall,timing,signal: #nothing here.
   end
 }
@@ -213,23 +235,49 @@ override method @instIf processStaticInfo
   ?! @staticInfoMapRegRead regReadAccessMap 
   ?let @bool goInsideFunc
 {
-  @staticInfoMapRegWrite regWriteAccessMapBefore = regWriteAccessMap
+  @staticInfoMapRegWrite regWriteAccessMapBeforeIf   = regWriteAccessMap
+  @staticInfoMapRegWrite regWriteAccessMapBeforeElse = regWriteAccessMap
+  
+  @symbolValueMap symbolValueMapBeforeIf   = symbolValueMap
+  @symbolValueMap symbolValueMapBeforeElse = symbolValueMap
+  
+  @staticInfoMapRegRead regReadAccessMapBeforeIf   = regReadAccessMap
+  @staticInfoMapRegRead regReadAccessMapBeforeElse = regReadAccessMap
   #in an if statement, it depends on both if and else.
-  [instIfList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?regReadAccessMap !goInsideFunc]
-  [instElseList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?regReadAccessMap !goInsideFunc]
+  # *******
+  #TODO: À refaire: c'est faux: il faut prendre le max des 2
+  #actuellement, si on regarde la première branche et qu'il y a un accès
+  #alors l'accès dans la 2e branche sera simplement ignoré (puisque c'est une maj)
+  #il faut faire le traitement à la main.
+
+  # *******
+  [instIfList processStaticInfo   !idfStruct 
+                                  !?symbolValueMapBeforeIf 
+                                  !?regWriteAccessMapBeforeIf 
+                                  !?regReadAccessMapBeforeIf 
+                                  !goInsideFunc]
+  [instElseList processStaticInfo !idfStruct 
+                                  !?symbolValueMapBeforeElse 
+                                  !?regWriteAccessMapBeforeElse 
+                                  !?regReadAccessMapBeforeElse
+                                  !goInsideFunc]
+  # => TODO.
   #moreover, for each reg that have been written inside a instIf block, 
   #it also depends on the condition expression.    
-  for (lkey * * * *) in regWriteAccessMap
+  message "*** if\n"
+  message generateCode(!instIfList !1 !@codeCtx.C)
+  message "*** end if\n"
+#  for (lkey * *) in regWriteAccessMap
 #  before message "***IF***\n"
-  do
-    if not [regWriteAccessMapBefore hasKey ![lkey string]] then
-      @expIdfList depList = [regWriteAccessMap depListForKey ![lkey string]]
-      depList += [cond getIdf !depList !idfStruct]
-      [!?regWriteAccessMap setDepListForKey !depList ![lkey string]]
-#      message "\t => "+[lkey string]+"\n"
-    end
+#  do
+#    if not [regWriteAccessMapBefore hasKey ![lkey string]] then
+#      @expIdfList depList = [regWriteAccessMap depListForKey ![lkey string]]
+#      depList += [cond getIdf !depList !idfStruct]
+#      [!?regWriteAccessMap setDepListForKey !depList ![lkey string]]
+##      message "\t => "+[lkey string]+"\n"
+#    end
 #  after message "***##***\n"
-  end
+#  end
 }
 
 #there are duplicates in the dependencies.
@@ -249,7 +297,7 @@ getter @staticInfoMapRegWrite removeDuplicates
       end
     end
     [!?newInfoMap insertKey !lkey !updatedDepList 
-                  !conditionnalAccess !valueUnknown !exp]
+                  !memAccess]
   end
 }
 
