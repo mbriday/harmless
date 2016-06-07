@@ -887,7 +887,7 @@ override getter @ASTBinaryBasicOp getExp
   elsif id == 9  then type = typeCompare(!baseTypeLeft !baseTypeRight) ; #<=
   elsif id == 10 then type = typeCompare(!baseTypeLeft !baseTypeRight) ; #<=
   elsif id == 11 then type = typeCompare(!baseTypeLeft !baseTypeRight) ; #=
-  elsif id == 12 then type = typeCompare(!baseTypeLeft !baseTypeRight) ; #!=
+  elsif id == 12 then type = typeCompare(!baseTypeLeft !baseTypeRight) ; # !=
   elsif id == 13 then type = typeBin(!baseTypeLeft !baseTypeRight) ; #&
   elsif id == 14 then type = typeBin(!baseTypeLeft !baseTypeRight) ; #^
   elsif id == 15 then type = typeBin(!baseTypeLeft !baseTypeRight) ; #|

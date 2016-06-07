@@ -1,5 +1,3 @@
- #TODO: tmp
-
 #this file is used to apply the semantics on the whole ISA
 #Parsing should have been done.
 # TODO: a map to support different isa
@@ -29,7 +27,7 @@ struct @Isa
 {
   @instructionImplementationMap impMap
   @decodedBehaviorMap decodedBehaviorMap
-  @branchInstMap branchInstMap
+  @staticInfoMap staticInfoMap
   @defaultSection defaultValues  
 }
 
@@ -60,8 +58,8 @@ method @ASTIsa getIsa
                           !idfStruct !?templateStruct ?decodedBehaviorMap)
 
   #branch detection
-  @branchInstMap branchInstMap = [decodedBehaviorMap getBranchInstructions !idfStruct]
-  [branchInstMap updateTemplateForJumpInstructions !?templateStruct]
+#  @branchInstMap branchInstMap = [decodedBehaviorMap getBranchInstructions !idfStruct]
+#  [branchInstMap updateTemplateForJumpInstructions !?templateStruct]
   #tmp.
   @staticInfoMap staticInfoMap = [decodedBehaviorMap getStaticInfo !idfStruct]
   
@@ -70,7 +68,7 @@ method @ASTIsa getIsa
   #data to generate log file (.txt) about instructions, using templates.
   prepareLogTemplates(!impMap !defaultValues !?templateStruct)
 
-  isa = @Isa. new { !impMap !decodedBehaviorMap !branchInstMap !defaultValues}
+  isa = @Isa.new { !impMap !decodedBehaviorMap !staticInfoMap !defaultValues}
 }
 
 # vim:ft=galgas:ts=2:sw=2:tw=0
