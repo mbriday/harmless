@@ -57,21 +57,17 @@ getter @decodedBehaviorMap getStaticInfo
     @symbolValueMap symbolValueMap = .emptyMap
     @staticInfoMapRegWrite regWriteAccessMap = .emptyMap
     @staticInfoMapRegRead regReadAccessMap = .emptyMap
-    message "instruction "+[lkey string];
-#    if [lkey string] == "e200z4_SP_Check_abs_bc_bd_bi_bo_d_f_statPred_updatelr_z" then #complexe
-      
-#    if [lkey string] == "e200z4_SP_Check_abs_b_li_updatelr" then #simple
-#     if [lkey string] == "e200z4_br_half_load_notu_ra_rb_rd_x" then
 
-#    @uint i=500
-#    loop (i)
-#    while i>0 do
-#      i = i-1
-      [instList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?regReadAccessMap !true]
-#    end
-#    end
+#   if [lkey string] == "e200z4_SP_Check_abs_bc_bd_bi_bo_d_f_statPred_updatelr_z" then #complexe
+#   if [lkey string] == "e200z4_br_half_load_notu_ra_rb_rd_x" then      
+    if [lkey string] == "e200z4_SP_Check_abs_b_li_updatelr" then #simple
+      message "instruction "+[lkey string];
+      [instList processStaticInfo !idfStruct !?symbolValueMap 
+                                  !?regWriteAccessMap !?regReadAccessMap !true]
+      message ":\n"
+    end
     
-    message ":\n"
+
     [[regWriteAccessMap removeDuplicates] debugRegWriteAccessMap]
     [!?staticInfoMap insertKey !lkey ![regWriteAccessMap removeDuplicates] !regReadAccessMap]
   end
@@ -218,9 +214,7 @@ override method @instFunctionCall processStaticInfo
                                   !idfStruct !?nextIdfStruct 
                                   ?@instructionList instListCall]
         @instructionList fullInstList = instListCall+instList
-#        message "code\n"+generateCode(!fullInstList !1 !@codeCtx.C)+"\n"
         [fullInstList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?regReadAccessMap !goInsideFunc]
-
       end
     case memoryAccess:
       #TODO: on peut recuperer de l'info ici => c'est une ecriture
@@ -235,14 +229,14 @@ override method @instIf processStaticInfo
   ?! @staticInfoMapRegRead regReadAccessMap 
   ?let @bool goInsideFunc
 {
-  @staticInfoMapRegWrite regWriteAccessMapBeforeIf   = regWriteAccessMap
-  @staticInfoMapRegWrite regWriteAccessMapBeforeElse = regWriteAccessMap
+  @staticInfoMapRegWrite regWriteAccessMapIf   = regWriteAccessMap
+  @staticInfoMapRegWrite regWriteAccessMapElse = regWriteAccessMap
   
-  @symbolValueMap symbolValueMapBeforeIf   = symbolValueMap
-  @symbolValueMap symbolValueMapBeforeElse = symbolValueMap
+  @symbolValueMap symbolValueMapIf   = symbolValueMap
+  @symbolValueMap symbolValueMapElse = symbolValueMap
   
-  @staticInfoMapRegRead regReadAccessMapBeforeIf   = regReadAccessMap
-  @staticInfoMapRegRead regReadAccessMapBeforeElse = regReadAccessMap
+  @staticInfoMapRegRead regReadAccessMapIf   = regReadAccessMap
+  @staticInfoMapRegRead regReadAccessMapElse = regReadAccessMap
   #in an if statement, it depends on both if and else.
   # *******
   #TODO: À refaire: c'est faux: il faut prendre le max des 2
@@ -252,32 +246,53 @@ override method @instIf processStaticInfo
 
   # *******
   [instIfList processStaticInfo   !idfStruct 
-                                  !?symbolValueMapBeforeIf 
-                                  !?regWriteAccessMapBeforeIf 
-                                  !?regReadAccessMapBeforeIf 
+                                  !?symbolValueMapIf 
+                                  !?regWriteAccessMapIf 
+                                  !?regReadAccessMapIf 
                                   !goInsideFunc]
   [instElseList processStaticInfo !idfStruct 
-                                  !?symbolValueMapBeforeElse 
-                                  !?regWriteAccessMapBeforeElse 
-                                  !?regReadAccessMapBeforeElse
+                                  !?symbolValueMapElse 
+                                  !?regWriteAccessMapElse 
+                                  !?regReadAccessMapElse
                                   !goInsideFunc]
-  # => TODO.
-  #moreover, for each reg that have been written inside a instIf block, 
+  #1 -> merge the two regWriteAccessMap maps (if and else) => checked.
+  @staticInfoMapRegWrite regWriteAccessMapMerged = .emptyMap
+  for (lkey depList memAccess) in regWriteAccessMapIf do
+    message " -- > "+[lkey string]+"\n"
+    if [regWriteAccessMapElse hasKey ![lkey string]] then
+      #value written in the 2 branches. Merge.
+      [regWriteAccessMapElse searchKey !lkey ?@expIdfList depListElse
+                                             ?@bool memAccessElse]
+      [!?regWriteAccessMapMerged insertKey !lkey !depList+depListElse
+                                           !(memAccess | memAccess)] 
+    else
+      message "else\n"
+      #value written in one branch only. Add in merge map.
+      [!?regWriteAccessMapMerged insertKey !lkey !depList !memAccess]
+    end
+  end
+  for (lkey depList memAccess) in regWriteAccessMapElse do
+    if not [regWriteAccessMapIf hasKey ![lkey string]] then
+      #value written in the other branch only. Add in merge map.
+      [!?regWriteAccessMapMerged insertKey !lkey !depList !memAccess]
+    end
+  end  
+  #2 -> moreover, for each reg that have been written inside a instIf block, 
   #it also depends on the condition expression.    
-  message "*** if\n"
-  message generateCode(!instIfList !1 !@codeCtx.C)
-  message "*** end if\n"
-#  for (lkey * *) in regWriteAccessMap
-#  before message "***IF***\n"
-#  do
-#    if not [regWriteAccessMapBefore hasKey ![lkey string]] then
-#      @expIdfList depList = [regWriteAccessMap depListForKey ![lkey string]]
-#      depList += [cond getIdf !depList !idfStruct]
-#      [!?regWriteAccessMap setDepListForKey !depList ![lkey string]]
-##      message "\t => "+[lkey string]+"\n"
-#    end
-#  after message "***##***\n"
-#  end
+  for (lkey depList *) in regWriteAccessMapMerged do
+    @expIdfList depListUpdated =  depList + [cond getIdf !depList !idfStruct]
+    [!?regWriteAccessMap setDepListForKey !depListUpdated ![lkey string]]
+  end
+  #3 -> combine the 2 maps regWriteAccessMap and regWriteAccessMapMerged
+  for (lkey depList memAccess) in regWriteAccessMapMerged do
+    if not [regWriteAccessMap hasKey ![lkey string]] then 
+      #if it is already ok, don't update, as we
+      #get instructions in reverse order.
+      [!?regWriteAccessMap insertKey !lkey !depList !memAccess]
+    end
+    #We update dependencies
+    regWriteAccessMap = updateDepsForVar(!regWriteAccessMap !lkey)
+  end
 }
 
 #there are duplicates in the dependencies.
