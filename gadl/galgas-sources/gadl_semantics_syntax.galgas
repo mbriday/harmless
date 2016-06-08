@@ -538,7 +538,7 @@ func getSyntaxFieldMap
       for () in  fieldMap do
         if not [fieldMapWithoutSuffix hasKey ![lkey string]] then
           @instDeclaration instDec = @instDeclaration. new { ![lkey location] !type !lkey !@varClass. field !""}  
-          [!?fieldMapWithoutSuffix insertKey !lkey !type !constant !varClass !instDec]
+          [!?fieldMapWithoutSuffix insertKey !lkey !type !constant !varClass !false !instDec]
         end
       end
     end

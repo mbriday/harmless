@@ -186,7 +186,7 @@ proc getInstructionComponentGraph
       idfList += ![defaultValues fetchMethodName] !@idfItemType. functionCall !@expressionlist. emptyList !@idfItemSpecType. standard !"" !"" !false
     end
     @varBaseType dummyType = @varBaseType. new { !@varKind. unsigned !0 !@location.here}
-    @expIdf idf = @expIdf. new { !dummyType !idfList !@idfType. componentCall !false}
+    @expIdf idf = @expIdf.new { !dummyType !idfList !@idfType. componentCall !false !false}
 
     @instruction fetch = @instFunctionCall. new { !@location.here !idf}
     [!?instList insertAtIndex !fetch !0]

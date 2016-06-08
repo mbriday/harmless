@@ -366,7 +366,7 @@ override method @tWaitCycle buildAdjMatrix
     idfList += !@lstring. new { !"cycle" !@location.here} !@idfItemType. basic 
                !@expressionlist. emptyList !@idfItemSpecType. standard !"" !"" !false
     @varBaseType type = @varBaseType. new { !@varKind. unsigned !32 !@location.here}
-    @expIdf clockIdf = @expIdf. new { !type !idfList !@idfType. localVar !false}
+    @expIdf clockIdf = @expIdf.new{!type !idfList !@idfType. localVar !false !false}
     @expIntConst expZero = @expIntConst. new { !type !0L !false}
     @varBaseType boolOutType = @varBaseType. new { !@varKind. unsigned !1 !@location.here} #return type of exp: bool
     #get predecessors (incoming transitions)
@@ -410,7 +410,7 @@ override method @tLoop buildAdjMatrix
   idfList += !idfName!@idfItemType. basic
              !@expressionlist. emptyList !@idfItemSpecType. standard !"" !"" !false
   @varBaseType type = @varBaseType. new { !@varKind. unsigned !32 !@location.here}
-  @expIdf loopIdf = @expIdf. new { !type !idfList !@idfType. localVar !false}
+  @expIdf loopIdf = @expIdf. new { !type !idfList !@idfType. localVar !false !false}
   @expIntConst expZero = @expIntConst. new { !type !0L !false}
   @expIntConst expOne  = @expIntConst. new { !type !1L !false}
   @expIntConst expLoop = @expIntConst. new { !type !loopValue !false}
@@ -573,7 +573,7 @@ func buildUppaalAutomata
       idfList += !@lstring. new { !"cycle" !@location.here} !@idfItemType. basic 
                  !@expressionlist. emptyList !@idfItemSpecType. standard !"" !"" !false
       @varBaseType type = @varBaseType. new { !@varKind. unsigned !32 !@location.here}
-      @expIdf clockIdf = @expIdf. new { !type !idfList !@idfType. localVar !false}
+      @expIdf clockIdf = @expIdf.new{ !type !idfList !@idfType. localVar !false !false}
       @expression expCycle=getExpSum(!waitCycleList)
       @expIntConst expZero = @expIntConst. new { !type !0L !false}
       @varBaseType boolOutType = @varBaseType. new { !@varKind. unsigned !1 !@location.here} #return type of exp: bool

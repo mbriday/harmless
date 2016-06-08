@@ -170,7 +170,8 @@ getter @expIdf lstring -> @lstring name {
 class @expIdf : @expression {
   @idfItemList idfList  #may be idf1.idf2.idf3
   @idfType detectedType #type detected using maps (varMap, methodMap, ..)
-  @bool shouldNotAssign
+  @bool shouldNotAssign #if true, an error is reported if it expIdf is written.
+  @bool isDefinedStatically #if true, value is known statically (without simulation)
 }
 
 class @expCast : @expression {

@@ -36,7 +36,7 @@ getter @ASTFunctionMap getFunctionMap
     var varMap =@varMap.mapWithMapToOverride{ ![idfStruct varMap]}
     for(@bool out @varAbstractType type @lstring name) in  param do
       @instDeclaration instDec = @instDeclaration. new { !@location.here !type !name !@varClass. localVar !""}
-      [!?varMap insertKey !name !type !not out !@varClass. localVar !instDec]
+      [!?varMap insertKey !name !type !not out !@varClass.localVar !false !instDec]
     end
     #update the IdfStruct accordingly (copy to modify).
     @varIdfStruct idfStructCopy = idfStruct
@@ -93,8 +93,9 @@ method @parameterDefList getInlinedInsts
       @varAbstractType idfItemType
       @bool constant #true if the variable should not be modified.
       @varClass varClass
-      [fromIdfStruct.varMap searchKey !idfCall ?idfItemType ?constant ?varClass ?var @instDeclaration idec]
-      [!?toIdfStruct.varMap insertKey !idfCall !idfItemType !constant !varClass !idec]
+      @bool isDefinedStatically
+      [fromIdfStruct.varMap searchKey !idfCall ?idfItemType ?constant ?varClass ?isDefinedStatically ?var @instDeclaration idec]
+      [!?toIdfStruct.varMap insertKey !idfCall !idfItemType !constant !varClass !isDefinedStatically !idec]
       if constant then
         error callLoc: "The variable is constant, but defined as in/out parameter"
       end

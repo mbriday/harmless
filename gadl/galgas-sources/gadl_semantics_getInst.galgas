@@ -235,7 +235,7 @@ override method @ASTInstDeclaration getInst
     @lstring idfFull = [idfStruct getIdfPrePost !idf]
     #message "declare local var   ".idfFull."\n";
     @instDeclaration instDec = @instDeclaration.new { !loc !type !idfFull !access !idfStruct.idfPrefixLocal}
-    [!?idfStruct.varMap insertKey !idfFull !type !false !access !instDec]
+    [!?idfStruct.varMap insertKey !idfFull !type !false !access !false !instDec]
     inst = instDec
   case field: #a field used in the behavior view (ISA description).
     if ctx != @expressionContext.behavior then
@@ -248,11 +248,15 @@ override method @ASTInstDeclaration getInst
     @lstring idfField = [idfStruct getIdfPost !idf]
     #message "declare field       ".idfField."\n";
     @instDeclaration instDec = @instDeclaration.new { !loc !type !idfField !access !""}
-    [!?idfStruct.varMap insertKey !idfField !type !true !@varClass.localVar !instDec]
+    [!?idfStruct.varMap insertKey !idfField !type !true !@varClass.localVar !true !instDec]
     inst = instDec
-  case programCounter,GPR,SFR:
+  case programCounter:
     @instDeclaration instDec = @instDeclaration.new { !loc !type !idf !access !""}
-    [!?idfStruct.varMap insertKey !idf !type !false !access !instDec]
+    [!?idfStruct.varMap insertKey !idf !type !false !access !true !instDec]
+    inst = instDec
+  case GPR,SFR:
+    @instDeclaration instDec = @instDeclaration.new { !loc !type !idf !access !""}
+    [!?idfStruct.varMap insertKey !idf !type !false !access !false !instDec]
     inst = instDec
   case device:
     error loc: "internal error: instanciation of a device not allowed here" : inst
@@ -271,7 +275,7 @@ override method @ASTInstDeclarationDevice getInst
     error loc: "internal error: a device varClass is expected in @ASTInstDeclarationDevice"
   end
   @instDeclarationDevice instDec = @instDeclarationDevice.new { !loc !type !idf !access !"" !address}
-  [!?idfStruct.varMap insertKey !idf !type !true !access !instDec]
+  [!?idfStruct.varMap insertKey !idf !type !true !access !false !instDec]
   inst = instDec
 }
 
@@ -296,7 +300,7 @@ override method @ASTInstDeclarationRegSlice getInst
     error sliceName: "internal error: a registerSlice is expected in @ASTInstDeclarationRegSlice"
   end
   @instDeclarationRegSlice instRegSlice = @instDeclarationRegSlice.new { !loc !type !idf !access !"" !sliceName !flist}
-  [!?idfStruct.varMap insertKey ![instRegSlice name] !sliceType !false !access !instRegSlice]
+  [!?idfStruct.varMap insertKey ![instRegSlice name] !sliceType !false !access !false !instRegSlice]
   inst = instRegSlice
 }
 

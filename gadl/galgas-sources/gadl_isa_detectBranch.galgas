@@ -333,7 +333,7 @@ getter @staticInfoMapRegWrite isConst
       const = false #value depends on a memory access
     else
       for dep in depList while const do
-        const = [[dep idf] shouldNotAssign]
+        const = [[dep idf] isDefinedStatically]
       end
     end
   else

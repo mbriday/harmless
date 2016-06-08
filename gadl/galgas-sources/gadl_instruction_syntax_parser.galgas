@@ -91,7 +91,7 @@ rule <fieldDeclaration>
   @lstring idf
   $idf$ ?idf
   @instDeclaration instDec = @instDeclaration. new { !@location.here !typeBase !idf !@varClass. localVar !""}
-  [!?fieldMap insertKey !idf !typeBase !true !@varClass. localVar !instDec]
+  [!?fieldMap insertKey !idf !typeBase !true !@varClass.localVar !true !instDec]
 }
 
 rule <syntaxString>
