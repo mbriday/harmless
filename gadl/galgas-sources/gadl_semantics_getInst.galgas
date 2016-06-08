@@ -188,7 +188,7 @@ override method @ASTInstAssignment getInst
   case unknown:
     error loc: "The identifier is unknown in assignment (left side)"
   case structMember,localVar,tabularAccess,registerAccess,registerBitField:
-    if [expIdfAssign isConst] then
+    if [expIdfAssign shouldNotAssign] then
       @string errorStr = "Variable \'"+[expIdfAssign string]+"\' is declared constant. It should not be assigned."
       error loc: errorStr
     end
