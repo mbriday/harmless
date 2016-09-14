@@ -17,7 +17,7 @@ list @expIdfList {
 abstract getter @expression getIdf
   ?let  @expIdfList inList
   ?let  @varIdfStruct idfStruct
-  -> @expIdfList outList
+  -> @expIdfList
 
 override getter @expDummy getIdf
   ?let  @expIdfList inList

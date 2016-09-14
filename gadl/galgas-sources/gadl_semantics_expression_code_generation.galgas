@@ -12,7 +12,7 @@
 
 abstract getter @expression generateCode
   ?let  @codeCtx unused cgc
-  -> @string code
+  -> @string
 
 getter @expression hasParenthesis
   -> @bool result {

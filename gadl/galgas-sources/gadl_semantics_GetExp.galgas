@@ -279,7 +279,7 @@ abstract getter @ASTExpression getExp
   ?let  @expressionContext ctx
   ?let  @symbolValueMap symbolMap
   ?let  @varIdfStruct idfStruct
-  -> @expression exp
+  -> @expression
 
 override getter @ASTIntConst getExp
   ?let  @expressionContext unused ctx
