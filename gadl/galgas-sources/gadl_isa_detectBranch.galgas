@@ -21,8 +21,8 @@
 # This is the main map
 # Key is the instruction.
 # It contains:
-# * regWriteAccessMap: map of reg that are written (key is the var written)
-# * regReadAccessMap: map of reg that are read (key is the var written)
+# * regWriteAccessMap: map of regs that are written (key is the var written)
+# * regReadAccessMap:  map of regs that are read (key is the var written)
 map @staticInfoMap {
   @staticInfoMapRegWrite regWriteAccessMap
   @staticInfoMapRegRead regReadAccessMap
@@ -58,10 +58,14 @@ getter @decodedBehaviorMap getStaticInfo
     @staticInfoMapRegWrite regWriteAccessMap = .emptyMap
     @staticInfoMapRegRead regReadAccessMap = .emptyMap
 
-#   if [lkey string] == "e200z4_SP_Check_abs_bc_bd_bi_bo_d_f_statPred_updatelr_z" then #complexe
+   if [lkey string] == "e200z4_SP_Check_abs_bc_bd_bi_bo_d_f_statPred_updatelr_z" then #complexe
 #   if [lkey string] == "e200z4_br_half_load_notu_ra_rb_rd_x" then      
-    if [lkey string] == "e200z4_SP_Check_abs_b_li_updatelr" then #simple
-      message "instruction "+[lkey string];
+#    if [lkey string] == "e200z4_SP_Check_abs_b_li_updatelr" then #simple
+      message "instruction "+[lkey string]+"\n";
+      for (inst) in instList do
+          message [inst generateCode !0 !@codeCtx.C]+"\n";
+      end
+      message "analysis "+[lkey string]+"\n";
       [instList processStaticInfo !idfStruct !?symbolValueMap 
                                   !?regWriteAccessMap !?regReadAccessMap !true]
       message ":\n"
@@ -153,7 +157,7 @@ method @staticInfoMapRegWrite debugRegWriteAccessMap
     between message ", "
     end
     message " --> "
-    if not [self isConst !lkey] then message "not " end
+    if not [self isDefinedStatically !lkey] then message "not " end
     message "const"
   between message "\n"
   after message "\n"
@@ -260,9 +264,12 @@ override method @instIf processStaticInfo
                                   !goInsideFunc]
   #1 -> merge the two regWriteAccessMap maps (if and else) => checked.
   @staticInfoMapRegWrite regWriteAccessMapMerged = .emptyMap
-  for (lkey depList memAccess) in regWriteAccessMapIf do
+  for (lkey depList memAccess) in regWriteAccessMapIf 
+  before message "if statement     -- \n"
+  do
     message " -- > "+[lkey string]+"\n"
     if [regWriteAccessMapElse hasKey ![lkey string]] then
+      message "merge\n"
       #value written in the 2 branches. Merge.
       [regWriteAccessMapElse searchKey !lkey ?@expIdfList depListElse
                                              ?@bool memAccessElse]
@@ -273,6 +280,7 @@ override method @instIf processStaticInfo
       #value written in one branch only. Add in merge map.
       [!?regWriteAccessMapMerged insertKey !lkey !depList !memAccess]
     end
+  after message "end if statement -- \n"
   end
   for (lkey depList memAccess) in regWriteAccessMapElse do
     if not [regWriteAccessMapIf hasKey ![lkey string]] then
@@ -281,10 +289,16 @@ override method @instIf processStaticInfo
     end
   end  
   #2 -> moreover, for each reg that have been written inside a instIf block, 
-  #it also depends on the condition expression.    
+  #it also depends on the condition expression.
+  ######################################################
+  #TODO: c'est ici qu'on defini un saut conditionnel…
+  #      mais la cible peut être connue.
+  #      À mettre à jour.
+  ######################################################
   for (lkey depList *) in regWriteAccessMapMerged do
+    message "update "+[lkey string]+" value\n"
     @expIdfList depListUpdated =  depList + [cond getIdf !depList !idfStruct]
-    [!?regWriteAccessMap setDepListForKey !depListUpdated ![lkey string]]
+    [!?regWriteAccessMapMerged setDepListForKey !depListUpdated ![lkey string]]
   end
   #3 -> combine the 2 maps regWriteAccessMap and regWriteAccessMapMerged
   for (lkey depList memAccess) in regWriteAccessMapMerged do
@@ -298,7 +312,10 @@ override method @instIf processStaticInfo
   end
 }
 
-#there are duplicates in the dependencies.
+#there are duplicates in the dependency lists
+#for instance:
+# A = B+C
+# D = B+A  => D depends on B-B-C.
 getter @staticInfoMapRegWrite removeDuplicates 
  -> @staticInfoMapRegWrite newInfoMap
 {
@@ -319,10 +336,10 @@ getter @staticInfoMapRegWrite removeDuplicates
   end
 }
 
-#This getter returns true if the variable is const (i.e. its value can be
+#This getter returns true if the variable can be
 #defined statically). This means that a var that only depends on hard-coded
 #values in the instruction format is a const.
-getter @staticInfoMapRegWrite isConst
+getter @staticInfoMapRegWrite isDefinedStatically
  ? @lstring regName
  ->@bool const
 {
