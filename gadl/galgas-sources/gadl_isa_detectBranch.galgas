@@ -60,7 +60,7 @@ getter @decodedBehaviorMap getStaticInfo
 
 #   if [lkey string] == "e200z4_SP_Check_abs_bc_bd_bi_bo_d_f_statPred_updatelr_z" then #complexe
 #   if [lkey string] == "e200z4_br_half_load_notu_ra_rb_rd_x" then      
-    if [lkey string] == "e200z4_SP_Check_abs_b_li_updatelr" then #simple
+#    if [lkey string] == "e200z4_SP_Check_abs_b_li_updatelr" then #simple
       message "instruction "+[lkey string]+"\n";
       #for (inst) in instList do
       #    message "-> " + [inst generateCode !0 !@codeCtx.C]+"\n";
@@ -72,7 +72,7 @@ getter @decodedBehaviorMap getStaticInfo
       [instList processStaticInfo !idfStruct !?symbolValueMap 
                                   !?regWriteAccessMap !?regReadAccessMap !true]
       message ":\n"
-    end
+#    end
     
 
     [[regWriteAccessMap removeDuplicates] debugRegWriteAccessMap]
@@ -113,13 +113,13 @@ func updateDepsForVar
   # is should be:
   # - removed from the list of deps to these idfs (D)
   # - and replaced by A and B
-  # the remove of duplicates is done in another function.
-  newRegWriteAccessMap = @staticInfoMapRegWrite.emptyMap
+  # the removal of duplicates is done at the end of the function.
+  @staticInfoMapRegWrite newRegWriteAccessMapTmp = .emptyMap
   for () in regWriteAccessMap do
     #foreach reg that is written
     #message "check "+[lkey string]+" with "+[varNameWritten string]+"\n"
     @expIdfList idfDepList = .emptyList
-    for (idfDep) in depList do#@expIdf idf
+    for (idfDep) in depList do #@expIdf idf
       #we check each dependancy
       @bool depUpdated = false
       if [idfDep detectedType] == @idfType.registerAccess |
@@ -145,8 +145,9 @@ func updateDepsForVar
         idfDepList += varDepList
       end
     end
-    [!?newRegWriteAccessMap insertKey !lkey !idfDepList !memAccess]
+    [!?newRegWriteAccessMapTmp insertKey !lkey !idfDepList !memAccess]
   end
+  newRegWriteAccessMap = [newRegWriteAccessMapTmp removeDuplicates]
 }
 
 #debug method.
@@ -271,22 +272,17 @@ override method @instIf processStaticInfo
   #1 -> merge the two regWriteAccessMap maps (if and else)
   @staticInfoMapRegWrite regWriteAccessMapMerged = .emptyMap
   for (lkey depList memAccess) in regWriteAccessMapIf 
-  before message "if statement     -- \n"
   do
-    message " -- > "+[lkey string]+"\n"
     if [regWriteAccessMapElse hasKey ![lkey string]] then
-      message "merge\n"
       #value written in the 2 branches. Merge.
       [regWriteAccessMapElse searchKey !lkey ?@expIdfList depListElse
                                              ?@bool memAccessElse]
       [!?regWriteAccessMapMerged insertKey !lkey !depList+depListElse
                                            !(memAccess | memAccessElse)] 
     else
-      message "else\n"
       #value written in one branch only. Add in merge map.
       [!?regWriteAccessMapMerged insertKey !lkey !depList !memAccess]
     end
-  after message "end if statement -- \n"
   end
   for (lkey depList memAccess) in regWriteAccessMapElse do
     if not [regWriteAccessMapIf hasKey ![lkey string]] then
@@ -302,10 +298,8 @@ override method @instIf processStaticInfo
   #      À mettre à jour.
   ######################################################
   for (lkey depList *) in regWriteAccessMapMerged do
-    message "update "+[lkey string]+" value\n"
     #@expIdfList depListUpdated =  depList + [cond getIdf !depList !idfStruct]
     @expIdfList depListUpdated =  depList + [cond getIdf !idfStruct]
-    if [cond hasMemAccess !idfStruct] then message "mem!!" else message "no mem!" end
     [!?regWriteAccessMapMerged setDepListForKey !depListUpdated ![lkey string]]
   end
   #3 -> combine the 2 maps regWriteAccessMap and regWriteAccessMapMerged
@@ -315,8 +309,10 @@ override method @instIf processStaticInfo
       #get instructions in reverse order.
       [!?regWriteAccessMap insertKey !lkey !depList !memAccess]
     end
+    #message "update deps\n"
     #We update dependencies
     regWriteAccessMap = updateDepsForVar(!regWriteAccessMap !lkey !depList)
+    #message "done update \n"
   end
 }
 
