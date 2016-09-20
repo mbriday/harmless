@@ -58,13 +58,16 @@ getter @decodedBehaviorMap getStaticInfo
     @staticInfoMapRegWrite regWriteAccessMap = .emptyMap
     @staticInfoMapRegRead regReadAccessMap = .emptyMap
 
-   if [lkey string] == "e200z4_SP_Check_abs_bc_bd_bi_bo_d_f_statPred_updatelr_z" then #complexe
+#   if [lkey string] == "e200z4_SP_Check_abs_bc_bd_bi_bo_d_f_statPred_updatelr_z" then #complexe
 #   if [lkey string] == "e200z4_br_half_load_notu_ra_rb_rd_x" then      
-#    if [lkey string] == "e200z4_SP_Check_abs_b_li_updatelr" then #simple
+    if [lkey string] == "e200z4_SP_Check_abs_b_li_updatelr" then #simple
       message "instruction "+[lkey string]+"\n";
-      for (inst) in instList do
-          message [inst generateCode !0 !@codeCtx.C]+"\n";
-      end
+      #for (inst) in instList do
+      #    message "-> " + [inst generateCode !0 !@codeCtx.C]+"\n";
+      #end
+      message "-------------------------------------------\n"
+      message [instList harmlessCode !0] + "\n";
+      message "----------\n"
       message "analysis "+[lkey string]+"\n";
       [instList processStaticInfo !idfStruct !?symbolValueMap 
                                   !?regWriteAccessMap !?regReadAccessMap !true]

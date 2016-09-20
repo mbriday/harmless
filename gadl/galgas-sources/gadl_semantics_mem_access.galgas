@@ -3,6 +3,16 @@
 # used for static analysis
 #############################################################################
 
+getter @expressionlist hasMemAccess
+  ?let @varIdfStruct idfStruct
+  -> @bool memAccess
+{
+  memAccess = false
+  for (exp) in self while not memAccess do
+    memAccess = memAccess | [exp hasMemAccess !idfStruct]
+  end
+}
+
 getter @expression hasMemAccess
   ?let @varIdfStruct idfStruct
   -> @bool memAccess
@@ -14,7 +24,7 @@ getter @expression hasMemAccess
 }
 
 override getter @expIdf hasMemAccess
-  ?let @varIdfStruct unused idfStruct
+  ?let @varIdfStruct idfStruct
   -> @bool memAccess
 {
   switch detectedType
@@ -25,8 +35,8 @@ override getter @expIdf hasMemAccess
          periphCall,timing,signal:
       memAccess = false
     case componentCall:
-      @instructionList instList = [idfStruct.componentMap getInstList ![exp idfList]]
-      @expressionlist paramList = [[[self exp] idfList] paramListAtIndex !1]
+      @instructionList instList = [idfStruct.componentMap getInstList ![self idfList]]
+      @expressionlist paramList = [[self idfList] paramListAtIndex !1]
       memAccess = [instList hasMemAccess !idfStruct] | [paramList hasMemAccess !idfStruct]
   end
 }

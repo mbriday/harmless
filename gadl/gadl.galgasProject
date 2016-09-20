@@ -32,6 +32,7 @@ project (0:8:1) -> "gadl" {
   "galgas-sources/gadl_semantics_expression_code_generation.galgas"
   "galgas-sources/gadl_semantics_expression_extract_idf.galgas"
   "galgas-sources/gadl_semantics_mem_access.galgas"     # detect memory accesses
+  "galgas-sources/gadl_semantics_log.galgas"            # get information for logs.
 
 #******************************************************
 # implementation: harmless instructions related files.
