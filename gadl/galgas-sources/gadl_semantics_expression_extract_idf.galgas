@@ -14,46 +14,22 @@ list @expIdfList {
   @expIdf idf
 }
 
-abstract getter @expression getIdf
-  ?let  @expIdfList inList
+getter @expression getIdf
   ?let  @varIdfStruct idfStruct
-  -> @expIdfList
-
-override getter @expDummy getIdf
-  ?let  @expIdfList inList
-  ?let  @varIdfStruct unused idfStruct
-  -> @expIdfList outList { 
-  outList=inList
-}
-
-override getter @expIntConst getIdf
-  ?let  @expIdfList inList
-  ?let  @varIdfStruct unused idfStruct
-  -> @expIdfList outList { 
-  outList=inList
-}
-
-override getter @expInstructionSize getIdf
-  ?let  @expIdfList inList
-  ?let  @varIdfStruct unused idfStruct
-  -> @expIdfList outList { 
-  outList=inList
-}
-
-override getter @expInstructionAddress getIdf
-  ?let  @expIdfList inList
-  ?let  @varIdfStruct unused idfStruct
-  -> @expIdfList outList { 
-  outList=inList
+  -> @expIdfList outList
+{
+  outList = .emptyList
+  for (exp) in [self getExpressionChildren] do
+    outList += [exp getIdf !idfStruct]
+  end
 }
 
 override getter @expIdf getIdf
-  ?let  @expIdfList inList
   ?let  @varIdfStruct idfStruct
   -> @expIdfList outList
 { 
-  outList=inList
-  #TODO: if it is a return from a function call, we should
+  outList = .emptyList
+  #if it is a return from a function call, we should
   #parse the return instruction of the function
   switch detectedType
     case componentCall:
@@ -63,7 +39,7 @@ override getter @expIdf getIdf
       for > (inst) in instList while not found do 
         cast inst
           case >= @instReturn ret:
-            outList += [[ret exp] getIdf !inList !idfStruct]
+            outList += [[ret exp] getIdf !idfStruct]
             found = true
           else
         end
@@ -75,44 +51,21 @@ override getter @expIdf getIdf
   end
 }
 
-override getter @expCast getIdf
-  ?let  @expIdfList inList
-  ?let  @varIdfStruct idfStruct
-  -> @expIdfList outList { 
-  outList = [expCasted getIdf !inList !idfStruct]
-}
 
-getter @fieldList getIdf
-  ?let  @expIdfList inList
-  ?let  @varIdfStruct idfStruct
-  -> @expIdfList outList { 
-  outList = inList
-  for () in  self do
-    outList = outList + [expFrom getIdf !@expIdfList.emptyList !idfStruct] +
-               [expTo   getIdf !@expIdfList.emptyList !idfStruct]
-  end
-}
+#############################################################################
+# search for component calls
+# used for static analysis
+#############################################################################
 
-override getter @expBitFieldOp getIdf
-  ?let  @expIdfList inList
-  ?let  @varIdfStruct idfStruct
-  -> @expIdfList outList { 
-  outList = [expField getIdf !inList !idfStruct] + [fList getIdf !@expIdfList.emptyList !idfStruct]
-}
+#getter @expression hasComponentCalls
+#  -> @bool memAccess
+#{
+#  memAccess = false
+#  for (exp) in [self getExpressionChildren] while not memAccess do
+#    memAccess = memAccess | [exp hasMemAccess]
+#  end
+#}
 
-override getter @expUnary getIdf
-  ?let  @expIdfList inList
-  ?let  @varIdfStruct idfStruct
-  -> @expIdfList outList { 
-  outList = [exp getIdf !inList !idfStruct]
-}
 
-override getter @expBinary getIdf
-  ?let  @expIdfList inList
-  ?let  @varIdfStruct idfStruct
-  -> @expIdfList outList { 
-  outList = inList + [expLeft  getIdf !@expIdfList.emptyList !idfStruct] +
-             [expRight getIdf !@expIdfList.emptyList !idfStruct]
-}
 
 # vim:ft=galgas:ts=2:sw=2:tw=0

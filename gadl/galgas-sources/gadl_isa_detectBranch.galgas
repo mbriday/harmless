@@ -181,7 +181,8 @@ override method @instAssignment processStaticInfo
 #    message "**** processing write of "+[varNameWritten string]+"****\n"
     #get deps.
     @expIdfList depList = .emptyList
-    depList = [exp getIdf !depList !idfStruct]
+    #depList = [exp getIdf !depList !idfStruct]
+    depList += [exp getIdf !idfStruct]
 
     #insert reg access (write) into map
     if not [regWriteAccessMap hasKey ![varNameWritten string]] then 
@@ -227,6 +228,7 @@ override method @instFunctionCall processStaticInfo
     case memoryAccess:
       #TODO: on peut recuperer de l'info ici => c'est une ecriture
     case periphCall,timing,signal: #nothing here.
+      error loc: "internal error: no static information available for peripherals, timings and signals"
   end
 }
 
@@ -263,7 +265,7 @@ override method @instIf processStaticInfo
                                   !?regWriteAccessMapElse 
                                   !?regReadAccessMapElse
                                   !goInsideFunc]
-  #1 -> merge the two regWriteAccessMap maps (if and else) => checked.
+  #1 -> merge the two regWriteAccessMap maps (if and else)
   @staticInfoMapRegWrite regWriteAccessMapMerged = .emptyMap
   for (lkey depList memAccess) in regWriteAccessMapIf 
   before message "if statement     -- \n"
@@ -275,7 +277,7 @@ override method @instIf processStaticInfo
       [regWriteAccessMapElse searchKey !lkey ?@expIdfList depListElse
                                              ?@bool memAccessElse]
       [!?regWriteAccessMapMerged insertKey !lkey !depList+depListElse
-                                           !(memAccess | memAccess)] 
+                                           !(memAccess | memAccessElse)] 
     else
       message "else\n"
       #value written in one branch only. Add in merge map.
@@ -298,7 +300,9 @@ override method @instIf processStaticInfo
   ######################################################
   for (lkey depList *) in regWriteAccessMapMerged do
     message "update "+[lkey string]+" value\n"
-    @expIdfList depListUpdated =  depList + [cond getIdf !depList !idfStruct]
+    #@expIdfList depListUpdated =  depList + [cond getIdf !depList !idfStruct]
+    @expIdfList depListUpdated =  depList + [cond getIdf !idfStruct]
+    if [cond hasMemAccess !idfStruct] then message "mem!!" else message "no mem!" end
     [!?regWriteAccessMapMerged setDepListForKey !depListUpdated ![lkey string]]
   end
   #3 -> combine the 2 maps regWriteAccessMap and regWriteAccessMapMerged
@@ -358,4 +362,5 @@ getter @staticInfoMapRegWrite isDefinedStatically
     error regName: "internal error: The value is not written"
   end
 }
+
 # vim:ft=galgas:ts=2:sw=2:tw=0

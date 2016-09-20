@@ -8,7 +8,7 @@
 method @expression getComponents 
   ?let  @graphNodeList unused nextNodeList # list of successors.
   !  @graphNodeList rootNodeList {
-  rootNodeList = @graphNodeList. emptyList
+  rootNodeList = @graphNodeList.emptyList
 }
 
 # * expDummy              -> nothing

@@ -1,0 +1,72 @@
+#############################################################################
+# search for memory accesses inside an expression.
+# used for static analysis
+#############################################################################
+
+getter @expression hasMemAccess
+  ?let @varIdfStruct idfStruct
+  -> @bool memAccess
+{
+  memAccess = false
+  for (exp) in [self getExpressionChildren] while not memAccess do
+    memAccess = memAccess | [exp hasMemAccess !idfStruct]
+  end
+}
+
+override getter @expIdf hasMemAccess
+  ?let @varIdfStruct unused idfStruct
+  -> @bool memAccess
+{
+  switch detectedType
+    case memoryAccess:
+      memAccess = true
+    case unknown,structMember,localVar,tabularAccess,
+         registerAccess,registerBitField,
+         periphCall,timing,signal:
+      memAccess = false
+    case componentCall:
+      @instructionList instList = [idfStruct.componentMap getInstList ![exp idfList]]
+      @expressionlist paramList = [[[self exp] idfList] paramListAtIndex !1]
+      memAccess = [instList hasMemAccess !idfStruct] | [paramList hasMemAccess !idfStruct]
+  end
+}
+
+#############################################################################
+# mem access detection inside instructions
+#############################################################################
+getter @instructionList hasMemAccess
+  ?let @varIdfStruct idfStruct
+ -> @bool memAccess
+{
+  memAccess = false
+  for (inst) in self while not memAccess do
+    memAccess = memAccess | [inst hasMemAccess !idfStruct]
+  end
+}
+
+getter @instruction hasMemAccess
+  ?let @varIdfStruct unused idfStruct
+ -> @bool memAccess
+{ memAccess = false }
+
+override getter @instIf hasMemAccess
+  ?let @varIdfStruct idfStruct
+ -> @bool memAccess
+{memAccess = [instIfList hasMemAccess !idfStruct] | [cond hasMemAccess !idfStruct] | [instElseList hasMemAccess !idfStruct]}
+
+override getter @instReturn hasMemAccess
+  ?let @varIdfStruct idfStruct
+ -> @bool memAccess
+{ memAccess = [exp hasMemAccess !idfStruct]}
+
+override getter @instLoop hasMemAccess
+  ?let @varIdfStruct idfStruct
+ -> @bool memAccess
+{memAccess = [guard hasMemAccess !idfStruct] | [expCondition hasMemAccess !idfStruct] | [loopInstList hasMemAccess !idfStruct]}
+
+override getter @instFunctionCall hasMemAccess
+  ?let @varIdfStruct idfStruct
+ -> @bool memAccess
+{memAccess = [exp hasMemAccess !idfStruct]}
+
+# vim:ft=galgas:ts=2:sw=2:tw=0

@@ -241,4 +241,40 @@ override method @expIntConst getUVal
   ok = true
 }
 
+###############################################################################
+# @return the list of sub expressions, to explore the tree.
+###############################################################################
+
+getter @expression getExpressionChildren
+  -> @expressionlist childrenList {
+  childrenList = @expressionlist.emptyList
+}
+
+override getter @expBinary getExpressionChildren
+  -> @expressionlist childrenList {
+  childrenList = @expressionlist.emptyList
+  childrenList += !expLeft
+  childrenList += !expRight
+}
+
+override getter @expUnary getExpressionChildren
+  -> @expressionlist childrenList {
+  childrenList = @expressionlist.emptyList
+  childrenList += !exp
+}
+
+override getter @expCast getExpressionChildren
+  -> @expressionlist childrenList {
+  childrenList = @expressionlist.emptyList
+  childrenList += !expCasted
+}
+
+override getter @expBitFieldOp getExpressionChildren
+  -> @expressionlist childrenList {
+  childrenList = @expressionlist.emptyList
+  childrenList += !expField
+}
+
+
+
 # vim:ft=galgas:ts=2:sw=2:tw=0
