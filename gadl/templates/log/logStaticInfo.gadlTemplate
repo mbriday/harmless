@@ -67,4 +67,8 @@ if item::staticallyDefined then %<strong>Yes</strong>% else %No% end if
 %</td>\n\t</tr>\n%
 end foreach%
 </table>%
-end foreach
+%<h3>Memory write access : %
+if staticInst::memWriteAccess then %Yes% 
+else %no% end if
+%</h3>\n%
+end foreach #instruction

@@ -22,30 +22,21 @@
 # Key is the instruction.
 # It contains:
 # * regWriteAccessMap: map of regs that are written (key is the var written)
-# * regReadAccessMap:  map of regs that are read (key is the var written)
 map @staticInfoMap {
   @staticInfoMapRegWrite regWriteAccessMap
-  @staticInfoMapRegRead  regReadAccessMap
-  insert insertKey error message "the '%K' for static info is already defined in %L" 
+  @bool memWriteAccess #there is a write access on memory
+  insert insertKey error message "the '%K' for staticInfoMapRegWritec info is already defined in %L" 
   search searchKey error message "the '%K' for static info is not defined"
 }
 
-
 map @staticInfoMapRegWrite {
   @expIdfList depList      #dependancies, i.e. registers and local vars that affect values.
-  @bool memAccess          #does var value depends on mem access
+  @bool memAccess          #does var value depends on mem access (mem access read…)
 #  @bool valueUnknown       #true if value may not be known statically.
 #  @expression exp          #expression to get value if available
   insert insertKey error message "the '%K' for static reg write info is already defined in %L" 
   search searchKey error message "the '%K' for static reg write info is not defined"
 }
-
-map @staticInfoMapRegRead {
-  @bool memAccess #does var value depend on mem access
-  insert insertKey error message "the '%K' for static reg read info is already defined in %L" 
-  search searchKey error message "the '%K' for static reg read info is not defined"
-}
-
 
 # This is the routine that is called from an external file.
 getter @decodedBehaviorMap getStaticInfo
@@ -56,12 +47,12 @@ getter @decodedBehaviorMap getStaticInfo
   for () in  self do
     @symbolValueMap symbolValueMap = .emptyMap
     @staticInfoMapRegWrite regWriteAccessMap = .emptyMap
-    @staticInfoMapRegRead regReadAccessMap = .emptyMap
+    @bool memWriteAccess = false
 
     [instList processStaticInfo !idfStruct !?symbolValueMap 
-                                  !?regWriteAccessMap !?regReadAccessMap !true]
+                                  !?regWriteAccessMap !?memWriteAccess !true]
     #[[regWriteAccessMap removeDuplicates] debugRegWriteAccessMap]
-    [!?staticInfoMap insertKey !lkey ![regWriteAccessMap removeDuplicates] !regReadAccessMap]
+    [!?staticInfoMap insertKey !lkey ![regWriteAccessMap removeDuplicates] !memWriteAccess]
   end
 }
 
@@ -74,7 +65,7 @@ proc setStaticInfoTemplates
   var staticData =@TfieldMapList.emptyList{}
   for (@lstring               instName
        @staticInfoMapRegWrite regWriteAccessMap
-       @staticInfoMapRegRead  regReadAccessMap) in staticInfoMap do
+       @bool memWriteAccess) in staticInfoMap do
     #name
     var instStruct =@TfieldMap.emptyMap{}
     addLStringValue (!?instStruct !"instID" !instName)
@@ -84,10 +75,31 @@ proc setStaticInfoTemplates
     addStringValue (!?instStruct !lstringWith(!"harmlessCode") !instCode)
     #data deps
     addListValue(!?instStruct !lstringWith(!"staticInfoWrite") ![regWriteAccessMap fillTemplate])
+    #write mem access
+    addBoolValue (!?instStruct !lstringWith(!"memWriteAccess") !memWriteAccess)
     #end
     staticData += !instStruct
   end
   addListValue ( !?cfg !lstringWith(!"staticData") !staticData)  
+}
+
+getter @staticInfoMapRegWrite fillTemplate
+  -> @TfieldMapList staticInfoList
+{
+  staticInfoList = @TfieldMapList.emptyList
+  for () in self do
+    var regWritten =@TfieldMap.emptyMap{}
+    addLStringValue(!?regWritten !"regName" !lkey)
+    var regDepList = @TfieldMapList.emptyList
+    for (idfDep) in depList do
+      var regDep =@TfieldMap.emptyMap{}
+      addStringValue(!?regDep !lstringWith(!"reg") ![idfDep harmlessCode])
+      regDepList += !regDep
+    end
+    addBoolValue (!?regWritten !lstringWith(!"staticallyDefined") ![self isDefinedStatically !lkey])
+    addListValue(!?regWritten !lstringWith(!"regDepWriteList") !regDepList)
+    staticInfoList += !regWritten
+  end
 }
 
 
@@ -95,11 +107,11 @@ method @instructionList processStaticInfo
   ?let  @varIdfStruct idfStruct
   ?! @symbolValueMap symbolValueMap
   ?! @staticInfoMapRegWrite regWriteAccessMap
-  ?! @staticInfoMapRegRead regReadAccessMap
+  ?! @bool memWriteAccess
   ?let @bool goInsideFunc
 {
   for > () in self do #start with last instruction.
-    [inst processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?regReadAccessMap !goInsideFunc]
+    [inst processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?memWriteAccess !goInsideFunc]
     #message [inst generateCode !0 !@codeCtx. C]+"\n";
   end
 }
@@ -108,7 +120,7 @@ method @instruction processStaticInfo
   ?let  @varIdfStruct unused idfStruct
   ?! @symbolValueMap unused symbolValueMap
   ?! @staticInfoMapRegWrite unused regWriteAccessMap
-  ?! @staticInfoMapRegRead unused regReadAccessMap
+  ?! @bool unused memWriteAccess
   ?let @bool unused goInsideFunc
   {}
 
@@ -161,31 +173,12 @@ func updateDepsForVar
   newRegWriteAccessMap = [newRegWriteAccessMapTmp removeDuplicates]
 }
 
-getter @staticInfoMapRegWrite fillTemplate
-  -> @TfieldMapList staticInfoList
-{
-  staticInfoList = @TfieldMapList.emptyList
-  for () in self do
-    var regWritten =@TfieldMap.emptyMap{}
-    addLStringValue(!?regWritten !"regName" !lkey)
-    var regDepList = @TfieldMapList.emptyList
-    for (idfDep) in depList do
-      var regDep =@TfieldMap.emptyMap{}
-      addStringValue(!?regDep !lstringWith(!"reg") ![idfDep harmlessCode])
-      regDepList += !regDep
-    end
-    addBoolValue (!?regWritten !lstringWith(!"staticallyDefined") ![self isDefinedStatically !lkey])
-    addListValue(!?regWritten !lstringWith(!"regDepWriteList") !regDepList)
-    staticInfoList += !regWritten
-  end
-}
-
 #in an assigment, we detect the dependencies of a var access.
 override method @instAssignment processStaticInfo
   ?let  @varIdfStruct idfStruct
   ?! @symbolValueMap unused symbolValueMap
   ?! @staticInfoMapRegWrite regWriteAccessMap
-  ?! @staticInfoMapRegRead unused regReadAccessMap
+  ?! @bool unused memWriteAccess
   ?let @bool unused goInsideFunc
 {
   #tmp: => TODO: registerBitField, 2 valeurs. Pas dur, mais attention si modif
@@ -203,8 +196,6 @@ override method @instAssignment processStaticInfo
     if not [regWriteAccessMap hasKey ![varNameWritten string]] then 
       #if it is already ok, don't update, as we
       #get instructions in reverse order.
-      #TODO: conditionnalAccess to be computed.
-      #TODO: value known
       [!?regWriteAccessMap insertKey !varNameWritten !depList !false]
     end
     #We update dependencies
@@ -218,7 +209,7 @@ override method @instFunctionCall processStaticInfo
   ?let @varIdfStruct idfStruct
   ?! @symbolValueMap symbolValueMap
   ?! @staticInfoMapRegWrite regWriteAccessMap
-  ?! @staticInfoMapRegRead regReadAccessMap 
+  ?! @bool memWriteAccess
   ?let @bool goInsideFunc
   {
     switch [exp detectedType]
@@ -238,9 +229,11 @@ override method @instFunctionCall processStaticInfo
                                   !idfStruct !?nextIdfStruct 
                                   ?@instructionList instListCall]
         @instructionList fullInstList = instListCall+instList
-        [fullInstList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?regReadAccessMap !goInsideFunc]
+        [fullInstList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?memWriteAccess !goInsideFunc]
       end
-    case memoryAccess:
+    case memoryAccess: #mem write access to a mem space.
+      memWriteAccess = true
+      message "access "+[self harmlessCode !0]+": mem\n"
       #TODO: on peut recuperer de l'info ici => c'est une ecriture
     case periphCall,timing,signal: #nothing here.
       error loc: "internal error: no static information available for peripherals, timings and signals"
@@ -251,7 +244,7 @@ override method @instIf processStaticInfo
   ?let @varIdfStruct idfStruct
   ?! @symbolValueMap symbolValueMap
   ?! @staticInfoMapRegWrite regWriteAccessMap
-  ?! @staticInfoMapRegRead regReadAccessMap 
+  ?! @bool memWriteAccess
   ?let @bool goInsideFunc
 {
   @staticInfoMapRegWrite regWriteAccessMapIf   = regWriteAccessMap
@@ -259,9 +252,10 @@ override method @instIf processStaticInfo
   
   @symbolValueMap symbolValueMapIf   = symbolValueMap
   @symbolValueMap symbolValueMapElse = symbolValueMap
+
+  @bool memWriteAccessIf = memWriteAccess
+  @bool memWriteAccessElse = memWriteAccess
   
-  @staticInfoMapRegRead regReadAccessMapIf   = regReadAccessMap
-  @staticInfoMapRegRead regReadAccessMapElse = regReadAccessMap
   #in an if statement, it depends on both if and else.
   # *******
   #TODO: À refaire: c'est faux: il faut prendre le max des 2
@@ -273,13 +267,15 @@ override method @instIf processStaticInfo
   [instIfList processStaticInfo   !idfStruct 
                                   !?symbolValueMapIf 
                                   !?regWriteAccessMapIf 
-                                  !?regReadAccessMapIf 
+                                  !?memWriteAccessIf
                                   !goInsideFunc]
   [instElseList processStaticInfo !idfStruct 
                                   !?symbolValueMapElse 
                                   !?regWriteAccessMapElse 
-                                  !?regReadAccessMapElse
+                                  !?memWriteAccessElse
                                   !goInsideFunc]
+
+  memWriteAccess = memWriteAccessIf | memWriteAccessElse
   #1 -> merge the two regWriteAccessMap maps (if and else)
   @staticInfoMapRegWrite regWriteAccessMapMerged = .emptyMap
   for (lkey depList memAccess) in regWriteAccessMapIf 
@@ -346,8 +342,7 @@ getter @staticInfoMapRegWrite removeDuplicates
         set += !key
       end
     end
-    [!?newInfoMap insertKey !lkey !updatedDepList 
-                  !memAccess]
+    [!?newInfoMap insertKey !lkey !updatedDepList !memAccess]
   end
 }
 
