@@ -25,7 +25,7 @@
 # * regReadAccessMap:  map of regs that are read (key is the var written)
 map @staticInfoMap {
   @staticInfoMapRegWrite regWriteAccessMap
-  @staticInfoMapRegRead regReadAccessMap
+  @staticInfoMapRegRead  regReadAccessMap
   insert insertKey error message "the '%K' for static info is already defined in %L" 
   search searchKey error message "the '%K' for static info is not defined"
 }
@@ -58,27 +58,38 @@ getter @decodedBehaviorMap getStaticInfo
     @staticInfoMapRegWrite regWriteAccessMap = .emptyMap
     @staticInfoMapRegRead regReadAccessMap = .emptyMap
 
-#   if [lkey string] == "e200z4_SP_Check_abs_bc_bd_bi_bo_d_f_statPred_updatelr_z" then #complexe
-#   if [lkey string] == "e200z4_br_half_load_notu_ra_rb_rd_x" then      
-#    if [lkey string] == "e200z4_SP_Check_abs_b_li_updatelr" then #simple
-      message "instruction "+[lkey string]+"\n";
-      #for (inst) in instList do
-      #    message "-> " + [inst generateCode !0 !@codeCtx.C]+"\n";
-      #end
-      message "-------------------------------------------\n"
-      message [instList harmlessCode !0] + "\n";
-      message "----------\n"
-      message "analysis "+[lkey string]+"\n";
-      [instList processStaticInfo !idfStruct !?symbolValueMap 
+    [instList processStaticInfo !idfStruct !?symbolValueMap 
                                   !?regWriteAccessMap !?regReadAccessMap !true]
-      message ":\n"
-#    end
-    
-
-    [[regWriteAccessMap removeDuplicates] debugRegWriteAccessMap]
+    #[[regWriteAccessMap removeDuplicates] debugRegWriteAccessMap]
     [!?staticInfoMap insertKey !lkey ![regWriteAccessMap removeDuplicates] !regReadAccessMap]
   end
 }
+
+proc setStaticInfoTemplates
+  ?let @decodedBehaviorMap decodedBehaviorMap 
+  ?let @varIdfStruct unused idfStruct
+  ?let @staticInfoMap staticInfoMap
+  ?! @TfieldMap cfg {
+  #get static information about instructions
+  var staticData =@TfieldMapList.emptyList{}
+  for (@lstring               instName
+       @staticInfoMapRegWrite regWriteAccessMap
+       @staticInfoMapRegRead  regReadAccessMap) in staticInfoMap do
+    #name
+    var instStruct =@TfieldMap.emptyMap{}
+    addLStringValue (!?instStruct !"instID" !instName)
+    #get code in harmless style
+    [decodedBehaviorMap searchKey !instName ?* ?@instructionList instList ?*]
+    var instCode = [[instList harmlessCode !0] HTMLRepresentation]
+    addStringValue (!?instStruct !lstringWith(!"harmlessCode") !instCode)
+    #data deps
+    addListValue(!?instStruct !lstringWith(!"staticInfoWrite") ![regWriteAccessMap fillTemplate])
+    #end
+    staticData += !instStruct
+  end
+  addListValue ( !?cfg !lstringWith(!"staticData") !staticData)  
+}
+
 
 method @instructionList processStaticInfo
   ?let  @varIdfStruct idfStruct
@@ -148,6 +159,25 @@ func updateDepsForVar
     [!?newRegWriteAccessMapTmp insertKey !lkey !idfDepList !memAccess]
   end
   newRegWriteAccessMap = [newRegWriteAccessMapTmp removeDuplicates]
+}
+
+getter @staticInfoMapRegWrite fillTemplate
+  -> @TfieldMapList staticInfoList
+{
+  staticInfoList = @TfieldMapList.emptyList
+  for () in self do
+    var regWritten =@TfieldMap.emptyMap{}
+    addLStringValue(!?regWritten !"regName" !lkey)
+    var regDepList = @TfieldMapList.emptyList
+    for (idfDep) in depList do
+      var regDep =@TfieldMap.emptyMap{}
+      addStringValue(!?regDep !lstringWith(!"reg") ![idfDep string])
+      regDepList += !regDep
+    end
+    addBoolValue (!?regWritten !lstringWith(!"staticallyDefined") ![self isDefinedStatically !lkey])
+    addListValue(!?regWritten !lstringWith(!"regDepWriteList") !regDepList)
+    staticInfoList += !regWritten
+  end
 }
 
 #debug method.

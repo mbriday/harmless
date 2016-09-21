@@ -1,0 +1,70 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<title>instruction classes</title>
+<style type="text/css">body {
+  font-family: Helvetica, sans-serif ;
+  font-size: small ;
+}
+
+h1 {
+  text-align: center ;
+}
+
+a.header_link {
+  border: 1px solid #999999 ;
+  padding: 4px ;
+  background-color: #FFFFCC ;
+  font-weight: bold ;
+}
+
+a:visited, a:link, a:active{
+  color: blue ;
+  text-decoration: underline ;
+}
+
+a:hover {
+  color:green ;
+  background-color: #FFFF00 ;
+  text-decoration: none ;
+}
+
+h2 {
+	font: bold 170\% Arial, Sans-Serif; 
+	white-space: pre;
+	margin-right: auto;
+	margin-left: 0pt;
+	text-align: center;
+	border-bottom: 1px dashed #aaa;
+	border-top: 1px dashed #aaa;
+	background-color: #ddd
+}
+
+</style></head><body><div>
+<h1>Static information</h1>
+%
+#let staticDataMap := mapOf core::staticData by instID
+foreach staticInst in core::staticData do
+%<h2>%!staticInst::instID%</h2>\n%
+%<h3>Code (in Harmless language)</h3>\n%
+%<pre>%!staticInst::harmlessCode%</pre>\n%
+%<h3>register access</h3>\n
+<table frame="border" cellpadding="2">
+	<tr>
+		<th>register written</th>
+		<th>depends on</th>
+       <th>statically defined</th>
+	</tr>
+%foreach item in staticInst::staticInfoWrite
+do %\t<tr>\n\t\t<td>%!item::regName%</td>\n%
+%\t\t<td>%
+foreach regDep in item::regDepWriteList
+do !regDep::reg
+between %, %
+end foreach
+%</td>\n\t\t<td align="center">%
+if item::staticallyDefined then %<strong>Yes</strong>% else %No% end if
+%</td>\n\t</tr>\n%
+end foreach%
+</table>%
+end foreach

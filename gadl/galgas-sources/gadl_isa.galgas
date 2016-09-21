@@ -62,6 +62,7 @@ method @ASTIsa getIsa
 #  [branchInstMap updateTemplateForJumpInstructions !?templateStruct]
   #tmp.
   @staticInfoMap staticInfoMap = [decodedBehaviorMap getStaticInfo !idfStruct]
+  setStaticInfoTemplates(!decodedBehaviorMap !idfStruct !staticInfoMap !?templateStruct)
   
   #defaults
   [defaultValues updateTemplate !?templateStruct]
