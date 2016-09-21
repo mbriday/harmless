@@ -27,7 +27,6 @@ struct @Isa
 {
   @instructionImplementationMap impMap
   @decodedBehaviorMap decodedBehaviorMap
-  @staticInfoMap staticInfoMap
   @defaultSection defaultValues  
 }
 
@@ -57,19 +56,12 @@ method @ASTIsa getIsa
   instructionBehaviorPart ( !ASTbehaviorMap !impMap ![modelName string] 
                           !idfStruct !?templateStruct ?decodedBehaviorMap)
 
-  #branch detection
-#  @branchInstMap branchInstMap = [decodedBehaviorMap getBranchInstructions !idfStruct]
-#  [branchInstMap updateTemplateForJumpInstructions !?templateStruct]
-  #tmp.
-  @staticInfoMap staticInfoMap = [decodedBehaviorMap getStaticInfo !idfStruct]
-  setStaticInfoTemplates(!decodedBehaviorMap !idfStruct !staticInfoMap !?templateStruct)
-  
   #defaults
   [defaultValues updateTemplate !?templateStruct]
   #data to generate log file (.txt) about instructions, using templates.
   prepareLogTemplates(!impMap !defaultValues !?templateStruct)
 
-  isa = @Isa.new { !impMap !decodedBehaviorMap !staticInfoMap !defaultValues}
+  isa = @Isa.new { !impMap !decodedBehaviorMap !defaultValues}
 }
 
 # vim:ft=galgas:ts=2:sw=2:tw=0

@@ -17,7 +17,7 @@
 #utils..
 setter @lstring cat
   ?let  @string str {
-  @lstring result = @lstring. new { ![self string]+str ![self location]}
+  @lstring result = @lstring.new { ![self string]+str ![self location]}
   self = result
 }
 
