@@ -39,8 +39,10 @@ map @staticInfoMapRegWrite {
 }
 
 # This is the routine that is called from an external file.
-getter @decodedBehaviorMap getStaticInfo
+# memChunk is defined in the core: Used to know if a mem access is in register or main mem
+getter  @decodedBehaviorMap getStaticInfo
   ?let  @varIdfStruct idfStruct
+  ?let  @memoryParamMap memChunk
   -> @staticInfoMap staticInfoMap
 {
   staticInfoMap = @staticInfoMap.emptyMap

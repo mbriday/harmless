@@ -43,15 +43,18 @@ method @ASTCoreMap coreSemantic
     # ISA
     ###########################################################################
     [ASTIsa getIsa !?idfStruct !coreName !exportDir !?coreTplBody ?var @Isa isa]
-    #branch detection
-    @staticInfoMap staticInfoMap = [[isa decodedBehaviorMap] getStaticInfo !idfStruct]
-    setStaticInfoTemplates(![isa decodedBehaviorMap] !idfStruct !staticInfoMap !?coreTplBody)
 
     ###########################################################################
     # local memory definition
     ###########################################################################
     @memoryParamMap memChunk = [ASTmemChunk getMemMap]
     [memChunk setInTemplate !lstringWith(!"memInCoreList") !?coreTplBody]
+
+    ###########################################################################
+    # Static analysis
+    ###########################################################################
+    @staticInfoMap staticInfoMap = [[isa decodedBehaviorMap] getStaticInfo !idfStruct !memChunk]
+    setStaticInfoTemplates(![isa decodedBehaviorMap] !idfStruct !staticInfoMap !?coreTplBody)
 
     ###########################################################################
     # Architecture (defined in core), for a CAS version.
