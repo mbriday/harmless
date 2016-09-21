@@ -33,7 +33,7 @@ map @staticInfoMap {
 
 map @staticInfoMapRegWrite {
   @expIdfList depList      #dependancies, i.e. registers and local vars that affect values.
-  @bool memAccess          #does var value depend on mem access
+  @bool memAccess          #does var value depends on mem access
 #  @bool valueUnknown       #true if value may not be known statically.
 #  @expression exp          #expression to get value if available
   insert insertKey error message "the '%K' for static reg write info is already defined in %L" 
@@ -171,31 +171,12 @@ getter @staticInfoMapRegWrite fillTemplate
     var regDepList = @TfieldMapList.emptyList
     for (idfDep) in depList do
       var regDep =@TfieldMap.emptyMap{}
-      addStringValue(!?regDep !lstringWith(!"reg") ![idfDep string])
+      addStringValue(!?regDep !lstringWith(!"reg") ![idfDep harmlessCode])
       regDepList += !regDep
     end
     addBoolValue (!?regWritten !lstringWith(!"staticallyDefined") ![self isDefinedStatically !lkey])
     addListValue(!?regWritten !lstringWith(!"regDepWriteList") !regDepList)
     staticInfoList += !regWritten
-  end
-}
-
-#debug method.
-method @staticInfoMapRegWrite debugRegWriteAccessMap
-{
-  for () in self
-  before message "\tdeps:\n"
-  do
-    message "\t\t"+[lkey string]+":"
-    for (idfDep) in depList do
-      message [[idfDep idfList] string]
-    between message ", "
-    end
-    message " --> "
-    if not [self isDefinedStatically !lkey] then message "not " end
-    message "const"
-  between message "\n"
-  after message "\n"
   end
 }
 

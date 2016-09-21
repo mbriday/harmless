@@ -66,7 +66,24 @@ override getter @expCast harmlessCode
 override getter @expIdf harmlessCode
   -> @string code
 {
-  code = [self string] #TODO This is for debug, no parameters, nor tab expression indexes!
+  #code = [self string] #TODO This is for debug, no parameters, nor tab expression indexes!
+  code = ""
+  for (@lstring idf @idfItemType type @expressionlist paramList ...) in idfList 
+  do
+    code+=[idf string]
+    for param in paramList
+    before 
+      if type == @idfItemType.functionCall then code += "(" end
+      if type == @idfItemType.tabular then code += "[" end
+    do
+      code += [[param exp] harmlessCode]
+    between code += ","
+    after
+      if type == @idfItemType.functionCall then code += ")" end
+      if type == @idfItemType.tabular then code += "]" end
+    end
+  between code += "."
+  end
 }
 
 override getter @expInstructionAddress harmlessCode
