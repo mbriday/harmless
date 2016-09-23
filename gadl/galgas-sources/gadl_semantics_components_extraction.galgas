@@ -219,7 +219,7 @@ proc generateComponentAccessGraphViz
     #get the GraphViz output content.
     @string graphVizContent = graphNodeOutput(!nodeRoot ![instName string])
     #message "create file for ".[instName string]." (".[[graphVizContent length] string].")\n";
-    createFile ( !exportDir+"/log" ![instName string]+".dot" !graphVizContent)
+    createFile ( !exportDir+"/log/dot/" ![instName string]+".dot" !graphVizContent)
   end
 }
 

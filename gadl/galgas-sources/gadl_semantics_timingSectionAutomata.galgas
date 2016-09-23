@@ -786,8 +786,8 @@ proc getAutomataCoordinates
   !  @pointList pointList {
   pointList = @pointList. emptyList
   @string dotFile = [automata getGraphVizExport]
-  let @string filename = exportDir+"/log/timing_"+[timingName string]+"Uppaal.dot"
-  createFile ( !exportDir+"/log/" !"timing_"+[timingName string]+"Uppaal.dot" !dotFile)
+  let @string filename = exportDir+"/log/dot/timing_"+[timingName string]+"Uppaal.dot"
+  createFile ( !exportDir+"/log/dot/" !"timing_"+[timingName string]+"Uppaal.dot" !dotFile)
   let @string command = "python "+exportDir+"/getCoordFromDot.py "+filename
   #run script
   @string result = [command popen]

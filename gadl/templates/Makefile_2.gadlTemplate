@@ -35,7 +35,7 @@ A2CPP=bin/a2cpp
 
 ############# GraphViz path (to generate images in the log files) 
 DOT=dot
-IMAGES_DOT=$(wildcard log/*.dot)
+IMAGES_DOT=$(wildcard log/dot/*.dot)
 IMAGES_DOC=$(IMAGES_DOT:.dot=.svg)
 
 ############# Swig configuration.
