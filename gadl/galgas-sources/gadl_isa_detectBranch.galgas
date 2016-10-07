@@ -31,7 +31,8 @@ map @staticInfoMap {
 
 map @staticInfoMapRegWrite {
   @expIdfList depList      #dependancies, i.e. registers and local vars that affect values.
-  @bool memAccess          #does var value depends on mem access (mem access read…)
+#  @bool memAccess          #does var value depends on mem access (mem access read…)
+  @stringset memSpaceReadAccess #does the value depends on a mem access (store mem space names).
 #  @bool valueUnknown       #true if value may not be known statically.
 #  @expression exp          #expression to get value if available
   insert insertKey error message "the '%K' for static reg write info is already defined in %L" 
@@ -42,7 +43,7 @@ map @staticInfoMapRegWrite {
 # memChunk is defined in the core: Used to know if a mem access is in register or main mem
 getter  @decodedBehaviorMap getStaticInfo
   ?let  @varIdfStruct idfStruct
-  ?let  @memoryParamMap memChunk
+  ?let  @memoryParamMap unused memChunk
   -> @staticInfoMap staticInfoMap
 {
   staticInfoMap = @staticInfoMap.emptyMap
@@ -100,6 +101,7 @@ getter @staticInfoMapRegWrite fillTemplate
     end
     addBoolValue (!?regWritten !lstringWith(!"staticallyDefined") ![self isDefinedStatically !lkey])
     addListValue(!?regWritten !lstringWith(!"regDepWriteList") !regDepList)
+    addListValue(!?regWritten !lstringWith(!"memSpaceReadAccess") !stringSetToList(!memSpaceReadAccess !"name"))
     staticInfoList += !regWritten
   end
 }
@@ -156,6 +158,9 @@ func updateDepsForVar
            #message "\t\tupdate "+[varNameWritten string]+" in "+[lkey string]+"\n"
            depUpdated=true
          end
+      #elsif [idfDep detectedType] == @idfType.memoryAccess then
+      #  message "detect mem read '"+[idfDep getMemSpaceName]+"'\n"
+      #  memSpaceReadAccess += ![idfDep getMemSpaceName]
       end
       #add all except the updated one
       if not depUpdated then
@@ -170,7 +175,7 @@ func updateDepsForVar
         idfDepList += varDepList
       end
     end
-    [!?newRegWriteAccessMapTmp insertKey !lkey !idfDepList !memAccess]
+    [!?newRegWriteAccessMapTmp insertKey !lkey !idfDepList !memSpaceReadAccess]
   end
   newRegWriteAccessMap = [newRegWriteAccessMapTmp removeDuplicates]
 }
@@ -194,11 +199,20 @@ override method @instAssignment processStaticInfo
     #depList = [exp getIdf !depList !idfStruct]
     depList += [exp getIdf !idfStruct]
 
+    #is there a read access on a mem space?
+    var memSpaceReadAccess = @stringset.emptySet
+    for (idfDep) in depList do #@expIdf idf    
+      if [idfDep detectedType] == @idfType.memoryAccess then
+        #message "detect mem read '"+[idfDep getMemSpaceName]+"'\n"
+        memSpaceReadAccess += ![idfDep getMemSpaceName]
+      end
+    end 
+
     #insert reg access (write) into map
     if not [regWriteAccessMap hasKey ![varNameWritten string]] then 
       #if it is already ok, don't update, as we
       #get instructions in reverse order.
-      [!?regWriteAccessMap insertKey !varNameWritten !depList !false]
+      [!?regWriteAccessMap insertKey !varNameWritten !depList !memSpaceReadAccess]
     end
     #We update dependencies
     regWriteAccessMap = updateDepsForVar(!regWriteAccessMap !varNameWritten !depList)
@@ -236,8 +250,6 @@ override method @instFunctionCall processStaticInfo
     case memoryAccess: #mem write access to a mem space.
       #get mem space name from the instruction
       memSpaceWriteAccess += ![[self exp] getMemSpaceName]
-#      message "access "+[self harmlessCode !0]+": mem\n"
-      #TODO: on peut recuperer de l'info ici => c'est une ecriture
     case periphCall,timing,signal: #nothing here.
       error loc: "internal error: no static information available for peripherals, timings and signals"
   end
@@ -281,23 +293,23 @@ override method @instIf processStaticInfo
   memSpaceWriteAccess = memSpaceWriteAccessIf | memSpaceWriteAccessElse
   #1 -> merge the two regWriteAccessMap maps (if and else)
   @staticInfoMapRegWrite regWriteAccessMapMerged = .emptyMap
-  for (lkey depList memAccess) in regWriteAccessMapIf 
+  for (lkey depList memSpaceReadAccess) in regWriteAccessMapIf 
   do
     if [regWriteAccessMapElse hasKey ![lkey string]] then
       #value written in the 2 branches. Merge.
       [regWriteAccessMapElse searchKey !lkey ?@expIdfList depListElse
-                                             ?@bool memAccessElse]
+                                             ?@stringset memSpaceReadAccessElse]
       [!?regWriteAccessMapMerged insertKey !lkey !depList+depListElse
-                                           !(memAccess | memAccessElse)] 
+                                           !(memSpaceReadAccess | memSpaceReadAccessElse)] 
     else
       #value written in one branch only. Add in merge map.
-      [!?regWriteAccessMapMerged insertKey !lkey !depList !memAccess]
+      [!?regWriteAccessMapMerged insertKey !lkey !depList !memSpaceReadAccess]
     end
   end
-  for (lkey depList memAccess) in regWriteAccessMapElse do
+  for (lkey depList memSpaceReadAccess) in regWriteAccessMapElse do
     if not [regWriteAccessMapIf hasKey ![lkey string]] then
       #value written in the other branch only. Add in merge map.
-      [!?regWriteAccessMapMerged insertKey !lkey !depList !memAccess]
+      [!?regWriteAccessMapMerged insertKey !lkey !depList !memSpaceReadAccess]
     end
   end  
   #2 -> moreover, for each reg that have been written inside a instIf block, 
@@ -313,11 +325,11 @@ override method @instIf processStaticInfo
     [!?regWriteAccessMapMerged setDepListForKey !depListUpdated ![lkey string]]
   end
   #3 -> combine the 2 maps regWriteAccessMap and regWriteAccessMapMerged
-  for (lkey depList memAccess) in regWriteAccessMapMerged do
+  for (lkey depList memSpaceReadAccess) in regWriteAccessMapMerged do
     if not [regWriteAccessMap hasKey ![lkey string]] then 
       #if reg is in the map, it will be written after (as we
       #get instructions in reverse order.
-      [!?regWriteAccessMap insertKey !lkey !depList !memAccess]
+      [!?regWriteAccessMap insertKey !lkey !depList !memSpaceReadAccess]
     end
     #message "update deps\n"
     #We update dependencies
@@ -345,7 +357,7 @@ getter @staticInfoMapRegWrite removeDuplicates
         set += !key
       end
     end
-    [!?newInfoMap insertKey !lkey !updatedDepList !memAccess]
+    [!?newInfoMap insertKey !lkey !updatedDepList !memSpaceReadAccess]
   end
 }
 
@@ -358,8 +370,8 @@ getter @staticInfoMapRegWrite isDefinedStatically
 {
   const = true
   if [self hasKey ![regName string]] then
-    [self searchKey !regName ?@expIdfList depList ?@bool memAccess]
-    if memAccess then
+    [self searchKey !regName ?@expIdfList depList ?@stringset memSpaceReadAccess]
+    if [memSpaceReadAccess count] > 0 then
       const = false #value depends on a memory access
     else
       for dep in depList while const do

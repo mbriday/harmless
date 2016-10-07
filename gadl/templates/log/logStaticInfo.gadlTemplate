@@ -54,6 +54,7 @@ foreach staticInst in core::staticData do
 		<th>register written</th>
 		<th>depends on</th>
        <th>statically defined</th>
+       <th>mem space read</th>
 	</tr>
 %foreach item in staticInst::staticInfoWrite
 do %\t<tr>\n\t\t<td>%!item::regName%</td>\n%
@@ -64,9 +65,14 @@ between %, %
 end foreach
 %</td>\n\t\t<td align="center">%
 if item::staticallyDefined then %<strong>Yes</strong>% else %No% end if
+%</td>\n\t\t<td>%
+foreach nameSpace in item::memSpaceReadAccess do
+!nameSpace::name
+between %, %
+end foreach
 %</td>\n\t</tr>\n%
-end foreach%
-</table>%
+end foreach
+%</table>%
 %<h3>Memory write access : %
 foreach nameSpace in staticInst::memSpaceWriteAccess do
 !nameSpace::name
