@@ -24,7 +24,7 @@
 # * regWriteAccessMap: map of regs that are written (key is the var written)
 map @staticInfoMap {
   @staticInfoMapRegWrite regWriteAccessMap
-  @bool memWriteAccess #there is a write access on memory
+  @stringset memSpaceWriteAccess #set of memspace that are written.
   insert insertKey error message "the '%K' for staticInfoMapRegWritec info is already defined in %L" 
   search searchKey error message "the '%K' for static info is not defined"
 }
@@ -49,12 +49,12 @@ getter  @decodedBehaviorMap getStaticInfo
   for () in  self do
     @symbolValueMap symbolValueMap = .emptyMap
     @staticInfoMapRegWrite regWriteAccessMap = .emptyMap
-    @bool memWriteAccess = false
+    @stringset memSpaceWriteAccess = .emptySet 
 
     [instList processStaticInfo !idfStruct !?symbolValueMap 
-                                  !?regWriteAccessMap !?memWriteAccess !true]
+                                  !?regWriteAccessMap !?memSpaceWriteAccess !true]
     #[[regWriteAccessMap removeDuplicates] debugRegWriteAccessMap]
-    [!?staticInfoMap insertKey !lkey ![regWriteAccessMap removeDuplicates] !memWriteAccess]
+    [!?staticInfoMap insertKey !lkey ![regWriteAccessMap removeDuplicates] !memSpaceWriteAccess]
   end
 }
 
@@ -67,7 +67,7 @@ proc setStaticInfoTemplates
   var staticData =@TfieldMapList.emptyList{}
   for (@lstring               instName
        @staticInfoMapRegWrite regWriteAccessMap
-       @bool memWriteAccess) in staticInfoMap do
+       @stringset memSpaceWriteAccess) in staticInfoMap do
     #name
     var instStruct =@TfieldMap.emptyMap{}
     addLStringValue (!?instStruct !"instID" !instName)
@@ -78,7 +78,7 @@ proc setStaticInfoTemplates
     #data deps
     addListValue(!?instStruct !lstringWith(!"staticInfoWrite") ![regWriteAccessMap fillTemplate])
     #write mem access
-    addBoolValue (!?instStruct !lstringWith(!"memWriteAccess") !memWriteAccess)
+    addListValue(!?instStruct !lstringWith(!"memSpaceWriteAccess") !stringSetToList(!memSpaceWriteAccess !"name"))
     #end
     staticData += !instStruct
   end
@@ -109,11 +109,11 @@ method @instructionList processStaticInfo
   ?let  @varIdfStruct idfStruct
   ?! @symbolValueMap symbolValueMap
   ?! @staticInfoMapRegWrite regWriteAccessMap
-  ?! @bool memWriteAccess
+  ?! @stringset memSpaceWriteAccess
   ?let @bool goInsideFunc
 {
   for > () in self do #start with last instruction.
-    [inst processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?memWriteAccess !goInsideFunc]
+    [inst processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?memSpaceWriteAccess !goInsideFunc]
     #message [inst generateCode !0 !@codeCtx. C]+"\n";
   end
 }
@@ -122,7 +122,7 @@ method @instruction processStaticInfo
   ?let  @varIdfStruct unused idfStruct
   ?! @symbolValueMap unused symbolValueMap
   ?! @staticInfoMapRegWrite unused regWriteAccessMap
-  ?! @bool unused memWriteAccess
+  ?! @stringset unused memSpaceWriteAccess
   ?let @bool unused goInsideFunc
   {}
 
@@ -180,7 +180,7 @@ override method @instAssignment processStaticInfo
   ?let  @varIdfStruct idfStruct
   ?! @symbolValueMap unused symbolValueMap
   ?! @staticInfoMapRegWrite regWriteAccessMap
-  ?! @bool unused memWriteAccess
+  ?! @stringset unused memSpaceWriteAccess
   ?let @bool unused goInsideFunc
 {
   #tmp: => TODO: registerBitField, 2 valeurs. Pas dur, mais attention si modif
@@ -211,7 +211,7 @@ override method @instFunctionCall processStaticInfo
   ?let @varIdfStruct idfStruct
   ?! @symbolValueMap symbolValueMap
   ?! @staticInfoMapRegWrite regWriteAccessMap
-  ?! @bool memWriteAccess
+  ?! @stringset memSpaceWriteAccess
   ?let @bool goInsideFunc
   {
     switch [exp detectedType]
@@ -231,11 +231,12 @@ override method @instFunctionCall processStaticInfo
                                   !idfStruct !?nextIdfStruct 
                                   ?@instructionList instListCall]
         @instructionList fullInstList = instListCall+instList
-        [fullInstList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?memWriteAccess !goInsideFunc]
+        [fullInstList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?memSpaceWriteAccess !goInsideFunc]
       end
     case memoryAccess: #mem write access to a mem space.
-      memWriteAccess = true
-      message "access "+[self harmlessCode !0]+": mem\n"
+      #get mem space name from the instruction
+      memSpaceWriteAccess += ![[self exp] getMemSpaceName]
+#      message "access "+[self harmlessCode !0]+": mem\n"
       #TODO: on peut recuperer de l'info ici => c'est une ecriture
     case periphCall,timing,signal: #nothing here.
       error loc: "internal error: no static information available for peripherals, timings and signals"
@@ -246,7 +247,7 @@ override method @instIf processStaticInfo
   ?let @varIdfStruct idfStruct
   ?! @symbolValueMap symbolValueMap
   ?! @staticInfoMapRegWrite regWriteAccessMap
-  ?! @bool memWriteAccess
+  ?! @stringset memSpaceWriteAccess
   ?let @bool goInsideFunc
 {
   @staticInfoMapRegWrite regWriteAccessMapIf   = regWriteAccessMap
@@ -255,9 +256,9 @@ override method @instIf processStaticInfo
   @symbolValueMap symbolValueMapIf   = symbolValueMap
   @symbolValueMap symbolValueMapElse = symbolValueMap
 
-  @bool memWriteAccessIf = memWriteAccess
-  @bool memWriteAccessElse = memWriteAccess
-  
+  @stringset memSpaceWriteAccessIf   = memSpaceWriteAccess
+  @stringset memSpaceWriteAccessElse = memSpaceWriteAccess
+
   #in an if statement, it depends on both if and else.
   # *******
   #TODO: À refaire: c'est faux: il faut prendre le max des 2
@@ -269,15 +270,15 @@ override method @instIf processStaticInfo
   [instIfList processStaticInfo   !idfStruct 
                                   !?symbolValueMapIf 
                                   !?regWriteAccessMapIf 
-                                  !?memWriteAccessIf
+                                  !?memSpaceWriteAccessIf
                                   !goInsideFunc]
   [instElseList processStaticInfo !idfStruct 
                                   !?symbolValueMapElse 
                                   !?regWriteAccessMapElse 
-                                  !?memWriteAccessElse
+                                  !?memSpaceWriteAccessElse
                                   !goInsideFunc]
 
-  memWriteAccess = memWriteAccessIf | memWriteAccessElse
+  memSpaceWriteAccess = memSpaceWriteAccessIf | memSpaceWriteAccessElse
   #1 -> merge the two regWriteAccessMap maps (if and else)
   @staticInfoMapRegWrite regWriteAccessMapMerged = .emptyMap
   for (lkey depList memAccess) in regWriteAccessMapIf 

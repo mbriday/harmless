@@ -20,6 +20,7 @@
 # * string that returns the debug itemList string.
 # * lstring (same as string, with location of the first item)
 # * getLocalVar: check that it is an expIdf, and then refers to a local var.
+# * getter getMemSpaceName: return the mem space name (if this is a mem access obviously).
 #
 # * reader @idfItemList string -> @string name :
 
@@ -174,6 +175,16 @@ class @expIdf : @expression {
   @bool isDefinedStatically #if true, value is known statically (without simulation)
 }
 
+getter @expIdf getMemSpaceName -> @string name {
+  if detectedType == @idfType.memoryAccess then
+    #ok, get the first item.
+    @lstring memSpaceName
+    [idfList first ?memSpaceName ?* ?* ?* ?* ?* ?*]
+    name = [memSpaceName string]
+  else name = ""
+  end
+}
+
 class @expCast : @expression {
   @expression expCasted
 }
@@ -274,7 +285,5 @@ override getter @expBitFieldOp getExpressionChildren
   childrenList = @expressionlist.emptyList
   childrenList += !expField
 }
-
-
 
 # vim:ft=galgas:ts=2:sw=2:tw=0
