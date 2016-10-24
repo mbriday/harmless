@@ -65,7 +65,7 @@ between %, %
 end foreach
 %</td>\n\t\t<td align="center">%
 if item::staticallyDefined then %<strong>Yes</strong>% else %No% end if
-%</td>\n\t\t<td>%
+%</td>\n\t\t<td align="center">%
 foreach nameSpace in item::memSpaceReadAccess do
 !nameSpace::name
 between %, %

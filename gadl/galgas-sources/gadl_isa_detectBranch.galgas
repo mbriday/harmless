@@ -132,6 +132,7 @@ func updateDepsForVar
   ?let @staticInfoMapRegWrite regWriteAccessMap #map to update
   ?let @lstring varNameWritten #updated var name
   ?let @expIdfList varDepList  #dependancies of the newly updated var.
+  ?let @stringset varMemSpaceReadAccess #memSpaceRead by the newly updated var
   ->@staticInfoMapRegWrite newRegWriteAccessMap
 {
   #we have for instance: C = A+B => C depends on A and B
@@ -140,9 +141,11 @@ func updateDepsForVar
   # is should be:
   # - removed from the list of deps to these idfs (D)
   # - and replaced by A and B
+  # => D deps of E,A,B. D inherits memReadAccess of C
   # the removal of duplicates is done at the end of the function.
   @staticInfoMapRegWrite newRegWriteAccessMapTmp = .emptyMap
   for () in regWriteAccessMap do
+    @stringset newMemSpaceReadAccess = memSpaceReadAccess
     #foreach reg that is written
     #message "check "+[lkey string]+" with "+[varNameWritten string]+"\n"
     @expIdfList idfDepList = .emptyList
@@ -173,9 +176,10 @@ func updateDepsForVar
         #message "\t\treplacement of "+[varNameWritten string]+" with ";
         #[regWriteAccessMap searchKey !varNameWritten ?@expIdfList depWList ?*]
         idfDepList += varDepList
+        newMemSpaceReadAccess += varMemSpaceReadAccess
       end
     end
-    [!?newRegWriteAccessMapTmp insertKey !lkey !idfDepList !memSpaceReadAccess]
+    [!?newRegWriteAccessMapTmp insertKey !lkey !idfDepList !newMemSpaceReadAccess]
   end
   newRegWriteAccessMap = [newRegWriteAccessMapTmp removeDuplicates]
 }
@@ -215,7 +219,7 @@ override method @instAssignment processStaticInfo
       [!?regWriteAccessMap insertKey !varNameWritten !depList !memSpaceReadAccess]
     end
     #We update dependencies
-    regWriteAccessMap = updateDepsForVar(!regWriteAccessMap !varNameWritten !depList)
+    regWriteAccessMap = updateDepsForVar(!regWriteAccessMap !varNameWritten !depList !memSpaceReadAccess)
     #final    
 #    debugRegWriteAccessMap(!regWriteAccessMap)
   end
@@ -333,7 +337,7 @@ override method @instIf processStaticInfo
     end
     #message "update deps\n"
     #We update dependencies
-    regWriteAccessMap = updateDepsForVar(!regWriteAccessMap !lkey !depList)
+    regWriteAccessMap = updateDepsForVar(!regWriteAccessMap !lkey !depList !memSpaceReadAccess)
     #message "done update \n"
   end
 }
