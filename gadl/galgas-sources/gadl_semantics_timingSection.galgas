@@ -97,13 +97,13 @@ getter @timingMap getEnableConditionIdf
     end
   end
   #debug.
-  for () in  timerCondMap do
-    @lstring reg = lkey
-    message "register "+[reg string]+":\n"
-    for () in  boolMap do
-      message "\ttiming "+[lkey string]+"\n"
-    end
-  end
+  #for () in  timerCondMap do
+  #  @lstring reg = lkey
+  #  message "register "+[reg string]+":\n"
+  #  for () in  boolMap do
+  #    message "\ttiming "+[lkey string]+"\n"
+  #  end
+  #end
 }
 
 

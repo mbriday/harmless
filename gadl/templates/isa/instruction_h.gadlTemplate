@@ -15,6 +15,8 @@ if exists core::instDDCLock then
   let instDDCLockMap := mapOf core::instDDCLock by name
 end if
 
+let instDataMap := mapOf core::instData by instID
+
 foreach inst in core::INST_CONSTRUCTOR do
   let codeSizeInBytes := (core::INST_DEFAULT_SIZE_C * inst::codeLength) >> 3
   #declaration
@@ -61,8 +63,14 @@ foreach inst in core::INST_CONSTRUCTOR do
     if exists core::branchInstMap[inst::name] then
       %\tvirtual bool jumpTaken() {return m_jumpTaken;};\n%
     end if
+  %\n\t//define instruction signature IDs\n%
   foreach id in inst::ID_LIST do
-%\tvirtual bool hasID_%!id::ID%() {return true;};\n%
+%\tvirtual bool hasID_%!id::ID%()\t{return true;};\n%
+  end foreach
+  %\n\t//accessors for instruction fields\n%
+  foreach field in instDataMap[inst::name]::formatField do
+%\tvirtual bool hasField_%!field::name%()\t{return true;};
+\tvirtual u32  getField_%!field::name%()\t{return (u32)%!field::name%;};\n%
   end foreach
 %};\n%
 between %\n%

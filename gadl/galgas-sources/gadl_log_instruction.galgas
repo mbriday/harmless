@@ -33,6 +33,7 @@ proc getFormatRelatedTemplate
     var itemMap =@TfieldMap.emptyMap{}
     addLStringValue ( !?itemMap !"name" !ASname)
     addStringValue ( !?itemMap !lstringWith(!"type") ![VBtype string])
+    addStringValue ( !?itemMap !lstringWith(!"ctype") ![VBtype getCType])
     fieldMapList += !itemMap
   end
   addListValue ( !?instStruct !lstringWith(!"formatField") !fieldMapList)

@@ -91,9 +91,24 @@ class %!core::NAME%_instruction {
      */
     std::string getStaticInfo();
 
-%  foreach all in core::ALL_ID_LIST do
-     %\tvirtual bool hasID_%!all::ID%() {return false;};\n%
-   end foreach
+	//define instruction signature IDs\n%
+	foreach all in core::ALL_ID_LIST do
+		%\tvirtual bool hasID_%!all::ID%() {return false;};\n%
+	end foreach%
+
+	//define instruction fields\n%
+	let instFieldMap := emptyMap
+	foreach inst in core::instData do
+		foreach field in inst::formatField do
+			let instFieldMap[field::name] := field::name
+		end foreach
+    end foreach
+	foreach field in instFieldMap do
+		%\tvirtual bool hasField_%!field%()\t{return false;};\n%
+		%\tvirtual u32  getField_%!field%()\t{return 0;};\n%
+
+	end foreach
+
 %};
 
 /** instruction object that represents a stall
