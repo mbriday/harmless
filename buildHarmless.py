@@ -102,7 +102,7 @@ def downloadGalgas(URLGalgas,galgasVersion,forceSrc,scriptWorkingDir):
 	if archiveType == 'dmg':
 		#mount image file (dmg) using "hdid galgas-tool.dmg"
 		output = subprocess.Popen(['hdid',scriptWorkingDir+'/'+archiveName], stdout=subprocess.PIPE).communicate()[0]
-		print(output)
+		#print(output)
 		#one output line should be like this.
 		#/dev/disk2s2        	Apple_HFSX                     	/Volumes/GALGAS-TOOL
 		for line in output.split(b'\n'):
