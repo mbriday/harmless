@@ -11,6 +11,31 @@ h1 {
   text-align: center ;
 }
 
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+}
+
+thead {color:green;}
+
+td, th {
+    border: 1px solid #dddddd;
+    padding: 8px;
+}
+
+td {
+    text-align: center;
+} 
+
+th {
+    text-align: center;
+    background-color: #eeeeee;
+} 
+
+tr:nth-child(odd) {
+    background-color: #dddddd;
+}
+
 a.header_link {
   border: 1px solid #999999 ;
   padding: 4px ;
@@ -49,15 +74,18 @@ foreach staticInst in core::staticData do
 %<h3>Code (in Harmless language)</h3>\n%
 %<pre>%!staticInst::harmlessCode%</pre>\n%
 %<h3>register access</h3>\n
-<table frame="border" cellpadding="2">
-	<tr>
+<table>
+	<thead><tr>
 		<th>register written</th>
 		<th>depends on</th>
-       <th>statically defined</th>
-       <th>mem space read</th>
-	</tr>
-%foreach item in staticInst::staticInfoWrite
-do %\t<tr>\n\t\t<td>%!item::regName%</td>\n%
+		<th>statically defined</th>
+		<th>mem space read</th>
+	</tr></thead>
+%
+foreach item in staticInst::staticInfoWrite
+do 
+if item::accessType == "register" then #select only registers
+%\t<tr>\n\t\t<td>%!item::regName%</td>\n%
 %\t\t<td>%
 foreach regDep in item::regDepWriteList
 do !regDep::reg
@@ -71,6 +99,7 @@ foreach nameSpace in item::memSpaceReadAccess do
 between %, %
 end foreach
 %</td>\n\t</tr>\n%
+end if #register
 end foreach
 %</table>%
 %<h3>Memory write access : %
@@ -79,4 +108,37 @@ foreach nameSpace in staticInst::memSpaceWriteAccess do
 between %, %
 end foreach
 %</h3>\n%
+%<table>
+	<thead><tr>
+		<th>mem access id</th>
+		<th>depends on</th>
+		<th>statically defined</th>
+		<th>mem space read</th>
+		<th>access</th>
+	</tr></thead>
+%
+foreach item in staticInst::staticInfoWrite
+do 
+if item::accessType != "register" then #remove registers this time
+%\t<tr>\n\t\t<td>%!item::regName%</td>\n%
+%\t\t<td>%
+foreach regDep in item::regDepWriteList
+do !regDep::reg
+between %, %
+end foreach
+%</td>\n\t\t<td align="center">%
+if item::staticallyDefined then %<strong>Yes</strong>% else %No% end if
+%</td>\n\t\t<td align="center">%
+foreach nameSpace in item::memSpaceReadAccess do
+!nameSpace::name
+between %, %
+end foreach
+%</td>\n\t\t<td>%
+!item::accessType% (%!item::accessMemSpace%)%
+%</td>\n\t</tr>\n%
+end if #register
+end foreach
+%</table>%
+
+
 end foreach #instruction

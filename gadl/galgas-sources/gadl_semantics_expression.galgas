@@ -21,6 +21,8 @@
 # * lstring (same as string, with location of the first item)
 # * getLocalVar: check that it is an expIdf, and then refers to a local var.
 # * getter getMemSpaceName: return the mem space name (if this is a mem access obviously).
+# * getter getMemAddress -> expression: return the address for a mem access.
+# * getter getMemValue   -> expression: return the value for a mem write access.
 #
 # * reader @idfItemList string -> @string name :
 
@@ -182,6 +184,47 @@ getter @expIdf getMemSpaceName -> @string name {
     [idfList first ?memSpaceName ?* ?* ?* ?* ?* ?*]
     name = [memSpaceName string]
   else name = ""
+  end
+}
+
+
+#it returns the value for a memory write access (the second argument of :
+# * mem.writeXX(addr, value)
+getter @expIdf getMemValue -> @expression exp {
+  if detectedType == @idfType.memoryAccess then
+    #ok, first item is memSpace => remove.
+    @idfItemList idfListTmp = idfList
+    [!?idfListTmp popFirst ?* ?* ?* ?* ?* ?* ?*]
+    #second item should be the mem access name, with 1 (read) or 2 (write) arguments
+    [idfListTmp first ?* ?* ?@expressionlist paramList ?* ?* ?* ?*]
+    if [paramList length] < 2 then
+      error [self lstring]: "internal error: memory access without any address !"
+    end
+    #the first argument is the address.
+    @expressionlist paramListTmp = paramList
+    [!?paramListTmp popFirst ?*]
+    #the second argument is the value.
+    [paramListTmp first ?exp];
+  else error [self lstring] : "internal error: cannot get memory address for a non memory access": exp
+  end
+}
+
+#it returns the address for a memory access (the first argument of either:
+# * mem.read32(addr)
+# * mem.write32(addr, value)
+getter @expIdf getMemAddress -> @expression exp {
+  if detectedType == @idfType.memoryAccess then
+    #ok, first item is memSpace => remove.
+    @idfItemList idfListTmp = idfList
+    [!?idfListTmp popFirst ?* ?* ?* ?* ?* ?* ?*]
+    #second item should be the mem access name, with 1 (read) or 2 (write) arguments
+    [idfListTmp first ?* ?* ?@expressionlist paramList ?* ?* ?* ?*]
+    if [paramList length] < 1 then
+      error [self lstring]: "internal error: memory access without any address !"
+    end
+    #the first argument is the address.
+    [paramList first ?exp];
+  else error [self lstring] : "internal error: cannot get memory address for a non memory access": exp
   end
 }
 

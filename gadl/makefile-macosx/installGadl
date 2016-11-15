@@ -1,7 +1,19 @@
-#!/bin/sh
-echo "un coup de galgas"
-galgas -T ../gadl.galgasProject &&
-echo "make gadl.." &&
-time make gadl -j `sysctl -n hw.ncpu`
-#echo "install gadl in the editor bundle."
-#cp ./gadl64 /Applications/Harmless.app/Contents/Resources/gadl
+#! /usr/bin/env python
+# -*- coding: UTF-8 -*-
+import sys, os, subprocess
+
+scriptDir = os.path.dirname (os.path.abspath (sys.argv [0]))
+os.chdir (scriptDir)
+
+error = False
+
+print("un coup de galgas")
+error = subprocess.call(['galgas','-T','-q','../gadl.galgasProject'])!=0
+
+if not error:
+    print("make gadl..")
+    error = subprocess.call(['./build+release.py'])!=0
+
+if error:
+    print "Failed"
+    sys.exit(1)
