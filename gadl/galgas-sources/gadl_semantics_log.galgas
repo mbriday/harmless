@@ -182,7 +182,9 @@ override getter @instDeclaration harmlessCode
   ?let @bool unused withLine
   -> @string code
 {
-  code = [type string] + " " + [self name]
+  code = ""
+  if access == @varClass.field then code += "field " end
+  code += [type string] + " " + [self name]
 }
 
 override getter @instError harmlessCode
