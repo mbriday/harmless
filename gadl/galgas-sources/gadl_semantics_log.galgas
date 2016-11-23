@@ -119,22 +119,51 @@ override getter @expUnary harmlessCode
 
 ############# getter @instruction harmlessCode
 
+getter @instruction harmlessCodeLine
+  ?let @bool withLine
+  -> @string line
+{
+  line = ""
+  if withLine then
+    @uint lineNb = [[self loc] line]
+    line = "l."
+    if lineNb<10   then line += " " end
+    if lineNb<100  then line += " " end
+    if lineNb<1000 then line += " " end
+    line += [lineNb string]+"\t"
+  end
+}
+#used for 'else', 'end' statements in @instIf to fill the line string gap.
+getter @instruction harmlessCodeLineGap
+  ?let @bool withLine
+  -> @string line
+{
+  if withLine then
+    line = "      \t"
+  else
+    line = ""
+  end
+}
+
 abstract getter @instruction harmlessCode
   ?let @uint unused nbTabs
+  ?let @bool unused withLine
   -> @string
 
 getter @instructionList harmlessCode
   ?let @uint nbTabs
+  ?let @bool withLine
   -> @string code
 {
   code = ""
   for (inst) in self
-  do code += tabs(!nbTabs) + [inst harmlessCode !nbTabs] + "\n"
+  do code += [inst harmlessCodeLine !withLine] + tabs(!nbTabs) + [inst harmlessCode !nbTabs !withLine] + "\n"
   end
 }
 
 override getter @instAssignment harmlessCode
   ?let @uint unused nbTabs
+  ?let @bool unused withLine
   -> @string code
 {
   code = [idfAssign harmlessCode]
@@ -150,6 +179,7 @@ override getter @instAssignment harmlessCode
 
 override getter @instDeclaration harmlessCode
   ?let @uint unused nbTabs
+  ?let @bool unused withLine
   -> @string code
 {
   code = [type string] + " " + [self name]
@@ -157,6 +187,7 @@ override getter @instDeclaration harmlessCode
 
 override getter @instError harmlessCode
   ?let @uint unused nbTabs
+  ?let @bool unused withLine
   -> @string code
 {
   if onlyWarn then code = "warning " else code = "error " end
@@ -165,6 +196,7 @@ override getter @instError harmlessCode
 
 override getter @instFunctionCall harmlessCode
   ?let @uint unused nbTabs
+  ?let @bool unused withLine
   -> @string code
 {
   code = [exp harmlessCode]
@@ -172,29 +204,32 @@ override getter @instFunctionCall harmlessCode
 
 override getter @instIf harmlessCode
   ?let @uint nbTabs
+  ?let @bool withLine
   -> @string code
 {
   code = "if " + [cond harmlessCode] + " then\n"
-  code += [instIfList harmlessCode !nbTabs+1]
+  code += [instIfList harmlessCode !nbTabs+1 !withLine]
   if [instElseList length] != 0 then 
-    code += tabs(!nbTabs) + "else\n"
-    code += [instElseList harmlessCode !nbTabs+1]
+    code += [self harmlessCodeLineGap !withLine] + tabs(!nbTabs) + "else\n"
+    code += [instElseList harmlessCode !nbTabs+1 !withLine]
   end 
-  code += tabs(!nbTabs)+"end if"
+  code += [self harmlessCodeLineGap !withLine] + tabs(!nbTabs)+"end if"
 }
 
 override getter @instLoop harmlessCode
   ?let @uint nbTabs
+  ?let @bool withLine
   -> @string code
 {
   code = "loop " + [guard harmlessCode] + "\n"
   code += tabs(!nbTabs) + "while " + [expCondition harmlessCode] + "do\n"
-  code += [loopInstList harmlessCode !nbTabs+1]
+  code += [loopInstList harmlessCode !nbTabs+1 !withLine]
   code += tabs(!nbTabs) + "end loop"
 }
 
 override getter @instMessage harmlessCode
   ?let @uint unused nbTabs
+  ?let @bool unused withLine
   -> @string code
 {
   code = "print " + [msg string]
@@ -202,6 +237,7 @@ override getter @instMessage harmlessCode
 
 override getter @instNop harmlessCode
   ?let @uint unused nbTabs
+  ?let @bool unused withLine
   -> @string code
 {
  code = "nop"+[cond harmlessCode]+"instruction"
@@ -209,6 +245,7 @@ override getter @instNop harmlessCode
 
 override getter @instPrint harmlessCode
   ?let @uint unused nbTabs
+  ?let @bool unused withLine
   -> @string code
 {
   code = "print " + [exp harmlessCode]
@@ -216,6 +253,7 @@ override getter @instPrint harmlessCode
 
 override getter @instReturn harmlessCode
   ?let @uint unused nbTabs
+  ?let @bool unused withLine
   -> @string code
 {
  code = "return "+[exp harmlessCode]
@@ -223,6 +261,7 @@ override getter @instReturn harmlessCode
 
 override getter @instTypeDefinition harmlessCode
   ?let @uint unused nbTabs
+  ?let @bool unused withLine
   -> @string code
 {
   code = "'typedef of "+[idf string]+"'"
