@@ -30,7 +30,7 @@ project (0:8:1) -> "gadl" {
   "galgas-sources/gadl_semantics_GetExp.galgas"         # AST reader to get decorated expression.
   "galgas-sources/gadl_semantics_expression_eval.galgas"
   "galgas-sources/gadl_semantics_expression_code_generation.galgas"
-  "galgas-sources/gadl_semantics_expression_extract_idf.galgas"
+  "galgas-sources/gadl_semantics_expression_extract_idf.galgas" #getIdf getter.
   "galgas-sources/gadl_semantics_mem_access.galgas"     # detect memory accesses
 
 #******************************************************

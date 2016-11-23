@@ -33,38 +33,53 @@ override getter @expIdf getIdf
   #parse the return instruction of the function
   switch detectedType
     case componentCall:
+      #ok. We have to parse the function. Will be donne in 3 parts:
+      #1 - the 'return' instruction is an assignment (that is traced)
+      #2 - analysis of the instruction list backward (=> this is the processStaticInfo)
+      #3 - add the assignements from the function call to remove internal idf.
+
+      message "traitement:"+[self string]+"\n"
+
       @instructionList instList = [idfStruct.componentMap getInstList !idfList]
-      #get the last return instruction
-      @bool found = false
-      for > (inst) in instList while not found do 
-        cast inst
-          case >= @instReturn ret:
-            outList += [[ret exp] getIdf !idfStruct]
-            found = true
-          else
-        end
-      end
+      @parameterDefList paramDef = [idfStruct.componentMap getParamDefList !idfList]
+      @expressionlist paramList = [idfList paramListAtIndex !1]
+        
+      #message "paramDef"+[paramDef description]+"\n"
+
+      #  @varIdfStruct nextIdfStruct = idfStruct 
+      
+      @varIdfStruct nextIdfStruct = idfStruct 
+      
+      [paramDef getInlinedInsts !paramList !@expressionContext.component 
+                                  !@location.here !@location.here
+                                  !idfStruct !?nextIdfStruct
+                                  ?@instructionList instListCall]
+      @instructionList fullInstList = instListCall+instList
+      message [fullInstList harmlessCode !0 !false]
+      @symbolValueMap symbolValueMap = .emptyMap
+      @staticInfoMapRegWrite regWriteAccessMap = .emptyMap
+      @stringset memSpaceWriteAccess = .emptySet 
+      [fullInstList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?memSpaceWriteAccess !true]
+      message [regWriteAccessMap debug]
+      
+
+ #     @instructionList instList = [idfStruct.componentMap getInstList !idfList]
+ #     #get the last return instruction
+ #     @bool found = false
+ #     for > (inst) in instList while not found do 
+ #       cast inst
+ #         case >= @instReturn ret:
+ #           outList += [[ret exp] getIdf !idfStruct]
+ #           found = true
+ #         else
+ #       end
+ #     end
     case unknown,structMember,localVar,tabularAccess,
          registerAccess,registerBitField,memoryAccess,
          periphCall,timing,signal: #nothing for now
       outList += !self
   end
 }
-
-
-#############################################################################
-# search for component calls
-# used for static analysis
-#############################################################################
-
-#getter @expression hasComponentCalls
-#  -> @bool memAccess
-#{
-#  memAccess = false
-#  for (exp) in [self getExpressionChildren] while not memAccess do
-#    memAccess = memAccess | [exp hasMemAccess]
-#  end
-#}
 
 
 
