@@ -710,6 +710,7 @@ func basicFormatFieldCode
   code = ""
   @uint offset = 0
   #iterate in the reverse order.
+  if [fieldList length] > 1 then code += "(" end
   for >(@uint64 expFrom @uint64 expTo @location loc) in  fieldList
   do
     @uint offsetInc = 0
@@ -726,6 +727,7 @@ func basicFormatFieldCode
     offset = offset+offsetInc
   between code += "|"
   end
+  if [fieldList length] > 1 then code += ")" end
 }
 
 
