@@ -52,8 +52,8 @@ format Instruction16	 -- p A5.127 (ARM DDI 0403E.b)
     case \m010001 is specialAndBex
     case \m01001- is loadFromLiteralPool --A7.254
     case \m0101-- or \m011--- or \m100--- is loadStore -- A5.131
-    case \m10100- is #ADR imm8reg1  -- A7.197
-    case \m10101- is #ADDSP imm8reg1 --A7.193
+    case \m10100- is #ADR imm10reg1  -- A7.197
+    case \m10101- is #AddRdSP imm10reg1 --A7.193
     case \m1011-- is misc16
     case \m11000- is #store #multipleWord lstm
     case \m11001- is #load  #multipleWord lstm
@@ -81,7 +81,7 @@ format branch
   imm8 := slice{7..0}
 end format
 
-format lstm -- load/store multipl word
+format lstm -- load/store multiple word
   regList := slice{7..0}
   Rn := slice{10..8}
 end format
@@ -89,9 +89,9 @@ end format
 format misc16 -- A7.132
   select slice{11..5}
     case \m0110011 is CPS
-    case \m00000-- is #ADDSP #imm7 imm7 := slice{6..0}
-    case \m00001-- is #SUBSP #imm7 imm7 := slice{6..0}
-    case \m-0-1--- is compareBranch
+    case \m00000-- is #AddSP #imm9 imm9 := slice{6..0} << 2
+    case \m00001-- is #SubSP #imm9 imm9 := slice{6..0} << 2
+    case \m-0-1--- is compareAndBranch
     case \m001000- is #XT #signed #reg16   reg2 --sxth
     case \m001001- is #XT #signed #reg8    reg2 --sxtb
     case \m001010- is #XT #unsigned #reg16 reg2 --uxth
@@ -135,13 +135,13 @@ format push #push
   M := slice{8}
 end format
 
-format compareBranch
+format compareAndBranch
   select slice{11}
     case 0 is #CBZ
     case 1 is #CBNZ
   end select
-  imm6 := slice{9,7..3}
-  Rn := slice{2..0}
+  imm7 := slice{9,7..3} << 1 #imm7
+  Rn := slice{2..0} #Rn
 end format
 
 format CPS
@@ -163,33 +163,39 @@ format loadStore
     case \m0101_101 is reg3Rt #load  #reg16 #unsigned
     case \m0101_110 is reg3Rt #load  #reg8  #unsigned
     case \m0101_111 is reg3Rt #load  #reg16 #signed
-    case \m0110_0-- is #store #reg32 regImm5reg2Rt
-    case \m0110_1-- is #load  #reg32 regImm5reg2Rt
+    case \m0110_0-- is #store #reg32 regImm7reg2Rt
+    case \m0110_1-- is #load  #reg32 regImm7reg2Rt
     case \m0111_0-- is #store #reg8  regImm5reg2Rt
     case \m0111_1-- is #load  #reg8  regImm5reg2Rt
-    case \m1000_0-- is #store #reg16 regImm5reg2Rt
-    case \m1000_1-- is #load  #reg16 regImm5reg2Rt
-    case \m1001_0-- is #store #SP imm8reg1Rt
-    case \m1001_1-- is #load  #SP imm8reg1Rt
+    case \m1000_0-- is #store #reg16 regImm6reg2Rt
+    case \m1000_1-- is #load  #reg16 regImm6reg2Rt
+    case \m1001_0-- is #store #SP imm10reg1Rt
+    case \m1001_1-- is #load  #SP imm10reg1Rt
   end select
 end format
 
-format loadFromLiteralPool #Rt #imm8
+format loadFromLiteralPool #load #Rt #imm10
   Rt := slice{10..8}
-  imm8 := slice{7..0}
+  imm10 := slice{7..0} << 2
 end format
 
 format specialAndBex
   select slice {9..6} -- from A5.130
     case \m00-- is #add reg2_4bits
-    case \m0101 or \m011- or \b0110 is #compare reg2_4bits
+    -- case 0100 is said UNPREDICTABLE, but objdump understand it as a cmp instruction.
+    case \m010- or \m011- or \b0110 is #compare reg2_4bits
     case \m10-- is #mov reg2_4bits
     case \m11-- is #bex
-      select slice {7,2..0}
-        case \b0_000 is 
-        case \b1_000 is #link
+      select slice {7} 
+        case \b0 is #noLink
+        case \b1 is #link
       end select
-      Rm := slice{6..3}
+      -- bits 1..0 should be set to 0, but objdump interprets instruction as bx (but not with blx!)
+      select slice {7,2..0} --C2.2.3
+        case \m-100 is #ns   -- non secure => ARMv8-M
+        case \m0_0-- or \m0_11- or \m0_101 or \m1_000 is #nons -- no ns
+      end select
+      Rm := slice{6..3} #Rm
   end select
 end format
 
@@ -225,14 +231,14 @@ format arith
       #logicalShift --A7.298/302
 		  Imm5Reg2
     case \m010-- is #right #arithmeticShift Imm5Reg2 -- A7.203
-    case \m01100 is #add reg3         --A7.191
-    case \m01101 is #sub reg3         --A7.350
-    case \m01110 is #add imm3reg2     --A7.189
-    case \m01111 is #sub imm3reg2		  --A7.448
-    case \m100-- is #move imm8reg1    --A7.312
+    case \m01100 is #add     reg3     --A7.191
+    case \m01101 is #sub     reg3     --A7.350
+    case \m01110 is #add     imm3reg2 --A7.189
+    case \m01111 is #sub     imm3reg2	--A7.448
+    case \m100-- is #move    imm8reg1 --A7.312
     case \m101-- is #compare imm8reg1 --A7.229
-    case \m110-- is #add imm8reg1     --A7.189
-    case \m111-- is #sub imm8reg1     --A7.448
+    case \m110-- is #add     imm8reg1 --A7.189
+    case \m111-- is #sub     imm8reg1 --A7.448
   end select
 end format
 
@@ -252,15 +258,29 @@ format reg2 #Rm #Rd
   Rd := slice{2..0}
 end format
 
-format reg2Rn #Rm #Rd
+format reg2Rn #Rn #Rd
   Rn := slice{5..3}
   Rd := slice{2..0}
 end format
 
-format regImm5reg2Rt #imm5 #Rn #Rt
-  imm5 := slice{10..6}
+format reg2Rt #Rn #Rt
   Rn   := slice{5..3}
   Rt   := slice{2..0}
+end format
+
+format regImm7reg2Rt #imm7
+  imm7 := slice{10..6} << 2
+  reg2Rt
+end format
+
+format regImm6reg2Rt #imm6
+  imm6 := slice{10..6} << 1
+  reg2Rt
+end format
+
+format regImm5reg2Rt #imm5
+  imm5 := slice{10..6}
+  reg2Rt
 end format
 
 format reg3Rt #Rm #Rn #Rt
@@ -286,8 +306,13 @@ format imm8reg1 #imm8 #Rd
   Rd := slice{10..8}
 end format
 
-format imm8reg1Rt #imm8 #Rt
-  imm8 := slice{7..0}
+format imm10reg1 #imm10 #Rd
+  imm10 := slice{7..0} << 2
+  Rd := slice{10..8}
+end format
+
+format imm10reg1Rt #imm10 #Rt
+  imm10 := slice{7..0} << 2
   Rt := slice{10..8}
 end format
 
@@ -312,29 +337,186 @@ end format
 
 syntax arith
   select
-    case #logicalShift "ls" 
-      select 
-        case #left "l"
-        case #right "r"
-      end select
-      "s " Imm5Reg2	--TODO mov if imm5=0
-    case #right #arithmeticShift "asrs " Imm5Reg2
-    case #add "adds " reg3
-    case #sub "subs " reg3
-    case #add "adds " imm3reg2
-    case #sub "subs " imm3reg2
+    case #logicalShift #left
+				field u5 imm5 #imm5
+				field u3 Rm   #Rm
+				field u3 Rd   #Rd
+				if imm5 = 0 then "movs\tr\d, r\d",Rd,Rm 
+				else "lsls\tr\d, r\d, #\d", Rd, Rm, imm5
+				end if
+		case #logicalShift #right "lsrs\t" Imm5Reg2Shift
+    case #right #arithmeticShift "asrs\t" Imm5Reg2Shift
+    case #add "adds\t" reg3
+    case #sub "subs\t" reg3
+    case #add "adds\t" imm3reg2
+    case #sub "subs\t" imm3reg2
+		case #move "movs\t" imm8reg
+		case #compare "cmp\t" imm8reg
+		case #add "adds\t" imm8reg
+		case #sub "subs\t" imm8reg
   end select
 end syntax
 
-syntax imm5 #imm5 field u5 imm5 "#\d",imm5 end syntax
-syntax imm3 #imm3 field u3 imm3 "#\d",imm3 end syntax
-syntax Rm   #Rm   field u3 Rm   "R\d",Rm  end syntax
-syntax Rd   #Rd   field u3 Rd   "R\d",Rd  end syntax
-syntax Rn   #Rn   field u3 Rn   "R\d",Rn  end syntax
+-- Data processing
+syntax dataProc
+  select
+    case #and "ands\t" reg2
+    case #eor "eors\t" reg2
+    case #lsl "lsls\t" reg2
+    case #lsr "lsrs\t" reg2
+    case #asr "asrs\t" reg2
+    case #adc "adcs\t" reg2
+    case #sbc "sbcs\t" reg2
+    case #ror "rors\t" reg2
+    case #tst "tst\t"  reg2
+    case #rsb "negs\t" reg2Rn -- rsb in ARM, negs in objdump.
+    case #cmp "cmp\t"  reg2
+    case #cmn "cmn\t"  reg2
+    case #orr "orrs\t" reg2
+    case #mul "muls\t" reg2
+    case #bic "bics\t" reg2
+    case #mvn "mvns\t" reg2
+  end select
+end syntax
 
-syntax Imm5Reg2 Rd "," Rm "," imm5 end syntax
-syntax reg3 Rd "," Rn "," Rm end syntax
-syntax imm3reg2 Rd "," Rn "," imm3 end syntax
+syntax specialAndBex
+  select
+    case #add     "add\t" reg2_4bits
+    case #mov     "mov\t" reg2_4bits
+    case #compare "cmp\t" reg2_4bits
+    case #bex "b"
+		  select case #link "lx" case #noLink "x" end select
+		  select case #ns "ns" case #nons end select
+      "\t"  Rm4
+  end select
+end syntax
+
+syntax loadFromLiteralPool #load
+  "ldr\t" Rt ", [pc, " imm10 "]"
+end syntax
+
+syntax loadStore
+  select
+    case #load  "ldr"
+    case #store "str"
+  end select
+  select
+    case #signed "s"
+    case #unsigned
+    case
+  end select
+  select
+    case #reg32 "\t"
+    case #reg16 "h\t"
+    case #reg8  "b\t"
+  end select
+  select
+    case reg3Rt
+    case regImm7reg2Rt
+    case regImm6reg2Rt
+    case regImm5reg2Rt
+  end select
+end syntax
+
+syntax loadStoreSP #SP
+  select
+    case #load  "ldr\t"
+    case #store "str\t"
+  end select
+  Rt ", [sp, " imm10 "]"
+end syntax
+
+syntax adr #ADR
+  "add\t" Rd ", pc, " imm10 --objdump uses 'add', while ARM DDI 0403E.b uses 'adr'...
+end syntax
+
+syntax addsp #AddRdSP
+  "add\t" Rd ", sp, " imm10
+end syntax
+
+syntax addTosp
+  select
+    case #AddSP "add\t"
+    case #SubSP "sub\t"
+  end select
+  "sp, " imm9
+end syntax
+
+syntax compareAndBranch
+  select
+    case #CBZ  "cbz\t"
+    case #CBNZ "cbnz\t"
+  end select
+  Rn ", " label " -> " field u8 imm7 "\d",imm7
+end syntax
+
+syntax label #imm7 field u8 imm7 "\x",(instruction address) + imm7 + 4 end syntax
+
+syntax imm10     #imm10 field u10 imm10 "#\d",imm10 end syntax -- value used as an addres (x4)
+syntax imm9      #imm9  field u10 imm9  "#\d",imm9  end syntax -- value used as an addres (x4)
+syntax imm8      #imm8  field u8  imm8  "#\d",imm8  end syntax
+syntax imm7      #imm7  field u7  imm7  "#\d",imm7  end syntax -- value used as an addres (x4)
+syntax imm6      #imm6  field u7  imm6  "#\d",imm6  end syntax -- value used as an addres (x2)
+syntax imm5      #imm5  field u5  imm5  "#\d",imm5  end syntax
+syntax imm3      #imm3  field u3  imm3  "#\d",imm3  end syntax
+syntax Rm        #Rm    field u3  Rm    "r\d",Rm    end syntax
+syntax Rd        #Rd    field u3  Rd    "r\d",Rd    end syntax
+syntax Rn        #Rn    field u3  Rn    "r\d",Rn    end syntax
+syntax Rt        #Rt    field u3  Rt    "r\d",Rt    end syntax
+syntax imm5Shift #imm5  field u5  imm5 if imm5 = 0 then "#32" else "#\d",imm5 end if end syntax
+
+syntax Rm4  #Rm 
+		field u4 Rm 
+		if    Rm =15 then "pc" 
+		elseif Rm=14 then "lr"
+		elseif Rm=13 then "sp"
+		else   "r\d",Rm
+    end if
+end syntax
+
+syntax Rd4  #Rd 
+		field u4 Rd 
+		if    Rd =15 then "pc" 
+		elseif Rd=14 then "lr"
+		elseif Rd=13 then "sp"
+		else   "r\d",Rd
+    end if
+end syntax
+
+syntax Imm5Reg2      Rd  ", "  Rm ", " imm5          end syntax
+syntax Imm5Reg2Shift Rd  ", "  Rm ", " imm5Shift     end syntax -- replace if imm5 = 0, value is 32.
+syntax reg3          Rd  ", "  Rn ", " Rm            end syntax
+syntax reg2          Rd  ", "  Rm                    end syntax
+syntax reg2Rn        Rd  ", "  Rn                    end syntax
+syntax imm3reg2      Rd  ", "  Rn ", " imm3          end syntax
+syntax imm8reg       Rd  ", "  imm8                  end syntax
+syntax reg2_4bits    Rd4 ", "  Rm4                   end syntax
+syntax reg3Rt        Rt  ", [" Rn ", " Rm        "]" end syntax 
+syntax regImm5reg2Rt Rt  ", [" Rn ", " imm5      "]" end syntax 
+syntax regImm6reg2Rt Rt  ", [" Rn ", " imm6      "]" end syntax 
+syntax regImm7reg2Rt Rt  ", [" Rn ", " imm7      "]" end syntax 
+
+syntax cond #cond
+  field u4 cond
+  if     cond = 0  then "eq"
+  elseif cond = 1  then "ne"
+  elseif cond = 2  then "cs"
+  elseif cond = 3  then "cc"
+  elseif cond = 4  then "mi"
+  elseif cond = 5  then "pl"
+  elseif cond = 6  then "vs"
+  elseif cond = 7  then "vc"
+  elseif cond = 8  then "hi"
+  elseif cond = 9  then "ls"
+  elseif cond = 10 then "ge"
+  elseif cond = 11 then "lt"
+  elseif cond = 12 then "gt"
+  elseif cond = 13 then "le"
+  end if
+  -- 14 is 'always but do not have a mnemonic
+  -- 15 should not happen.
+end syntax
+
 }
 -- errorformat=%f:%l:%c:%m
 -- makeprg=gadl\ \%
