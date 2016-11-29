@@ -447,10 +447,14 @@ syntax compareAndBranch
     case #CBZ  "cbz\t"
     case #CBNZ "cbnz\t"
   end select
-  Rn ", " label " -> " field u8 imm7 "\d",imm7
+  Rn ", " label 
 end syntax
 
-syntax label #imm7 field u8 imm7 "\x",(instruction address) + imm7 + 4 end syntax
+syntax label 
+  #imm7 field u8 imm7 "\x",(instruction address) + imm7 + 4 
+  -- show label information as in objdump
+  " <" function "+0x\x>",(instruction address+ imm7 + 4 -function address)
+end syntax
 
 syntax imm10     #imm10 field u10 imm10 "#\d",imm10 end syntax -- value used as an addres (x4)
 syntax imm9      #imm9  field u10 imm9  "#\d",imm9  end syntax -- value used as an addres (x4)
