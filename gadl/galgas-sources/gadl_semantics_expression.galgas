@@ -79,6 +79,7 @@ class @expInstructionSize : @expression {
 }
 
 class @expInstructionAddress : @expression {
+  @addressType addressType
 }
 
 list @idfItemList

@@ -122,15 +122,11 @@ class core
 		#else
 			bool getSymbolObjectAddress(const char *symbolName, u32 &v_addr, u32 &size);
 		#endif
-		/* this function search for the virtual address of the function (first parameter).
-		 * @return true if a function have been found, and updates v_addr 
-		 * @return false if no function is matching. v_addr and size are not updated.
+		/* this function search for the virtual address of the function in parameter.
+		 * \return the virtual address of the function
+		 * or -1) (=> 0xFFFFFFFF) if not found.
 		 */
-		#ifdef SWIG /*Swig wrapper (for Python interface)*/
-			bool getFunctionName(const char *symbolName, u32 &OUTPUT);
-		#else
-			bool getFunctionName(const char *symbolName, u32 &v_addr);
-		#endif
+		u32 getFunctionAddress(const char *symbolName);
 		
 		/** print all object symbols (for ELF files)*/
 		void dumpObjects();

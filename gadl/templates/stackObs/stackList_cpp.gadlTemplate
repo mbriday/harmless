@@ -30,7 +30,8 @@ stackInfo::stackInfo(string taskName, string functionSymbol,type_sp size,stackSp
 
 	
 	// -- Find program adress of task main function first instruction --
-	if(_arch->getFunctionName(functionSymbol.c_str(), v_addr)){
+	v_addr = _arch->getFunctionAddress(functionSymbol.c_str())
+	if(v_addr != 0xFFFFFFFF)
 		type_prgaddr p_addr = _arch->getPhysicalAddress(v_addr, functionFound);	// Get program adresse of our function
 		m_taskAddr=p_addr;	// Write the programm adress found for first function of Task ===> !!! NEED TO BE FIX (FIX DONE)
 		

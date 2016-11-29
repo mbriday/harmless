@@ -74,8 +74,8 @@ void core::addBreakpoint(const unsigned int addr)
 
 void core::removeBreakpoint(const char *symbolName)
 {
-	u32 v_addr;
-	if(getFunctionName(symbolName, v_addr))
+	const u32 v_addr = getFunctionAddress(symbolName);
+	if(v_addr != 0xFFFFFFFF) //function found
 	{
 		bool found = false;
 		u32 p_addr = getPhysicalAddress(v_addr, found);
@@ -87,8 +87,8 @@ void core::removeBreakpoint(const char *symbolName)
 
 void core::addBreakpoint(const char *symbolName)
 {
-	u32 v_addr;
-	if(getFunctionName(symbolName, v_addr))
+	const u32 v_addr = getFunctionAddress(symbolName);
+	if(v_addr != 0xFFFFFFFF) //function found
 	{
 		bool found = false;
 		u32 p_addr = getPhysicalAddress(v_addr, found);
@@ -108,10 +108,10 @@ u32 core::getPhysicalAddress(const u32 v_addr, bool &found)
 	}
 }
 
-bool core::getFunctionName(const char *symbolName, u32 &v_addr)
+u32 core::getFunctionAddress(const char *symbolName)
 {
-	if(m_reader) return m_reader->getFunctionName(symbolName, v_addr);
-	else return false;
+	if(m_reader) return m_reader->getFunctionAddress(symbolName);
+	else return 0xFFFFFFFF;
 }
 
 bool core::getSymbolObjectAddress(const char *symbolName, u32 &v_addr, u32 &size)
@@ -170,8 +170,8 @@ bool core::addIOStub(executeAction *act, string funcName)
 {
 	bool result = false;
 #ifdef USE_IO_STUBS
-	u32 v_addr;
-	if(getFunctionName(funcName.c_str(), v_addr))
+	const u32 v_addr = getFunctionAddress(funcName.c_str());
+	if(v_addr != 0xFFFFFFFF) //function found
 	{
 		bool found = false;
 		u32 p_addr = getPhysicalAddress(v_addr, found);

@@ -59,9 +59,15 @@ list @ASTsliceList {
 class @ASTExpInstructionSize : @ASTExpression {
 }
 
+enum @addressType {
+  case inst     #get the instruction address
+  case function #get the address of the function in which is the instruction.
+}
+
 #this should only be called in a Harmless instruction syntax (mnemo).
 #Used only in the 'syntax' view.
 class @ASTExpInstructionAddress : @ASTExpression {
+  @addressType addressType
 }
 
 enum @idfItemType {

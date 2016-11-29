@@ -323,7 +323,7 @@ override getter @ASTExpInstructionAddress getExp
     error loc : "The 'instruction address' expression should only be used in a syntax or behavior view (ISA). Here is "+[ctx msg]
   end
   @varBaseType outType = @varBaseType.new { !@varKind.unsigned !32 !loc} #instruction address -> u32
-  exp = @expInstructionAddress.new { !outType}
+  exp = @expInstructionAddress.new{!outType !addressType}
 }
 
 override getter @ASTCast getExp

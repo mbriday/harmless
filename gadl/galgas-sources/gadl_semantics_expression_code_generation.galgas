@@ -177,7 +177,10 @@ override getter @expInstructionSize generateCode
 override getter @expInstructionAddress generateCode
   ?let  @codeCtx unused cgc
   -> @string code {
-  code = "getInstructionPointer()"
+  switch addressType
+  case inst:     code = "getInstructionPointer()"
+  case function: code = "_core->getFunctionAddress(_core->whichFunctionAtAddress(getInstructionPointer()).c_str())" #called only from an ISA syntax part!
+  end
 }
 
 #internal: used by generateCode (normal way) and generateSetterCode

@@ -264,18 +264,17 @@ bool elfReader::getSymbolObjectAddress(const char *symbolName, u32 &v_addr, u32 
 	return found;
 }
 
-bool elfReader::getFunctionName(const char *symbolName, u32 &v_addr)
+u32 elfReader::getFunctionAddress(const char *symbolName)
 {
-	bool found;
+	u32 v_addr = 0xFFFFFFFF;
 	string symbolNameStr = symbolName;
 	map<string, symbolEntry>::iterator it = m_symbolFuncMap.find(symbolNameStr);
-	if(it == m_symbolFuncMap.end()) found = false;
-	else {
-		found = true;
+	if(it != m_symbolFuncMap.end())
+	{
 		symbolEntry entry = (*it).second;
 		v_addr = entry.address;
 	}
-	return found;
+	return v_addr;
 }
 
 void elfReader::dumpObjects()

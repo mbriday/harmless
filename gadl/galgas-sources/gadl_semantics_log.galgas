@@ -89,7 +89,10 @@ override getter @expIdf harmlessCode
 override getter @expInstructionAddress harmlessCode
   -> @string code
 {
-  code = "instruction address"
+  switch addressType
+  case inst:     code = "instruction address"
+  case function: code = "function address"
+  end
 }
 
 override getter @expInstructionSize harmlessCode
