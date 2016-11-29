@@ -443,7 +443,7 @@ std::string %!core::NAME%_core::disassemble(const unsigned int pcStart, const in
                        << (int)(sto->get%!core::INST_SIZE_IN_BITS%AtAddr(realAddr)) << " : ";
 			}
 		}
-		result << inst->mnemo();
+		result << inst->mnemo(this);
 		inst->release();
 	}
 	return result.str();
@@ -480,7 +480,7 @@ std::string %!core::NAME%_core::getInstructionStaticInfo(unsigned int &p_addr)
 	if(m_decoder)
 	{
 		%!core::NAME%_instruction *inst = m_decoder->decode(this, p_addr);
-		if(inst) return inst->getStaticInfo();
+		if(inst) return inst->getStaticInfo(this);
 	}
 	return string("error");
 }

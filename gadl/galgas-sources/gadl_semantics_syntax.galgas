@@ -153,6 +153,22 @@ proc print
   reg = ""
 }
 
+class @functionChunk : @syntaxChunk {
+  @location loc
+}
+
+override method @functionChunk printImplementation 
+  ?let  @varMap unused fieldMapWithoutSuffix
+  ?let  @uint indentation
+  ?let  @string unused currentSuffixStr
+  ?! @string code
+  ?let  @printNumberTypeMap unused typeMap
+  ?let  @bool unused switchGenerate {
+
+  code += tabs(!indentation)
+  code += "index += sprintf (result + index,\"%s\",_core->whichFunctionAtAddress(getInstructionPointer()).c_str());\n";
+}
+
 class @printChunk : @syntaxChunk {
   @printInst printInst
 }
@@ -571,6 +587,8 @@ proc instructionSyntax
       end
     case == @ifChunk ifChunk :
       [ifChunk printImplementation !fieldMapWithoutSuffix !nbTabulation !currentSuffixStr !?codeC !typeMap !switchGenerate] 
+    case == @functionChunk fc:
+      [fc printImplementation !fieldMapWithoutSuffix !nbTabulation !currentSuffixStr !?codeC !typeMap !switchGenerate] 
     else 
     end 
   end

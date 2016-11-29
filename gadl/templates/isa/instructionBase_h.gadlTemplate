@@ -36,7 +36,7 @@ class %!core::NAME%_instruction {
 	/// \return the value of the instruction pointer in the pipeline.
 	inline %!core::PC_C_TYPE% const getInstructionPointer() {return m_pc;};	
 	///mnemonic of the instruction
-	virtual const char* const mnemo() {return "MNEMO_NOT_DEFINED";};
+	virtual const char* const mnemo(%!core::NAME%_core *) {return "MNEMO_NOT_DEFINED";};
 	
 	/** Fonction that effectively execute the instruction. This methods
 	 *  body is lead by the 'behavior' description in Harmless.
@@ -89,7 +89,7 @@ class %!core::NAME%_instruction {
      * script, that cannot handle a pointer to powerpc_instruction
      * directly
      */
-    std::string getStaticInfo();
+    std::string getStaticInfo(%!core::NAME%_core *_core);
 
 	//define instruction signature IDs\n%
 	foreach all in core::ALL_ID_LIST do
@@ -125,7 +125,7 @@ class %!core::NAME%_instructionStall : public %!core::NAME%_instruction
 		: %!core::NAME%_instruction(instructionPointer), m_code(code) {};
 	virtual ~%!core::NAME%_instructionStall() {};
 	virtual void execute(%!core::NAME%_core *); // nop
-	virtual const char* const mnemo() 
+	virtual const char* const mnemo(%!core::NAME%_core *) 
 	{
 		char *result = new char[64];
 		int index = 0;	

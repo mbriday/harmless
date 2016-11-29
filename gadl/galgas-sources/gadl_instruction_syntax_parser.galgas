@@ -166,6 +166,10 @@ rule <syntaxBody>
     @printChunk pChunk = @printChunk. new { !print}
     chunkList += !pChunk
   or
+    $function$;
+    @functionChunk f = @functionChunk.new{!@location.here}
+    chunkList += !f
+  or
     <selectSyntax> !?syntaxMap !fieldMap !?chunkList !?internalSyntaxId
   end
 }

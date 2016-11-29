@@ -42,7 +42,7 @@ foreach inst in core::INST_CONSTRUCTOR do
 	%!inst::name !instContructorParam[inst::name]%;
 	virtual ~%!inst::name%() {};
 	virtual void execute(%!core::NAME%_core *);
-	virtual const char* const mnemo();
+	virtual const char* const mnemo(%!core::NAME%_core *);
 %#	/** binary code size in bytes
 %	virtual unsigned char const size() {return %![codeSizeInBytes string]%;};
 	virtual unsigned char const chunks() {return %![inst::codeLength string]%;};

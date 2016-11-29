@@ -236,7 +236,7 @@ list keyWordList style keywordsStyle error message "the '%K' keyword"{
 "slice","case","is","others",                            #format
 "signed","or",
 "syntax","switch","number","octal","decimal",            #syntax
-"hexadecimal","binary","suffix","prefix",          
+"hexadecimal","binary","suffix","prefix","function",          
 "jumpTaken","add","cycle","use",                         #cycles 
 "timing","signal","emit","wait","for",                   #timing        
 "broadcast","activation","forever","enabled","export",   #timing        
