@@ -66,7 +66,7 @@ format condBranchAndSupervisorCall
   select slice{11..8}
     case \m0--- or
          \m10-- or
-         \m110- is branch #branch #cond
+         \m110- is branch #branch
     case \m1110 is imm8 #udf
     case \m1111 is imm8 #svc
   end select  
@@ -76,12 +76,12 @@ format imm8 #imm8
   imm8 := slice{7..0}
 end format
 
-format branch
+format branch #cond #imm9
   cond := slice{11..8}
-  imm8 := slice{7..0}
+  imm9 := signed slice{7..0} << 1
 end format
 
-format lstm -- load/store multiple word
+format lstm #Rn -- load/store multiple word
   regList := slice{7..0}
   Rn := slice{10..8}
 end format
@@ -97,12 +97,27 @@ format misc16 -- A7.132
     case \m001010- is #XT #unsigned #reg16 reg2 --uxth
     case \m001011- is #XT #unsigned #reg8  reg2 --uxtb
     case \m010---- is push 
+    case \m0110010 is setEnd
+    case \m0110000 is setPan
     case \m101000- is #rev #reg32 reg2
     case \m101001- is #rev #reg16 #unsigned reg2
     case \m101011- is #rev #reg16 #signed reg2
+    case \m101010- is #hlt imm6 := slice{5..0}
     case \m110---- is pop
     case \m1110--- is #bkpt imm8 
     case \m1111--- is ifThenElseAndHint
+  end select
+end format
+
+format setEnd  -- set endianess
+  select slice{4,2..0}
+    case \b1_000 is #setEnd E := slice{3}
+  end select
+end format
+
+format setPan -- set priviledge access never
+  select slice{4,2..0}
+    case \b1_000 is #setPan imm1 := slice{3}
   end select
 end format
 
@@ -117,11 +132,13 @@ format ifThenElseAndHint
     case \m0010_0000 is #wfe
     case \m0011_0000 is #wfi
     case \m0100_0000 is #sev
+    case \m011-_0000 or
+         \m1---_0000 is #nop #hint cond := slice{7..4}
   end select
 end format
 
-format ifThen #ifThen
-  firstCond := slice{7..4}
+format ifThen #ifThen #cond
+  cond := slice{7..4}
   mask := slice{3..0}
 end format
 
@@ -146,9 +163,12 @@ end format
 
 format CPS
   select slice{3..0}
-    case \m0001 or \m001- is #CPS
+    -- bits 3..2 should be set to '0', but are always decoded in objdump
+		-- bits 1..0 should not be set as 0, but objdump decode it.
+    case \m0--- or \m0--- is #CPS
   end select
   Im := slice{4}
+  A  := slice{2} -- A not defined in ARMv8...
   I  := slice{1}
   F  := slice{0}
 end format
@@ -382,13 +402,36 @@ end syntax
 syntax specialAndBex
   select
     case #add     "add\t" reg2_4bits
-    case #mov     "mov\t" reg2_4bits
+    case #mov mov
     case #compare "cmp\t" reg2_4bits
     case #bex "b"
 		  select case #link "lx" case #noLink "x" end select
 		  select case #ns "ns" case #nons end select
       "\t"  Rm4
   end select
+end syntax
+
+-- mov is a special case, as mov r8,r8 is interpreted as a 'nop' in objdump.
+-- due to limitation of the 'if', we could not call other chunks.
+syntax mov #mov #Rm #Rd
+  field u4 Rd
+  field u4 Rm
+  if Rd = 8 & Rm = 8 then "nop"
+  else
+    --"mov\t" reg2_4bits
+    "mov\t"
+		if    Rd =15 then "pc" 
+		elseif Rd=14 then "lr"
+		elseif Rd=13 then "sp"
+		else   "r\d",Rd
+    end if
+    ", "
+		if    Rm =15 then "pc" 
+		elseif Rm=14 then "lr"
+		elseif Rm=13 then "sp"
+		else   "r\d",Rm
+    end if
+  end if
 end syntax
 
 syntax loadFromLiteralPool #load
@@ -442,22 +485,194 @@ syntax addTosp
   "sp, " imm9
 end syntax
 
+syntax endianess #setEnd
+  "setend\t"
+  field u1 E
+  if E then "be" else "le" end if
+end syntax
+
+syntax privAccess #setPan
+  field u1 imm1
+  "setpan\t#\d",imm1
+end syntax
+
+syntax hlt #hlt
+  field u6 imm6
+  "hlt\t0x00"
+  if imm6 < 16 then "0" end if
+  "\x",imm6
+end syntax
+
+syntax hint
+  select
+    case #nop    "nop"
+    case #yield  "yield" -- strange mnemo from objdump
+    case #wfe    "wfe"   -- strange mnemo from objdump
+    case #wfi    "wfi"   -- strange mnemo from objdump
+    case #sev    "sev"
+		case #nop #hint field u4 cond "nop\t{\d}",cond
+  end select
+end syntax
+
+syntax ifThen #ifThen
+  "it"
+  field u4 mask
+  field u4 cond
+  if mask{2..0} != 0 then
+    if mask{3} = cond{0} then "t" else "e" end if
+    if mask{1..0} != 0 then
+      if mask{2} =cond{0} then "t" else "e" end if
+      if mask{0} != 0 then
+        if mask{1} =cond{0} then "t" else "e" end if
+      end if
+    end if
+  end if
+  "\t"
+  condWithAl
+end syntax
+
+syntax bkpt #bkpt #imm8
+  field u8 imm8
+  "bkpt\t0x00"
+  if imm8 < 16 then "0" end if
+  "\x",imm8
+end syntax
+
+syntax rev #rev 
+  "rev"
+  select 
+    case #reg32 "\t"
+    case #reg16 #unsigned "16\t"
+    case #reg16 #signed   "sh\t"
+  end select
+  reg2
+end syntax
+
+syntax CPS #CPS --change processor state
+  "cps"
+  field u1 Im
+  field u1 A
+  field u1 I
+  field u1 F
+  if Im then "id" else "ie" end if
+  if A | I | F then "\t" end if
+  if A then "a" end if
+  if I then "i" end if
+  if F then "f" end if
+end syntax
+
+syntax pushPop 
+  select
+    case #push "push\t" reglistM
+    case #pop "pop\t" reglistP
+  end select
+end syntax
+
+syntax reglist
+  field u8 regList
+  "{"
+  -- this is particularly ugly because of the lack of expressions and loops...
+  if regList{0} then "r0" if regList{7..1} then ", " end if end if 
+  if regList{1} then "r1" if regList{7..2} then ", " end if end if 
+  if regList{2} then "r2" if regList{7..3} then ", " end if end if 
+  if regList{3} then "r3" if regList{7..4} then ", " end if end if 
+  if regList{4} then "r4" if regList{7..5} then ", " end if end if 
+  if regList{5} then "r5" if regList{7..6} then ", " end if end if 
+  if regList{6} then "r6" if regList{7..7} then ", " end if end if 
+  if regList{7} then "r7"                                   end if 
+  "}"
+end syntax
+
+syntax reglistP
+  field u1 P
+  field u8 regList
+  "{"
+  -- this is particularly ugly because of the lack of expressions and loops...
+  if regList{0} then "r0" if regList{7..1} cat P != 0 then ", " end if end if 
+  if regList{1} then "r1" if regList{7..2} cat P != 0 then ", " end if end if 
+  if regList{2} then "r2" if regList{7..3} cat P != 0 then ", " end if end if 
+  if regList{3} then "r3" if regList{7..4} cat P != 0 then ", " end if end if 
+  if regList{4} then "r4" if regList{7..5} cat P != 0 then ", " end if end if 
+  if regList{5} then "r5" if regList{7..6} cat P != 0 then ", " end if end if 
+  if regList{6} then "r6" if regList{7..7} cat P != 0 then ", " end if end if 
+  if regList{7} then "r7" if                   P != 0 then ", " end if end if 
+  if P          then "pc" end if 
+  "}"
+end syntax
+
+syntax reglistM
+  field u1 M
+  field u8 regList
+  "{"
+  -- this is particularly ugly because of the lack of expressions and loops...
+  if regList{0} then "r0" if regList{7..1} cat M != 0 then ", " end if end if 
+  if regList{1} then "r1" if regList{7..2} cat M != 0 then ", " end if end if 
+  if regList{2} then "r2" if regList{7..3} cat M != 0 then ", " end if end if 
+  if regList{3} then "r3" if regList{7..4} cat M != 0 then ", " end if end if 
+  if regList{4} then "r4" if regList{7..5} cat M != 0 then ", " end if end if 
+  if regList{5} then "r5" if regList{7..6} cat M != 0 then ", " end if end if 
+  if regList{6} then "r6" if regList{7..7} cat M != 0 then ", " end if end if 
+  if regList{7} then "r7" if                   M != 0 then ", " end if end if 
+  if M          then "lr" end if 
+  "}"
+end syntax
+
+syntax extend #XT
+  select
+    case #signed   "s"
+    case #unsigned "u"
+  end select
+  "xt"
+  select
+    case #reg8  "b\t"
+    case #reg16 "h\t"
+  end select
+  reg2
+end syntax
+
 syntax compareAndBranch
   select
     case #CBZ  "cbz\t"
     case #CBNZ "cbnz\t"
   end select
-  Rn ", " label 
+  Rn ", " label7
 end syntax
 
-syntax label 
-  #imm7 field u8 imm7 "\x",(instruction address) + imm7 + 4 
+syntax loadStoreMulti #multipleWord
+  select 
+    case #load  "ldmia\t" Rn 
+    field u3 Rn
+		field u8 regList
+		if regList{Rn} != 1 then "!" end if
+    ", "
+    case #store "stmia\t" Rn "!, "
+  end select
+  reglist
+end syntax
+
+syntax branch #branch #cond
+  "b" cond ".n\t" label9
+end syntax
+
+syntax udf #udf "udf\t" imm8 end syntax
+syntax svc #svc #imm8 field u8 imm8 "svc\t\d",imm8 end syntax
+
+syntax label9 #imm9 
+  field s9 imm9 
+  "\x",(s32)(instruction address) + imm9 + 4s 
+  -- show label information as in objdump
+  " <" function "+0x\x>",((s32)(instruction address) + imm9 + 4s - (s32)(function address))
+end syntax
+
+syntax label7 #imm7
+  field u7 imm7
+  "\x",(instruction address) + imm7 + 4 
   -- show label information as in objdump
   " <" function "+0x\x>",(instruction address+ imm7 + 4 -function address)
 end syntax
 
 syntax imm10     #imm10 field u10 imm10 "#\d",imm10 end syntax -- value used as an addres (x4)
-syntax imm9      #imm9  field u10 imm9  "#\d",imm9  end syntax -- value used as an addres (x4)
+syntax imm9      #imm9  field u9  imm9  "#\d",imm9  end syntax -- value used as an addres (x4)
 syntax imm8      #imm8  field u8  imm8  "#\d",imm8  end syntax
 syntax imm7      #imm7  field u7  imm7  "#\d",imm7  end syntax -- value used as an addres (x4)
 syntax imm6      #imm6  field u7  imm6  "#\d",imm6  end syntax -- value used as an addres (x2)
@@ -499,6 +714,13 @@ syntax reg3Rt        Rt  ", [" Rn ", " Rm        "]" end syntax
 syntax regImm5reg2Rt Rt  ", [" Rn ", " imm5      "]" end syntax 
 syntax regImm6reg2Rt Rt  ", [" Rn ", " imm6      "]" end syntax 
 syntax regImm7reg2Rt Rt  ", [" Rn ", " imm7      "]" end syntax 
+
+syntax condWithAl #cond -- version of cond that prints the 'al' condition.
+		field u4 cond
+		cond
+		if cond = 14 then "al" end if
+		if cond = 15 then "<und>" end if
+end syntax
 
 syntax cond #cond
   field u4 cond

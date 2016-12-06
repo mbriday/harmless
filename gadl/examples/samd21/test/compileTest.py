@@ -1,0 +1,208 @@
+#! /usr/bin/env python
+# -*- coding: UTF-8 -*-
+
+import sys, os
+import subprocess
+import argparse
+
+def getSourceFile(args, generatedSrcFileName, filesToClean):
+    if args.file: #there is a sourceFile
+        return args.file,filesToClean
+    else: #no source file. Generate it
+        src = generatedSrcFileName+".s"
+        if args.verbose:
+            print("Generate the source file "+src+
+                    " with opcodes from "+str(args.fromRange)+" to "+str(args.toRange)+".")
+        s =  ".text\n"
+        s += ".syntax unified\n"
+        s += ".global _start\n"
+        s += "_start:\n"
+        for i in range(args.fromRange, args.toRange) :
+            s += "\t.hword " + hex (i) + "\n"
+        f = open (src, "w")
+        f.write (s)
+        f.close ()
+        filesToClean.append(src)
+        return src,filesToClean
+        
+
+def compile(args,sourceFile,filesToClean):
+    #asm
+    if args.verbose:
+        print("compile file "+sourceFile)
+    objFile = sourceFile+".o"
+    returnCode = subprocess.call(["arm-none-eabi-as", "-mthumb", "-mcpu=cortex-m4", sourceFile, "-o", objFile])
+    if returnCode != 0:
+        print("*** Assembling, error " + str(returnCode) + " ***\n")
+        sys.exit(returnCode)
+    filesToClean.append(objFile)
+    #link
+    exeFile = sourceFile+".elf"
+    if args.verbose:
+        print("link file to "+exeFile)
+    returnCode = subprocess.call(["arm-none-eabi-ld", objFile, "-o", exeFile])
+    if returnCode != 0:
+        print("*** Linking, error " + str(returnCode) + " ***\n")
+        sys.exit(returnCode)
+    filesToClean.append(exeFile)
+    return exeFile,filesToClean
+
+def objdump(args,exeFile,filesToClean):
+    #objdump
+    objdumpFile = exeFile+".objdump"
+    f = open (objdumpFile, 'w')
+    if args.verbose:
+        print("generate objdump dump file to "+objdumpFile)    
+    returnCode = subprocess.call(["arm-none-eabi-objdump", "-Mforce-thumb", "-Mreg-names-std", "-D", exeFile], stdout = f)
+    f.close()
+    filesToClean.append(objdumpFile)
+    if returnCode != 0:
+        print("*** Objdump, error " + str(returnCode) + " ***\n")
+        sys.exit(returnCode)
+    return objdumpFile,filesToClean
+
+def harmless(args,exeFile,filesToClean):
+    sys.path.append("../samd21")
+    harmlessFile = exeFile+".harmless"
+    try:
+        import samd21
+    except ImportError:
+        print("simulator lib not generated")
+        print("first run gadl:")
+        print("$gadl ./samd21.cpu")
+        print("Then go to the new samd21/ dir and build the python lib")
+        print("$cd samd21")
+        print("$make python")
+        sys.exit()
+    sam = samd21.cpu()
+    core = sam.getCore(0)
+    core.readCodeFile(exeFile)
+    f = open (harmlessFile, "w")
+    if args.verbose:
+        print("generate harmless dump file to "+harmlessFile)    
+    for i in range(args.toRange-args.fromRange):
+        f.write(core.disassemble(core.programCounter()+i*2,2,True)+'\n');
+    f.close()
+    filesToClean.append(harmlessFile)
+    return harmlessFile,filesToClean
+
+def clean(args,filesToClean):
+    if args.clean:
+        if args.verbose:
+            print "remove temporary files :",
+        for f in filesToClean:
+            if args.verbose:
+                print f,
+            os.remove(f)
+
+def isException(dataO, dataH):
+    exception = False;
+    if dataO[1] == "" and dataH[1][0:5] == "Stall": #no mnemonic for that code.
+        exception = True
+    if dataO[0][0] == "b" and dataO[0][1] == 'f' and dataO[0][3] == '0':
+        #arm 16 bits hints instructions => bf-0
+        exception = True
+    if dataO[0][0:3] == "c00":
+        #'stmia<und>	r0!, {}' for c00- => objdump adds the <und>, instruction is undefined.
+        exception = True
+    return exception
+
+import re
+def compare(args, objdumpFile, harmlessFile):
+    #1 - read harmless dump
+    dictHarmless = {}
+    dictObjdump = {}
+    h = open (harmlessFile, "r")
+    p=re.compile('.*0x([0-9a-fA-F]+)\s+:([0-9a-fA-F]+) : (.*)$')
+    for line in h:
+        m=p.match(line)
+        address = m.groups()[0]
+        opcode  = m.groups()[1]
+        mnemo   = m.groups()[2]
+        dictHarmless[address] = (opcode,mnemo)
+    h.close()
+    #2 - read objdump dump
+    h = open (objdumpFile, "r")
+    #example: 0 => address, 2041 => opcode,  movs… => mnemo, ';' => comment.
+    #0:	2041      	movs	r0, #65	; 0x41
+    p=re.compile('\s*([0-9a-fA-F]+):\s*([0-9a-fA-F]+)\s+([^;\n]*).*$')
+    for line in h:
+        m=p.match(line)
+        if m:
+            address = m.groups()[0]
+            opcode  = m.groups()[1]
+            mnemo   = m.groups()[2].strip()
+            dictObjdump[address] = (opcode,mnemo)
+    h.close()
+    #3 - compare+results
+    miss = 0
+    exceptions = 0
+    total = 0
+    for address,dataH in dictHarmless.iteritems():
+        if address in dictObjdump:
+            total = total+1
+            #ok, address are matching.
+            dataO = dictObjdump[address]
+            if dataO[0] != dataH[0]: #opcode mismatch
+                print("error at address "+address+". Opcode does not match:\n")
+                print("\tHarmless opcode: "+dataH[0])
+                print("\tobjdump  opcode: "+dataO[0])
+            #compare mnemonics
+            if dataO[1] != dataH[1]:
+                if isException(dataO,dataH): #Is this a special case?
+                    exceptions = exceptions+1
+                else: #comparison failed and it's not an exception
+                    if miss < 100:
+                        print("h:'"+dataH[1]+"'\to:'"+dataO[1]+"' => opcode "+dataH[0])
+                    miss = miss+1
+    if miss >= 100:
+        print("Only the first 100 errors are displayed.")
+    if miss == 0:
+        print("Great! No error out of "+str(total)+" comparisons.")
+        print("       "+str(exceptions)+" exceptions used ("+str(float(1000*exceptions/total)/10)+"%).")
+    else:
+        print("results: "+str(miss)+" comparisons failed, out of "+str(total)+": success = "+str((float(1000*(total-miss)/total))/10)+"%.")
+
+if __name__ == '__main__':
+    #arguments
+    parser = argparse.ArgumentParser(description='Check Harmless disassembler against the objdump output (Cortex 16 bits ASM)')
+    parser.add_argument("-v", "--verbose",    
+            help="be verbose…",
+            action="store_true", default=False)
+    parser.add_argument("-n", '--noHarmless', 
+            help='do not run the harmless disassembler (objdump only)',
+            action="store_true", default=False)
+    parser.add_argument("-f", "--file",
+            help="use asm FILE for comparison. Il no file is defined, generate a file with all the opcodes in a range "+
+            "(with --fromRange and --toRange parameters)")
+    parser.add_argument("-fr", "--fromRange",
+            help="compare Harmless with objdump with opcodes range starting from FROMRANGE. Default 0",
+            type=int, default=0)
+    parser.add_argument("-tr", "--toRange", 
+            help="compare Harmless with objdump with opcodes range starting from TORANGE. Default to 0xdfff",
+            type=int, default=0xdfff)
+    parser.add_argument("-c", "--clean",    
+            help="remove intermediate files", 
+            action="store_true",default=False)
+    args = parser.parse_args()
+    #print(args)#to arguments to get back.
+
+    #1- get the file to compare with.
+    filesToClean = []
+    sourceFile,filesToClean = getSourceFile(args, "__asmFile", filesToClean) #source file without the extension
+    
+    #2- compile it.
+    exeFile,filesToClean = compile(args,sourceFile,filesToClean)
+
+    #3- objdump generation
+    objdumpFile,filesToClean = objdump(args,exeFile,filesToClean)
+    
+    if not args.noHarmless:
+        #4- harmless generation
+        harmlessFile,filesToClean = harmless(args,exeFile,filesToClean)
+
+        #5- compare
+        compare(args, objdumpFile, harmlessFile)
+    #clean
+    clean(args,filesToClean)
+    
