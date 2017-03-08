@@ -437,11 +437,12 @@ std::string %!core::NAME%_core::disassemble(const unsigned int pcStart, const in
 			const int max = inst->size() / %!core::INST_SIZE_IN_BYTES%;
 			for(int i = 0; i < max; i++)
 			{
-				unsigned int realAddr = getFetchAddress(pcOld+i);
+				unsigned int realAddr = getFetchAddress(pcOld+%!core::INST_SIZE_IN_BYTES%*i);
 				storage *sto=getProgramChunk(realAddr);
 				result << hex << setfill('0') << setw(%!core::INST_SIZE_IN_BYTES% << 1) 
-                       << (int)(sto->get%!core::INST_SIZE_IN_BITS%AtAddr(realAddr)) << " : ";
+                       << (int)(sto->get%!core::INST_SIZE_IN_BITS%AtAddr(realAddr));
 			}
+			result << " : ";
 		}
 		result << inst->mnemo(this);
 		inst->release();
