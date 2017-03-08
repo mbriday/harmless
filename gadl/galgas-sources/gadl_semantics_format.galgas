@@ -756,7 +756,10 @@ func getFormatAssignString
       #put the 'or' between fields
       if not start then code += "|" end
       #get the offset.
-      @sint signedOffset = [globalOffset sint] + fetchPart
+      #message "slice size "+[[sliceList length] string]+"\n"
+      #message "globalOffset "+[[globalOffset sint] string]+"\n"
+      #message "fetchPart "+[fetchPart string]+"\n"
+      @sint signedOffset = [globalOffset sint] + fetchPart + (1s - [[sliceList length] sint])
       @uint offset = [signedOffset uint] + 1 #must be > 0. chunk idx start at 1.
       #name of idf is prefix concatened with the offset (starting at 1)
       #@varBaseType varType := [@varType new ![@varKind unsigned] !fieldSize !here];
@@ -802,6 +805,7 @@ proc constructAssign
     elsif [type kind] == @varKind. float then
       error @location.here: "internal error: not yet imlplemented: format constructor"
     end
+    #message "name : " + nameWithSuffix+ "("+[[[name location] line ]string]+")\n"
     instCode += getFormatAssignString(!sliceList !globalOffset)
     #@cSliceFieldOp sliceOp := [@cSliceFieldOp new !getTypeListFrom[!type] !"chunk" !sliceList !globalOffset];
     #instCode .= [sliceOp generateCode !"" !"" ![@codeCtx C]];

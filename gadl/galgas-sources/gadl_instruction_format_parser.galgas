@@ -138,6 +138,7 @@ rule <formatBody>
     @lstring idf
     $idf$ ?idf indexing formatCall
     select
+      #message [idf string]+" => "+[nbSlicesBeforeAPlus string]+"\n"
       <assignFormat> !defaultInstructionSize !nbSlicesBeforeAPlus !idf !?assignList
     or
       @idfOrRefFormatIsIdf idfFormat
@@ -341,6 +342,10 @@ rule <assignFormat>
     typeLength = typeLength + [typeSlice size]
     nbSlicesInAssign = nbSlicesInAssign + 1
     slice += !fieldList !([nbSlicesInAssign sint] - [sliceOffset sint])
+    #message "********************\n"
+    #message [[@location.here line] string]+"\n"
+    #message "nbSlicesInAssign "+[[nbSlicesInAssign sint] string]+"\n"
+    #message "sliceOffset "+[[sliceOffset sint] string]+"\n"
   while
   end
   select
