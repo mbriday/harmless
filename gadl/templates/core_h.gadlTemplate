@@ -203,11 +203,11 @@ public:
 		virtual void printRegs();
 		/** Disassemble binary code.
 		* \param ipStart Instruction Pointer from which the disassemble is started
-		* \param nbBytes Number of bytes to disassemble: Value may be exceeded: 
+		* \param nbInst Number of instructions to disassemble: Value may be exceeded: 
 		* i.e. if set to 1 to decode a 32 bits instruction, 1 instruction will be decoded.
 		* \param verbose return also the address where the code is decoded and the opcode of the instruction.
 		*/ 
-		virtual std::string disassemble(const unsigned int pcStart, const int nbBytes, bool verbose = false);
+		virtual std::string disassemble(const unsigned int pcStart, const int nbInst, bool verbose = false);
 
 		
 		/*******************************************************************

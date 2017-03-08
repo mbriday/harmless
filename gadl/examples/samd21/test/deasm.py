@@ -13,6 +13,5 @@ sam=uc.getCore(0)
 sam.readCodeFile(sys.argv[1])
 #sam.setProgramCounter(0x0)
 
-for i in range(int(sys.argv[2])/2):
-    print sam.disassemble(i*2, 2, False)
+print sam.disassemble(i*2, int(sys.argv[2]), True)
 

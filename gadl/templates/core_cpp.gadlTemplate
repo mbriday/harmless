@@ -419,13 +419,15 @@ int %!core::NAME%_core::emuInst(const unsigned int nb)
 	return m_stopSimu;
 }
 
-std::string %!core::NAME%_core::disassemble(const unsigned int pcStart, const int nbBytes, bool verbose)
+std::string %!core::NAME%_core::disassemble(const unsigned int pcStart, const int nbInst, bool verbose)
 {
 	stringstream result;
 	%!core::PC_C_TYPE% tempPC = (%!core::PC_C_TYPE%)pcStart;
-	const %!core::PC_C_TYPE% pcEnd = tempPC + (%!core::PC_C_TYPE%)nbBytes;
-	while(tempPC < pcEnd)
+	bool first = true;
+	for(int i = 0; i < nbInst; i++)
 	{
+		if(!first) {result << "\\n";}
+		first = false;
 		const %!core::PC_C_TYPE% pcOld = tempPC;
 		if(verbose) {
 			result << std::hex << "0x" << tempPC << " :";
