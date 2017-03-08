@@ -18,7 +18,13 @@ def getSourceFile(args, generatedSrcFileName, filesToClean):
         s += ".global _start\n"
         s += "_start:\n"
         for i in range(args.fromRange, args.toRange) :
-            s += "\t.hword " + hex (i) + "\n"
+            if i > 0xffff:
+                val = (i>>16) | ((i & 0xffff) << 16) #hword order.
+                #s += "\t.hword " + hex (i>>16) + "\n"
+                #s += "\t.hword " + hex (i & 0xffff) + "\n"
+                s += "\t.word " + hex (val) + "\n"
+            else:
+                s += "\t.hword " + hex (i) + "\n"
         f = open (src, "w")
         f.write (s)
         f.close ()
@@ -80,8 +86,8 @@ def harmless(args,exeFile,filesToClean):
     f = open (harmlessFile, "w")
     if args.verbose:
         print("generate harmless dump file to "+harmlessFile)    
-    for i in range(args.toRange-args.fromRange):
-        f.write(core.disassemble(core.programCounter()+i*2,2,True)+'\n');
+    rangeD = args.toRange-args.fromRange
+    f.write(core.disassemble(core.programCounter(),rangeD,True)+'\n');
     f.close()
     filesToClean.append(harmlessFile)
     return harmlessFile,filesToClean
@@ -117,7 +123,7 @@ def compare(args, objdumpFile, harmlessFile):
     for line in h:
         m=p.match(line)
         address = m.groups()[0]
-        opcode  = m.groups()[1]
+        opcode  = m.groups()[1].strip()
         mnemo   = m.groups()[2]
         dictHarmless[address] = (opcode,mnemo)
     h.close()
@@ -130,7 +136,7 @@ def compare(args, objdumpFile, harmlessFile):
         m=p.match(line)
         if m:
             address = m.groups()[0]
-            opcode  = m.groups()[1]
+            opcode  = m.groups()[1].strip()
             mnemo   = m.groups()[2].strip()
             dictObjdump[address] = (opcode,mnemo)
     h.close()
@@ -143,10 +149,12 @@ def compare(args, objdumpFile, harmlessFile):
             total = total+1
             #ok, address are matching.
             dataO = dictObjdump[address]
-            if dataO[0] != dataH[0]: #opcode mismatch
+            if dataO[0][0:3] != dataH[0][0:3]: #opcode mismatch
+                #maybe interpreted as 16 bits in one disassembler, and 32 bits in other…
+                print('data0 '+dataO[1])
                 print("error at address "+address+". Opcode does not match:\n")
-                print("\tHarmless opcode: "+dataH[0])
-                print("\tobjdump  opcode: "+dataO[0])
+                print("\tHarmless opcode: '"+dataH[0]+"'")
+                print("\tobjdump  opcode: '"+dataO[0]+"'")
             #compare mnemonics
             if dataO[1] != dataH[1]:
                 if isException(dataO,dataH): #Is this a special case?
@@ -158,10 +166,15 @@ def compare(args, objdumpFile, harmlessFile):
     if miss >= 100:
         print("Only the first 100 errors are displayed.")
     if miss == 0:
-        print("Great! No error out of "+str(total)+" comparisons.")
-        print("       "+str(exceptions)+" exceptions used ("+str(float(1000*exceptions/total)/10)+"%).")
+        if args.verbose:
+            print("Great! No error out of "+str(total)+" comparisons.")
+            print("       "+str(exceptions)+" exceptions used ("+str(float(1000*exceptions/total)/10)+"%).")
     else:
         print("results: "+str(miss)+" comparisons failed, out of "+str(total)+": success = "+str((float(1000*(total-miss)/total))/10)+"%.")
+    return miss
+
+def auto_int(x):    #used for argument parsing, it detects the base. It allows to use hexadecimal arguments.
+    return int(x, 0)
 
 if __name__ == '__main__':
     #arguments
@@ -177,10 +190,10 @@ if __name__ == '__main__':
             "(with --fromRange and --toRange parameters)")
     parser.add_argument("-fr", "--fromRange",
             help="compare Harmless with objdump with opcodes range starting from FROMRANGE. Default 0",
-            type=int, default=0)
+            type=auto_int, default=0)
     parser.add_argument("-tr", "--toRange", 
             help="compare Harmless with objdump with opcodes range starting from TORANGE. Default to 0xdfff",
-            type=int, default=0xdfff)
+            type=auto_int, default=0xdfff)
     parser.add_argument("-c", "--clean",    
             help="remove intermediate files", 
             action="store_true",default=False)
@@ -197,12 +210,15 @@ if __name__ == '__main__':
     #3- objdump generation
     objdumpFile,filesToClean = objdump(args,exeFile,filesToClean)
     
+    miss = 0
     if not args.noHarmless:
         #4- harmless generation
         harmlessFile,filesToClean = harmless(args,exeFile,filesToClean)
 
         #5- compare
-        compare(args, objdumpFile, harmlessFile)
+        miss = compare(args, objdumpFile, harmlessFile)
     #clean
     clean(args,filesToClean)
+    if miss:
+        sys.exit(1)
     

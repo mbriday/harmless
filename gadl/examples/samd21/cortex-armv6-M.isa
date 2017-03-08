@@ -389,37 +389,48 @@ end format
 --## Syntax 32 bits description
 --##==================================================
 
-syntax Rn4       #Rn    field u4  Rn    "r\d",Rn    end syntax
 syntax regList
   "{"
   field u16 regList;
   -- this is particularly ugly because of the lack of expressions and loops...
-  if regList{00} then "r0" if regList{15..01} != 0 then ", " end if end if 
-  if regList{01} then "r1" if regList{15..02} != 0 then ", " end if end if 
-  if regList{02} then "r2" if regList{15..03} != 0 then ", " end if end if 
-  if regList{03} then "r3" if regList{15..04} != 0 then ", " end if end if 
-  if regList{04} then "r4" if regList{15..05} != 0 then ", " end if end if 
-  if regList{05} then "r5" if regList{15..06} != 0 then ", " end if end if 
-  if regList{06} then "r6" if regList{15..07} != 0 then ", " end if end if 
-  if regList{07} then "r7" if regList{15..08} != 0 then ", " end if end if 
-  if regList{08} then "r8" if regList{15..09} != 0 then ", " end if end if 
-  if regList{09} then "r9" if regList{15..10} != 0 then ", " end if end if 
-  if regList{10} then "sl" if regList{15..11} != 0 then ", " end if end if 
-  if regList{11} then "fp" if regList{15..12} != 0 then ", " end if end if 
-  if regList{12} then "ip" if regList{15..13} != 0 then ", " end if end if 
-  if regList{13} then "sp" if regList{15..14} != 0 then ", " end if end if 
-  if regList{14} then "lr" if regList{15..15} != 0 then ", " end if end if 
-  if regList{15} then "pc" end if
+  if regList{00} then "r0"  if regList{15..01} != 0 then ", " end if end if 
+  if regList{01} then "r1"  if regList{15..02} != 0 then ", " end if end if 
+  if regList{02} then "r2"  if regList{15..03} != 0 then ", " end if end if 
+  if regList{03} then "r3"  if regList{15..04} != 0 then ", " end if end if 
+  if regList{04} then "r4"  if regList{15..05} != 0 then ", " end if end if 
+  if regList{05} then "r5"  if regList{15..06} != 0 then ", " end if end if 
+  if regList{06} then "r6"  if regList{15..07} != 0 then ", " end if end if 
+  if regList{07} then "r7"  if regList{15..08} != 0 then ", " end if end if 
+  if regList{08} then "r8"  if regList{15..09} != 0 then ", " end if end if 
+  if regList{09} then "r9"  if regList{15..10} != 0 then ", " end if end if 
+  if regList{10} then "r10" if regList{15..11} != 0 then ", " end if end if 
+  if regList{11} then "r11" if regList{15..12} != 0 then ", " end if end if 
+  if regList{12} then "r12" if regList{15..13} != 0 then ", " end if end if 
+  if regList{13} then "sp"  if regList{15..14} != 0 then ", " end if end if 
+  if regList{14} then "lr"  if regList{15..15} != 0 then ", " end if end if 
+  if regList{15} then "pc"  end if
   "}"
 end syntax
 
+syntax wback field u1 W if W then "!" end if end syntax -- Write back
+
 syntax loadStoreMultiple #multiple
   field u1 W
-  "stm"
   select
-    case #store #emptyAscending #incrementAfter
-      "ia.w\t" Rn4 ", " regList
+  case #store "stm"
+  case #load "ldm"
   end select
+  select
+    case #incrementAfter
+      "ia.w\t" 
+    case #decrementBefore
+      "db\t"
+  end select
+  select -- depends on load/store.
+    case #emptyAscending
+    case #fullDescending
+  end select
+  Rn4 wback ", " regList
 end syntax
 
 --##==================================================
@@ -761,6 +772,15 @@ syntax Rm4  #Rm
 		elseif Rm=14 then "lr"
 		elseif Rm=13 then "sp"
 		else   "r\d",Rm
+    end if
+end syntax
+
+syntax Rn4  #Rn 
+		field u4 Rn 
+		if    Rn =15 then "pc" 
+		elseif Rn=14 then "lr"
+		elseif Rn=13 then "sp"
+		else   "r\d",Rn
     end if
 end syntax
 
