@@ -42,6 +42,31 @@ component fetcher {
 --behavior nopInstruction #moveImmediate -- Page A6-154
 --end behavior
 
+-- behavior ADC #ADC
+--   field u4 Rn
+--   field u4 Rd
+--   field u12 imm12 -- concatened from decode stage
+--   u32 regN
+--   u32 regD
+--   do
+--     regN := reg.read32(Rn)
+--     -- Rn and Rd should not be SP(13) or PC(15)
+--     -- This should be checked in decode stage...
+--     if Rn = 13 || Rn = 15 || 
+--        Rd = 13 || Rd = 15 then
+--       error "ADC should not use SP nor PC"
+--     end if
+--     u33 result;
+-- 		result := regN+imm12+APSR.C
+--     reg.write32(Rd,result{31..0})
+--   end do
+--   select
+--     case #WithUpdateFlags
+--       APSR.N = result
+--     case #WithNoUpdateFlags
+--   end select
+-- end behavior 
+
 --##==================================================
 --## Format description
 --##==================================================
@@ -336,20 +361,66 @@ format imm10reg1Rt #imm10 #Rt
   Rt := slice{10..8}
 end format
 
---- Fomat 32 bits
--- format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
---   select slice{15..4}+{15}
---     case \m111_01_00--0--_- is loadStoreMultiple
---   end select
--- end format
--- 
--- format loadStoreMultiple #multiple
---   select slice{8..7,4}{-}
---     case \m01_0 is #store #emptyAscending
---     case \m01_1 is #load  #fullDescending
---   end select
--- end format
+--##==================================================
+--- Format 32 bits
+--##==================================================
+format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
+  select slice{15..13}
+    case \m111 is -- all 32 bits instructions start with '111'
+		  select slice{12..4}+{15} -- select op1/op2/op
+        case \m01_00--0--_- is loadStoreMultiple
+      end select
+  end select
+end format
 
+format loadStoreMultiple #multiple
+  Rn := slice{3..0}{-} #Rn
+  regList := slice{-}{15..0}
+  W := slice{5}{-}
+  select slice{8..7,4}{-}
+    case \m01_0 is #store #emptyAscending #incrementAfter
+    case \m01_1 is #load  #fullDescending #incrementAfter
+    case \m10_0 is #store #fullDescending #decrementBefore
+    case \m10_1 is #load  #emptyAscending #decrementBefore
+  end select
+end format
+
+--##==================================================
+--## Syntax 32 bits description
+--##==================================================
+
+syntax Rn4       #Rn    field u4  Rn    "r\d",Rn    end syntax
+syntax regList
+  "{"
+  field u16 regList;
+  -- this is particularly ugly because of the lack of expressions and loops...
+  if regList{00} then "r0" if regList{15..01} != 0 then ", " end if end if 
+  if regList{01} then "r1" if regList{15..02} != 0 then ", " end if end if 
+  if regList{02} then "r2" if regList{15..03} != 0 then ", " end if end if 
+  if regList{03} then "r3" if regList{15..04} != 0 then ", " end if end if 
+  if regList{04} then "r4" if regList{15..05} != 0 then ", " end if end if 
+  if regList{05} then "r5" if regList{15..06} != 0 then ", " end if end if 
+  if regList{06} then "r6" if regList{15..07} != 0 then ", " end if end if 
+  if regList{07} then "r7" if regList{15..08} != 0 then ", " end if end if 
+  if regList{08} then "r8" if regList{15..09} != 0 then ", " end if end if 
+  if regList{09} then "r9" if regList{15..10} != 0 then ", " end if end if 
+  if regList{10} then "sl" if regList{15..11} != 0 then ", " end if end if 
+  if regList{11} then "fp" if regList{15..12} != 0 then ", " end if end if 
+  if regList{12} then "ip" if regList{15..13} != 0 then ", " end if end if 
+  if regList{13} then "sp" if regList{15..14} != 0 then ", " end if end if 
+  if regList{14} then "lr" if regList{15..15} != 0 then ", " end if end if 
+  if regList{15} then "pc" end if
+  "}"
+end syntax
+
+syntax loadStoreMultiple #multiple
+  field u1 W
+  "stm"
+  select
+    case #store #emptyAscending #incrementAfter
+      "ia.w\t" Rn4 ", " regList
+  end select
+end syntax
 
 --##==================================================
 --## Syntax description

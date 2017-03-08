@@ -113,7 +113,7 @@ def compare(args, objdumpFile, harmlessFile):
     dictHarmless = {}
     dictObjdump = {}
     h = open (harmlessFile, "r")
-    p=re.compile('.*0x([0-9a-fA-F]+)\s+:([0-9a-fA-F]+) : (.*)$')
+    p=re.compile('.*0x([0-9a-fA-F]+)\s+:([0-9a-fA-F\ ]+) : (.*)$')
     for line in h:
         m=p.match(line)
         address = m.groups()[0]
@@ -125,7 +125,7 @@ def compare(args, objdumpFile, harmlessFile):
     h = open (objdumpFile, "r")
     #example: 0 => address, 2041 => opcode,  movs… => mnemo, ';' => comment.
     #0:	2041      	movs	r0, #65	; 0x41
-    p=re.compile('\s*([0-9a-fA-F]+):\s*([0-9a-fA-F]+)\s+([^;\n]*).*$')
+    p=re.compile('\s*([0-9a-fA-F]+):\s*([0-9a-fA-F\ ]+)\s+([^;\n]*).*$')
     for line in h:
         m=p.match(line)
         if m:
