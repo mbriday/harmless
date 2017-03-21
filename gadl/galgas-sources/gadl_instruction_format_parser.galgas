@@ -317,7 +317,7 @@ rule <altFormatIs>
 
 rule <assignFormat> 
   ?let  @luint defaultInstructionSize
-  ?let  @uint sliceOffset 
+  ?let  @uint unused sliceOffset 
   ?let  @lstring idf
   ?! @assignSliceList assignList {
   @location loc = @location.here
@@ -341,7 +341,7 @@ rule <assignFormat>
     <formatBitField> ?fieldList !?typeSlice #type updated.(no size verification ....)
     typeLength = typeLength + [typeSlice size]
     nbSlicesInAssign = nbSlicesInAssign + 1
-    slice += !fieldList !([nbSlicesInAssign sint] - [sliceOffset sint])
+    slice += !fieldList !([nbSlicesInAssign sint] - 1)#[sliceOffset sint])
     #message "********************\n"
     #message [[@location.here line] string]+"\n"
     #message "nbSlicesInAssign "+[[nbSlicesInAssign sint] string]+"\n"
