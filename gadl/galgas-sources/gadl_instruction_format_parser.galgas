@@ -268,9 +268,21 @@ rule <altFormatIs>
         error @location.here : "Only one 'others' keyword allowed in a format!"
       end
       @binaryset tempSet = ~maskCodingUsed
+      #for (@string str) in  [tempSet compressedStringValueList !sliceSize]
+      #before message "others: "
+      #do message str;
+      #between message " | ";
+      #after message "\n"
+      #end
       @binaryset tempIsFormat
       getRelativeBinarySet ( !tempSet !sliceSize !defaultInstructionSize !sliceList !nbSlicesBeforeAPlus ?tempIsFormat)
       isFormat = isFormat | tempIsFormat
+      #for (@string str) in  [tempIsFormat compressedStringValueList !32]
+      #before message "tempIsFormat: "
+      #do message str;
+      #between message " | ";
+      #after message "\n"
+      #end
       othersKeyword = true
   or
     $case$
@@ -279,7 +291,7 @@ rule <altFormatIs>
         @luint64 nb
         $unumber$ ?nb
 #        @uint64 tempNb     := [[nb uint] uint64];
-        @binaryset tempSet = @binaryset. binarySetWithEqualToConstant { !0 !sliceSize ![nb uint64]}
+        @binaryset tempSet = @binaryset.binarySetWithEqualToConstant { !0 !sliceSize ![nb uint64]}
         @binaryset tempIsFormat
         getRelativeBinarySet ( !tempSet !sliceSize !defaultInstructionSize !sliceList !nbSlicesBeforeAPlus ?tempIsFormat)
         isFormat = isFormat | tempIsFormat
@@ -295,11 +307,32 @@ rule <altFormatIs>
         @lstring mask
         $binaryMask$ ?mask
         @string tempMask   = [[mask string] stringByReplacingStringByString !"-" !"X"]
-        @binaryset tempSet = @binaryset. binarySetWithPredicateString { !tempMask}
+        @binaryset tempSet = @binaryset.binarySetWithPredicateString { !tempMask}
         @binaryset tempIsFormat
         getRelativeBinarySet ( !tempSet !sliceSize !defaultInstructionSize !sliceList !nbSlicesBeforeAPlus ?tempIsFormat)
         isFormat = isFormat | tempIsFormat
         maskCodingUsed     = maskCodingUsed | tempSet
+        #message "*****\n"
+        #message [[[mask location] line] string]+"\n"
+        #for (@string str) in  [tempSet compressedStringValueList !sliceSize]
+        #before message "tempSet: "
+        #do message str;
+        #between message " | ";
+        #after message "\n"
+        #end
+        #for (@string str) in  [tempIsFormat compressedStringValueList !32]
+        #before message "tempIsFormat: "
+        #do message str;
+        #between message " | ";
+        #after message "\n"
+        #end
+        #for (@string str) in  [isFormat compressedStringValueList !32]
+        #before message "isFormat: "
+        #do message str;
+        #between message " | ";
+        #after message "\n"
+        #end
+        
         if sliceSize != [[mask string] length] then
           error @location.here: "mask size ("+[[[mask string] length] string]+") has not the size of the slice"+
                       " considered : "+[sliceSize string]
