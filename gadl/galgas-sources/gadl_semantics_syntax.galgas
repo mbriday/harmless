@@ -166,7 +166,7 @@ override method @functionChunk printImplementation
   ?let  @bool unused switchGenerate {
 
   code += tabs(!indentation)
-  code += "index += sprintf (result + index,\"%s\",_core->whichFunctionAtAddress(getInstructionPointer()).c_str());\n";
+  code += "__index += sprintf (result + __index,\"%s\",_core->whichFunctionAtAddress(getInstructionPointer()).c_str());\n";
 }
 
 class @printChunk : @syntaxChunk {
@@ -184,7 +184,7 @@ override method @printChunk printImplementation
   @string file1 = ""
   @string file2 = ""
   print ( !fieldMapWithoutSuffix !printInst !typeMap !currentSuffixStr !switchGenerate !?file1 !?file2)
-  code += "index += sprintf (result + index,\"" + file1 + "\"" + file2 + ");\n" 
+  code += "__index += sprintf (result + __index,\"" + file1 + "\"" + file2 + ");\n" 
 }
 
 list @ifElsifList {
@@ -583,7 +583,7 @@ proc instructionSyntax
       @printInst printInst = [printChunk printInst]
       print ( !fieldMapWithoutSuffix !printInst !typeMap !currentSuffixStr !switchGenerate !?file1 !?file2)
       if switchGenerate then
-        codeC += "\tindex += sprintf (result + index,\"" + file1 + "\"" + file2 + ");\n"
+        codeC += "\t__index += sprintf (result + __index,\"" + file1 + "\"" + file2 + ");\n"
       end
     case == @ifChunk ifChunk :
       [ifChunk printImplementation !fieldMapWithoutSuffix !nbTabulation !currentSuffixStr !?codeC !typeMap !switchGenerate] 
@@ -807,12 +807,12 @@ proc generateSyntaxImplementationFiles
       addStringValue ( !?instMnemoTplBody !lstringWith(!"name") !instName)
       [!?instNameMap insertKey !@lstring. new { !functionName !@location.here}]
       @string codeC = "\tchar *result = new char[128];\n"
-      codeC += "\tint index = 0;\n"
+      codeC += "\tint __index = 0;\n"
       @string file1 = ""
       @string file2 = ""
       instructionSyntax ( !syntaxMap !chunkList !typeMap !true !?file1 !?file2 !?codeC)
       codeC += "\t#ifdef DEBUG_MNEMO\n"
-      codeC += "\t\tindex += sprintf (result + index, \" ("+functionName+")\");\n"
+      codeC += "\t\t__index += sprintf (result + __index, \" ("+functionName+")\");\n"
       codeC += "\t#endif\n"
       codeC += "\treturn result;\n"
       addStringValue ( !?instMnemoTplBody !lstringWith(!"mnemo") !codeC)
