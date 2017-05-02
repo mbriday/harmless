@@ -2,17 +2,27 @@
 # -*- coding: UTF-8 -*-
 
 from __future__ import print_function
+from multiprocessing import Pool, cpu_count
 import sys, os
 import subprocess
 import argparse
 
+#rpocesses run in parallel
+def runProcess(params):
+    addrFrom = params[0]
+    addrTo = params[1]
+    num = params[2]
+    returnCode = subprocess.call(["./compileTest.py", "-fr", str(addrFrom) , "-tr", str(addrTo), "-b", "build"+str(num), "-c"])
+    return returnCode
 
 def auto_int(x):    #used for argument parsing, it detects the base. It allows to use hexadecimal arguments.
     return int(x, 0)
 
 if __name__ == '__main__':
+    #chunk size:
+    chunkSize = 128*1024    #128K instructions (~1s on my computer!)
     #arguments
-    parser = argparse.ArgumentParser(description='Call many times the checker of Harmless disassembler against the objdump output. Cut address ranges into small parts.')
+    parser = argparse.ArgumentParser(description='Call many times the checker of Harmless disassembler against the objdump output (compileTest.py). Cut address ranges into small parts of '+str(chunkSize)+' instructions')
     parser.add_argument("-v", "--verbose",    
             help="be verbose…",
             action="store_true", default=False)
@@ -22,26 +32,36 @@ if __name__ == '__main__':
     parser.add_argument("-tr", "--toRange", 
             help="compare Harmless with objdump with opcodes range starting from TORANGE. Default to 0xdfff",
             type=auto_int, default=0xdfff)
+    parser.add_argument("-j", "--jobs", 
+            help="use multiprocessing to dispatch jobs in parallel. Default to the number of cores of the host.",
+            type=int, default=cpu_count())
     args = parser.parse_args()
 
-    #chunk size:
-    chunkSize = 128*1024    #128K instructions (~1s on my computer!)
     fr    = args.fromRange  #from range => not updated
-    frUp  = args.fromRange  #from range updated for each step
     tr    = args.toRange    #to range => not updated
-    trUp  = args.toRange    #to range updated for each step
     fullRange = tr-fr       #full range => not updated
-    steps = fullRange/chunkSize + 1
-    returnCode = False #i.e. no error
-    #Ok. go
-    while (frUp < tr) and not returnCode:
-        trUp = min(tr,frUp+chunkSize)
-        returnCode = subprocess.call(["./compileTest.py", "-fr", str(frUp) , "-tr", str(trUp)])
-        if not returnCode:
-            frUp = frUp + chunkSize
-            if args.verbose:
-                print('{val:3.1f}% of {size} steps\r'.format(val=min(100, float(frUp-fr) / fullRange * 100),size=steps),end='\r')
-                sys.stdout.flush()
-    if returnCode:
-        print('FAILED: Try to run: ./compileTest.py -fr '+hex(frUp)+' -tr '+hex(trUp))
+    steps = int(fullRange/chunkSize) + 1
+    if args.verbose:
+        print('dispatch '+str(steps)+' steps on '+str(args.jobs)+' parallel jobs ('+str(fullRange)+' instructions to compare)')
+    nbStepsDone = 0    #incremented at the end of process
+    stepsParam = []
 
+    #create args for process pool.
+    for i in range(steps):
+        frUp = fr + i*chunkSize
+        trUp = min(frUp+chunkSize,tr)
+        stepsParam.append((frUp,trUp,i)) #from, to, number
+
+    #start pool (python 2.x style...)
+    pool = Pool(processes=args.jobs)
+    for result in pool.imap(runProcess, stepsParam):
+        if result != 0:
+            break
+        nbStepsDone = nbStepsDone + 1
+        if args.verbose:
+            print('\r{val:3.1f}% ({done}) of {size} steps'.format(val=min(100, float(nbStepsDone) / steps * 100),
+                done=nbStepsDone, size=steps),end='')
+            sys.stdout.flush()
+    pool.close()
+    pool.join()
+    

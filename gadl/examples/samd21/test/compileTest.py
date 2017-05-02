@@ -4,12 +4,17 @@
 import sys, os
 import subprocess
 import argparse
+import shutil
 
-def getSourceFile(args, generatedSrcFileName, filesToClean):
+def getSourceFile(args, buildDir):
     if args.file: #there is a sourceFile
-        return args.file,filesToClean
+        if not os.path.exists(args.file):
+            print("file '"+args.file+"' does not exists")
+            sys.exit(1)
+        shutil.copy(args.file, buildDir)
+        src = os.path.join(buildDir,args.file)
     else: #no source file. Generate it
-        src = generatedSrcFileName+".s"
+        src = os.path.join(buildDir,"__asmFile.s")
         if args.verbose:
             print("Generate the source file "+src+
                     " with opcodes from "+str(args.fromRange)+" to "+str(args.toRange)+".")
@@ -28,11 +33,9 @@ def getSourceFile(args, generatedSrcFileName, filesToClean):
         f = open (src, "w")
         f.write (s)
         f.close ()
-        filesToClean.append(src)
-        return src,filesToClean
-        
+    return src    
 
-def compile(args,sourceFile,filesToClean):
+def compile(args,sourceFile):
     #asm
     if args.verbose:
         print("compile file "+sourceFile)
@@ -41,7 +44,6 @@ def compile(args,sourceFile,filesToClean):
     if returnCode != 0:
         print("*** Assembling, error " + str(returnCode) + " ***\n")
         sys.exit(returnCode)
-    filesToClean.append(objFile)
     #link
     exeFile = sourceFile+".elf"
     if args.verbose:
@@ -50,10 +52,9 @@ def compile(args,sourceFile,filesToClean):
     if returnCode != 0:
         print("*** Linking, error " + str(returnCode) + " ***\n")
         sys.exit(returnCode)
-    filesToClean.append(exeFile)
-    return exeFile,filesToClean
+    return exeFile
 
-def objdump(args,exeFile,filesToClean):
+def objdump(args,exeFile):
     #objdump
     objdumpFile = exeFile+".objdump"
     f = open (objdumpFile, 'w')
@@ -61,13 +62,12 @@ def objdump(args,exeFile,filesToClean):
         print("generate objdump dump file to "+objdumpFile)    
     returnCode = subprocess.call(["arm-none-eabi-objdump", "-Mforce-thumb", "-Mreg-names-std", "-D", exeFile], stdout = f)
     f.close()
-    filesToClean.append(objdumpFile)
     if returnCode != 0:
         print("*** Objdump, error " + str(returnCode) + " ***\n")
         sys.exit(returnCode)
-    return objdumpFile,filesToClean
+    return objdumpFile
 
-def harmless(args,exeFile,filesToClean):
+def harmless(args,exeFile):
     sys.path.append("../samd21")
     harmlessFile = exeFile+".harmless"
     try:
@@ -89,27 +89,38 @@ def harmless(args,exeFile,filesToClean):
     rangeD = args.toRange-args.fromRange
     f.write(core.disassemble(core.programCounter(),rangeD,True)+'\n');
     f.close()
-    filesToClean.append(harmlessFile)
-    return harmlessFile,filesToClean
+    return harmlessFile
 
-def clean(args,filesToClean):
+def clean(args, buildDir):
     if args.clean:
         if args.verbose:
-            print "remove temporary files :",
-        for f in filesToClean:
-            if args.verbose:
-                print f,
-            os.remove(f)
+            print "remove build directory "+buildDir,
+        shutil.rmtree(buildDir)
+
+def getIntOpcode(string):
+    try:
+        if len(string) < 5:
+            return int(string[0:4],16)
+        else:
+            return int(string[0:4],16) << 16 | int(string[5:9],16)
+    except Exception:
+        print("error in integer conversion: "+string)
+        return 0
 
 def isException(dataO, dataH):
     exception = False;
     if dataO[1] == "" and dataH[1][0:5] == "Stall": #no mnemonic for that code.
         exception = True
-    if dataO[0][0] == "b" and dataO[0][1] == 'f' and dataO[0][3] == '0':
+    elif dataO[1] == "" and dataH[1][0:9] == "no syntax": #no mnemonic for that code.
+        exception = True
+    elif dataO[0][0] == "b" and dataO[0][1] == 'f' and dataO[0][3] == '0':
         #arm 16 bits hints instructions => bf-0
         exception = True
-    if dataO[0][0:3] == "c00":
+    elif dataO[0][0:3] == "c00":
         #'stmia<und>	r0!, {}' for c00- => objdump adds the <und>, instruction is undefined.
+        exception = True
+    elif getIntOpcode(dataH[0]) & 0xfff0f000 == 0xe840f000:
+        #Load store exclusive with Rt=PC => unpredictable, but objdump says 'tt', 'tta', 'ttat', …
         exception = True
     return exception
 
@@ -161,7 +172,7 @@ def compare(args, objdumpFile, harmlessFile):
                     exceptions = exceptions+1
                 else: #comparison failed and it's not an exception
                     if miss < 100:
-                        print("h:'"+dataH[1]+"'\to:'"+dataO[1]+"' => opcode "+dataH[0])
+                        print("h:'"+dataH[1]+"'\to:'"+dataO[1]+"' => opcode "+dataO[0])
                     miss = miss+1
     if miss >= 100:
         print("Only the first 100 errors are displayed.")
@@ -195,30 +206,37 @@ if __name__ == '__main__':
             help="compare Harmless with objdump with opcodes range starting from TORANGE. Default to 0xdfff",
             type=auto_int, default=0xdfff)
     parser.add_argument("-c", "--clean",    
-            help="remove intermediate files", 
+            help="remove intermediate files at the end of comparison", 
             action="store_true",default=False)
+    parser.add_argument("-b", "--buildSubDir", 
+            help="build subdirectory (of 'build'). Useful if many instances are used.",
+            type=str, default="build0")
     args = parser.parse_args()
-    #print(args)#to arguments to get back.
+
+    #0 le dossier de build
+    buildDir = os.path.join('./build', args.buildSubDir)
+    if os.path.exists(buildDir):
+        shutil.rmtree(buildDir)
+    os.makedirs(buildDir)
 
     #1- get the file to compare with.
-    filesToClean = []
-    sourceFile,filesToClean = getSourceFile(args, "__asmFile", filesToClean) #source file without the extension
+    sourceFile= getSourceFile(args, buildDir) #source file without the extension
     
     #2- compile it.
-    exeFile,filesToClean = compile(args,sourceFile,filesToClean)
+    exeFile= compile(args,sourceFile)
 
     #3- objdump generation
-    objdumpFile,filesToClean = objdump(args,exeFile,filesToClean)
+    objdumpFile= objdump(args,exeFile)
     
     miss = 0
     if not args.noHarmless:
         #4- harmless generation
-        harmlessFile,filesToClean = harmless(args,exeFile,filesToClean)
+        harmlessFile= harmless(args,exeFile)
 
         #5- compare
         miss = compare(args, objdumpFile, harmlessFile)
     #clean
-    clean(args,filesToClean)
+    clean(args, buildDir)
     if miss:
         sys.exit(1)
     
