@@ -369,6 +369,8 @@ format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
     case \m111 is -- all 32 bits instructions start with '111'
 		  select slice{12..4}+{15} -- select op1/op2/op
         case \m01_00--0--_- is loadStoreMultiple
+        case \m0100--1--_-  is loadStoreDualOrExclusive
+        case \m0101-----_-  is dataProcessing
       end select
   end select
 end format
@@ -382,6 +384,113 @@ format loadStoreMultiple #multiple
     case \m01_1 is #load  #fullDescending #incrementAfter
     case \m10_0 is #store #fullDescending #decrementBefore
     case \m10_1 is #load  #emptyAscending #decrementBefore
+  end select
+end format
+
+format loadStoreDualOrExclusive
+  Rn := slice{3..0}{-} #Rn
+  select slice{8..7,5..4}{7..4} -- op1, op2, op3
+    case \m00_0-_---- or
+         \m01_0-_010- is #exclusive
+      Rt   := slice{-}{15..12} #Rt
+      Rd   := slice{-}{11..8}  #Rd
+      imm10 := slice{-}{7..0} << 2   #imm10
+      select slice{4}{-}
+        case 0 is #store
+        case 1 is #load
+      end select
+      select slice{8..7,5}{7..4}
+        case \m00_0_---- is #word
+        case \m01_0_0100 is #byte
+        case \m01_0_0101 is #halfword
+      end select
+    case \m0-_1-_---- or \m1-_--_---- is #dual
+      select slice{4}{-}
+        case 0 is #store
+        case 1 is #load
+      end select
+      Rt     := slice{-}{15..12} #Rt
+      Rt2    := slice{-}{11..8}  #Rt2
+      imm10  := slice{-}{7..0} << 2   #imm10
+      wb     := slice{5}{-} -- or W
+      idx    := slice{8}{-} -- or P
+      addi   := slice{7}{-} -- or U
+    case \m01_01_000- is 
+      select slice{-}{15..5}
+        case \m11110000000 is #table #branch
+          select slice{4}
+            case 0 is #byte
+            case 1 is #halfword
+          end select
+          H  := slice{-}{4}
+          Rm := slice{-}{3..0} #Rm
+      end select
+  end select
+end format
+
+format immShift
+	imm5 := slice{-}{14..12,7..6} 
+  shiftType := slice{-}{5..4} #shType
+end format
+
+format dataProcRn
+  Rn := slice{3..0}{-} #Rn
+end format
+
+format dataProcRd
+  Rd := slice{-}{11..8} #Rd
+end format
+
+format dataProcessing #dataProcessing
+  S  := slice{4}{-}
+  Rm   := slice{-}{3..0} #Rm
+  select slice{8..5}{15} --op + bit 15
+    case \m0000_0 is immShift dataProcRn
+      select slice{4}{11..8}
+        case \m1_1111 is #tst
+				others        is #and dataProcRd
+      end select
+    case \m0001_0 is immShift dataProcRn dataProcRd #bic
+    case \m0010_0 is  
+      select slice{3..0}{-}
+        case \m1111 is immShift dataProcRd #move
+ 				others is  immShift dataProcRn dataProcRd #orr
+--        case \m0--- or \m10-- or \m110- or \m1110 is dataProcRn dataProcRd dataProcImm5 #orr
+      end select
+    case \m0011_0 is immShift dataProcRd 
+      select slice{3..0}{-}
+        case \m1111 is #mvn
+        others      is dataProcRn #orn
+      end select
+    case \m0100_0 is immShift dataProcRn 
+      select slice{4}{11..8}
+        case \m1_1111 is #teq
+        others is dataProcRd #eor
+      end select
+    case \m0110_- is dataProcRn dataProcRd packHW 
+    case \m1000_0 is immShift dataProcRn 
+      select slice{4}{11..8}
+        case \m1_1111 is #cmn
+  			others      is dataProcRd #add
+      end select
+    case \m1010_0 is immShift dataProcRn dataProcRd #adc
+    case \m1011_0 is immShift dataProcRn dataProcRd #sbc
+    case \m1101_0 is immShift dataProcRn 
+      select slice{4}{11..8}
+        case \m1_1111 is #cmp
+  			others      is dataProcRd #sub
+      end select
+    case \m1110_0 is immShift dataProcRn dataProcRd #rsb
+  end select
+end format
+
+
+format packHW #pack16
+  shiftType := slice{-}{5} << 1 #shType
+	imm5 := slice{-}{14..12,7..6} 
+  select slice {4}{15,5,4} -- S and T should be set to 0.
+    case \m0_0_0_0 is #hbt
+    case \m0_0_1_0 is #htb
   end select
 end format
 
@@ -433,6 +542,119 @@ syntax loadStoreMultiple #multiple
   Rn4 wback ", " regList
 end syntax
 
+syntax loadStoreExclusive #exclusive #word
+  select
+    case #load  "ldrex"
+    case #store "strex"
+  end select
+  select
+    case #word
+    case #halfword "h"
+    case #byte     "b"
+  end select
+  "\t"
+  Rd4 ", " Rt4 regImm10
+end syntax
+
+
+syntax loadStoreDual #dual
+  field u1 idx
+  field u1 addi
+  field u1 wb
+  select
+    case #store "strd"
+    case #load  "ldrd"
+  end select
+  "\t"
+  field u10 imm10 #imm10
+  Rt4 ", " Rt2_4 
+  ", [" Rn4
+  if idx then
+    ", #"
+    if !addi then "-" end if
+    "\d]",imm10
+    if wb then "!" end if
+  elseif !idx & wb then
+    "], #"
+    if !addi then "-" end if
+    "\d",imm10
+  end if
+end syntax
+
+syntax tableBranch #table #branch
+  "tb"
+  select 
+    case #byte "b"
+    case #halfword "h"
+  end select 
+  "\t["
+  Rn4 ", " Rm4
+  field u1 H
+  if H then ", lsl #1]" else "]" end if
+end syntax
+
+syntax dataProcessing #dataProcessing
+  field u1 S
+  select
+    case
+      select
+        case #and "and"
+        case #bic "bic"
+        case #orr "orr"
+        case #eor "eor"
+        case #add "add"
+        case #adc "adc"
+        case #sbc "sbc"
+        case #sub "sub"
+      end select
+      if S then "s" end if
+      ".w\t" Rd4 ", " Rn4
+    case #rsb "rsb" if S then "s" end if "\t" Rd4 ", " Rn4 -- no '.w'
+    case #orn "orn" if S then "s" end if "\t" Rd4 ", " Rn4 -- no '.w'
+    case #mvn "mvn" if S then "s" end if ".w\t" Rd4
+    case #tst "tst.w\t" Rn4
+    case #teq "teq\t"   Rn4
+    case #cmn "cmn.w\t" Rn4
+    case #cmp "cmp.w\t" Rn4
+  end select
+  ", " Rm4 shiftType
+end syntax
+
+syntax pack #pack16 #dataProcessing
+  select
+    case #hbt "pkhbt\t"
+    case #htb "pkhtb\t"
+  end select
+  Rd4 ", " Rn4 ", " Rm4 shiftType
+end syntax
+
+syntax dataProcMoveShift #dataProcessing #move
+  field u1 S
+  "mov"
+  if S then "s" end if
+  ".w\t"
+  Rd4 ", " Rm4 shiftType
+end syntax
+
+syntax shiftType #shType
+  field u2 shiftType
+  field u5 imm5
+  if     shiftType = 0 then 
+    if imm5 then ", lsl #\d",imm5 end if
+  elseif shiftType = 1 then
+    if imm5 then ", lsr #\d",imm5
+    else ", lsr #32" end if
+  elseif shiftType = 2 then 
+    if imm5 then ", asr #\d",imm5
+    else ", asr #32" end if
+  else   
+    if imm5 = 0 then
+      ", rrx"
+    else
+      ", ror #\d",imm5
+    end if
+  end if
+end syntax
 --##==================================================
 --## Syntax description
 --##==================================================
@@ -784,6 +1006,24 @@ syntax Rn4  #Rn
     end if
 end syntax
 
+syntax Rt4  #Rt 
+		field u4 Rt 
+		if    Rt =15 then "pc" 
+		elseif Rt=14 then "lr"
+		elseif Rt=13 then "sp"
+		else   "r\d",Rt
+    end if
+end syntax
+
+syntax Rt2_4  #Rt2
+		field u4 Rt2 
+		if    Rt2 =15 then "pc" 
+		elseif Rt2=14 then "lr"
+		elseif Rt2=13 then "sp"
+		else   "r\d",Rt2
+    end if
+end syntax
+
 syntax Rd4  #Rd 
 		field u4 Rd 
 		if    Rd =15 then "pc" 
@@ -793,18 +1033,27 @@ syntax Rd4  #Rd
     end if
 end syntax
 
-syntax Imm5Reg2      Rd  ", "  Rm ", " imm5          end syntax
-syntax Imm5Reg2Shift Rd  ", "  Rm ", " imm5Shift     end syntax -- replace if imm5 = 0, value is 32.
-syntax reg3          Rd  ", "  Rn ", " Rm            end syntax
-syntax reg2          Rd  ", "  Rm                    end syntax
-syntax reg2Rn        Rd  ", "  Rn                    end syntax
-syntax imm3reg2      Rd  ", "  Rn ", " imm3          end syntax
-syntax imm8reg       Rd  ", "  imm8                  end syntax
-syntax reg2_4bits    Rd4 ", "  Rm4                   end syntax
-syntax reg3Rt        Rt  ", [" Rn ", " Rm        "]" end syntax 
-syntax regImm5reg2Rt Rt  ", [" Rn ", " imm5      "]" end syntax 
-syntax regImm6reg2Rt Rt  ", [" Rn ", " imm6      "]" end syntax 
-syntax regImm7reg2Rt Rt  ", [" Rn ", " imm7      "]" end syntax 
+syntax Imm5Reg2       Rd  ", "  Rm ", " imm5          end syntax
+syntax Imm5Reg2Shift  Rd  ", "  Rm ", " imm5Shift     end syntax -- replace if imm5 = 0, value is 32.
+syntax reg3           Rd  ", "  Rn ", " Rm            end syntax
+syntax reg2           Rd  ", "  Rm                    end syntax
+syntax reg2Rn         Rd  ", "  Rn                    end syntax
+syntax imm3reg2       Rd  ", "  Rn ", " imm3          end syntax
+syntax imm8reg        Rd  ", "  imm8                  end syntax
+syntax reg2_4bits     Rd4 ", "  Rm4                   end syntax
+syntax reg3Rt         Rt  ", [" Rn ", " Rm        "]" end syntax 
+syntax regImm5reg2Rt  Rt  ", [" Rn ", " imm5      "]" end syntax 
+syntax regImm6reg2Rt  Rt  ", [" Rn ", " imm6      "]" end syntax 
+syntax regImm7reg2Rt  Rt  ", [" Rn ", " imm7      "]" end syntax 
+syntax regImm10 
+		#imm10
+    field u10 imm10
+		", [" Rn4
+		if imm10 != 0 then 
+				", #\d",imm10
+		end if
+    "]" 
+end syntax -- 32 bits only
 
 syntax condWithAl #cond -- version of cond that prints the 'al' condition.
 		field u4 cond
