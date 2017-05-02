@@ -268,21 +268,14 @@ rule <altFormatIs>
         error @location.here : "Only one 'others' keyword allowed in a format!"
       end
       @binaryset tempSet = ~maskCodingUsed
-      #for (@string str) in  [tempSet compressedStringValueList !sliceSize]
-      #before message "others: "
-      #do message str;
-      #between message " | ";
-      #after message "\n"
-      #end
+      
+      #debugBinarySet(!tempSet !32 !"others")
+
       @binaryset tempIsFormat
       getRelativeBinarySet ( !tempSet !sliceSize !defaultInstructionSize !sliceList !nbSlicesBeforeAPlus ?tempIsFormat)
+
+      #debugBinarySet(!tempIsFormat !32 !"others")
       isFormat = isFormat | tempIsFormat
-      #for (@string str) in  [tempIsFormat compressedStringValueList !32]
-      #before message "tempIsFormat: "
-      #do message str;
-      #between message " | ";
-      #after message "\n"
-      #end
       othersKeyword = true
   or
     $case$

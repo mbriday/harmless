@@ -20,13 +20,17 @@ proc getFormatRelatedTemplate
   @binaryset bin
   @stringlist binStrListTemp
   var binStrList =@stringlist.emptyList{}
-  getRealInstructionCode ( !binTemp !defaultInstSize !codeLength ?bin)
+  getRealInstructionCode (!binTemp !defaultInstSize !codeLength ?bin)
   binStrListTemp = [bin compressedStringValueList !defaultInstSize*codeLength]
   for (@string str) in  binStrListTemp do
     @string binStr = [str stringByReplacingStringByString !"X" !"-"]
     binStrList += !binStr
   end
   addStringlist ( !?instStruct !lstringWith(!"formatBin") !lstringWith(!"bin") !binStrList)
+#  if [instSignature hasKey !"and"] then #TODO: tmp
+#    debugBinarySet(!bin !defaultInstSize*codeLength !"bin")
+#  end
+  
   #fields
   var fieldMapList =@TfieldMapList.emptyList{}
   for (@lstring ASname @varBaseType VBtype) in  instructionFieldMap do

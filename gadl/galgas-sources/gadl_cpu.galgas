@@ -76,10 +76,26 @@ getter @ASTcoreInstanceMap getCoreInstanceMap
   end
 }
 
+#proc test 
+#{
+#    @binaryset testBS = .binarySetWithEqualToConstant{!0 !8 !5}
+#    testBS = testBS | @binaryset.binarySetWithEqualToConstant{!0 !8 !6}
+#    debugBinarySet(!testBS !8 !"testBS")
+#    debugBinarySet(!testBS>>1 !8 !"testBSm1")
+#    @uint i=0
+#    loop (4) while (i<4) do
+#      @binaryset and = testBS & @binaryset.binarySetWithEqualToConstant{!0 !2 !i}
+#      debugBinarySet(!and !8 !"and "+[i string])
+#      if not [and isEmpty] then message [i string]+"not empty\n" end
+#      i = i+1
+#    end
+#}
+
 method @ASTCpuMap cpuSemantic
   ?let @varIdfStruct varIdfStruct
   ?! @TfieldMap templateStruct
 {
+#  test()
   @expressionContext ctx = @expressionContext.peripheral #context cpu?
   var cpuTpl =@TfieldMapList.emptyList{}
   for () in  self do #only one cpu at this date.

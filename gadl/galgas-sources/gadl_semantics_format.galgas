@@ -294,11 +294,11 @@ proc setInstructionImplementationNames
   ?let  @variableInstructionCodeList variableInstructionCodeList
   !  @instructionImplementationMap instructionMap {
   instructionMap = @instructionImplementationMap. emptyMap
-  for(@binaryset code) in  binaryCodeList, (@formatListWithSuffix fslist) in 
-          instructionList,(@lstringlist instructionSeq) in  # @stringset instructionId),
-          instructionSeqList,(@stringset instructionID) in 
-          referenceSeqList,(@instructionCodeOffset offsetList @uint codeLength) in 
-          variableInstructionCodeList do
+  for (@binaryset code) in  binaryCodeList, 
+      (@formatListWithSuffix fslist) in instructionList,
+      (@lstringlist instructionSeq) in instructionSeqList,
+      (@stringset instructionID) in referenceSeqList,
+      (@instructionCodeOffset offsetList @uint codeLength) in variableInstructionCodeList do
     var instructionFieldMap =@varBaseTypeMap.emptyMap{}
     #one instruction
     for (@idfOrRefFormat idfOrRefFormat @stringlist suffixList) in  fslist do
@@ -335,6 +335,10 @@ proc setInstructionImplementationNames
     @string instName = getInstructionName(!instructionID !modelName)
     @lstring idf = @lstring. new { !instName !@location.here}
     [!?instructionMap insertKey !idf !code !fslist !instructionSeq !instructionID !offsetList !codeLength !instructionFieldMap]
+#    if [instructionID hasKey !"and"] then #TODO: tmp
+#      debugBinarySet(!code !32 !"code in instMap")    
+#    end  
+    
   end
 }
 
@@ -352,17 +356,35 @@ proc getRealInstructionCode
   ?let  @uint instructionSize
   ?let  @uint codeLength
   !  @binaryset code {
-  code = @binaryset. fullBinarySet
-  @uint currentChunk = 0
-  loop( codeLength)
-  while currentChunk < codeLength do
-    #get the code chunk;
-    @binaryset codeChunk = codeMSByteLeft >> (currentChunk*instructionSize)
-    codeChunk = [codeChunk existOnBitIndexAndBeyond !instructionSize]
-    # add it to the new code.
-    code = code & (codeChunk << ((codeLength - currentChunk - 1)*instructionSize))
-    currentChunk = currentChunk + 1
+#  code = @binaryset. fullBinarySet
+  @uintlist vector = @uintlist.emptyList
+  @uint size = instructionSize * codeLength
+  @uint i = 0
+  loop (codeLength) while (i < codeLength) do 
+    @uint offset = (codeLength-i-1)*instructionSize
+    @uint j = 0
+    loop (instructionSize) while (j < instructionSize) do 
+      vector += {!j+offset}
+      j = j+1
+    end
+    i = i+1
   end
+  code = [codeMSByteLeft transposedBy !vector]
+#  if [instName string] == "cortexM0Plus_Rd_Rm_Rn_and_dataProcessing_shType" then #TODO: tmp
+#    log vector
+#  end
+#
+#  #old:
+#  @uint currentChunk = 0
+#  loop( codeLength)
+#  while currentChunk < codeLength do
+#    #get the code chunk;
+#    @binaryset codeChunk = codeMSByteLeft >> (currentChunk*instructionSize)
+#    codeChunk = [codeChunk existOnBitIndexAndBeyond !instructionSize]
+#    # add it to the new code.
+#    code = code & (codeChunk << ((codeLength - currentChunk - 1)*instructionSize))
+#    currentChunk = currentChunk + 1
+#  end
 }
 
 proc printInstructionId 
@@ -495,6 +517,10 @@ proc generateConditionCode
   #reform code from Most Significant Part First (at left).
   @binaryset code
   getRealInstructionCode ( !codeMSByteLeft !instructionSize !codeLength ?code)
+#  if [instName string] == "cortexM0Plus_Rd_Rm_Rn_and_dataProcessing_shType" then #TODO: tmp
+#    debugBinarySet(!codeMSByteLeft !32 !"codeMSByteLeft")
+#    debugBinarySet(!code !32 !"generateConditionCode")
+#  end  
 
   @uint nbChunks = sizeInBits/nbBitsEncodedWith32
   if sizeInBits mod nbBitsEncodedWith32 != 0 then nbChunks = nbChunks + 1 end
@@ -655,9 +681,18 @@ proc generateDecoder
   var tabCodeList =@binaryCodeList.emptyList{}
   addStringValue ( !?templateStruct !lstringWith(!"INST_SHIFT") ![shift string])
   addStringValue ( !?templateStruct !lstringWith(!"DECODER_FUNC_TABLE_SIZE_IN_BITS") ![tabNbBits string])
-  for (* @binaryset code ...) in  impMap do
+  #for (* @binaryset code ...) in  impMap do
+  for (* @binaryset code * * @stringset instructionID ...) in  impMap do
+#    if [instructionID hasKey !"and"] then #TODO: tmp
+#      debugBinarySet(!code !32 !"generateDec")    
+#    end  
     #log code;
     @binaryset tabRelatedCode = code >> shift
+#    if [instructionID hasKey !"and"] then #TODO: tmp
+#      debugBinarySet(!tabRelatedCode !32 !"tabRelatedCode")
+#      message "shift: "+[shift string]+"\n"
+#      message "tabNbBits: "+[tabNbBits string]+"\n"
+#    end  
     tabRelatedCode = [tabRelatedCode existOnBitIndexAndBeyond !tabNbBits] #mask..
     tabCodeList += !tabRelatedCode
   end
@@ -668,10 +703,12 @@ proc generateDecoder
   while i < nbCases do
     var decoderFunctionBody =@TfieldMap.emptyMap{}
     @bool found = false #at last one instruction is matching
-    @binaryset binI = @binaryset. binarySetWithEqualToConstant { !0 !tabNbBits ![i uint64]}
+    @binaryset binI = @binaryset.binarySetWithEqualToConstant{!0 !tabNbBits ![i uint64]}
     var conditionDataList =@conditionDataList.emptyList{}
-    for (@lstring name  @binaryset code 4* @uint codeLength ...) in  impMap, (@binaryset tabCode) in  tabCodeList do
+    for (@lstring name  @binaryset code 4* @uint codeLength ...) in  impMap, 
+        (@binaryset tabCode) in  tabCodeList do
       @binaryset equal = binI & tabCode
+      #@binaryset equal = binI & tabCode #code?
       if [equal isEmpty] == false then #found
         found = true
         conditionDataList += !name !code !codeLength
@@ -946,9 +983,9 @@ proc getBinaryFormat
   !  @binaryCodeList binaryCodeList {
   @alternativeIsList tempAltList = @alternativeIsList. emptyList #init not used
   binaryCodeList = @binaryCodeList. emptyList
-  for (@formatListWithSuffix fslist) in  instructionList, (@instructionCodeOffset offsetList @uint codeLength) in  
-          variableInstructionCodeList,(@stringset instructionID) in 
-          referenceSeqList do
+  for (@formatListWithSuffix fslist) in  instructionList, 
+      (@instructionCodeOffset offsetList @uint codeLength) in  variableInstructionCodeList,
+      (@stringset instructionID) in referenceSeqList do
     #one instruction
     #in the list of formats, we are looking for alternatives.
     #When we got one, we search for the following format (agg, alt or ref), which indicates
@@ -1018,6 +1055,9 @@ proc getBinaryFormat
       printInstructionId ( !instructionID !?instID)
       message "-> instruction "+instID+" does not have a valid binary format (always false).\n"
     end
+#    if [instructionID hasKey !"and"] then #TODO: tmp
+#      debugBinarySet(!code !16*codeLength !"code")    
+#    end  
     binaryCodeList += !code
   end
 }
@@ -1386,6 +1426,12 @@ proc instructionFormatPart
   @stringSetList  referenceSeqList
   getInstructionSequences ( !instructionList ?instructionSeqList ?referenceSeqList)
   getBinaryFormat ( !instructionList !formatMap ! variableInstructionCodeList !instructionSize !referenceSeqList ?binaryCodeList)
+  for (@stringset instructionID) in referenceSeqList,
+      (@binaryset code) in binaryCodeList do
+#    if [instructionID hasKey !"and"] then #TODO: tmp
+#      debugBinarySet(!code !32 !"code")    
+#    end
+  end
   setInstructionImplementationNames ( !formatMap !binaryCodeList !instructionList !instructionSeqList !referenceSeqList !modelName !variableInstructionCodeList ?impMap)
   outputFormatGraphViz ( !exportDir !formatMap !instructionList)
   generateDecoder ( !?templateStruct !impMap !defaultValues !fetchFunctionCondition)
