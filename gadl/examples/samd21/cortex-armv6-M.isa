@@ -308,9 +308,9 @@ format reg2Rn #Rn #Rd
   Rd := slice{2..0}
 end format
 
-format reg2Rt #Rn #Rt
-  Rn   := slice{5..3}
-  Rt   := slice{2..0}
+format reg2Rt
+  Rn   := slice{5..3} #Rn
+  Rt   := slice{2..0} #Rt
 end format
 
 format regImm7reg2Rt #imm7
@@ -328,27 +328,26 @@ format regImm5reg2Rt #imm5
   reg2Rt
 end format
 
-format reg3Rt #Rm #Rn #Rt
-  Rm := slice{8..6}
-  Rn := slice{5..3}
-  Rt := slice{2..0}
+format reg3Rt
+  reg2Rt
+  Rm := slice{8..6} #Rm
 end format
 
-format reg3 #Rm #Rn #Rd
-  Rm := slice{8..6}
-  Rn := slice{5..3}
-  Rd := slice{2..0}
+format reg3
+  Rm := slice{8..6} #Rm
+  Rn := slice{5..3} #Rn
+  Rd := slice{2..0} #Rd
 end format
 
-format imm3reg2 #imm3 #Rn #Rd
-  imm3 := slice{8..6}
-  Rn := slice{5..3}
-  Rd := slice{2..0}
+format imm3reg2
+  imm3 := slice{8..6} #imm3
+  Rn := slice{5..3} #Rn
+  Rd := slice{2..0} #Rd
 end format
 
-format imm8reg1 #imm8 #Rd
-  imm8 := slice{7..0}
-  Rd := slice{10..8}
+format imm8reg1
+  imm8 := slice{7..0} #imm8
+  Rd := slice{10..8}  #Rd
 end format
 
 format imm10reg1 #imm10 #Rd
@@ -369,14 +368,73 @@ format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
     case \m111 is -- all 32 bits instructions start with '111'
 		  select slice{12..4}+{15} -- select op1/op2/op
         case \m01_00--0--_- is loadStoreMultiple
-        case \m0100--1--_-  is loadStoreDualOrExclusive
-        case \m0101-----_-  is dataProcessing
+        case \m01_00--1--_- is loadStoreDualOrExclusive
+        case \m01_01-----_- is dataProcessingShifted
+--        case \m10_-0-----_0 is dataProcessingModImm
+        case \m10_-1-----_0 is dataProcessingPlainImm
+      end select
+  end select
+end format
+
+-- format dataProcessingModImm
+-- 
+-- end format
+
+format dataProcessingPlainImm #dataProcessingPI -- plain immediat
+  select slice{8..4}{-} -- op
+    case \m00000 is #add  Rd4 Rn4 dataProcImm12 -- no special case for Rn=0xf => 'adr' instruction.
+    case \m00100 is #move Rd4 dataProcImm16
+    case \m01010 is #sub  Rd4 Rn4 dataProcImm12 -- no special case for Rn=0xf => 'adr' instruction.
+    case \m01100 is #movt Rd4 dataProcImm16
+    case \m100-0 is
+      select slice{10,4}{5}
+        case \b000 is -- get the '0' in the format
+          sat_imm5 := slice{-}{4..0}
+          select slice{5}{14..12,7..6}
+            case \b1_00000 is #ssat16 Rd4 Rn4 -- sh=1 et imm=0 => ssat16
+            others         is #ssat Rd4 Rn4
+            	imm5 := slice{-}{14..12,7..6} 
+              shiftType := slice{5}{-} << 1 #shType
+          end select
+      end select
+    case \m10100 is 
+      select slice{10}{5}
+        case \b00 is #sbfx Rn4 Rd4
+        	imm5 := slice{-}{14..12,7..6} 
+          widthm1 := slice{4..0}
+      end select
+    case \m10110 is 
+      select slice{10}{5}
+        case \b00 is Rd4 -- TODO: faire un : restrict slice{10}{5} to \m00
+        	lsb := slice{-}{14..12,7..6} 
+          msb := slice{-}{4..0}
+          select slice{3..0}{-}
+            case \m1111 is #bfc
+            others      is #bfi Rn4
+          end select
+      end select
+    case \m110-0 is
+      select slice{10,4}{5}
+        case \b000 is -- get the '0' in the format
+          sat_imm5 := slice{-}{4..0}
+          select slice{5}{14..12,7..6}
+            case \b1_00000 is #usat16 Rd4 Rn4 -- sh=1 et imm=0 => ssat16
+            others         is #usat Rd4 Rn4
+            	imm5 := slice{-}{14..12,7..6} 
+              shiftType := slice{5}{-} << 1 #shType
+          end select
+      end select
+    case \m11100 is Rn4 Rd4 #ubfx
+      select slice{10,4}{5}
+        case \b000 is -- get the '0' in the format
+          widthm1 := slice{-}{4..0}
+          lsb := slice{-}{14..12,7..6}
       end select
   end select
 end format
 
 format loadStoreMultiple #multiple
-  Rn := slice{3..0}{-} #Rn
+  Rn4
   regList := slice{-}{15..0}
   W := slice{5}{-}
   select slice{8..7,4}{-}
@@ -388,7 +446,7 @@ format loadStoreMultiple #multiple
 end format
 
 format loadStoreDualOrExclusive
-  Rn := slice{3..0}{-} #Rn
+  Rn4
   select slice{8..7,5..4}{7..4} -- op1, op2, op3
     case \m00_0-_---- or
          \m01_0-_010- is #exclusive
@@ -433,54 +491,63 @@ format immShift
   shiftType := slice{-}{5..4} #shType
 end format
 
-format dataProcRn
+format Rn4
   Rn := slice{3..0}{-} #Rn
 end format
 
-format dataProcRd
+format Rd4
   Rd := slice{-}{11..8} #Rd
 end format
 
-format dataProcessing #dataProcessing
+format dataProcImm12
+  imm12 := slice{10}{14..12,7..0} #imm12
+end format
+
+format dataProcImm16
+  imm16 := slice{3..0,10}{14..12,7..0} #imm16
+end format
+
+
+format dataProcessingShifted #dataProcessingSR -- shifted register
   S  := slice{4}{-}
   Rm   := slice{-}{3..0} #Rm
   select slice{8..5}{15} --op + bit 15
-    case \m0000_0 is immShift dataProcRn
+    case \m0000_0 is immShift Rn4
       select slice{4}{11..8}
         case \m1_1111 is #tst
-				others        is #and dataProcRd
+				others        is #and Rd4
       end select
-    case \m0001_0 is immShift dataProcRn dataProcRd #bic
+    case \m0001_0 is immShift Rn4 Rd4 #bic
     case \m0010_0 is  
       select slice{3..0}{-}
-        case \m1111 is immShift dataProcRd #move
- 				others is  immShift dataProcRn dataProcRd #orr
---        case \m0--- or \m10-- or \m110- or \m1110 is dataProcRn dataProcRd dataProcImm5 #orr
+        case \m1111 is immShift Rd4 #move
+ 				others is  immShift Rn4 Rd4 #orr
+--        case \m0--- or \m10-- or \m110- or \m1110 is Rn4 Rd4 dataProcImm5 #orr
       end select
-    case \m0011_0 is immShift dataProcRd 
+    case \m0011_0 is immShift Rd4 
       select slice{3..0}{-}
         case \m1111 is #mvn
-        others      is dataProcRn #orn
+        others      is Rn4 #orn
       end select
-    case \m0100_0 is immShift dataProcRn 
+    case \m0100_0 is immShift Rn4 
       select slice{4}{11..8}
         case \m1_1111 is #teq
-        others is dataProcRd #eor
+        others is Rd4 #eor
       end select
-    case \m0110_- is dataProcRn dataProcRd packHW 
-    case \m1000_0 is immShift dataProcRn 
+    case \m0110_- is Rn4 Rd4 packHW 
+    case \m1000_0 is immShift Rn4 
       select slice{4}{11..8}
         case \m1_1111 is #cmn
-  			others      is dataProcRd #add
+  			others      is Rd4 #add
       end select
-    case \m1010_0 is immShift dataProcRn dataProcRd #adc
-    case \m1011_0 is immShift dataProcRn dataProcRd #sbc
-    case \m1101_0 is immShift dataProcRn 
+    case \m1010_0 is immShift Rn4 Rd4 #adc
+    case \m1011_0 is immShift Rn4 Rd4 #sbc
+    case \m1101_0 is immShift Rn4 
       select slice{4}{11..8}
         case \m1_1111 is #cmp
-  			others      is dataProcRd #sub
+  			others      is Rd4 #sub
       end select
-    case \m1110_0 is immShift dataProcRn dataProcRd #rsb
+    case \m1110_0 is immShift Rn4 Rd4 #rsb
   end select
 end format
 
@@ -593,7 +660,7 @@ syntax tableBranch #table #branch
   if H then ", lsl #1]" else "]" end if
 end syntax
 
-syntax dataProcessing #dataProcessing
+syntax dataProcessingShifted #dataProcessingSR
   field u1 S
   select
     case
@@ -620,7 +687,7 @@ syntax dataProcessing #dataProcessing
   ", " Rm4 shiftType
 end syntax
 
-syntax pack #pack16 #dataProcessing
+syntax pack #pack16 #dataProcessingSR
   select
     case #hbt "pkhbt\t"
     case #htb "pkhtb\t"
@@ -628,7 +695,7 @@ syntax pack #pack16 #dataProcessing
   Rd4 ", " Rn4 ", " Rm4 shiftType
 end syntax
 
-syntax dataProcMoveShift #dataProcessing #move
+syntax dataProcMoveShift #dataProcessingSR #move
   field u1 S
   "mov"
   if S then "s" end if
@@ -655,6 +722,61 @@ syntax shiftType #shType
     end if
   end if
 end syntax
+
+syntax dataProcessingPlainImm #dataProcessingPI
+  field u12 imm12 #imm12
+  select
+    case #add "addw\t"
+    case #sub "subw\t"
+  end select
+  Rd4 ", " Rn4 ", #\d",imm12
+end syntax
+
+syntax moveImm16 #dataProcessingPI
+  field u16 imm16 #imm16
+  select
+    case #move "movw\t" Rd4 ", #\d",imm16
+    case #movt "movt\t" Rd4 ", #\d",imm16
+  end select
+end syntax
+
+syntax dataProcSbfx #dataProcessingPI #sbfx
+  field u5 imm5
+  field u5 widthm1
+  "sbfx\t" Rd4 ", " Rn4 ", #\d, #\d",imm5,widthm1+1
+end syntax
+
+syntax dataProcBitFieldSetClear #dataProcessingPI
+  field u5 lsb
+  field u5 msb
+  select
+    case #bfi "bfi\t" Rd4 ", " Rn4
+    case #bfc "bfc\t" Rd4
+  end select
+  ", #\d",lsb
+  if msb+1 < lsb then
+    ", <invalid>"
+  else
+    ", #\d",msb+1-lsb
+  end if
+end syntax
+
+syntax dataProcBitFieldExtract #dataProcessingPI #ubfx
+  field u5 lsb
+  field u5 widthm1
+  "ubfx\t" Rd4 ", " Rn4 ", #\d, #\d",lsb,widthm1 
+end syntax
+
+syntax dataProcSSAT #dataProcessingPI 
+  field u5 sat_imm5
+  select
+    case #ssat   "ssat\t"   Rd4 ", #\d, ",sat_imm5+1 Rn4 shiftType
+    case #ssat16 "ssat16\t" Rd4 ", #\d, ",sat_imm5+1 Rn4
+    case #usat   "usat\t"   Rd4 ", #\d, ",sat_imm5+1 Rn4 shiftType
+    case #usat16 "usat16\t" Rd4 ", #\d, ",sat_imm5+1 Rn4
+  end select
+end syntax
+
 --##==================================================
 --## Syntax description
 --##==================================================

@@ -122,6 +122,8 @@ def isException(dataO, dataH):
     elif getIntOpcode(dataH[0]) & 0xfff0f000 == 0xe840f000:
         #Load store exclusive with Rt=PC => unpredictable, but objdump says 'tt', 'tta', 'ttat', …
         exception = True
+    elif dataH[1].find("invalid"):
+        exception = True
     return exception
 
 import re
@@ -172,7 +174,7 @@ def compare(args, objdumpFile, harmlessFile):
                     exceptions = exceptions+1
                 else: #comparison failed and it's not an exception
                     if miss < 100:
-                        print("h:'"+dataH[1]+"'\to:'"+dataO[1]+"' => opcode "+dataO[0])
+                        print("h:'"+dataH[1]+"'\to:'"+dataO[1]+"'\t=> opcode "+dataO[0])
                     miss = miss+1
     if miss >= 100:
         print("Only the first 100 errors are displayed.")
