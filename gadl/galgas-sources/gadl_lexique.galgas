@@ -234,7 +234,7 @@ list keyWordList style keywordsStyle error message "the '%K' keyword"{
                                                          # 'in' expression.
 "do","out","when","field","nop","on",                    #behavior
 "slice","case","is","others",                            #format
-"signed","or",
+"signed","or","restrict",
 "syntax","switch","number","octal","decimal",            #syntax
 "hexadecimal","binary","suffix","prefix","function",          
 "jumpTaken","add","cycle","use",                         #cycles 

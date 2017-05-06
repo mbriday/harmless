@@ -121,11 +121,35 @@ rule <sliceDef>
   end
 }
 
+rule <restrictFormat>
+  ?let  @luint defaultInstructionSize
+  !     @binaryset isFormat
+{
+  @sliceList sliceList
+  @uint nbSlicesBeforeAPlus
+  @uint sliceSize
+  $restrict$;
+  <sliceDef> !defaultInstructionSize ?sliceList ?nbSlicesBeforeAPlus ?sliceSize
+  $to$;
+
+  @lstring mask
+  $binaryMask$ ?mask
+  @string tempMask   = [[mask string] stringByReplacingStringByString !"-" !"X"]
+  @binaryset tempSet = @binaryset.binarySetWithPredicateString { !tempMask} 
+  getRelativeBinarySet ( !tempSet !sliceSize !defaultInstructionSize !sliceList !nbSlicesBeforeAPlus ?isFormat)
+  
+  if sliceSize != [[mask string] length] then
+    error @location.here: "mask size ("+[[[mask string] length] string]+") has not the size of the slice"+
+                          " considered : "+[sliceSize string]
+  end
+  #debugBinarySet(!isFormat !32 !"restrict")
+}
 #format body: It can be:
 # - an assignment
 # - a call to another format
 # - a reference
 # - a select structure
+# - a 'restrict' instruction
 rule <formatBody>
   ?let  @luint defaultInstructionSize
   ?let  @uint nbSlicesBeforeAPlus
@@ -133,7 +157,9 @@ rule <formatBody>
   ?! @idfOrRefFormatList otherformatList
   ?! @idfOrRefFormatList refFormatList
   ?! @uint internalFormatId
-  ?! @formatMap formatMap {
+  ?! @formatMap formatMap 
+  ?! @restrictList restrictList
+  {
   select
     @lstring idf
     $idf$ ?idf indexing formatCall
@@ -151,11 +177,15 @@ rule <formatBody>
     @idfOrRefFormatIsRef ref = @idfOrRefFormatIsRef. new { !refName}
     refFormatList += !ref
   or
+    @binaryset restrictBin
+    <restrictFormat> !defaultInstructionSize ?restrictBin
+    restrictList += !restrictBin
+  or
     <selectFormat>  !defaultInstructionSize !?internalFormatId !?formatMap !?otherformatList
   end
 }
 
-rule <format>  
+rule <format>
   ?let  @luint defaultInstructionSize
   ?! @formatMap formatMap
   ?! @uint internalFormatId {
@@ -173,15 +203,16 @@ rule <format>
   <sliceDef> !defaultInstructionSize ?slicePrototypeList ?nbSlicesBeforeAPlus ?*
 
   var assignList =@assignSliceList.emptyList{}
+  var restrictList =@restrictList.emptyList{}
   var otherformatList =@idfOrRefFormatList.emptyList{}
   var refFormatList =@idfOrRefFormatList.emptyList{}
   repeat
   while
     <formatBody> !defaultInstructionSize !nbSlicesBeforeAPlus  
-                 !?assignList !?otherformatList !?refFormatList !?internalFormatId !?formatMap
+                 !?assignList !?otherformatList !?refFormatList !?internalFormatId !?formatMap !?restrictList
   end
   $end$ $format$
-  @aggFormat format = @aggFormat. new { !slicePrototypeList !assignList !refFormatList !otherformatList}
+  @aggFormat format = @aggFormat. new { !slicePrototypeList !assignList !refFormatList !otherformatList !restrictList}
   [!?formatMap insertKey !formatName !format]
 }
 
@@ -195,7 +226,7 @@ rule <selectFormat>
   @sliceList sliceList
   @uint nbSlicesBeforeAPlus
   @uint sliceSize
-  @alternativeIsList isList = @alternativeIsList. emptyList
+  @alternativeIsList isList = @alternativeIsList.emptyList
 
   @lstring alternativeFormatName = @lstring. new { !"select_format_"+[internalFormatId string] !@location.here}
   internalFormatId = internalFormatId + 1
@@ -209,7 +240,8 @@ rule <selectFormat>
     @binaryset isFormat
     <altFormatIs> !defaultInstructionSize !sliceSize !sliceList !nbSlicesBeforeAPlus ?isFormat !?othersKeyword !?maskCodingUsed
 
-    @assignSliceList caseAssignList = @assignSliceList. emptyList  
+    var caseAssignList = @assignSliceList. emptyList  
+    var restrictList = @restrictList.emptyList{}
     var caseFormatCallList =@idfOrRefFormatList.emptyList{}
     var caseRefFormatList =@idfOrRefFormatList.emptyList{}
     #each case in a format leads to generate another format (aggregate).
@@ -219,12 +251,12 @@ rule <selectFormat>
     while
       <formatBody> !defaultInstructionSize !nbSlicesBeforeAPlus  
                    !?caseAssignList !? caseFormatCallList !?caseRefFormatList 
-                   !?internalFormatId !?formatMap
+                   !?internalFormatId !?formatMap !?restrictList
     end
     var caseSliceList =@sliceList.emptyList{} #no slice associated to that internal format.
-    @aggFormat caseFormat = @aggFormat. new { !caseSliceList !caseAssignList !caseRefFormatList !caseFormatCallList}
+    var caseFormat = @aggFormat.new{!caseSliceList !caseAssignList !caseRefFormatList !caseFormatCallList !restrictList}
     [!?formatMap insertKey !caseFormatName !caseFormat]
-    @idfOrRefFormatIsIdf idf = @idfOrRefFormatIsIdf. new { ! caseFormatName !@lstring. new { !"" !@location.here}}
+    @idfOrRefFormatIsIdf idf = @idfOrRefFormatIsIdf.new {!caseFormatName !@lstring.new{!"" !@location.here}}
     #TODO: temp.
     isList += !idf !isFormat
   end

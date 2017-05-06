@@ -134,16 +134,14 @@ format misc16 -- A7.132
   end select
 end format
 
-format setEnd  -- set endianess
-  select slice{4,2..0}
-    case \b1_000 is #setEnd E := slice{3}
-  end select
+format setEnd #setEnd  -- set endianess
+  restrict slice{4,2..0} to \m1_000
+  E := slice{3}
 end format
 
-format setPan -- set priviledge access never
-  select slice{4,2..0}
-    case \b1_000 is #setPan imm1 := slice{3}
-  end select
+format setPan #setPan -- set priviledge access never
+  restrict slice{4,2..0} to \m1_000
+  imm1 := slice{3}
 end format
 
 format ifThenElseAndHint
@@ -186,12 +184,10 @@ format compareAndBranch
   Rn := slice{2..0} #Rn
 end format
 
-format CPS
-  select slice{3..0}
-    -- bits 3..2 should be set to '0', but are always decoded in objdump
-		-- bits 1..0 should not be set as 0, but objdump decode it.
-    case \m0--- or \m0--- is #CPS
-  end select
+format CPS #CPS
+  -- bits 3..2 should be set to '0', but are always decoded in objdump
+	-- bits 1..0 should not be set as 0, but objdump decode it.
+  restrict slice{3} to \m0
   Im := slice{4}
   A  := slice{2} -- A not defined in ARMv8...
   I  := slice{1}
@@ -364,21 +360,56 @@ end format
 --- Format 32 bits
 --##==================================================
 format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
-  select slice{15..13}
-    case \m111 is -- all 32 bits instructions start with '111'
-		  select slice{12..4}+{15} -- select op1/op2/op
-        case \m01_00--0--_- is loadStoreMultiple
-        case \m01_00--1--_- is loadStoreDualOrExclusive
-        case \m01_01-----_- is dataProcessingShifted
---        case \m10_-0-----_0 is dataProcessingModImm
-        case \m10_-1-----_0 is dataProcessingPlainImm
-      end select
+  restrict slice{15..13} to \m111 -- all 32 bits instructions start with '111'
+	select slice{12..4}+{15} -- select op1/op2/op
+    case \m01_00--0--_- is loadStoreMultiple
+    case \m01_00--1--_- is loadStoreDualOrExclusive
+    case \m01_01-----_- is dataProcessingShifted
+    case \m10_-0-----_0 is dataProcessingModImm
+    case \m10_-1-----_0 is dataProcessingPlainImm
+    case \m10_-------_1 is branchAndMiscCtrl
   end select
 end format
 
--- format dataProcessingModImm
--- 
--- end format
+format branchAndMiscCtrl
+  select slice{10..4}{15,14..12} --op,bit15,op1
+    case \m-------_1_1-1 is #branch #link
+      imm10 := slice{9..0}{-}
+      imm11 := slice{-}{10..0}
+      J1    := slice{-}{13}
+      J2    := slice{-}{11}
+      S     := slice{10}{-}
+--    case \m-------_1_0-1 is #branch
+  end select
+end format
+
+format dataProcessingModImm #dataProcessingMI
+  Rd4 dataProcImm12 setFlags
+  select slice{8..4}{-} --op
+    case \m0000- is Rn4 #and
+    case \m0001- is Rn4 #bic
+    case \m0010- is     
+      select slice{3..0}{-} --Rn
+        case \m1111 is #mov
+        others      is #orr Rn4 
+      end select
+    case \m0011- is
+      select slice{3..0}{-} --Rn
+        case \m1111 is #mvn
+        others      is #orn Rn4 
+      end select
+    case \m0100- is Rn4 #eor
+    case \m1000- is Rn4 #add
+    case \m1010- is Rn4 #adc
+    case \m1011- is Rn4 #sbc
+    case \m1101- is Rn4 #sub
+    case \m1110- is Rn4 #rsb
+  end select
+end format
+
+format setFlags
+  S := slice{4}{-}
+end format
 
 format dataProcessingPlainImm #dataProcessingPI -- plain immediat
   select slice{8..4}{-} -- op
@@ -387,49 +418,39 @@ format dataProcessingPlainImm #dataProcessingPI -- plain immediat
     case \m01010 is #sub  Rd4 Rn4 dataProcImm12 -- no special case for Rn=0xf => 'adr' instruction.
     case \m01100 is #movt Rd4 dataProcImm16
     case \m100-0 is
-      select slice{10,4}{5}
-        case \b000 is -- get the '0' in the format
-          sat_imm5 := slice{-}{4..0}
-          select slice{5}{14..12,7..6}
-            case \b1_00000 is #ssat16 Rd4 Rn4 -- sh=1 et imm=0 => ssat16
-            others         is #ssat Rd4 Rn4
-            	imm5 := slice{-}{14..12,7..6} 
-              shiftType := slice{5}{-} << 1 #shType
-          end select
-      end select
-    case \m10100 is 
-      select slice{10}{5}
-        case \b00 is #sbfx Rn4 Rd4
+      restrict slice{10,4}{5} to \m000
+      sat_imm5 := slice{-}{4..0}
+      select slice{5}{14..12,7..6}
+        case \b1_00000 is #ssat16 Rd4 Rn4 -- sh=1 et imm=0 => ssat16
+        others         is #ssat Rd4 Rn4
         	imm5 := slice{-}{14..12,7..6} 
-          widthm1 := slice{4..0}
+          shiftType := slice{5}{-} << 1 #shType
       end select
+    case \m10100 is #sbfx Rn4 Rd4
+      restrict slice{10}{5} to \m00
+      imm5 := slice{-}{14..12,7..6} 
+      widthm1 := slice{4..0}
     case \m10110 is 
-      select slice{10}{5}
-        case \b00 is Rd4 -- TODO: faire un : restrict slice{10}{5} to \m00
-        	lsb := slice{-}{14..12,7..6} 
-          msb := slice{-}{4..0}
-          select slice{3..0}{-}
-            case \m1111 is #bfc
-            others      is #bfi Rn4
-          end select
+      restrict slice{10}{5} to \m00
+      lsb := slice{-}{14..12,7..6} 
+      msb := slice{-}{4..0}
+      select slice{3..0}{-}
+        case \m1111 is #bfc
+        others      is #bfi Rn4
       end select
     case \m110-0 is
-      select slice{10,4}{5}
-        case \b000 is -- get the '0' in the format
-          sat_imm5 := slice{-}{4..0}
-          select slice{5}{14..12,7..6}
-            case \b1_00000 is #usat16 Rd4 Rn4 -- sh=1 et imm=0 => ssat16
-            others         is #usat Rd4 Rn4
-            	imm5 := slice{-}{14..12,7..6} 
-              shiftType := slice{5}{-} << 1 #shType
-          end select
+      restrict slice{10,4}{5} to \m000
+      sat_imm5 := slice{-}{4..0}
+      select slice{5}{14..12,7..6}
+        case \b1_00000 is #usat16 Rd4 Rn4 -- sh=1 et imm=0 => ssat16
+        others         is #usat Rd4 Rn4
+        	imm5 := slice{-}{14..12,7..6} 
+          shiftType := slice{5}{-} << 1 #shType
       end select
     case \m11100 is Rn4 Rd4 #ubfx
-      select slice{10,4}{5}
-        case \b000 is -- get the '0' in the format
-          widthm1 := slice{-}{4..0}
-          lsb := slice{-}{14..12,7..6}
-      end select
+      restrict slice{10,4}{5} to \m000
+      widthm1 := slice{-}{4..0}
+      lsb := slice{-}{14..12,7..6}
   end select
 end format
 
@@ -661,7 +682,6 @@ syntax tableBranch #table #branch
 end syntax
 
 syntax dataProcessingShifted #dataProcessingSR
-  field u1 S
   select
     case
       select
@@ -674,11 +694,11 @@ syntax dataProcessingShifted #dataProcessingSR
         case #sbc "sbc"
         case #sub "sub"
       end select
-      if S then "s" end if
+      setFlags
       ".w\t" Rd4 ", " Rn4
-    case #rsb "rsb" if S then "s" end if "\t" Rd4 ", " Rn4 -- no '.w'
-    case #orn "orn" if S then "s" end if "\t" Rd4 ", " Rn4 -- no '.w'
-    case #mvn "mvn" if S then "s" end if ".w\t" Rd4
+    case #rsb "rsb" setFlags "\t" Rd4 ", " Rn4 -- no '.w'
+    case #orn "orn" setFlags "\t" Rd4 ", " Rn4 -- no '.w'
+    case #mvn "mvn" setFlags ".w\t" Rd4
     case #tst "tst.w\t" Rn4
     case #teq "teq\t"   Rn4
     case #cmn "cmn.w\t" Rn4
@@ -697,9 +717,7 @@ end syntax
 
 syntax dataProcMoveShift #dataProcessingSR #move
   field u1 S
-  "mov"
-  if S then "s" end if
-  ".w\t"
+  "mov" setFlags ".w\t"
   Rd4 ", " Rm4 shiftType
 end syntax
 
@@ -775,6 +793,57 @@ syntax dataProcSSAT #dataProcessingPI
     case #usat   "usat\t"   Rd4 ", #\d, ",sat_imm5+1 Rn4 shiftType
     case #usat16 "usat16\t" Rd4 ", #\d, ",sat_imm5+1 Rn4
   end select
+end syntax
+
+syntax dataProcessingModImm #dataProcessingMI 
+  select
+    case #and "and" setFlags ".w\t" Rd4 ", " Rn4
+    case #bic "bic" setFlags ".w\t" Rd4 ", " Rn4
+    case #mov "mov" setFlags ".w\t" Rd4         
+    case #orr "orr" setFlags ".w\t" Rd4 ", " Rn4
+    case #mvn "mov" setFlags ".w\t" Rd4         
+    case #orn "orr" setFlags ".w\t" Rd4 ", " Rn4
+    case #eor "eor" setFlags ".w\t" Rd4 ", " Rn4
+    case #add "add" setFlags ".w\t" Rd4 ", " Rn4
+    case #adc "adc" setFlags ".w\t" Rd4 ", " Rn4
+    case #sbc "sbc" setFlags ".w\t" Rd4 ", " Rn4
+    case #sub "sub" setFlags ".w\t" Rd4 ", " Rn4
+    case #rsb "rsb" setFlags ".w\t" Rd4 ", " Rn4
+  end select
+  ", " ThumbExpandImm
+end syntax
+
+syntax ThumbExpandImm --algo A5.p.138
+  field u12 imm12 #imm12
+  if imm12{11..10} = 0 then
+    if     imm12{9..8} = 0 then
+      "#\d",imm12 -- 8 bits value
+    elseif imm12{9..8} = 1 then
+      "#\d",imm12{7..0} cat (u8)(0) cat imm12{7..0}
+    elseif imm12{9..8} = 2 then
+      "#\d",imm12{7..0} cat (u8)(0) cat imm12{7..0} cat (u8)(0)
+    elseif imm12{9..8} = 3 then
+      "#\d",imm12{7..0} cat imm12{7..0} cat imm12{7..0} cat imm12{7..0}
+    end if
+  else
+    "#\d",((u32)(1 cat imm12{6..0})) ror imm12{11..7}
+  end if
+end syntax
+
+syntax setFlags
+  field u1 S
+  if S then "s" end if
+end syntax
+
+syntax branch32 #branch #link 
+  field u10 imm10
+  field u11 imm11
+  field u1 J1
+  field u1 J2
+  field u1 S
+  "bl\t" "\x",(s32)(instruction address)+(s32)((s25)(S cat ~(J1^S) cat ~(J2^S) cat imm10 cat imm11 cat (u1)(0)))+4s
+  -- show label information as in objdump
+  " <" function "+0x\x>",instruction address+(u32)((s32)((s25)(S cat ~(J1^S) cat ~(J2^S) cat imm10 cat imm11 cat (u1)(0))))+4 - function address
 end syntax
 
 --##==================================================

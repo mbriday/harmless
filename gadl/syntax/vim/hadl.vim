@@ -23,7 +23,7 @@ syn case match
 " this speeds things up greatly.
 syn sync minlines=1 maxlines=1
 
-syn keyword hadlElement model except include port device architecture write shared behavior format select component every interrupt memory width address type RAM ROM register stride read program counter pipeline stage machine bypass release in maps to stall default instruction fetch debug big little endian typedef out when field on slice is others signed or syntax switch number octal decimal hexadecimal binary suffix prefix size jumpTaken add cycle use timing signal emit broadcast activation wait for until loop while 
+syn keyword hadlElement model except include port device architecture write shared behavior format select component every interrupt memory width address type RAM ROM register stride read program counter pipeline stage machine bypass release in maps to stall default instruction fetch debug big little endian typedef out when field on slice is others signed or syntax switch number octal decimal hexadecimal binary suffix prefix size jumpTaken add cycle use timing signal emit broadcast activation wait for until loop while restrict
 syn keyword hadlTree            case
 syn keyword hadlStatement       error warning do nop return print if then elseif else end true false
 syn keyword hadlOperator        ror rol cat

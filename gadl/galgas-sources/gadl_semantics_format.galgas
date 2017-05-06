@@ -27,6 +27,11 @@ list @assignSliceList {
   @luint shiftVal
 }
 
+### restrict instruction ***
+
+list @restrictList {
+  @binaryset bin
+}
 
 ########## Format "is" (left part) #############
 
@@ -70,6 +75,7 @@ abstract class @format {
 class @aggFormat : @format
 {
   @idfOrRefFormatList formatCallList
+  @restrictList restrictList
 }
 
 class @altFormat : @format
@@ -1025,7 +1031,11 @@ proc getBinaryFormat
           @format altFormat
           [formatMap searchKey !currentFormatString ?altFormat]
           cast altFormat
-          case == @aggFormat :
+          case == @aggFormat aggFormat:
+            #restrict
+            for (@binaryset restrictCode) in [aggFormat restrictList] do
+              code = code & restrictCode
+            end
           case == @altFormat altFormatIsAlt :
             #ok, get the alternatives :-)
             tempAltList = [altFormatIsAlt isList]
