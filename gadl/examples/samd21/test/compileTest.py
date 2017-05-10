@@ -108,23 +108,23 @@ def getIntOpcode(string):
         return 0
 
 def isException(dataO, dataH):
-    exception = False;
+    exception = 0;
     if dataO[1] == "" and dataH[1][0:5] == "Stall": #no mnemonic for that code.
-        exception = True
+        exception = 1
     elif dataO[1] == "" and dataH[1][0:9] == "no syntax": #no mnemonic for that code.
-        exception = True
+        exception = 2
     elif dataO[0][0] == "b" and dataO[0][1] == 'f' and dataO[0][3] == '0':
         #arm 16 bits hints instructions => bf-0
-        exception = True
+        exception = 3
     elif dataO[0][0:3] == "c00":
         #'stmia<und>	r0!, {}' for c00- => objdump adds the <und>, instruction is undefined.
-        exception = True
+        exception = 4
     elif getIntOpcode(dataH[0]) & 0xfff0f000 == 0xe840f000:
         #Load store exclusive with Rt=PC => unpredictable, but objdump says 'tt', 'tta', 'ttat', …
-        exception = True
-    elif dataH[1].find("invalid"):
-        exception = True
-    return exception
+        exception = 5
+    elif dataH[1].find("invalid") > 0:
+        exception = 6
+    return (exception != 0)
 
 import re
 def compare(args, objdumpFile, harmlessFile):
@@ -214,6 +214,9 @@ if __name__ == '__main__':
             help="build subdirectory (of 'build'). Useful if many instances are used.",
             type=str, default="build0")
     args = parser.parse_args()
+    if args.toRange < args.fromRange:
+        print('invalid range: toRange parameter should be greater than fromRange')
+        sys.exit(1)
 
     #0 le dossier de build
     buildDir = os.path.join('./build', args.buildSubDir)

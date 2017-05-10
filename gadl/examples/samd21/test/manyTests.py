@@ -40,6 +40,9 @@ if __name__ == '__main__':
     fr    = args.fromRange  #from range => not updated
     tr    = args.toRange    #to range => not updated
     fullRange = tr-fr       #full range => not updated
+    if fullRange < 0:
+        print('invalid range: toRange parameter should be greater than fromRange')
+        sys.exit(1)
     steps = int(fullRange/chunkSize) + 1
     if args.verbose:
         print('dispatch '+str(steps)+' steps on '+str(args.jobs)+' parallel jobs ('+str(fullRange)+' instructions to compare)')
@@ -54,14 +57,19 @@ if __name__ == '__main__':
 
     #start pool (python 2.x style...)
     pool = Pool(processes=args.jobs)
+    errorFound = False
     for result in pool.imap(runProcess, stepsParam):
         if result != 0:
+            pool.terminate()
+            errorFound = True
             break
         nbStepsDone = nbStepsDone + 1
         if args.verbose:
             print('\r{val:3.1f}% ({done}) of {size} steps'.format(val=min(100, float(nbStepsDone) / steps * 100),
                 done=nbStepsDone, size=steps),end='')
             sys.stdout.flush()
-    pool.close()
-    pool.join()
+    print()
+    if errorFound:
+        print("FAILED")
+        sys.exit(1)
     
