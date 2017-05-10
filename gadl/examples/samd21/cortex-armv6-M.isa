@@ -373,13 +373,27 @@ end format
 
 format branchAndMiscCtrl
   select slice{10..4}{15,14..12} --op,bit15,op1
-    case \m-------_1_1-1 is #branch #link
+    case \m-------_1_--1 is #branch
+      select slice{-}{14}
+        case \m1 is #link
+        case \m0 is #nolink
+      end select
       imm10 := slice{9..0}{-}
       imm11 := slice{-}{10..0}
       J1    := slice{-}{13}
       J2    := slice{-}{11}
       S     := slice{10}{-}
---    case \m-------_1_0-1 is #branch
+      target := (s32)((s25)(S cat ~(J1^S) cat ~(J2^S) cat imm10 cat imm11 cat (u1)(0)))
+    case \m-0-----_1_0-0 or -- bits 9..7 should not be 111
+         \m-10----_1_0-0 or
+         \m-110---_1_0-0 is #branch #cond
+      J1    := slice{-}{13}
+      J2    := slice{-}{11}
+      S     := slice{10}{-}
+      cond  := slice{9..6}{-}
+      imm6  := slice{5..0}{-}
+      imm11 := slice{-}{10..0}
+      target := (s32)((s25)(S cat J2 cat J1 cat imm6 cat imm11 cat (u1)(0)))
   end select
 end format
 
@@ -835,15 +849,36 @@ syntax setFlags
   if S then "s" end if
 end syntax
 
-syntax branch32 #branch #link 
+syntax branch32Cond #branch
+  field u6  imm6
+  field u11 imm11
+  field u1 J1
+  field u1 J2
+  field u1 S
+  field s32 target
+  "b"cond".w\t"
+  "\x",(s32)(instruction address)+target+4s
+  -- show label information as in objdump: UGLYYYYYY!
+  " <" function at (s32)(instruction address)+target+4s
+  "+0x\x>",    instruction address+(u32)(target)+4 - 
+  function at (instruction address+(u32)(target)+4) address
+end syntax
+
+syntax branch32 #branch
   field u10 imm10
   field u11 imm11
   field u1 J1
   field u1 J2
   field u1 S
-  "bl\t" "\x",(s32)(instruction address)+(s32)((s25)(S cat ~(J1^S) cat ~(J2^S) cat imm10 cat imm11 cat (u1)(0)))+4s
-  -- show label information as in objdump
-  " <" function "+0x\x>",instruction address+(u32)((s32)((s25)(S cat ~(J1^S) cat ~(J2^S) cat imm10 cat imm11 cat (u1)(0))))+4 - function address
+  field s32 target
+  select
+    case #link   "bl\t"
+    case #nolink "b.w\t"
+  end select
+  "\x",(s32)(instruction address)+target+4s
+  " <" function at (s32)(instruction address)+target+4s
+  "+0x\x>",         instruction address+(u32)(target)+4 - 
+  function at      (instruction address+(u32)(target)+4) address
 end syntax
 
 --##==================================================
