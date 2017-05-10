@@ -350,6 +350,7 @@ component Integer_Unit {
 component effective_address_Unit {
  u32 eff_addr_add (u32 ra, u32 rb) {
   return (u32)(ra + rb)
+  --return (u32)(reg.read32(12)+reg.read32(ra) + rb) => TODO: check
  }
 }
 
@@ -1140,10 +1141,10 @@ behavior getBaseAddress(out u32 base_addr)  #ra
    end do
   case #notu
    do
-    if rA != 0 then
-     base_addr := reg.read32(rA)
-    else
+    if rA = 0 then
      base_addr := 0
+    else
+     base_addr := reg.read32(rA)
     end if
    end do
  end select
