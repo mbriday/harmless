@@ -27,6 +27,19 @@ list @assignSliceList {
   @luint shiftVal
 }
 
+### assign with expression ***
+list @assignFormatASPExpList
+{
+  @lstring idf
+  @ASTExpression exp
+}
+
+map @expressionMap
+{
+  @expression exp
+  insert insertKey error message "the '%K' field expression is already defined in %L" 
+  search searchKey error message "the '%K' field expression is not defined"
+}
 ### restrict instruction ***
 
 list @restrictList {
@@ -76,6 +89,7 @@ class @aggFormat : @format
 {
   @idfOrRefFormatList formatCallList
   @restrictList restrictList
+  @assignFormatASPExpList assignFormatASPExpList
 }
 
 class @altFormat : @format
@@ -144,6 +158,7 @@ map @instructionImplementationMap
   #nb of chunks of the instruction. The real instruction length is codeLength*instructionSize bits.
   @uint codeLength
   @varBaseTypeMap instructionFieldMap
+  @expressionMap expressionMap #expression in formats
 
   insert insertKey error message "the '%K' instruction has the same signature (same references sequence) than another one." 
   search searchKey error message "the '%K' instruction is not defined"
@@ -299,7 +314,7 @@ proc setInstructionImplementationNames
   ?let  @string modelName
   ?let  @variableInstructionCodeList variableInstructionCodeList
   !  @instructionImplementationMap instructionMap {
-  instructionMap = @instructionImplementationMap. emptyMap
+  instructionMap = @instructionImplementationMap.emptyMap
   for (@binaryset code) in  binaryCodeList, 
       (@formatListWithSuffix fslist) in instructionList,
       (@lstringlist instructionSeq) in instructionSeqList,
@@ -307,6 +322,8 @@ proc setInstructionImplementationNames
       (@instructionCodeOffset offsetList @uint codeLength) in variableInstructionCodeList do
     var instructionFieldMap =@varBaseTypeMap.emptyMap{}
     #one instruction
+    var fieldMap = @varMap.emptyMap{}
+    var expressionMap = @expressionMap.emptyMap{}
     for (@idfOrRefFormat idfOrRefFormat @stringlist suffixList) in  fslist do
       cast idfOrRefFormat 
       case == @idfOrRefFormatIsIdf :
@@ -332,15 +349,35 @@ proc setInstructionImplementationNames
             path += "\n"
             message path
           else
+            #add it in a std varMap (for expressions)
+            @instDeclaration instDec = @instDeclaration.new {![fieldName location] 
+                                       !AStype !fieldName !@varClass.field !""}
+            [!?fieldMap insertKey !fieldName !AStype !true !@varClass.field !true !instDec]
+            #varBaseTypeMap
             [!?instructionFieldMap insertKey !fieldName !AStype]
           end
         end
+        #expressions in formats
+        cast format
+          case == @aggFormat aggFormat:
+            for (@lstring idf @ASTExpression ASTexp) in [aggFormat assignFormatASPExpList] do
+              #message "expression : " + [idf string] + "\n"
+              #do the job...
+              var idfStruct =@varIdfStruct.default
+              idfStruct.varMap = fieldMap
+              var exp = [ASTexp getExp !@expressionContext.format 
+                        !@symbolValueMap.emptyMap !idfStruct]
+              [!?expressionMap insertKey !idf !exp]
+              [!?instructionFieldMap insertKey !idf ![[exp type] getBaseType]]
+            end
+          else #rien
+        end #end expression format
       else
       end
     end
     @string instName = getInstructionName(!instructionID !modelName)
     @lstring idf = @lstring. new { !instName !@location.here}
-    [!?instructionMap insertKey !idf !code !fslist !instructionSeq !instructionID !offsetList !codeLength !instructionFieldMap]
+    [!?instructionMap insertKey !idf !code !fslist !instructionSeq !instructionID !offsetList !codeLength !instructionFieldMap !expressionMap]
 #    if [instructionID hasKey !"and"] then #TODO: tmp
 #      debugBinarySet(!code !32 !"code in instMap")    
 #    end  
@@ -827,13 +864,17 @@ proc constructAssign
   ?let  @format format
   ?let  @uint globalOffset
   ?let  @string suffixStr
-  ?! @string instCode {
+  ?!    @string instCode 
+{
+  #basic assignment (slice)
   @assignSliceList asList = [format asList]
+  #@varIdfStruct varIdfStruct := default
   for (@lstring name
                   @sliceList sliceList
                   @varBaseType type
                   @uint shiftType
                   @luint shiftVal) in  asList do
+    #then dedicated old code...
     @string nameWithSuffix = [name string]+suffixStr
     @string realTypeString = [type string]
     instCode += "\t// construct "+nameWithSuffix+" ("+realTypeString+")\n"
@@ -846,7 +887,7 @@ proc constructAssign
         instCode += "SIGN_EXTEND("
       end
     elsif [type kind] == @varKind. float then
-      error @location.here: "internal error: not yet imlplemented: format constructor"
+      error @location.here: "internal error: not yet implemented: format constructor"
     end
     #message "name : " + nameWithSuffix+ "("+[[[name location] line ]string]+")\n"
     instCode += getFormatAssignString(!sliceList !globalOffset)
@@ -873,7 +914,8 @@ proc constructAssign
 proc constructDef
   ?let  @format format
   ?let  @string suffixStr
-  ?! @string def {
+  ?! @string def 
+  {
   @assignSliceList asList = [format asList]
   for (@lstring name *
                   @varBaseType type ...) in  asList do
@@ -907,7 +949,8 @@ proc generateInstConstructorAndDef
                   @lstringlist instructionSeq
                   @stringset instructionID 
                   @instructionCodeOffset offsetList 
-                  @uint codeLength ...) in  impMap do
+                  @uint codeLength *
+                  @expressionMap expressionMap) in  impMap do
     #one instruction
     var constructorImplBody =@TfieldMap.emptyMap{}
     addLStringValue ( !?constructorImplBody !"name" !name)
@@ -916,6 +959,7 @@ proc generateInstConstructorAndDef
     @string constructorDefStr = ""
     #instruction constructor body (field assignation).
     #also used to get structure field names and types.
+    
     for (@idfOrRefFormat idfOrRefformat @stringlist suffixList) in  fslist,(@uint offset) in  offsetList do
       @string suffixStr
       getSuffixString ( !suffixList ?* ?suffixStr)
@@ -925,11 +969,20 @@ proc generateInstConstructorAndDef
         @lstring currentFormatString = [idfOrRefformat name]
         [formatMap searchKey !currentFormatString ?format]
         constructAssign ( !format !offset !suffixStr !?constructorBodyStr )
-        constructDef (    !format !suffixStr !?constructorDefStr)
+        constructDef (    !format !suffixStr !?constructorDefStr )
       case == @idfOrRefFormatIsRef :
       else error @location.here : "internal error: neither ref nor format idf ?!"
       end
     end
+    #expressions in format.
+    for (@lstring name @expression exp) in expressionMap do
+      constructorDefStr += "\t"+[[exp type] getCType]+" "+[name string]+";"
+      constructorDefStr += "  /* "+[[exp type] string]+ " */\n"
+      constructorBodyStr += "\t// construct expression "+[name string]+" ("+[[exp type] string]+")\n"
+      constructorBodyStr += "\t"+[name string]+" = "+[exp generateCode !@codeCtx.C]+";\n"
+    end
+
+
     addStringValue ( !?constructorImplBody !lstringWith(!"INST_FIELD_DEF") !constructorDefStr)
     addStringValue ( !?constructorImplBody !lstringWith(!"INST_CONSTRUCTOR_BODY") !constructorBodyStr)
 
@@ -1436,12 +1489,6 @@ proc instructionFormatPart
   @stringSetList  referenceSeqList
   getInstructionSequences ( !instructionList ?instructionSeqList ?referenceSeqList)
   getBinaryFormat ( !instructionList !formatMap ! variableInstructionCodeList !instructionSize !referenceSeqList ?binaryCodeList)
-  for (@stringset instructionID) in referenceSeqList,
-      (@binaryset code) in binaryCodeList do
-#    if [instructionID hasKey !"and"] then #TODO: tmp
-#      debugBinarySet(!code !32 !"code")    
-#    end
-  end
   setInstructionImplementationNames ( !formatMap !binaryCodeList !instructionList !instructionSeqList !referenceSeqList !modelName !variableInstructionCodeList ?impMap)
   outputFormatGraphViz ( !exportDir !formatMap !instructionList)
   generateDecoder ( !?templateStruct !impMap !defaultValues !fetchFunctionCondition)

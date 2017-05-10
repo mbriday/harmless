@@ -316,14 +316,15 @@ override getter @ASTExpInstructionSize getExp
 
 override getter @ASTExpInstructionAddress getExp
   ?let  @expressionContext ctx
-  ?let  @symbolValueMap unused symbolMap
-  ?let  @varIdfStruct unused idfStruct
+  ?let  @symbolValueMap symbolMap
+  ?let  @varIdfStruct idfStruct
   -> @expression exp {
   if ctx != @expressionContext.syntaxView & ctx != @expressionContext.behavior then
     error loc : "The 'instruction address' expression should only be used in a syntax or behavior view (ISA). Here is "+[ctx msg]
   end
-  @varBaseType outType = @varBaseType.new { !@varKind.unsigned !32 !loc} #instruction address -> u32
-  exp = @expInstructionAddress.new{!outType !addressType}
+  @expression addrExp = [ASTaddrExp getExp !ctx !symbolMap !idfStruct]
+  @varBaseType outType = @varBaseType.new {!@varKind.unsigned !32 !loc} #instruction address -> u32
+  exp = @expInstructionAddress.new{!outType !addressType !withAddr !addrExp}
 }
 
 override getter @ASTCast getExp

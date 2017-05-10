@@ -1,5 +1,8 @@
 syntax gadl_instruction_format_parser (gadl_lexique) {
 
+#rule from gadl_expression_parser
+rule <expression> !@ASTExpression exp
+
 #specific bit field for formats (not allowing expression). Using the standard one leads to a 
 #LL1 conflict because any expression can be used in the field.
 #type is the variable type in which the bitfield is accessed. It should be correctly defined, because
@@ -159,13 +162,19 @@ rule <formatBody>
   ?! @uint internalFormatId
   ?! @formatMap formatMap 
   ?! @restrictList restrictList
+  ?! @assignFormatASPExpList assignFormatASPExpList
   {
   select
     @lstring idf
     $idf$ ?idf indexing formatCall
     select
       #message [idf string]+" => "+[nbSlicesBeforeAPlus string]+"\n"
-      <assignFormat> !defaultInstructionSize !nbSlicesBeforeAPlus !idf !?assignList
+      $:=$
+      select
+        <assignFormat> !defaultInstructionSize !nbSlicesBeforeAPlus !idf !?assignList
+      or
+        <assignFormatExpression> !idf !?assignFormatASPExpList
+      end
     or
       @idfOrRefFormatIsIdf idfFormat
       <callFormat> !idf ?idfFormat
@@ -202,17 +211,23 @@ rule <format>
   @uint nbSlicesBeforeAPlus
   <sliceDef> !defaultInstructionSize ?slicePrototypeList ?nbSlicesBeforeAPlus ?*
 
-  var assignList =@assignSliceList.emptyList{}
-  var restrictList =@restrictList.emptyList{}
-  var otherformatList =@idfOrRefFormatList.emptyList{}
-  var refFormatList =@idfOrRefFormatList.emptyList{}
+  var assignList = @assignSliceList.emptyList{}
+  var restrictList = @restrictList.emptyList{}
+  var otherformatList = @idfOrRefFormatList.emptyList{}
+  var refFormatList = @idfOrRefFormatList.emptyList{}
+  var assignFormatASPExpList = @assignFormatASPExpList.emptyList{}
+  
   repeat
   while
     <formatBody> !defaultInstructionSize !nbSlicesBeforeAPlus  
-                 !?assignList !?otherformatList !?refFormatList !?internalFormatId !?formatMap !?restrictList
+                 !?assignList !?otherformatList !?refFormatList 
+                 !?internalFormatId !?formatMap !?restrictList
+                 !?assignFormatASPExpList
   end
   $end$ $format$
-  @aggFormat format = @aggFormat. new { !slicePrototypeList !assignList !refFormatList !otherformatList !restrictList}
+  @aggFormat format = @aggFormat.new{ !slicePrototypeList !assignList 
+                                      !refFormatList !otherformatList 
+                                      !restrictList !assignFormatASPExpList}
   [!?formatMap insertKey !formatName !format]
 }
 
@@ -244,6 +259,7 @@ rule <selectFormat>
     var restrictList = @restrictList.emptyList{}
     var caseFormatCallList =@idfOrRefFormatList.emptyList{}
     var caseRefFormatList =@idfOrRefFormatList.emptyList{}
+    var assignFormatASPExpList = @assignFormatASPExpList.emptyList{}
     #each case in a format leads to generate another format (aggregate).
     @lstring caseFormatName = @lstring. new { !"format_case_"+[internalFormatId string] !@location.here}
     internalFormatId = internalFormatId + 1
@@ -251,10 +267,11 @@ rule <selectFormat>
     while
       <formatBody> !defaultInstructionSize !nbSlicesBeforeAPlus  
                    !?caseAssignList !? caseFormatCallList !?caseRefFormatList 
-                   !?internalFormatId !?formatMap !?restrictList
+                   !?internalFormatId !?formatMap !?restrictList !?assignFormatASPExpList
     end
     var caseSliceList =@sliceList.emptyList{} #no slice associated to that internal format.
-    var caseFormat = @aggFormat.new{!caseSliceList !caseAssignList !caseRefFormatList !caseFormatCallList !restrictList}
+    var caseFormat = @aggFormat.new{!caseSliceList !caseAssignList !caseRefFormatList 
+                                    !caseFormatCallList !restrictList !assignFormatASPExpList}
     [!?formatMap insertKey !caseFormatName !caseFormat]
     @idfOrRefFormatIsIdf idf = @idfOrRefFormatIsIdf.new {!caseFormatName !@lstring.new{!"" !@location.here}}
     #TODO: temp.
@@ -373,13 +390,20 @@ rule <altFormatIs>
   $is$
 }
 
+rule <assignFormatExpression> 
+  ?let  @lstring idf
+  ?!@assignFormatASPExpList assignFormatASPExpList
+{
+  <expression> ?var @ASTExpression exp
+  assignFormatASPExpList += !idf !exp
+}
+
 rule <assignFormat> 
   ?let  @luint defaultInstructionSize
   ?let  @uint unused sliceOffset 
   ?let  @lstring idf
   ?! @assignSliceList assignList {
   @location loc = @location.here
-  $:=$
   @sliceList slice = @sliceList. emptyList
   @uint typeLength = 0 #final length of the slice.
   @uint nbSlicesInAssign = 0

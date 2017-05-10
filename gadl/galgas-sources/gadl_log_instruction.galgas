@@ -58,7 +58,8 @@ proc prepareLogTemplates
                   @stringset instSignature
                   * 
                   @uint codeLength
-                  @varBaseTypeMap instructionFieldMap) in  impMap do
+                  @varBaseTypeMap instructionFieldMap
+                  *) in  impMap do
     var instStruct =@TfieldMap.emptyMap{}
     #ID
     addLStringValue ( !?instStruct !"instID" !instName)

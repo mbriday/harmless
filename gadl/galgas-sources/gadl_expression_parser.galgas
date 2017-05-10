@@ -335,11 +335,20 @@ rule <factor>
       exp = @ASTExpInstructionSize. new { !@location.here}
     or
       $address$
-      exp = @ASTExpInstructionAddress. new { !@location.here !@addressType.inst}
+      var ASTexpDummy = @ASTIntConst.new {!@location.here !1L !false !@varKind.unsigned} #dummy value
+      exp = @ASTExpInstructionAddress. new { !@location.here !@addressType.inst !false !ASTexpDummy}
     end
   or
-    $function$ $address$
-    exp = @ASTExpInstructionAddress. new { !@location.here !@addressType.function}
+    $function$ 
+    select
+      $at$
+      <expression> ?@ASTExpression expFuncAddr
+      exp = @ASTExpInstructionAddress. new {!@location.here !@addressType.function !true !expFuncAddr}
+    or
+      var ASTexpDummy = @ASTIntConst.new {!@location.here !1L !false !@varKind.unsigned} #dummy value
+      exp = @ASTExpInstructionAddress. new {!@location.here !@addressType.function !false !ASTexpDummy}
+    end
+    $address$
   or
     $($
     select #### nested expression ###

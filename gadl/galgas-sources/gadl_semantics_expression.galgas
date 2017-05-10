@@ -35,6 +35,7 @@ enum @expressionContext {
   case component 
   case memory 
   case behavior 
+  case format
   case syntaxView  #syntax is a keyword :-/
   case timing 
   case instCycle  #related to the fourth view of instruction: inst cycle without pipeline.
@@ -48,6 +49,7 @@ getter @expressionContext msg -> @string outResult {
     case component      : outResult = "an expression in a component description"
     case memory         : outResult = "an expression in a memory description"
     case behavior       : outResult = "an expression in a behavior view"  
+    case format         : outResult = "an expression in a format view"  
     case syntaxView     : outResult = "an expression in a syntax view"  
     case timing         : outResult = "an expression in a timing view"
     case instCycle      : outResult = "an expression in an instruction cycle (fourth) view"
@@ -80,6 +82,8 @@ class @expInstructionSize : @expression {
 
 class @expInstructionAddress : @expression {
   @addressType addressType
+  @bool withAddr
+  @expression addrExp
 }
 
 list @idfItemList

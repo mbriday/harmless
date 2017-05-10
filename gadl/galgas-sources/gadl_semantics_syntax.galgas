@@ -154,19 +154,30 @@ proc print
 }
 
 class @functionChunk : @syntaxChunk {
-  @location loc
+  @bool withAddress
+  @ASTExpression exp
 }
 
 override method @functionChunk printImplementation 
-  ?let  @varMap unused fieldMapWithoutSuffix
+  ?let  @varMap fieldMapWithoutSuffix
   ?let  @uint indentation
-  ?let  @string unused currentSuffixStr
+  ?let  @string currentSuffixStr
   ?! @string code
   ?let  @printNumberTypeMap unused typeMap
   ?let  @bool unused switchGenerate {
 
   code += tabs(!indentation)
-  code += "__index += sprintf (result + __index,\"%s\",_core->whichFunctionAtAddress(getInstructionPointer()).c_str());\n";
+  if withAddress then
+    var idfStruct =@varIdfStruct.default
+    idfStruct.varMap = fieldMapWithoutSuffix
+    idfStruct.idfSuffixName = currentSuffixStr
+    @expression addr = [exp getExp !@expressionContext.syntaxView !@symbolValueMap.emptyMap !idfStruct]
+    code += "__index += sprintf (result + __index,\"%s\",_core->whichFunctionAtAddress(";
+    code += [addr generateCode !@codeCtx.C]
+    code += ").c_str());\n";
+  else
+    code += "__index += sprintf (result + __index,\"%s\",_core->whichFunctionAtAddress(getInstructionPointer()).c_str());\n";
+  end
 }
 
 class @printChunk : @syntaxChunk {
@@ -402,7 +413,7 @@ proc checkSyntaxInstructionWithFormatCompatibility
       #then checks that each field is correctly set (name and type).
       @varBaseTypeMap instructionFieldMap
       @lstring instNameLoc = @lstring. new { !instName !@location.here}
-      [impMap searchKey !instNameLoc ?* ?* ?* ?* ?* ?* ?instructionFieldMap]
+      [impMap searchKey !instNameLoc ?* ?* ?* ?* ?* ?* ?instructionFieldMap ?*]
       #now get all the fields in the behavior.
       @uint nbFields = 0
       for (@syntaxChunk chunk @stringlist suffixList) in  chunkList do

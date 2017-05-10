@@ -175,11 +175,18 @@ override getter @expInstructionSize generateCode
 }
 
 override getter @expInstructionAddress generateCode
-  ?let  @codeCtx unused cgc
+  ?let  @codeCtx cgc
   -> @string code {
   switch addressType
   case inst:     code = "getInstructionPointer()"
-  case function: code = "_core->getFunctionAddress(_core->whichFunctionAtAddress(getInstructionPointer()).c_str())" #called only from an ISA syntax part!
+  case function: 
+    if withAddr then
+      code = "_core->getFunctionAddress(_core->whichFunctionAtAddress("
+      code += [addrExp generateCode !cgc]
+      code += ").c_str())" #called only from an ISA syntax part!
+    else
+      code = "_core->getFunctionAddress(_core->whichFunctionAtAddress(getInstructionPointer()).c_str())" #called only from an ISA syntax part!
+    end
   end
 }
 

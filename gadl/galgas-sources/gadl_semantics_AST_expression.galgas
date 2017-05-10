@@ -66,8 +66,11 @@ enum @addressType {
 
 #this should only be called in a Harmless instruction syntax (mnemo).
 #Used only in the 'syntax' view.
+#this should be done with 2 different structures, but this is only used in sntax view...
 class @ASTExpInstructionAddress : @ASTExpression {
   @addressType addressType
+  @bool withAddr
+  @ASTExpression ASTaddrExp
 }
 
 enum @idfItemType {

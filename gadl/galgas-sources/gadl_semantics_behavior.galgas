@@ -318,7 +318,7 @@ setter @decodedBehaviorMap checkInstructionWithFormatPart
       #ok matching.
       #then checks that each field is correctly set (name and type).
       @varBaseTypeMap varBaseTypeMap
-      [impMap searchKey !lkey ?* ?* ?* ?* ?* ?* ?varBaseTypeMap]
+      [impMap searchKey !lkey ?* ?* ?* ?* ?* ?* ?varBaseTypeMap ?*]
       
       #get fields:
       #TODO: get a @varBaseTypeMap from instList.

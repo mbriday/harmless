@@ -167,7 +167,16 @@ rule <syntaxBody>
     chunkList += !pChunk
   or
     $function$;
-    @functionChunk f = @functionChunk.new{!@location.here}
+    @functionChunk f
+    @ASTExpression ASTexp
+    select
+      ASTexp = @ASTIntConst.new {!@location.here !1L !false !@varKind.unsigned} #dummy value
+      f = @functionChunk.new{!false !ASTexp}
+    or
+      $at$;
+      <expression> ?ASTexp
+      f = @functionChunk.new{!true !ASTexp}
+    end
     chunkList += !f
   or
     <selectSyntax> !?syntaxMap !fieldMap !?chunkList !?internalSyntaxId

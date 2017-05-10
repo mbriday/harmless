@@ -91,7 +91,12 @@ override getter @expInstructionAddress harmlessCode
 {
   switch addressType
   case inst:     code = "instruction address"
-  case function: code = "function address"
+  case function: code = "function"
+    if withAddr then
+      code += " at "+ [addrExp harmlessCode]
+    else
+      code += " address"
+    end
   end
 }
 
