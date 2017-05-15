@@ -403,9 +403,20 @@ format branchAndMiscCtrl
       target := (s32)((s25)(S cat ~(J1^S) cat ~(J2^S) cat imm10 cat imm11 cat (u1)(0)))
       restrict slice{-}{0} to \m0
     case \m011100-_0-0 is #msr Rn4
-      --restrict slice{4}{13,9,8} to \m0000
       mask := slice{-}{11..10}
       sysm := slice{-}{7..0}
+    case \m011111-_0-0 is #mrs Rd4
+      sysm := slice{-}{7..0}
+    case \m0111010_0-0 is #hint32
+      select slice{-}{10..0}
+        case \m000_00000001 is #yield
+        case \m000_00000010 is #wfe
+        case \m000_00000011 is #wfi
+        case \m000_00000100 is #sev
+        case \m000_00000101 is #sev #long
+        case \m000_1111---- is #dbg opt := slice{-}{3..0}
+        others is #nop opt := slice{-}{7..0} -- datasheet allows only 0, but objdump is more permissive.
+      end select
   end select
 end format
 
@@ -912,12 +923,38 @@ syntax branch32 #branch
 end syntax
 
 syntax msr
-  #msr
-  field u2 mask
-  "msr\t" specReg ", " Rn4
+  select
+    case  #msr "msr\t" specRegMSR ", " Rn4
+    case  #mrs "mrs\t" Rd4 ", " specRegMRS
+  end select
 end syntax
 
-syntax specReg --ok for 0..ff for sysm
+syntax specRegMRS --ugly, but objdump compatible.
+  field u8 sysm
+  if     sysm = \x00  then "CPSR"
+  elseif sysm = \x01  then "IAPSR"
+  elseif sysm = \x02  then "EAPSR"
+  elseif sysm = \x03  then "PSR"
+  elseif sysm = \x05  then "IPSR"
+  elseif sysm = \x06  then "EPSR"
+  elseif sysm = \x07  then "IEPSR"
+  elseif sysm{6..0} = \x08  then "MSP"
+  elseif sysm{6..0} = \x09  then "PSP"
+  elseif sysm{6..0} = \x0a  then "MSPLIM"
+  elseif sysm{6..0} = \x0b  then "PSPLIM"
+  elseif sysm{6..0} = \x10  then "PRIMASK"
+  elseif sysm{6..0} = \x11  then "BASEPRI"
+  elseif sysm{6..0} = \x12  then "BASEPRI_MAX"
+  elseif sysm{6..0} = \x13  then "FAULTMASK"
+  elseif sysm{6..0} = \x14  then "CONTROL"
+  elseif sysm{5..4} = \x3  then "SP_hyp"
+  end if
+  
+  if sysm >= \x80 && sysm < \x98 then "_NS" end if 
+  if sysm = \x98  then "SP_NS" end if
+end syntax
+
+syntax specRegMSR
   field u8 sysm
   field u2 mask
   if     sysm = \x0  then 
@@ -957,6 +994,19 @@ syntax specReg --ok for 0..ff for sysm
   if     sysm = \x98        then  "SP_NS"
   elseif sysm{7..5} = \b100 then "_NS" end if -- same as MSP..CONTROL
 end syntax
+
+syntax hint32 #hint32
+  select
+    case #nop field u8 opt "nop.w" if opt != 0 then "\t{\d}",opt end if
+    case #yield "yield.w"
+    case #wfe "wfe.w"
+    case #wfi "wfi.w"
+    case #sev "sev.w"
+    case #sev #long "sevl.w"
+    case #dbg field u4 opt "dbg\t#\d",opt
+  end select
+end syntax
+
 
 --##==================================================
 --## Syntax description
