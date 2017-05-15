@@ -1,0 +1,6 @@
+#!/bin/sh
+../../makefile-macosx/gadl ./samd21.cpu --templates=../../templates && 
+#../../gadl ./samd21.cpu --templates=../../templates && 
+cd samd21 && 
+make python USE_IO_STUBS=0 && 
+cd ..
