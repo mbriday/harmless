@@ -8,12 +8,13 @@ memory space reg width 32 stride 4 -- access 32 bits: index 2 means address 2*4 
 
 core cortexM0Plus : isa armv6M
 {
-  -- base. Il faudra rajouter certains registres.
+  -- only r0 -> r12
   memory GPR {
     width  := 32
-    size   := 64 -- 16 registers
+    size   := 13*4 -- 13 registers, from r0 to r12
     type   := register
   } maps to reg:0
+  
 
   -- constructor.
   void cortexM0Plus() {

@@ -19,19 +19,62 @@ default {
 --## Components
 --##==================================================
 
-component fetcher {
-  program counter u32 PC
+component gpr {
+  register        u32 SP -- Stack pointer   r13
+  register        u32 LR -- Link register   r14
+  program counter u32 PC -- program counter r15
 
-  void reset() {
-    -- SP <- contenu adresse 0
-    PC := 0 -- en fait PC <- (contenu adresse 4) - 1
+  u32 read32(u4 num)
+  {
+    u32 result := 0
+    if(num < 13)     then result := reg.read32(num)
+    elseif(num = 13) then result := SP
+    elseif(num = 14) then result := LR
+    elseif(num = 15) then result := PC 
+    end if
+    return result
   }
 
-  void absBranch(u32 newPC, u1 cond)
+  void write32(u4 num, u32 val)
   {
-    if (cond) then 
-      PC := newPC 
-    end if   
+    if(num < 13)     then reg.write32(num, val)
+    elseif(num = 13) then SP := val
+    elseif(num = 14) then LR := val
+    elseif(num = 15) then PC := val
+    end if
+  }
+
+}
+
+component ual {
+  register u32 APSR{
+    N  := slice{31}
+    Z  := slice{30}
+    C  := slice{29}
+    V  := slice{28}
+    Q  := slice{27}
+    GE := slice{19..16}
+  }
+  
+}
+
+component int {
+  register u8 ITSTATE {
+    IT := slice{7..0}
+  }
+
+  void ITAdvance() {
+    if(ITSTATE{2..0} = 0) then ITSTATE.IT := 0
+    else ITSTATE.IT{4..0} := ITSTATE.IT{4..0} << 1
+    end if
+  }
+
+  u1 inItBlock() {
+    return (ITSTATE.IT{3..0} != 0)
+  }
+
+  u1 lastInItBlock() {
+    return (ITSTATE.IT{3..0} = \b1000)
   }
 }
 
@@ -41,6 +84,38 @@ component fetcher {
 
 --behavior nopInstruction #moveImmediate -- Page A6-154
 --end behavior
+behavior arith
+  field u5 imm5 #imm5
+  field u3 Rm #Rm
+  field u3 Rd #Rd
+  u1 setFlags := !int.inItBlock()
+  select
+    case #logicalShift #left
+    do
+      u37 result := gpr.read32(Rm) << imm5
+      if setFlags then
+        APSR.N := result{31}
+        APSR.Z := result{31..0} = 0
+        APSR.C := result{32}
+      end if
+      gpr.write32(Rd,result{31..0})
+    end do
+
+    case #logicalShift #right
+    do
+      u32 result := gpr.read32(Rm) >> (imm5-1) -- shift 1 less to keep the carry.
+      if setFlags then
+        APSR.N := result{31}
+        APSR.Z := result{31..1} = 0
+        APSR.C := result{0}
+      end if
+      gpr.write32(Rd,result{31..1})
+    end do
+  end select
+  
+end behavior
+
+
 
 -- behavior ADC #ADC
 --   field u4 Rn
@@ -365,10 +440,33 @@ format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
     case \m01_00--0--_- is loadStoreMultiple				--A5-142
     case \m01_00--1--_- is loadStoreDualOrExclusive --A5-143
     case \m01_01-----_- is dataProcessingShifted		--A5-148
-    case \m01_1------_- is coprocessorInstruction		--A5-156
+    case \m01_1------_- is coprocessorInstruction		--A5-156 --not complete!
     case \m10_-0-----_0 is dataProcessingModImm			--A5-136
     case \m10_-1-----_0 is dataProcessingPlainImm		--A5-139
     case \m10_-------_1 is branchAndMiscCtrl				--A5-140
+    case \m11_000---0_- is storeSingleDateItem      --A5-147
+  end select
+end format
+
+format storeSingleDateItem
+  select slice{7..5}{-}
+    case \m-00 is #byte
+    case \m-01 is #halfword
+    case \m-10 is #word
+  end select
+  Rn4
+  Rt    := slice{-}{15..12} #Rt
+  select slice{7..4}{11..6} --op1 0 op2, p147 (A5.3.10)
+    case \m1--0_------ is #store -- encoding T2. p.430 3..0, 15..0
+      imm12 := slice{-}{11..0} #imm12
+    case \m0--0_1----- is #store -- encoding T3
+      imm8 := slice{-}{7..0}   #imm8
+      wb     := slice{-}{8} -- or W
+      idx    := slice{-}{10} -- or P
+      addi   := slice{-}{9}  -- or U
+    case \m0--0_0000-- is #store -- encoding T2
+      imm2 := slice{-}{5..4} #imm2
+      Rm   := slice{-}{3..0} #Rm
   end select
 end format
 
@@ -391,7 +489,6 @@ format coprocessorInstruction #coproc
       end select
   end select
 end format
-
 
 format branchAndMiscCtrl
   select slice{10..4}{14..12} --op,op1
@@ -1330,7 +1427,7 @@ end syntax
 
 -- opcode ed23 4867 => 'stc	8, cr4, [r3, #-412]!'
 -- ./compileTest.py -fr 0xEc234000 -tr 0xEc234fff => passe
--- TODO: mettre les autres valeurs de CRd
+-- TODO: mettre les autres valeurs de CRd => C'ets le bazar => il faut trouver une autre approche.
 syntax coprocessorInstruction #coproc #store
   field u1 P
   field u1 U
@@ -1359,6 +1456,54 @@ syntax coprocessorInstruction #coproc #store
     if P then "]" end if
     if W & P then "!" end if
   end if
+end syntax
+
+syntax storeSingleDateItem #store
+  "str"
+  select
+    case #byte "b"
+    case #halfword "h"
+    case #word
+  end select
+  select  
+    case -- encoding T2
+      ".w\t"
+      #imm12
+  		field u12 imm12
+      Rt4 ", [" Rn4 
+      if imm12 != 0 then 
+        ", #\d",imm12
+      end if
+      "]"
+    case #imm8 --encoding T3
+      field u1 idx
+      field u1 addi
+      field u1 wb 
+      field u8 imm8
+      if idx & addi & !wb then "t\t"
+      else ".w\t"
+      end if
+      Rt4 ", [" Rn4
+      field u4 Rn if Rn=15 then "<invalid>" end if --no pc.
+      if idx then
+        if imm8 then
+          ", #"
+          if !addi then "-" end if
+          "\d",imm8
+        end if
+        "]"
+        if wb then "!" end if
+      elseif !idx & wb then
+        "], #"
+        if !addi && imm8 !=0 then "-" end if
+        "\d",imm8
+      end if
+    case #imm2 -- reg, encoding T2
+      field u2 imm2
+      ".w\t" Rt4 ", [" Rn4 ", " Rm4
+      if imm2 then ", lsl #\d",imm2 end if
+      "]"
+  end select
 end syntax
 
 syntax branch #branch #cond

@@ -94,7 +94,7 @@ def harmless(args,exeFile):
 def clean(args, buildDir):
     if args.clean:
         if args.verbose:
-            print "remove build directory "+buildDir,
+            print("remove build directory "+buildDir)
         shutil.rmtree(buildDir)
 
 def getIntOpcode(string):
@@ -109,6 +109,8 @@ def getIntOpcode(string):
 
 def isException(dataO, dataH):
     exception = 0;
+    opcode = getIntOpcode(dataH[0]) #convert opcode into an int.
+    #print 't',opcode
     if dataO[1] == "" and dataH[1][0:5] == "Stall": #no mnemonic for that code.
         exception = 1
     elif dataO[1] == "" and dataH[1][0:9] == "no syntax": #no mnemonic for that code.
@@ -119,17 +121,23 @@ def isException(dataO, dataH):
     elif dataO[0][0:3] == "c00":
         #'stmia<und>	r0!, {}' for c00- => objdump adds the <und>, instruction is undefined.
         exception = 4
-    elif getIntOpcode(dataH[0]) & 0xfff0f000 == 0xe840f000:
+    elif opcode & 0xfff0f000 == 0xe840f000:
         #Load store exclusive with Rt=PC => unpredictable, but objdump says 'tt', 'tta', 'ttat', …
         exception = 5
-    elif dataH[1].find("invalid") >= 0:
+    elif ((opcode > 0xffff) and (opcode & 0xffdf0000 == 0xf80f0000)) or (opcode & 0xffdf == 0xf80f): #strb, strh
+        #Store with Rn = pc is unpredictable… and objdump tries to parse it.
         exception = 6
-    elif dataO[1].find("undefined") >= 0:
+    elif ((opcode > 0xffff) and (opcode & 0xffff0000 == 0xf84f0000)) or (opcode & 0xffff == 0xf84f): #str
+        #Store with Rn = pc is unpredictable… and objdump tries to parse it.
+        exception = 6
+    elif dataH[1].find("invalid") >= 0:
         exception = 7
-    elif dataO[1].find("unknown") >= 0:
+    elif dataO[1].find("undefined") >= 0:
         exception = 8
-    elif dataO[1].find("UNDEF") >= 0:
+    elif dataO[1].find("unknown") >= 0:
         exception = 9
+    elif dataO[1].find("UNDEF") >= 0:
+        exception = 10
     return (exception != 0)
 
 import re
