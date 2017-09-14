@@ -362,14 +362,36 @@ end format
 format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
   restrict slice{15..13} to \m111 -- all 32 bits instructions start with '111'
 	select slice{12..4}+{15} -- select op1/op2/op
-    case \m01_00--0--_- is loadStoreMultiple
-    case \m01_00--1--_- is loadStoreDualOrExclusive
-    case \m01_01-----_- is dataProcessingShifted
-    case \m10_-0-----_0 is dataProcessingModImm
-    case \m10_-1-----_0 is dataProcessingPlainImm
-    case \m10_-------_1 is branchAndMiscCtrl
+    case \m01_00--0--_- is loadStoreMultiple				--A5-142
+    case \m01_00--1--_- is loadStoreDualOrExclusive --A5-143
+    case \m01_01-----_- is dataProcessingShifted		--A5-148
+    case \m01_1------_- is coprocessorInstruction		--A5-156
+    case \m10_-0-----_0 is dataProcessingModImm			--A5-136
+    case \m10_-1-----_0 is dataProcessingPlainImm		--A5-139
+    case \m10_-------_1 is branchAndMiscCtrl				--A5-140
   end select
 end format
+
+format coprocessorInstruction #coproc
+  select slice{9..4}{4,11..8} --op1 op coproc
+    case \m01----_-_---- or 
+         \m0-1---_-_---- or
+         \m0---1-_-_---- is -- not 000x0x
+      P := slice{8}{-}
+      U := slice{7}{-}
+      N := slice{6}{-}
+      W := slice{5}{-}
+      Rn4
+      coproc := slice{-}{11..8}
+      CRd    := slice{-}{15..12}
+      imm10  := slice{-}{7..0} << 2
+      select slice{4}{-}
+        case 0 is #store
+        case 1 is #load
+      end select
+  end select
+end format
+
 
 format branchAndMiscCtrl
   select slice{10..4}{14..12} --op,op1
@@ -625,7 +647,6 @@ format dataProcessingShifted #dataProcessingSR -- shifted register
     case \m1110_0 is immShift Rn4 Rd4 #rsb
   end select
 end format
-
 
 format packHW #pack16
   shiftType := slice{-}{5} << 1 #shType
@@ -1305,6 +1326,39 @@ syntax loadStoreMulti #multipleWord
     case #store "stmia\t" Rn "!, "
   end select
   reglist
+end syntax
+
+-- opcode ed23 4867 => 'stc	8, cr4, [r3, #-412]!'
+-- ./compileTest.py -fr 0xEc234000 -tr 0xEc234fff => passe
+-- TODO: mettre les autres valeurs de CRd
+syntax coprocessorInstruction #coproc #store
+  field u1 P
+  field u1 U
+  field u1 N
+  field u1 W
+  field u4 coproc
+  field u4 CRd
+  field u10 imm10
+  if     coproc = 1 then "stf"
+    if CRd > 7 then "d" else "s" end if
+    "\tf\d",CRd & 7
+  elseif coproc = 2 then "sfm	f\d, ",CRd & 7
+    if CRd > 7 then "1" else "4" end if
+  elseif coproc = 4 then "cfstrs\tmvf\d",CRd
+  elseif coproc = 5 then "cfstr32\tmvfx\d",CRd
+  elseif CRd = 0 & coproc = 10 & imm10 = 0 then "vlstm\t"
+  else
+    "stc\t\d, cr\d",coproc,CRd
+  end if
+  if !(CRd = 0 & coproc = 10 & imm10 = 0) then ", [" end if
+  Rn4
+
+  if !(CRd = 0 & coproc = 10 & imm10 = 0) then
+    if !P then "]" end if
+    ", " if !U then "#-\d",imm10 else "{\d}", imm10>>2 end if
+    if P then "]" end if
+    if W & P then "!" end if
+  end if
 end syntax
 
 syntax branch #branch #cond

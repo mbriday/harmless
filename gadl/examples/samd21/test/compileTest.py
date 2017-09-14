@@ -184,6 +184,7 @@ def compare(args, objdumpFile, harmlessFile):
                     miss = miss+1
     if miss >= 100:
         print("Only the first 100 errors are displayed.")
+        print("fix the problem and check in range: -fr "+hex(args.fromRange)+" -tr "+hex(args.toRange))
     if miss == 0:
         if args.verbose:
             print("Great! No error out of "+str(total)+" comparisons.")
