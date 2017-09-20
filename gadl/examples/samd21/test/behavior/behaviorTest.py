@@ -56,31 +56,36 @@ def getInt(txt):
             print("error in integer conversion: "+txt)
             return 0
 
-def getRegCombinations(inst,group,key, forCode):
-    # for each reg, get the possible combinaisons 
-    # (each value, for each reg index).
+def getRegCombinationsForCode(inst,group,key):
+    # for each reg, get the possible combinaisons
+    # that may update the assembly code.
     if key in inst:
         for regName in inst[key]:
             reg = inst[key][regName]
             case = []
             if 'idx' in reg:
                 for idxTxt in reg['idx']:
-                    idx = getInt(idxTxt)
-                    if forCode:
-                        case.append({'idx':idx})
-                    else:
-                        if 'val' in reg:
-                            for valTxt in reg['val']:
-                                val = getInt(valTxt)
-                                case.append({'val':val, 'idx':idx})
-            elif 'val' in reg and not forCode: #no idx => maybe APSR
-                for valTxt in reg['val']:
-                    val = getInt(valTxt)
-                    case.append({'val':val})
+                    #idx = getInt(idxTxt)
+                    case.append({'idx':idxTxt})
             if 'imm' in reg:
                 for immTxt in reg['imm']:
                     imm = getInt(immTxt)
                     case.append({'imm':imm})
+            if case:
+                group.append({regName:case})
+    return group
+
+def getRegCombinationsForRuntime(inst,group,key):
+    # for each reg, get the possible combinaisons 
+    # that do not depends on the assembly code.
+    if key in inst:
+        for regName in inst[key]:
+            reg = inst[key][regName]
+            case = []
+            if 'val' in reg:
+                for valTxt in reg['val']:
+                    val = getInt(valTxt)
+                    case.append({'val':val})
             if case:
                 group.append({regName:case})
     return group
@@ -99,7 +104,10 @@ def combinations(inst, forCode):
     #first, get all cases for each register
     group = []
     for key in ['src', 'dest']:
-        getRegCombinations(inst,group,key, forCode)
+        if forCode:
+            getRegCombinationsForCode(inst,group,key)
+        else:
+            getRegCombinationsForRuntime(inst,group,key)
     #debug(group)
     
     #Then combine each register with the others
@@ -148,17 +156,19 @@ def extractMnemo(inst, case):
                 mnemo = mnemo.replace('{'+reg+'}',str(case[reg][idf]))
     return mnemo
 
-def getSourceFile(filename, insts):
+def getSourceFile(filename, inst):
     with open(filename+'.s',"w") as asm:
         asm.write(".text\n")
         asm.write(".syntax unified\n")
         asm.write(".thumb\n")
         asm.write(".global _start\n")
         asm.write("_start:\n")
-        for inst in insts:
-            for case in combinations(inst,True):
-                asm.write('\t'+extractMnemo(inst,case)+'\n')
+        codeCases = []
+        for case in combinations(inst,True):
+            codeCases.append(case)
+            asm.write('\t'+extractMnemo(inst,case)+'\n')
         asm.write("\tb .\n") #while(1);
+        return codeCases
 
 def compile(args,sourceFile):
     #asm
@@ -179,6 +189,73 @@ def compile(args,sourceFile):
         sys.exit(returnCode)
     return exeFile
 
+def getRuntimeTest(inst):
+    runCases = []
+    for case in combinations(inst,False):
+        runCases.append(case)
+    return runCases
+
+def prepareTestCaseForGdb(codeCase, runCase, gdb):
+    for reg in runCase:
+        if reg == "cpsr":
+            gdb.write('set $cpsr='+str(runCase[reg]['val'])+'\n')
+        else:
+            gdb.write('set $'+str(codeCase[reg]['idx'])+'='+str(runCase[reg]['val'])+'\n')
+
+    
+def generateGdbScript(filename, inst, codeCases, runCases):
+    with open(filename+'.gdb',"w") as gdb:
+        gdb.write("tar extended-remote :4242\n")
+        gdb.write("set interactive-mode off\n")
+        gdb.write("load\n")
+        gdb.write("define dumpRegs\n")
+        for i in range(13):
+            gdb.write('\tprintf "0x%x\\t",$r'+str(i)+'\n')
+        gdb.write('\tprintf "0x%x\\t",$sp\n')
+        gdb.write('\tprintf "0x%x\\t",$lr\n')
+        gdb.write('\tprintf "0x%x\\t",$pc\n')
+        gdb.write('\tprintf "0x%x\\t\\n",$cpsr\n')
+        gdb.write('end\n\n')
+
+        gdb.write('set logging file '+filename+'_output.gdb\n')
+        gdb.write('set logging redirect on\n')
+        gdb.write('set logging on\n\n')
+
+        for codeCase in codeCases:
+            #first time
+            gdb.write('set $oldpc = $pc\n')
+            #prepare the case, with run time info
+            for runCase in runCases:
+                prepareTestCaseForGdb(codeCase, runCase, gdb)
+                #then run the case
+                gdb.write('set logging off\n')
+                gdb.write('si\n')
+                gdb.write('set logging on\n')
+                #and get back register state.
+                gdb.write('dumpRegs()\n\n')
+                #always
+                gdb.write('set $pc = $oldpc\n')
+            #pc is set before the current instruction
+            #we have to point to the next instruction
+            gdb.write('set $pc=$pc+'+str(inst['size'])+'\n\n')
+        gdb.write('set logging off\n')
+        gdb.write('quit\n')
+
+import hashlib
+def getJSONFileSignature(filename):
+    with open(filename) as jsonFile:
+        data=jsonFile.read()
+        return hashlib.md5(data).hexdigest()
+
+def checkTargetOutputFile(filename):
+    """ This function checks that the target output file exists, and then
+        - read the first line => that stores the md5 of the JSON file
+        - compare it with the JSON file of the test
+        - if they differ, the test have been updated and the test should be done again.
+    """ 
+    pass
+
+
 if __name__ == '__main__':
     #arguments
     parser = argparse.ArgumentParser(description='Check Harmless Cortex ARM model functionnal behavior against a real target')
@@ -193,15 +270,18 @@ if __name__ == '__main__':
     with open(filename) as jsonFile:
         insts = json.load(jsonFile)
 
-    #1- generate the object file for Harmless and real target from the JSON test
-    getSourceFile(filename,insts)
+    for inst in insts:
+        #1- generate the object file for Harmless and real target from the JSON test
+        codeCases = getSourceFile(filename,inst)
+        #2- compile it
+        exeFile= compile(args,filename)
 
-    #2- compile it
-    exeFile= compile(args,filename)
-
-
-
-##faire le fichier de mnemoniques.
-#for inst in insts:
-#    for case in combinations(inst,True):
-#        print(extractMnemo(inst,case))
+        #3- get tests for runtime
+        runCases = getRuntimeTest(inst)
+        if args.verbose:
+            print("code to test instruction "+inst['instruction']+" requires:")
+            print("\t"+str(len(codeCases))+" instructions in the code ("+str(len(codeCases)*inst['size'])+" bytes for the program)")
+            print("\t"+str(len(runCases))+" tests for each instruction => "+str(len(codeCases)*len(runCases))+" cases")
+        #4- generate the gdb script
+        generateGdbScript(filename, inst, codeCases, runCases)
+    
