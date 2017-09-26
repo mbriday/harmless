@@ -47,7 +47,7 @@ component gpr {
 }
 
 component ual {
-  register u32 APSR{
+  register u32 CPSR{
     N  := slice{31}
     Z  := slice{30}
     C  := slice{29}
@@ -92,11 +92,13 @@ behavior arith
   select
     case #logicalShift #left
     do
-      u37 result := gpr.read32(Rm) << imm5
+      u37 result := (u37)(gpr.read32(Rm)) << imm5
       if setFlags then
-        APSR.N := result{31}
-        APSR.Z := result{31..0} = 0
-        APSR.C := result{32}
+        CPSR.N := result{31}
+        CPSR.Z := result{31..0} = 0
+		    if imm5 != 0 then
+          CPSR.C := result{32}
+        end if
       end if
       gpr.write32(Rd,result{31..0})
     end do
@@ -105,11 +107,23 @@ behavior arith
     do
       u32 result := gpr.read32(Rm) >> (imm5-1) -- shift 1 less to keep the carry.
       if setFlags then
-        APSR.N := result{31}
-        APSR.Z := result{31..1} = 0
-        APSR.C := result{0}
+        CPSR.N := result{31}
+        CPSR.Z := result{31..1} = 0
+		    if imm5 != 0 then
+						CPSR.C := result{0}
+				end if
       end if
       gpr.write32(Rd,result{31..1})
+    end do
+    case #right #arithmeticShift
+    do
+      u32 result := (u32)((s32)(gpr.read32(Rm)) >> imm5) -- shift 1 less to keep the carry.
+      if setFlags then
+        CPSR.N := result{31}
+        CPSR.Z := result{31..0} = 0
+				CPSR.C :=  ((u32)((s32)(gpr.read32(Rm)) >> (imm5-1))) & 1
+      end if
+      gpr.write32(Rd,result{31..0})
     end do
   end select
   
@@ -132,12 +146,12 @@ end behavior
 --       error "ADC should not use SP nor PC"
 --     end if
 --     u33 result;
--- 		result := regN+imm12+APSR.C
+-- 		result := regN+imm12+CPSR.C
 --     reg.write32(Rd,result{31..0})
 --   end do
 --   select
 --     case #WithUpdateFlags
---       APSR.N = result
+--       CPSR.N = result
 --     case #WithNoUpdateFlags
 --   end select
 -- end behavior 

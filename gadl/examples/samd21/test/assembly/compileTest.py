@@ -68,7 +68,7 @@ def objdump(args,exeFile):
     return objdumpFile
 
 def harmless(args,exeFile):
-    sys.path.append("../samd21")
+    sys.path.append("../../samd21")
     harmlessFile = exeFile+".harmless"
     try:
         import samd21

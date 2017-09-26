@@ -174,9 +174,10 @@ void logManager::addId(void *uid, std::string id)
 	//cout << "add " << id << " -> " << hex << (u64)uid << endl;
 	//check that it does not exists…
 	map<void *, string>::iterator it = m_uidToIdMap.find(uid);
-	assert(it == m_uidToIdMap.end());
-	//add.
-	m_uidToIdMap[uid] = id;
+	if(it == m_uidToIdMap.end()) {
+		//add.
+		m_uidToIdMap[uid] = id;
+	}
 }
 
 void logConfigItem::generateId(std::string prefix, logManager *mng)
