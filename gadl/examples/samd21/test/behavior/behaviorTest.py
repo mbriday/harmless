@@ -6,6 +6,7 @@ import sys, os
 import subprocess
 import argparse
 import shutil
+import time
 
 # d'abord on crée un fichier avec les instructions à tester:
 #Exemple pour lsl: lsl Rd, Rm, #imm5
@@ -288,11 +289,11 @@ def targetOutputFileToBuild(gdbOutputLines):
         firstCond = jsonMd5 == sig[0] #md5 is ok
         secondCond =  n == int(sig[1])*2+1 #number of tests = 2 lines/test +signature line)
         return not(firstCond and secondCond) , jsonMd5
+    except TypeError: #gdbOutputLines is None
+        return True, jsonMd5
     except IndexError:
-        print('Index ')
         return True, jsonMd5
     except ValueError: #something, but error during parsing (int(…))
-        print('Value ')
         return True, jsonMd5
 
 def getStats(inst, codeCases, runCases):
@@ -303,7 +304,6 @@ def getStats(inst, codeCases, runCases):
 
 def processTestOnTarget(args, filename, inst, codeCases, runCases, signature):
     testOnTargetOk = False
-    #TODO: unzip output file if exists. Here?
     nbVal = len(codeCases)*len(runCases)
     #we have to do the test
     if args.verbose:    
@@ -320,7 +320,7 @@ def processTestOnTarget(args, filename, inst, codeCases, runCases, signature):
         if args.verbose:
             print('run test on target…')
         process = subprocess.Popen(['arm-none-eabi-gdb','-q', filename+'.elf','-x',filename+'.gdb'], stdout=subprocess.PIPE, bufsize=0)
-        if args.verbose:
+        if not args.quiet:
             gdbWaitVal = 0
             for line in process.stdout:
                 print('--> {val:3.1f}%'.format(val=min(100, float(gdbWaitVal) / nbVal * 100)), end='\r')
@@ -445,11 +445,12 @@ def compare(inst, testOnTargetOk, filename, gdbOutputLines):
     else:
         ok = 2
     #report (if quiet, report only if there is a pb).
+    if ((not args.quiet) and (ok == 0)) or (ok!=0):
+        s = max(0,20-len(inst['instruction']))
+        print('check instruction: '+inst['instruction']+s*' '+'-> ', end='')
     if (not args.quiet) and (ok == 0):
-        print('check instruction: '+inst['instruction']+' -> ', end='')
         print(BOLD()+GREEN()+'ok'+ENDC())
     if ok != 0:
-        print('check instruction: '+inst['instruction']+' -> ', end='')
         if ok == 1:
             print(BOLD()+RED()+'failed'+ENDC())
         elif ok == 2:
@@ -472,8 +473,10 @@ if __name__ == '__main__':
                     help='JSON instruction test spec')
     args = parser.parse_args()
     
+    timeStart = time.clock()
     #0 - read the JSON instruction test
     import json
+    nbTests = 0
     for filename in args.files:
         with open(filename) as jsonFile:
             inst = json.load(jsonFile)
@@ -485,6 +488,8 @@ if __name__ == '__main__':
         #3- get tests for runtime
         runCases = getRuntimeTests(inst)
         #4- stats (if verbose mode) 
+        nbVal = len(codeCases)*len(runCases)
+        nbTests += nbVal
         getStats(inst, codeCases, runCases)
         #5- run tests on the real target (if needed)
         testOnTargetOk = False
@@ -506,3 +511,5 @@ if __name__ == '__main__':
             
         #8- clean (remove tmp files, and compress target file)
         clean(filename, result)
+    if not args.quiet:
+        print(str(nbTests)+' tests done in '+str(time.clock()-timeStart)+'s.\n')

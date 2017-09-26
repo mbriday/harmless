@@ -1,0 +1,27 @@
+{
+	"instruction": "adds (imm8)",
+	"src":
+	{
+		"imm8": {
+			"imm": [0, "0xa", "0x15", "0xac", "0xff"]
+		}
+	},
+	"dest":
+	{
+		"cpsr": {
+			"val": ["0x41000000","0x01000000", "0xF9000000"]
+		},
+		"Rd": {
+			"idx": ["r0","r5","r7"],
+			"val": [0, 12334, "0xffffffff"]
+		}
+	},
+	"init":
+	{
+		"sp": "0x8",
+		"lr": "0xdead"
+	},
+	"mnemo": "adds {Rd}, #{imm8}",
+	"size": 2
+}
+

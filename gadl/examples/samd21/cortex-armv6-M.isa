@@ -56,6 +56,18 @@ component ual {
     GE := slice{19..16}
   }
   
+  u32 addSub(u32 src1, u33 src2, u1 updateFlags)
+  {
+    u33 result := src1+src2
+    if updateFlags then
+      CPSR.N := result{31}
+      CPSR.Z := result{31..0} = 0
+			CPSR.C := result{32}
+      CPSR.V := (!result{31} & src1{31} & src2{31}) | (result{31} & !src1{31} & !src2{31})
+    end if
+    return result{31..0}
+  }
+
 }
 
 component int {
@@ -126,11 +138,112 @@ behavior arith
       gpr.write32(Rd,result{31..0})
     end do
   end select
-  
 end behavior
 
 
+behavior arithAddSub16 #Rd 
+  field u3 Rd
+  u1 setFlags := !int.inItBlock()
+  u32 src1
+  u32 src2
+  select
+    case #imm3 #Rn
+      field u3 imm3
+      field u3 Rn
+      do 
+        src1 := gpr.read32(Rn) 
+        src2 := (u32)(imm3)
+      end do
+    case #Rm #Rn
+      field u3 Rm
+      field u3 Rn
+      do 
+        src1 := gpr.read32(Rn) 
+        src2 := gpr.read32(Rm)
+      end do
+    case #imm8
+      field u8 imm8
+      do 
+        src1 := gpr.read32(Rd) 
+        src2 := (u32)(imm8)
+      end do
+  end select
+  u32 result
+  select
+    case #add do
+        result := ual.addSub(src1,src2,setFlags) 
+        gpr.write32(Rd,result) 
+      end do
+    case #sub do
+        result := ual.addSub(src1,~src2+1,setFlags)
+        gpr.write32(Rd,result) 
+      end do
+    case #compare do
+        result := ual.addSub(src1,~src2+1,setFlags)
+      end do
+  end select
+end behavior
 
+behavior movsImm #Rd #imm8 #move
+  field u3 Rd
+  field u8 imm8
+  u32 dst
+  u1 setFlags := !int.inItBlock()
+  do 
+     dst := (u32)(imm8)
+     gpr.write32(Rd,dst)
+     if setFlags then
+       CPSR.N := dst{31}
+       CPSR.Z := dst{31..0} = 0
+     end if
+  end do
+end behavior
+
+behavior dataProc #Rm #Rd
+  field u3 Rm
+  field u3 Rd
+  u32 src1
+  u32 src2
+  u1 setFlags := !int.inItBlock()
+  u33 dst
+  u1 carry
+  do
+    src1 := gpr.read32(Rd)
+    src2 := gpr.read32(Rm)
+  end do
+  select
+    case #and do dst := src1 & src2  carry := CPSR.C  end do 
+    case #eor do dst := src1 ^ src2  carry := CPSR.C  end do 
+    case #lsl do dst := (u33)(src1) << src2{7..0} 
+		            if src2{7..0} != 0 then 
+                  carry := dst{32}
+                else carry := CPSR.C
+                end if
+              end do 
+--     case #lsr 
+--     case #asr 
+--     case #adc 
+--     case #sbc 
+--     case #ror 
+--     case #tst 
+--     case #cmp 
+--     case #cmn 
+--     case #orr 
+--     case #mul 
+--     case #bic 
+--     case #mvn 
+  end select
+  do 
+    gpr.write32(Rd, dst)
+    if setFlags then
+      CPSR.N := dst{31}
+      CPSR.Z := dst{31..0} = 0
+      CPSR.C := carry
+    end if
+  end do
+end behavior
+-- behavior arithAddSubImm16 #Rn #Rd #imm3 --adds/subs 3reg
+-- end behavior
 -- behavior ADC #ADC
 --   field u4 Rn
 --   field u4 Rd

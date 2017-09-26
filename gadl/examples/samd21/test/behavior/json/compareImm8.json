@@ -1,0 +1,27 @@
+{
+	"instruction": "cmp (imm8)",
+	"src":
+	{
+		"Rn" : {
+			"idx": ["r0","r2","r7"],
+			"val": ["0", "0x12345678", "0xffffffff", "0xac533c5a", "0xaaaa5555"]
+		},
+		"imm8": {
+			"imm": [0, "0xa", "0x15", "0xac", "0xff"]
+		}
+	},
+	"dest":
+	{
+		"cpsr": {
+			"val": ["0x41000000","0x01000000", "0xF9000000"]
+		}
+	},
+	"init":
+	{
+		"sp": "0x8",
+		"lr": "0xdead"
+	},
+	"mnemo": "cmp {Rn}, #{imm8}",
+	"size": 2
+}
+

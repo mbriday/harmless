@@ -1,0 +1,26 @@
+{
+	"instruction": "movs imm8",
+	"src":
+	{
+		"imm8": {
+			"imm": [0, "0xa", "0x55", "0xce", "0xFF"]
+		}
+	},
+	"dest":
+	{
+		"cpsr": {
+			"val": ["0x41000000","0x01000000", "0xF9000000"]
+		},
+		"Rd": {
+			"idx": ["r0","r2","r7"],
+			"val": [0, 12334]
+		}
+	},
+	"init":
+	{
+		"sp": "0x8",
+		"lr": "0xdead"
+	},
+	"mnemo": "movs {Rd}, #{imm8}",
+	"size": 2
+}
