@@ -1,0 +1,28 @@
+{
+	"instruction": "rsbs",
+	"src":
+	{
+		"Rn": {
+			"idx": ["r0","r5","r7"],
+			"val": ["0", "0x23456789", "0xffffffff", "0xac583c5a", "0xaaaa5555"]
+		}
+	},
+	"dest":
+	{
+		"cpsr": {
+			"val": ["0x41000000","0x01000000", "0xF9000000"]
+		},
+		"Rd" : {
+			"idx": ["r0","r1","r7"],
+			"val": ["0", "0x12345678", "0xffffffff", "0xac533c5a"]
+		}
+	},
+	"init":
+	{
+		"sp": "0x8",
+		"lr": "0xdead"
+	},
+	"mnemo": "rsbs {Rd}, {Rn}, #0",
+	"size": 2
+}
+

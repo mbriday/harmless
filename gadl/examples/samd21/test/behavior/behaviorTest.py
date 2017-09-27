@@ -402,12 +402,18 @@ def processTestOnHarmless(args, filename, inst, codeCases, runCases, signature):
 
 import zipfile
 
-def clean(filename, result):
+def clean(filename, gdbOutputLines, result):
     #remove uneeded files
-    exts = ['.gdb', '.o', '.s', '_output.gdb']
+    exts = ['.gdb', '.o', '.s']
     if result != 1:
         exts.append('_output.harmless')
+        exts.append('_output.gdb')
         exts.append('.elf')
+    else: #there was a pb… restore output gdb file.
+        if not os.path.isfile(filename+'_output.gdb'):
+            with open(filename+'_output.gdb', "w") as outfile:
+                for line in gdbOutputLines:
+                    outfile.write(line)
     for ext in exts:
         try:
             os.remove(filename+ext)
@@ -452,7 +458,7 @@ def compare(inst, testOnTargetOk, filename, gdbOutputLines):
         print(BOLD()+GREEN()+'ok'+ENDC())
     if ok != 0:
         if ok == 1:
-            print(BOLD()+RED()+'failed'+ENDC())
+            print(BOLD()+RED()+'failed'+ENDC()+'\t(file '+filename+')')
         elif ok == 2:
             print(BOLD()+YELLOW()+'impossible (no target file)'+ENDC())
     return ok
@@ -477,6 +483,7 @@ if __name__ == '__main__':
     #0 - read the JSON instruction test
     import json
     nbTests = 0
+    nbInstructions = 0
     for filename in args.files:
         with open(filename) as jsonFile:
             inst = json.load(jsonFile)
@@ -509,7 +516,9 @@ if __name__ == '__main__':
         #7- compare
         result = compare(inst, testOnTargetOk, filename, gdbOutputLines)
             
-        #8- clean (remove tmp files, and compress target file)
-        clean(filename, result)
+        #8- clean (remove tmp files)
+        clean(filename, gdbOutputLines, result)
+        nbInstructions += 1
     if not args.quiet:
-        print(str(nbTests)+' tests done in '+str(time.clock()-timeStart)+'s.\n')
+        print(str(nbTests)+' tests done for '+str(nbInstructions)+' instructions in '+
+                str(time.clock()-timeStart)+'s\n')
