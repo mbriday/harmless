@@ -8,7 +8,7 @@ cpu samd21 {
   -- pour les essais...
   memory sharedMem {
     width  := 32
-    size   := 1mb
+    size   := 16kb
     type   := RAM
   } maps to mem:\x20000000
 

@@ -202,7 +202,9 @@ def prepareTestCaseForGdb(codeCase, runCase, gdb):
         if reg == "cpsr":
             gdb.write('set $cpsr='+str(runCase[reg]['val'])+'\n')
         else:
-            gdb.write('set $'+str(codeCase[reg]['idx'])+'='+str(runCase[reg]['val'])+'\n')
+            regName = str(codeCase[reg]['idx'])
+            if regName != 'pc': #do not update pc, as it won't work.
+                gdb.write('set $'+regName+'='+str(runCase[reg]['val'])+'\n')
 
 def generateGdbScript(filename, inst, codeCases, runCases):
     with open(filename+'.gdb',"w") as gdb:
@@ -315,7 +317,7 @@ def processTestOnTarget(args, filename, inst, codeCases, runCases, signature):
         outputFile = filename+'_output.gdb'
         with open(outputFile, "w") as outfile:
             outfile.write(signature+' '+str(nbVal)+'\n')
-        #3- run the test on target TODO
+        #3- run the test on target
         #arm-none-eabi-gdb beh_lsl.json.elf -q -x beh_lsl.json.gdb
         if args.verbose:
             print('run test on target…')
@@ -388,7 +390,9 @@ def processTestOnHarmless(args, filename, inst, codeCases, runCases, signature):
                     if reg == "cpsr":
                         core.setCPSR(getInt(runCase[reg]['val']))
                     else:
-                        core.gpr_write32(regDict[codeCase[reg]['idx']], getInt(runCase[reg]['val']))
+                        regName = codeCase[reg]['idx']
+                        if regName != 'pc': #do not update pc, as it won't work.
+                            core.gpr_write32(regDict[codeCase[reg]['idx']], getInt(runCase[reg]['val']))
                 #exec one instruction
                 harmlessPrintReg(core,out)
                 out.write('A\n')

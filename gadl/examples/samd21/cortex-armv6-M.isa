@@ -24,13 +24,25 @@ component gpr {
   register        u32 LR -- Link register   r14
   program counter u32 PC -- program counter r15
 
+  -- method used as interface (for python for instance)
   u32 read32(u4 num)
   {
     u32 result := 0
     if(num < 13)     then result := reg.read32(num)
     elseif(num = 13) then result := SP
     elseif(num = 14) then result := LR
-    elseif(num = 15) then result := PC 
+    elseif(num = 15) then result := PC
+    end if
+    return result
+  }
+
+  u32 iread32(u4 num)
+  {
+    u32 result := 0
+    if(num < 13)     then result := reg.read32(num)
+    elseif(num = 13) then result := SP
+    elseif(num = 14) then result := LR
+    elseif(num = 15) then result := PC+2
     end if
     return result
   }
@@ -38,12 +50,11 @@ component gpr {
   void write32(u4 num, u32 val)
   {
     if(num < 13)     then reg.write32(num, val)
-    elseif(num = 13) then SP := val
+    elseif(num = 13) then SP := val & \xfffffffc --word aligned
     elseif(num = 14) then LR := val
-    elseif(num = 15) then PC := val
+    elseif(num = 15) then PC := val & \xfffffffe --hw aligned
     end if
   }
-
 }
 
 component ual {
@@ -67,6 +78,7 @@ component ual {
     end if
     return result{31..0}
   }
+
 
 }
 
@@ -268,31 +280,19 @@ behavior dataProc #Rm #Rd
     src2 := gpr.read32(Rm)
   end do
   select
-    case #and do 
-        dst := src1 & src2
+    case -- write
+      select
+        case #and do dst := src1 & src2      end do 
+        case #mvn do dst := ~src2            end do 
+        case #bic do dst := src1 & ~src2     end do 
+        case #eor do dst := src1 ^ src2      end do 
+        case #orr do dst := src1 | src2      end do 
+        case #mul do dst := (u32)(src1*src2) end do 
+      end select
+      do
         carry := CPSR.C
         gpr.write32(Rd, dst)
-      end do 
-    case #mvn do 
-        dst := ~src2
-        carry := CPSR.C
-        gpr.write32(Rd, dst)
-      end do 
-    case #bic do 
-        dst := src1 & ~src2
-        carry := CPSR.C
-        gpr.write32(Rd, dst)
-      end do 
-    case #eor do 
-        dst := src1 ^ src2
-        carry := CPSR.C
-        gpr.write32(Rd, dst)
-      end do 
-    case #orr do 
-        dst := src1 | src2
-        carry := CPSR.C
-        gpr.write32(Rd, dst)
-      end do 
+      end do
     case #lsl do
         dst := (u33)(src1) << src2{7..0} 
         if src2{7..0} != 0 then 
@@ -330,11 +330,6 @@ behavior dataProc #Rm #Rd
         gpr.write32(Rd, dst)
       end do
     case #tst do dst := src1 & src2  carry := CPSR.C  end do 
-    case #mul do
-        dst := (u32)(src1*src2)
-        carry := CPSR.C
-        gpr.write32(Rd, dst)
-      end do
   end select
   do 
     if setFlags then
@@ -345,6 +340,19 @@ behavior dataProc #Rm #Rd
   end do
 end behavior
 
+behavior special16BitInst
+  field u4 Rm #Rm
+  field u4 Rd #Rd
+  do
+    u32 src1 := gpr.iread32(Rd)
+    u32 src2 := gpr.iread32(Rm)
+  end do
+  select
+    case #add do gpr.write32(Rd, ual.addSub(src1, src2, false)) end do
+    --case #compare
+    --case #mov
+  end select
+end behavior
 --##==================================================
 --## Format description
 --##==================================================
