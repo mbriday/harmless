@@ -62,19 +62,32 @@ def getRegCombinationsForCode(inst,group,key):
     # for each reg, get the possible combinaisons
     # that may update the assembly code.
     if key in inst:
-        for regName in inst[key]:
-            reg = inst[key][regName]
+        if key == 'codeData':
+            #data structure for labels is not optimal
+            #but it can be handled in the same way as register values
+            #when calculating test combinations.
+            labelId = 0
             case = []
-            if 'idx' in reg:
-                for idxTxt in reg['idx']:
-                    #idx = getInt(idxTxt)
-                    case.append({'idx':idxTxt})
-            if 'imm' in reg:
-                for immTxt in reg['imm']:
-                    imm = getInt(immTxt)
-                    case.append({'imm':imm})
+            for access in inst[key]: #either 'pre' or 'post'
+                for data in inst[key][access]:
+                    case.append({'label':'.Label'+str(labelId)})
+                    labelId += 1
             if case:
-                group.append({regName:case})
+                group.append({'label':case})
+        else:
+            for regName in inst[key]:
+                reg = inst[key][regName]
+                case = []
+                if 'idx' in reg:
+                    for idxTxt in reg['idx']:
+                        #idx = getInt(idxTxt)
+                        case.append({'idx':idxTxt})
+                if 'imm' in reg:
+                    for immTxt in reg['imm']:
+                        imm = getInt(immTxt)
+                        case.append({'imm':imm})
+                if case:
+                    group.append({regName:case})
     return group
 
 def getRegCombinationsForRuntime(inst,group,key):
@@ -105,7 +118,7 @@ def debug(group):
 def combinations(inst, forCode):
     #first, get all cases for each register
     group = []
-    for key in ['src', 'dest']:
+    for key in ['src', 'dest', 'codeData']:
         if forCode:
             getRegCombinationsForCode(inst,group,key)
         else:
@@ -153,16 +166,25 @@ def extractMnemo(inst, case):
     mnemo = inst['mnemo']
     #print(case)
     for reg in case:
-        for idf in ('idx','imm'):
+        for idf in ('idx','imm','label'):
             if idf in case[reg]:
                 mnemo = mnemo.replace('{'+reg+'}',str(case[reg][idf]))
     return mnemo
 
 def getSourceFile(filename, inst):
     with open(filename+'.s',"w") as asm:
+        labelId = 0
         asm.write(".text\n")
         asm.write(".syntax unified\n")
         asm.write(".thumb\n")
+        #may have data in code before
+        try:
+            for data in inst['codeData']['pre']:
+                asm.write('.Label'+str(labelId)+':\n')
+                labelId += 1
+                asm.write('\t.word '+str(getInt(data))+'\n') #convert -> int and str to check the data..
+        except KeyError:
+            pass #no key defined.
         asm.write(".global _start\n")
         asm.write("_start:\n")
         codeCases = []
@@ -170,6 +192,15 @@ def getSourceFile(filename, inst):
             codeCases.append(case)
             asm.write('\t'+extractMnemo(inst,case)+'\n')
         asm.write("\tb .\n") #while(1);
+        #may have data in code after
+        try:
+            for data in inst['codeData']['post']:
+                asm.write('.Label'+str(labelId)+':\n')
+                labelId += 1
+                asm.write('\t.word '+str(getInt(data))+'\n')
+        except KeyError:
+            pass #no key defined.
+
         return codeCases
 
 def compile(args,sourceFile):
@@ -463,6 +494,9 @@ def compare(inst, testOnTargetOk, filename, gdbOutputLines):
     if ok != 0:
         if ok == 1:
             print(BOLD()+RED()+'failed'+ENDC()+'\t(file '+filename+')')
+            if args.verbose:
+                print('comparison: gvimdiff '+filename+'_output.gdb '+filename+'_output.harmless')
+                print('asm       : arm-none-eabi-objdump -d '+filename+'.elf')
         elif ok == 2:
             print(BOLD()+YELLOW()+'impossible (no target file)'+ENDC())
     return ok
@@ -498,7 +532,7 @@ if __name__ == '__main__':
         exeFile= compile(args,filename)
         #3- get tests for runtime
         runCases = getRuntimeTests(inst)
-        #4- stats (if verbose mode) 
+        ##4- stats (if verbose mode) 
         nbVal = len(codeCases)*len(runCases)
         nbTests += nbVal
         getStats(inst, codeCases, runCases)
@@ -520,7 +554,7 @@ if __name__ == '__main__':
         #7- compare
         result = compare(inst, testOnTargetOk, filename, gdbOutputLines)
             
-        #8- clean (remove tmp files)
+        ##8- clean (remove tmp files)
         clean(filename, gdbOutputLines, result)
         nbInstructions += 1
     if not args.quiet:

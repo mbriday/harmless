@@ -64,6 +64,7 @@ component ual {
     C  := slice{29}
     V  := slice{28}
     Q  := slice{27}
+    T  := slice{24} 
     GE := slice{19..16}
   }
   
@@ -342,17 +343,38 @@ end behavior
 
 behavior special16BitInst
   field u4 Rm #Rm
-  field u4 Rd #Rd
-  do
-    u32 src1 := gpr.iread32(Rd)
-    u32 src2 := gpr.iread32(Rm)
-  end do
+  do u32 src1 := gpr.iread32(Rm) end do
   select
-    case #add do gpr.write32(Rd, ual.addSub(src1, src2, false)) end do
-    --case #compare
-    --case #mov
+    case
+      field u4 Rd #Rd
+      do u32 src2 := gpr.iread32(Rd) end do
+      select
+        case #add     do gpr.write32(Rd, ual.addSub(src2, src1, false)) end do
+        case #compare do ual.addSub(src2, ~src1+1, true) end do
+      end select
+    case #mov #Rd field u4 Rd do gpr.write32(Rd, src1) end do
+    case #bex #nons
+      select
+      case #noLink
+      case #link do LR := PC | 1 end do
+      end select
+      do
+        gpr.write32(15, src1)
+        CPSR.T := (src1 & 1) 
+      end do
   end select
 end behavior
+
+behavior loadFromLiteralPool #load
+  field u3 Rt #Rt
+  field u10 imm10 #imm10
+  do 
+    u32 addr := ((PC-2) & \xfffffffc)+4+imm10
+    u32 val := mem.read32(addr)
+    gpr.write32(Rt,val)
+  end do
+end behavior
+
 --##==================================================
 --## Format description
 --##==================================================
