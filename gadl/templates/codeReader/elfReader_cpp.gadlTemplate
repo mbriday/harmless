@@ -30,6 +30,7 @@ elfReader::~elfReader()
 	const unsigned int nbCodeSec = m_codeSectionVector.size();
 	for(unsigned int i = 0;i<nbCodeSec; i++)
 		delete (m_codeSectionVector[i]);
+	elf_end(m_elfFile);
 }
 
 elfReader::elfReader()
@@ -136,7 +137,6 @@ bool elfReader::readFile(const char * filename, core *_core, const bool verbose)
 				manageSymbols(data, &sectionHeader, verbose, name);
 			}
 			if(verbose) cout << (ok ? "ok" : "failed") << endl;
-			elf_end(m_elfFile);
 		} else {ok = false;} /* not a valid elf file (can't init) */
 		fclose(codeFile);
 	} else 

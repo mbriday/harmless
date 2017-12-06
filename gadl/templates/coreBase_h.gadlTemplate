@@ -62,7 +62,7 @@ class core
 
 	public:
 		core();
-		virtual ~core() {};
+		virtual ~core();
 
 		/** 
 		 * Stop the simulation (breakpoint, ..)

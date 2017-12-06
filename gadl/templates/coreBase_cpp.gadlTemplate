@@ -25,6 +25,11 @@ void core::reset()
 	m_nbInst = 0;
 }
 
+core::~core()
+{
+	if(m_reader) delete m_reader;
+}
+
 void core::setExecutionMode(const executionMode mode)
 {
 	if(m_nbCycles)
