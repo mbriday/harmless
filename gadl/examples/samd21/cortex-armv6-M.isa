@@ -117,7 +117,7 @@ behavior arith
   select
     case #logicalShift #left
     do
-      u37 result := (u37)(gpr.read32(Rm)) << imm5
+      u37 result := (u37)(gpr.iread32(Rm)) << imm5
       if setFlags then
         CPSR.N := result{31}
         CPSR.Z := result{31..0} = 0
@@ -130,7 +130,7 @@ behavior arith
 
     case #logicalShift #right
     do
-      u32 result := gpr.read32(Rm) >> (imm5-1) -- shift 1 less to keep the carry.
+      u32 result := gpr.iread32(Rm) >> (imm5-1) -- shift 1 less to keep the carry.
       if setFlags then
         CPSR.N := result{31}
         CPSR.Z := result{31..1} = 0
@@ -142,11 +142,11 @@ behavior arith
     end do
     case #right #arithmeticShift
     do
-      u32 result := (u32)((s32)(gpr.read32(Rm)) >> imm5) -- shift 1 less to keep the carry.
+      u32 result := (u32)((s32)(gpr.iread32(Rm)) >> imm5) -- shift 1 less to keep the carry.
       if setFlags then
         CPSR.N := result{31}
         CPSR.Z := result{31..0} = 0
-				CPSR.C :=  ((u32)((s32)(gpr.read32(Rm)) >> (imm5-1))) & 1
+				CPSR.C :=  ((u32)((s32)(gpr.iread32(Rm)) >> (imm5-1))) & 1
       end if
       gpr.write32(Rd,result{31..0})
     end do
@@ -164,20 +164,20 @@ behavior arithAddSub16 #Rd
       field u3 imm3
       field u3 Rn
       do 
-        src1 := gpr.read32(Rn) 
+        src1 := gpr.iread32(Rn)
         src2 := (u32)(imm3)
       end do
     case #Rm #Rn
       field u3 Rm
       field u3 Rn
       do 
-        src1 := gpr.read32(Rn) 
-        src2 := gpr.read32(Rm)
+        src1 := gpr.iread32(Rn) 
+        src2 := gpr.iread32(Rm)
       end do
     case #imm8
       field u8 imm8
       do 
-        src1 := gpr.read32(Rd) 
+        src1 := gpr.iread32(Rd) 
         src2 := (u32)(imm8)
       end do
   end select
@@ -221,8 +221,8 @@ behavior dataProcAddSub #Rm #Rd
   u33 dst
   u1 carry
   do
-    src1 := gpr.read32(Rd)
-    src2 := gpr.read32(Rm)
+    src1 := gpr.iread32(Rd)
+    src2 := gpr.iread32(Rm)
   end do
   select
     case #adc do
@@ -256,7 +256,7 @@ behavior dataProcRSB #Rn #Rd #rsb
   u33 dst
   u1 carry
   do
-    u32 src2 := gpr.read32(Rn)
+    u32 src2 := gpr.iread32(Rn)
     dst := ~src2+1
 		if setFlags then
       CPSR.N := dst{31}
@@ -277,8 +277,8 @@ behavior dataProc #Rm #Rd
   u33 dst
   u1 carry
   do
-    src1 := gpr.read32(Rd)
-    src2 := gpr.read32(Rm)
+    src1 := gpr.iread32(Rd)
+    src2 := gpr.iread32(Rm)
   end do
   select
     case -- write
@@ -372,6 +372,28 @@ behavior loadFromLiteralPool #load
     u32 addr := ((PC-2) & \xfffffffc)+4+imm10
     u32 val := mem.read32(addr)
     gpr.write32(Rt,val)
+  end do
+end behavior
+
+-- basic load/store 16 bits operations
+-- #load, #store
+-- #reg8, #reg16, #reg32
+-- #signed, #unsigned
+-- either      -> #Rm-#Rn-#Rt
+-- or          -> #imm5/6/7-#Rn-#Rt
+-- or special  -> #SP-#imm10-#Rt
+behavior loadStore
+  #store
+  #reg32
+  field u3 Rt #Rt
+  field u3 Rm #Rm
+  field u3 Rn #Rn
+  do
+    u32 value       := gpr.iread32(Rt)
+    u32 baseAddress := gpr.iread32(Rn)
+    u32 offset      := gpr.iread32(Rm)
+    u32 addr        := baseAddress+offset
+    mem.write32(addr,value)
   end do
 end behavior
 
