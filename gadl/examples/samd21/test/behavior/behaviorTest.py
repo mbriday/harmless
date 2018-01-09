@@ -36,12 +36,16 @@ import time
 #     mnemo "lsls Rd, Rm, #imm5" -- pour générer le code
 # }
 
+# test sur cible avec openocd ou st-util
+# -> voir  generateGdbScript
+# avec openocd, il faut lancer le serveur: openocd -f board/st_nucleo_f3.cfg
+
 
 import types
 
 def getInt(txt):
     # extract the integer type from a JSON txt
-    # it can be either 
+    # it can be either
     # - already an int
     # - a unicode string that represent:
     #   - an hexadecimal value (starting with '0x')
@@ -91,7 +95,7 @@ def getRegCombinationsForCode(inst,group,key):
     return group
 
 def getRegCombinationsForRuntime(inst,group,key):
-    # for each reg, get the possible combinaisons 
+    # for each reg, get the possible combinaisons
     # that do not depends on the assembly code.
     if key in inst:
         for regName in inst[key]:
@@ -105,10 +109,10 @@ def getRegCombinationsForRuntime(inst,group,key):
                 group.append({regName:case})
     return group
 
-def debug(group):
+def debug(group,name):
     print(str(len(group))+' entries:')
     print(group)
-    with open("test.json", "w") as outfile:
+    with open(name+".json", "w") as outfile:
         json.dump(group, outfile, indent=4)
 
 #the 'forCode' boolean is used to determine if the combinations
@@ -121,17 +125,18 @@ def combinations(inst, forCode):
     for key in ['src', 'dest', 'codeData']:
         if forCode:
             getRegCombinationsForCode(inst,group,key)
+            #debug(group, 'debugCode')
         else:
             getRegCombinationsForRuntime(inst,group,key)
-    #debug(group)
-    
+            #debug(group, 'debugRuntime')
+
     #Then combine each register with the others
-    
+
     keys = ['']*len(group) #we need an order
     index = {}  #the current index for each register
     size  = {}  #the maximum value
     cases = 1   #give the number of cases
-    
+
     i = 0
     for entry in group:
         for key in entry: #only one...
@@ -208,7 +213,11 @@ def compile(args,sourceFile):
     if args.verbose:
         print("compile file "+sourceFile+'.s')
     objFile = sourceFile+".o"
-    returnCode = subprocess.call(["arm-none-eabi-as", "-mthumb", "-mcpu=cortex-m4", sourceFile+'.s', "-o", objFile])
+    try:
+        returnCode = subprocess.call(["arm-none-eabi-as", "-mthumb", "-mcpu=cortex-m4", sourceFile+'.s', "-o", objFile])
+    except OSError:
+        print("The cross-compiler is not found (arm-none-eabi-gcc)")
+        sys.exit(1)
     if returnCode != 0:
         print("*** Assembling, error " + str(returnCode) + " ***\n")
         sys.exit(returnCode)
@@ -231,7 +240,8 @@ def getRuntimeTests(inst):
 def prepareTestCaseForGdb(codeCase, runCase, gdb):
     for reg in runCase:
         if reg == "cpsr":
-            gdb.write('set $cpsr='+str(runCase[reg]['val'])+'\n')
+            #gdb.write('set $cpsr='+str(runCase[reg]['val'])+'\n')
+            gdb.write('set $xPSR='+str(runCase[reg]['val'])+'\n')
         else:
             regName = str(codeCase[reg]['idx'])
             if regName != 'pc': #do not update pc, as it won't work.
@@ -239,7 +249,9 @@ def prepareTestCaseForGdb(codeCase, runCase, gdb):
 
 def generateGdbScript(filename, inst, codeCases, runCases):
     with open(filename+'.gdb',"w") as gdb:
-        gdb.write("tar extended-remote :4242\n")
+        #gdb.write("tar extended-remote :4242\n")   #st-util
+        gdb.write("tar extended-remote :3333\n")    #openocd
+        gdb.write("monitor reset halt\n")           #openocd
         gdb.write("set interactive-mode off\n")
         gdb.write("load\n")
         gdb.write("define dumpRegs\n")
@@ -248,7 +260,8 @@ def generateGdbScript(filename, inst, codeCases, runCases):
         gdb.write('\tprintf "0x%08x\\t",$sp\n')
         gdb.write('\tprintf "0x%08x\\t",$lr\n')
         gdb.write('\tprintf "0x%08x\\t",$pc\n')
-        gdb.write('\tprintf "0x%08x\\t",$cpsr\n')
+        #gdb.write('\tprintf "0x%08x\\t",$cpsr\n')
+        gdb.write('\tprintf "0x%08x\\t",$xPSR\n')
         gdb.write('end\n\n')
 
         try:
@@ -260,7 +273,7 @@ def generateGdbScript(filename, inst, codeCases, runCases):
         gdb.write('set logging file '+filename+'_output.gdb\n')
         gdb.write('set logging redirect on\n')
         gdb.write('set logging on\n\n')
-        
+
         for codeCase in codeCases:
             #first time
             gdb.write('set $oldpc = $pc\n')
@@ -294,7 +307,7 @@ def readTargetOutputFile(filename):
     """ read the zipped output file
         and return either the list of lines
         or None if the file does not exists
-    """ 
+    """
     targetOutputFile = filename+'_output.gdb.zip'
     try:
         root = zipfile.ZipFile(targetOutputFile)
@@ -310,7 +323,7 @@ def targetOutputFileToBuild(gdbOutputLines):
         - read the first line => that stores the md5 of the JSON file and the number of tests (and we have one test per line)
         - compare it with the JSON file of the test
         - if they differ, the test have been updated and the test should be done again.
-    """ 
+    """
     sig = []
     jsonMd5 = getJSONFileSignature(filename)
     n = 0 #number of line in the file
@@ -339,7 +352,7 @@ def processTestOnTarget(args, filename, inst, codeCases, runCases, signature):
     testOnTargetOk = False
     nbVal = len(codeCases)*len(runCases)
     #we have to do the test
-    if args.verbose:    
+    if args.verbose:
         print('tests on target should be done')
     if args.target:
         #1- generate the gdb script
@@ -352,7 +365,11 @@ def processTestOnTarget(args, filename, inst, codeCases, runCases, signature):
         #arm-none-eabi-gdb beh_lsl.json.elf -q -x beh_lsl.json.gdb
         if args.verbose:
             print('run test on target…')
-        process = subprocess.Popen(['arm-none-eabi-gdb','-q', filename+'.elf','-x',filename+'.gdb'], stdout=subprocess.PIPE, bufsize=0)
+        try:
+            process = subprocess.Popen(['arm-none-eabi-gdb','-q', filename+'.elf','-x',filename+'.gdb'], stdout=subprocess.PIPE, bufsize=0)
+        except OSError:
+            print("The cross-debugger is not found (arm-none-eabi-gdb) -> cannot test on target. Exitting…")
+            sys.exit(1)
         if not args.quiet:
             gdbWaitVal = 0
             for line in process.stdout:
@@ -434,7 +451,6 @@ def processTestOnHarmless(args, filename, inst, codeCases, runCases, signature):
                 #get back…
                 core.setProgramCounter(oldPC)
             core.setProgramCounter(core.programCounter()+getInt(inst['size']))
-
 import zipfile
 
 def clean(filename, gdbOutputLines, result):
@@ -473,7 +489,7 @@ def BOLD () :
 def ENDC () :
   return '\033[0m'
 
-def compare(inst, testOnTargetOk, filename, gdbOutputLines):
+def compare(inst, testOnTargetOk, filename, gdbOutputLines, instructionIndex):
     ok = 0
     if testOnTargetOk:
         try:
@@ -488,7 +504,7 @@ def compare(inst, testOnTargetOk, filename, gdbOutputLines):
     #report (if quiet, report only if there is a pb).
     if ((not args.quiet) and (ok == 0)) or (ok!=0):
         s = max(0,20-len(inst['instruction']))
-        print('check instruction: '+inst['instruction']+s*' '+'-> ', end='')
+        print('[{0:3d}] check instruction: '.format(instructionIndex+1)+inst['instruction']+s*' '+'-> ', end='')
     if (not args.quiet) and (ok == 0):
         print(BOLD()+GREEN()+'ok'+ENDC())
     if ok != 0:
@@ -504,11 +520,17 @@ def compare(inst, testOnTargetOk, filename, gdbOutputLines):
 if __name__ == '__main__':
     #arguments
     parser = argparse.ArgumentParser(description='Check Harmless Cortex ARM model functionnal behavior against a real target')
-    parser.add_argument("-v", "--verbose",    
+    parser.add_argument("-v", "--verbose",
             help="be verbose…",
             action="store_true", default=False)
-    parser.add_argument("-q", "--quiet",    
+    parser.add_argument("-q", "--quiet",
             help="shhhhut!",
+            action="store_true", default=False)
+    parser.add_argument("-nc", "--noclean",
+            help="do not remove intermediate files",
+            action="store_true", default=False)
+    parser.add_argument("-n", "--note",
+            help="show test note (if exists)",
             action="store_true", default=False)
     parser.add_argument("-t", "--target",
             help="run test on target (if required)",
@@ -516,7 +538,7 @@ if __name__ == '__main__':
     parser.add_argument('files', metavar='file', nargs='+',
                     help='JSON instruction test spec')
     args = parser.parse_args()
-    
+
     timeStart = time.clock()
     #0 - read the JSON instruction test
     import json
@@ -532,7 +554,7 @@ if __name__ == '__main__':
         exeFile= compile(args,filename)
         #3- get tests for runtime
         runCases = getRuntimeTests(inst)
-        ##4- stats (if verbose mode) 
+        ##4- stats (if verbose mode)
         nbVal = len(codeCases)*len(runCases)
         nbTests += nbVal
         getStats(inst, codeCases, runCases)
@@ -546,16 +568,22 @@ if __name__ == '__main__':
             gdbOutputLines = readTargetOutputFile(filename)
         else:
             testOnTargetOk = True
-            if args.verbose:    
+            if args.verbose:
                 print('tests on target up to date')
         #6- run tests on Harmless
         if testOnTargetOk:
             processTestOnHarmless(args, filename, inst, codeCases, runCases, signature)
         #7- compare
-        result = compare(inst, testOnTargetOk, filename, gdbOutputLines)
-            
+        result = compare(inst, testOnTargetOk, filename, gdbOutputLines, nbInstructions)
+
+        #8- is there a note?
+        if args.note:
+            if 'note' in inst:
+                print("\tnote: "+inst['note'])
+
         ##8- clean (remove tmp files)
-        clean(filename, gdbOutputLines, result)
+        if not args.noclean:
+            clean(filename, gdbOutputLines, result)
         nbInstructions += 1
     if not args.quiet:
         print(str(nbTests)+' tests done for '+str(nbInstructions)+' instructions in '+
