@@ -78,7 +78,9 @@ In the mnemonic, the `label` keywrd should be used. The generated code is:
 ***To be implemented***
 
 The memory may be defined in three sections:
+
  * the `src` part: for load instructions. It should be defined as a list of addresses/values: **TODO autant d'addresses que de val?**
+
  ```JSON
  "src": {
    "mem" : {
@@ -89,7 +91,9 @@ The memory may be defined in three sections:
    }
  }
  ```
- * the `dest` part: for store instructions. Only addresses are defined:
+
+ * the `dest` part: for `store` instructions. Only addresses are defined:
+
  ```JSON
  "dest": {
    "mem" : {
@@ -101,4 +105,5 @@ The memory may be defined in three sections:
  ```
  It only gives the information that these addresses should be tested also during the test. => they will appear in addition to registers in the output files.
  * the `init` section, which is executed before each test.
+
  ** TODO: comment faire? chaque adresse avec chaque valeur? => ça fera trop.**
