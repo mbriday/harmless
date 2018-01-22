@@ -235,15 +235,46 @@ def compile(args,sourceFile):
         sys.exit(returnCode)
     return exeFile
 
+def memCombinations(inst):
+    """ memory combinations, from 'addr' and 'val' lists.
+    - first cases, each addr has same value (-> len(val) cases)
+    - second cases, rotation with values (->len(val) cases)
+    """
+    if 'mem' in inst:
+        addrList = inst['mem']['addr']  #list of memory addresses
+        valList = inst['mem']['val']    #list of different values
+        #first: each memory have the same value
+        for val in valList:
+            valI = getInt(val)
+            case = []
+            for addr in addrList:
+                case.append({'addr':getInt(addr), 'val':valI})
+            yield case
+        #then: rotation
+        for indexStart in range(len(valList)):
+            i = 0
+            case = []
+            for addr in addrList:
+                case.append({'addr':getInt(addr), 'val':getInt(valList[(indexStart+i)%len(valList)])})
+                i=i+1
+            yield case
+
+
 def getRuntimeTests(inst):
     runCases = []
-    for case in combinations(inst,False):
-        runCases.append(case)
+    for caseR in combinations(inst,False):
+        for caseM in memCombinations(inst):
+            caseR[u'mem'] = caseM
+            runCases.append(caseR)
+        #runCases.append(caseR)
     return runCases
 
 def prepareTestCaseForGdb(codeCase, runCase, gdb):
     for reg in runCase:
-        if reg == "cpsr":
+        if reg == 'mem': #this is not a reg…
+            for memLocation in runCase[reg]:
+                gdb.write('set {int}'+hex(memLocation['addr'])+' = '+str(memLocation['val'])+'\n')
+        elif reg == "cpsr":
             #gdb.write('set $cpsr='+str(runCase[reg]['val'])+'\n')
             gdb.write('set $xPSR='+str(runCase[reg]['val'])+'\n')
         else:
@@ -252,10 +283,17 @@ def prepareTestCaseForGdb(codeCase, runCase, gdb):
                 gdb.write('set $'+regName+'='+str(runCase[reg]['val'])+'\n')
 
 def generateGdbScript(filename, inst, codeCases, runCases):
+    debugger = 'st-util' #either st-util or openocd
+    if debugger != 'st-util' and debugger != 'openocd':
+        print('error: no debugger specified : use st-link or openocd')
+        print('assuming st-link')
+        debugger == 'st-link'
     with open(filename+'.gdb',"w") as gdb:
-        #gdb.write("tar extended-remote :4242\n")   #st-util
-        gdb.write("tar extended-remote :3333\n")    #openocd
-        gdb.write("monitor reset halt\n")           #openocd
+        if debugger == 'st-util':
+            gdb.write("tar extended-remote :4242\n")   #st-util
+        else:# 'openocd'
+            gdb.write("tar extended-remote :3333\n")    #openocd
+            gdb.write("monitor reset halt\n")           #openocd
         gdb.write("set interactive-mode off\n")
         gdb.write("load\n")
         gdb.write("define dumpRegs\n")
@@ -264,8 +302,13 @@ def generateGdbScript(filename, inst, codeCases, runCases):
         gdb.write('\tprintf "0x%08x\\t",$sp\n')
         gdb.write('\tprintf "0x%08x\\t",$lr\n')
         gdb.write('\tprintf "0x%08x\\t",$pc\n')
-        #gdb.write('\tprintf "0x%08x\\t",$cpsr\n')
-        gdb.write('\tprintf "0x%08x\\t",$xPSR\n')
+        if debugger == 'st-util':
+            gdb.write('\tprintf "0x%08x\\t",$cpsr\n')
+        else:
+            gdb.write('\tprintf "0x%08x\\t",$xPSR\n')
+        if 'mem' in inst:
+            for memAddr in inst['mem']['addr']:  #list of memory addresses
+                gdb.write('\tprintf "0x%08x\\t",{int}'+memAddr+'\n')
         gdb.write('end\n\n')
 
         try:
@@ -393,10 +436,13 @@ def processTestOnTarget(args, filename, inst, codeCases, runCases, signature):
             print("test on target cancelled (no command line option)")
     return testOnTargetOk
 
-def harmlessPrintReg(core,out):
+def harmlessPrintReg(inst,core,out):
     for id in range(16):
         out.write("0x{reg:08x}\t".format(reg=core.gpr_read32(id)))
     out.write("0x{reg:08x}\t".format(reg=core.CPSR()))
+    if 'mem' in inst:
+        for memAddr in inst['mem']['addr']:  #list of memory addresses
+            out.write("0x{mem:08x}\t".format(mem=core.mem_read32(memAddr)))
 
 def harmlessInit(regDict, core,filename):
     #init regs
@@ -439,18 +485,22 @@ def processTestOnHarmless(args, filename, inst, codeCases, runCases, signature):
             for runCase in runCases:
                 #init
                 for reg in runCase:
-                    if reg == "cpsr":
+                    if reg == 'mem': #this is not a reg…
+                        for memLocation in runCase[reg]:
+                            #print('maj mem '+hex(memLocation['addr'])+' -> '+hex(memLocation['val']))
+                            core.mem_write32(memLocation['addr'],memLocation['val'])
+                    elif reg == "cpsr":
                         core.setCPSR(getInt(runCase[reg]['val']))
                     else:
                         regName = codeCase[reg]['idx']
                         if regName != 'pc': #do not update pc, as it won't work.
                             core.gpr_write32(regDict[codeCase[reg]['idx']], getInt(runCase[reg]['val']))
                 #exec one instruction
-                harmlessPrintReg(core,out)
+                harmlessPrintReg(inst,core,out)
                 out.write('A\n')
                 core.execInst(1)
                 #print registers
-                harmlessPrintReg(core,out)
+                harmlessPrintReg(inst,core,out)
                 out.write('B\n')
                 #get back…
                 core.setProgramCounter(oldPC)
@@ -586,6 +636,7 @@ if __name__ == '__main__':
 
         ##8- clean (remove tmp files)
         if not args.noclean:
+            print('clean')
             clean(filename, gdbOutputLines, result)
         nbInstructions += 1
     if args.verbose > 0:

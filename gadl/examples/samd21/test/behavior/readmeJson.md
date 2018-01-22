@@ -39,6 +39,9 @@ Previous example leads to multiply the number of tests to 3x5=15 cases.
 
 They can also have immediat values. Here, the `imm3` is used in the mnemonic, and the `imm` is a keyword.
 
+**Note:** If the same index is used in with two registers, the init is done once! It may leads to invalid memory locations with load/store instructions.
+
+
 ## Mnemonic
 
 The mnemonic is defined with the "mnemo" keyword. Parameters are defined between `{}` and should refer to:
@@ -75,35 +78,36 @@ In the mnemonic, the `label` keywrd should be used. The generated code is:
 ```
 
 ### basic RAM
-***To be implemented***
 
-The memory may be defined in three sections:
+The memory is defined in a dedicated section (same level as 'src', 'dest' or 'instruction':
 
- * the `src` part: for load instructions. It should be defined as a list of addresses/values: **TODO autant d'addresses que de val?**
+```JSON
+	"mem" : {
+		"addr": ["0x20000100", "0x200001f0", "0x2000022b",
+		         "0x20001000", "0x200010f0", "0x2000112b",
+		         "0x20002000", "0x200010f0", "0x2000212b"],
+		"val": ["0x0", "0xffffffff", "0xaacc5555", "0x23456789"]
+	}
+```
 
- ```JSON
- "src": {
-   "mem" : {
-     "addr": ["0x20000000", "0x200000f0", "0x2000012b",
-              "0x20001000", "0x200010f0", "0x2000112b",
-              "0x20002000", "0x200010f0", "0x2000212b"],
-      "val": ["0", "0x12345678", "0xffffffff"]
-   }
- }
- ```
+Let's call `nbVal` the number of values in `val` list.
+The values used for memory addresses are defined as.
 
- * the `dest` part: for `store` instructions. Only addresses are defined:
+* each address gets the same value defined in `val`: There are `nbVal` tests.
+* each address gets different values from the `val` list, with a circular approach (`nbVal` tests):
+	* The first address gets the first value, the second address the second value and so on. 
+	* For the next test, the first addres gets the second value, the second addres the third value… 
+	* if there are more addresses than values, it gets new values from the beginning.
 
- ```JSON
- "dest": {
-   "mem" : {
-     "addr": ["0x20000000", "0x200000f0", "0x2000012b",
-              "0x20001000", "0x200010f0", "0x2000112b",
-              "0x20002000", "0x200010f0", "0x2000212b"]
-   }
- }
- ```
- It only gives the information that these addresses should be tested also during the test. => they will appear in addition to registers in the output files.
- * the `init` section, which is executed before each test.
 
- ** TODO: comment faire? chaque adresse avec chaque valeur? => ça fera trop.**
+As a consequence, a memory section implies that there are `2 
+x nbVal`  tests for each previous combinations.
+
+The memory addresses are initialised before each test, and are compared in the gdb/harmless final comparison (one column for each memory address).
+
+**Note**: The program code is loaded in RAM: Do not use first addresses (`0x20000000`…), but start at `0x20000100` min.
+
+
+
+
+
