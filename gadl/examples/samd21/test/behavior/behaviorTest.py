@@ -263,10 +263,12 @@ def memCombinations(inst):
 def getRuntimeTests(inst):
     runCases = []
     for caseR in combinations(inst,False):
-        for caseM in memCombinations(inst):
-            caseR[u'mem'] = caseM
+        if 'mem' in inst:
+            for caseM in memCombinations(inst):
+                caseR[u'mem'] = caseM
+                runCases.append(caseR)
+        else: #no 'mem' section
             runCases.append(caseR)
-        #runCases.append(caseR)
     return runCases
 
 def prepareTestCaseForGdb(codeCase, runCase, gdb):
@@ -415,7 +417,7 @@ def processTestOnTarget(args, filename, inst, codeCases, runCases, signature):
         try:
             process = subprocess.Popen(['arm-none-eabi-gdb','-q', filename+'.elf','-x',filename+'.gdb'], stdout=subprocess.PIPE, bufsize=0)
         except OSError:
-            print("The cross-debugger is not found (arm-none-eabi-gdb) -> cannot test on target. Exitting…")
+            print("The cross-debugger is not found (arm-none-eabi-gdb) -> cannot test on target. Exit…")
             sys.exit(1)
         if args.verbose > 0:
             gdbWaitVal = 0
@@ -442,7 +444,7 @@ def harmlessPrintReg(inst,core,out):
     out.write("0x{reg:08x}\t".format(reg=core.CPSR()))
     if 'mem' in inst:
         for memAddr in inst['mem']['addr']:  #list of memory addresses
-            out.write("0x{mem:08x}\t".format(mem=core.mem_read32(memAddr)))
+            out.write("0x{mem:08x}\t".format(mem=core.mem_read32(getInt(memAddr))))
 
 def harmlessInit(regDict, core,filename):
     #init regs
@@ -636,7 +638,6 @@ if __name__ == '__main__':
 
         ##8- clean (remove tmp files)
         if not args.noclean:
-            print('clean')
             clean(filename, gdbOutputLines, result)
         nbInstructions += 1
     if args.verbose > 0:
