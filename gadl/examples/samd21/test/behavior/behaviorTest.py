@@ -39,6 +39,7 @@ import time
 # test sur cible avec openocd ou st-util
 # -> voir  generateGdbScript
 # avec openocd, il faut lancer le serveur: openocd -f board/st_nucleo_f3.cfg
+debugger = 'openocd' #either st-util or openocd
 
 #verbose mode:
 # - 0 => nothing, except for errors
@@ -259,7 +260,6 @@ def memCombinations(inst):
                 i=i+1
             yield case
 
-
 def getRuntimeTests(inst):
     runCases = []
     for caseR in combinations(inst,False):
@@ -277,15 +277,16 @@ def prepareTestCaseForGdb(codeCase, runCase, gdb):
             for memLocation in runCase[reg]:
                 gdb.write('set {int}'+hex(memLocation['addr'])+' = '+str(memLocation['val'])+'\n')
         elif reg == "cpsr":
-            #gdb.write('set $cpsr='+str(runCase[reg]['val'])+'\n')
-            gdb.write('set $xPSR='+str(runCase[reg]['val'])+'\n')
+            if debugger == 'st-util':
+                gdb.write('set $cpsr='+str(runCase[reg]['val'])+'\n')
+            else:
+                gdb.write('set $xPSR='+str(runCase[reg]['val'])+'\n')
         else:
             regName = str(codeCase[reg]['idx'])
             if regName != 'pc': #do not update pc, as it won't work.
                 gdb.write('set $'+regName+'='+str(runCase[reg]['val'])+'\n')
 
 def generateGdbScript(filename, inst, codeCases, runCases):
-    debugger = 'st-util' #either st-util or openocd
     if debugger != 'st-util' and debugger != 'openocd':
         print('error: no debugger specified : use st-link or openocd')
         print('assuming st-link')
