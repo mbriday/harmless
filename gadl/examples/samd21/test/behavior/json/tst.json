@@ -1,5 +1,5 @@
 {
-	"instruction": "tst",
+	"instruction": "tst Rn, Rm",
 	"src":
 	{
 		"Rm" : {

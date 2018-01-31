@@ -1,5 +1,5 @@
 {
-	"instruction": "bics",
+	"instruction": "bics Rd, Rm",
 	"src":
 	{
 		"Rm" : {

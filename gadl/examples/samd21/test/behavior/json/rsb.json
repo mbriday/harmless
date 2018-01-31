@@ -1,5 +1,5 @@
 {
-	"instruction": "rsbs",
+	"instruction": "rsbs Rd, Rn, #0",
 	"src":
 	{
 		"Rn": {

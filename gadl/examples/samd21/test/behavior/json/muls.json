@@ -1,5 +1,5 @@
 {
-	"instruction": "muls",
+	"instruction": "muls Rd, Rm, Rd",
 	"src":
 	{
 		"Rm" : {

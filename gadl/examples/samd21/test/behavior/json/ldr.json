@@ -1,5 +1,5 @@
 {
-	"instruction": "ldr (imm8)" ,
+	"instruction": "ldr Rt, label" ,
 	"codeData": {
 		"post": ["0", "0x23456789", "0xffffffff", "0xac578c5a", "0xaaaa555c"]
 	},

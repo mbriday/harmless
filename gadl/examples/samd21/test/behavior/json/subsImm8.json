@@ -1,5 +1,5 @@
 {
-	"instruction": "subs (imm8)",
+	"instruction": "subs Rd, #imm8",
 	"src":
 	{
 		"imm8": {

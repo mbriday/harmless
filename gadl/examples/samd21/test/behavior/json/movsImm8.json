@@ -1,5 +1,5 @@
 {
-	"instruction": "movs imm8",
+	"instruction": "movs Rd, #imm8",
 	"src":
 	{
 		"imm8": {

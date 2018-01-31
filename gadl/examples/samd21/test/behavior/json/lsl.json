@@ -1,5 +1,5 @@
 {
-	"instruction": "lsl",
+	"instruction": "lsls Rd, Rm, #imm5",
 	"src":
 	{
 		"Rm" : {

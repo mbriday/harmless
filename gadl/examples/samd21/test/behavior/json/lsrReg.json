@@ -1,5 +1,5 @@
 {
-	"instruction": "lsrs",
+	"instruction": "lsrs Rd, Rm",
 	"src":
 	{
 		"Rm" : {

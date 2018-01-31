@@ -1,5 +1,5 @@
 {
-	"instruction": "bx" ,
+	"instruction": "bx Rm" ,
 	"src":
 	{
 		"Rm" : {

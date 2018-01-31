@@ -1,5 +1,5 @@
 {
-	"instruction": "adcs",
+	"instruction": "adcs Rd, Rm",
 	"src":
 	{
 		"Rm" : {

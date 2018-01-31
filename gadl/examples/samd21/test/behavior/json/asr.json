@@ -1,5 +1,5 @@
 {
-	"instruction": "asr",
+	"instruction": "asrs Rd, Rm, #imm5",
 	"src":
 	{
 		"Rm" : {

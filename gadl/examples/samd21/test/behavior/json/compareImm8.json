@@ -1,5 +1,5 @@
 {
-	"instruction": "cmp (imm8)",
+	"instruction": "cmp Rn, #imm8",
 	"src":
 	{
 		"Rn" : {

@@ -1,5 +1,5 @@
 {
-	"instruction": "cmn",
+	"instruction": "cmn Rn, Rm",
 	"src":
 	{
 		"Rm" : {

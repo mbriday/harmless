@@ -1,5 +1,5 @@
 {
-	"instruction": "adds (imm3)",
+	"instruction": "adds Rd, Rn, #imm3",
 	"src":
 	{
 		"Rn" : {

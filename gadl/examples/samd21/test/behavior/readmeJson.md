@@ -60,13 +60,14 @@ the `note` keyword allows to add a text that may be displayed during the executi
 ### data embbeded in code (i.e. to a label)
 
 The `codeData` keyword is used:
+
 ```JSON
 "codeData": {
   "post": ["0", "0x23456789", "0xffffffff", "0xac578c5a", "0xaaaa555c"]
 }
 ```
 Here, 5 labels are generated at the end of the code (`post`) which implies a positive offset in instruction. It can generate a negative offset with `pre`.
-In the mnemonic, the `label` keywrd should be used. The generated code is:
+In the mnemonic, the `label` keyword should be used. The generated code is:
 
 ```as
 .Label0:
@@ -75,6 +76,14 @@ In the mnemonic, the `label` keywrd should be used. The generated code is:
 	.word 591751049
 .Label2:
 ...
+```
+
+In case of a branch instruction, we can insert directly an opcode (`e7fe` is `b .`):
+
+```JSON
+	"codeData": {
+		"post": ["0xe7fee7fe", "0xe7fee7fe", "0xe7fee7fe"]
+	},
 ```
 
 ### basic RAM

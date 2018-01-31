@@ -1,5 +1,5 @@
 {
-	"instruction": "add pc,Rm",
+	"instruction": "add pc, Rm",
 	"src":
 	{
 		"Rm" : {

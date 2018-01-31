@@ -1,5 +1,5 @@
 {
-	"instruction": "sbcs",
+	"instruction": "sbcs Rd, Rm",
 	"src":
 	{
 		"Rm" : {

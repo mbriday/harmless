@@ -39,14 +39,17 @@ import time
 # test sur cible avec openocd ou st-util
 # -> voir  generateGdbScript
 # avec openocd, il faut lancer le serveur: openocd -f board/st_nucleo_f3.cfg
-debugger = 'openocd' #either st-util or openocd
+debugger = 'st-util' #either st-util or openocd
 
 #verbose mode:
 # - 0 => nothing, except for errors
 # - 1 => default => one line for each test
-# - 2 => more information (json file)
-# - 3 => information for each step.
+# - 2 => more information (nb tests)
+# - 3 => more information (json file)
+# - 4 => information for each step.
 
+regDict = {'r0':0, 'r1':1, 'r2':2, 'r3':3, 'r4':4, 'r5':5, 'r6':6, 'r7':7,
+           'r8':8, 'r9':9,'r10':10, 'r11':11,'r12':12, 'sp':13,'lr':14, 'pc':15}
 import types
 
 def getInt(txt):
@@ -215,7 +218,7 @@ def getSourceFile(filename, inst):
 
 def compile(args,sourceFile):
     #asm
-    if args.verbose > 2:
+    if args.verbose > 3:
         print("compile file "+sourceFile+'.s')
     objFile = sourceFile+".o"
     try:
@@ -225,10 +228,11 @@ def compile(args,sourceFile):
         sys.exit(1)
     if returnCode != 0:
         print("*** Assembling, error " + str(returnCode) + " ***\n")
+        print("see file "+sourceFile+'.s')
         sys.exit(returnCode)
     #link
     exeFile = sourceFile+".elf"
-    if args.verbose > 2:
+    if args.verbose > 3:
         print("link file to "+exeFile)
     returnCode = subprocess.call(["arm-none-eabi-ld", objFile, "-o", exeFile, "-Tscript.ld"],)
     if returnCode != 0:
@@ -265,8 +269,9 @@ def getRuntimeTests(inst):
     for caseR in combinations(inst,False):
         if 'mem' in inst:
             for caseM in memCombinations(inst):
-                caseR[u'mem'] = caseM
-                runCases.append(caseR)
+                case = caseR.copy()
+                case[u'mem'] = caseM
+                runCases.append(case)
         else: #no 'mem' section
             runCases.append(caseR)
     return runCases
@@ -383,7 +388,7 @@ def targetOutputFileToBuild(gdbOutputLines):
                 sig = line.split()
             n += 1
         firstCond = jsonMd5 == sig[0] #md5 is ok
-        secondCond =  n == int(sig[1])*2+1 #number of tests = 2 lines/test +signature line)
+        secondCond =  n == int(sig[1])*2+2 #number of tests = 2 lines/test +preamble
         return not(firstCond and secondCond) , jsonMd5
     except TypeError: #gdbOutputLines is None
         return True, jsonMd5
@@ -393,16 +398,31 @@ def targetOutputFileToBuild(gdbOutputLines):
         return True, jsonMd5
 
 def getStats(inst, codeCases, runCases):
-    if args.verbose > 2:
+    if args.verbose > 3:
         print("code to test instruction "+inst['instruction']+" requires:")
         print("\t"+str(len(codeCases))+" instructions in the code ("+str(len(codeCases)*inst['size'])+" bytes for the program)")
         print("\t"+str(len(runCases))+" tests for each instruction => "+str(len(codeCases)*len(runCases))+" cases")
 
-def processTestOnTarget(args, filename, inst, codeCases, runCases, signature):
+#first line: md5 nbtests
+#second line: list of registers (and memory locations).
+def outputFilePreamble(outfile, signature, nbVal,inst):
+    outfile.write(signature+'\t'+str(nbVal)+'\n')
+    for i in range(len(regDict)):   #not optimized at all, but done only 2 times.
+        for key in regDict:
+            if i == regDict[key]:
+                outfile.write("{reg:10s}\t".format(reg=key))
+                break
+    outfile.write('cpsr    \t')
+    if 'mem' in inst:
+        for memAddr in inst['mem']['addr']:  #list of memory addresses
+            outfile.write("0x{mem:08x}\t".format(mem=getInt(memAddr)))
+    outfile.write('\n')
+
+def processTestOnTarget(args, filename, inst, codeCases, runCases, signature, testStr):
     testOnTargetOk = False
     nbVal = len(codeCases)*len(runCases)
     #we have to do the test
-    if args.verbose > 2:
+    if args.verbose > 3:
         print('tests on target should be done')
     if args.target:
         #1- generate the gdb script
@@ -410,10 +430,10 @@ def processTestOnTarget(args, filename, inst, codeCases, runCases, signature):
         #2- create the output file (starting with md5)
         outputFile = filename+'_output.gdb'
         with open(outputFile, "w") as outfile:
-            outfile.write(signature+' '+str(nbVal)+'\n')
+            outputFilePreamble(outfile, signature, nbVal,inst)
         #3- run the test on target
         #arm-none-eabi-gdb beh_lsl.json.elf -q -x beh_lsl.json.gdb
-        if args.verbose > 2:
+        if args.verbose > 3:
             print('run test on target…')
         try:
             process = subprocess.Popen(['arm-none-eabi-gdb','-q', filename+'.elf','-x',filename+'.gdb'], stdout=subprocess.PIPE, bufsize=0)
@@ -422,11 +442,13 @@ def processTestOnTarget(args, filename, inst, codeCases, runCases, signature):
             sys.exit(1)
         if args.verbose > 0:
             gdbWaitVal = 0
+            print('', end='\r')
             for line in process.stdout:
-                print('--> {val:3.1f}%'.format(val=min(100, float(gdbWaitVal) / nbVal * 100)), end='\r')
+                print(testStr+' {val:3.1f}%'.format(val=min(100, float(gdbWaitVal) / nbVal * 100)), end='\r')
                 gdbWaitVal = gdbWaitVal + 1
         process.wait()
-        if args.verbose > 2:
+        print(testStr, end = '')
+        if args.verbose > 3:
             print('\ndone!\n')
         testOnTargetOk = True
         #4- zip the generated file
@@ -435,7 +457,7 @@ def processTestOnTarget(args, filename, inst, codeCases, runCases, signature):
             zf.write(outputFile, compress_type=zipfile.ZIP_DEFLATED)
             zf.close()
     else:
-        if args.verbose > 2:
+        if args.verbose > 3:
             print("test on target cancelled (no command line option)")
     return testOnTargetOk
 
@@ -463,8 +485,6 @@ def harmlessInit(regDict, core,filename):
         pass #no 'init' section in JSON file, skip
 
 def processTestOnHarmless(args, filename, inst, codeCases, runCases, signature):
-    regDict = {'r0':0, 'r1':1, 'r2':2, 'r3':3, 'r4':4, 'r5':5, 'r6':6, 'r7':7,
-            'r8':8, 'r9':9,'r10':10, 'r11':11,'r12':12, 'sp':13,'lr':14, 'pc':15}
     sys.path.append("../../samd21")
     harmlessFile = filename+"_output.harmless"
     try:
@@ -482,7 +502,7 @@ def processTestOnHarmless(args, filename, inst, codeCases, runCases, signature):
     harmlessInit(regDict, core, filename)
     with open(harmlessFile,'w') as out:
         nbVal = len(codeCases)*len(runCases)
-        out.write(signature+' '+str(nbVal)+'\n')
+        outputFilePreamble(out, signature, nbVal,inst)
         for codeCase in codeCases:
             oldPC = core.programCounter()
             for runCase in runCases:
@@ -546,7 +566,17 @@ def BOLD () :
 def ENDC () :
   return '\033[0m'
 
-def compare(inst, nbVal, testOnTargetOk, filename, gdbOutputLines, instructionIndex):
+def getCurrentTestString(args, inst, instructionIndex, filename, nbVal):
+    s = max(0,20-len(inst['instruction']))
+    result = '[{0:3d}'.format(instructionIndex+1)
+    if args.verbose > 2:
+        result += ' - {filen:30}'.format(filen=filename)
+    if args.verbose > 1:
+        result += ' - {case:5} cases'.format(case=nbVal)
+    result += '] check instruction: '+inst['instruction']+s*' '+'-> '
+    return result
+
+def compare(testOnTargetOk, filename, gdbOutputLines, testStr):
     ok = 0
     if testOnTargetOk:
         try:
@@ -558,13 +588,9 @@ def compare(inst, nbVal, testOnTargetOk, filename, gdbOutputLines, instructionIn
             ok = 2
     else:
         ok = 2
-    #report (if no verbose mode, report only if there is a pb).
-    if ((args.verbose > 0) and (ok == 0)) or (ok!=0):
-        s = max(0,20-len(inst['instruction']))
-        print('[{0:3d}'.format(instructionIndex+1), end='')
-        if args.verbose > 1:
-            print(' - {0:30} - {1:5} cases'.format(filename,nbVal), end='')
-        print('] check instruction: '+inst['instruction']+s*' '+'-> ', end='')
+    #report (string already printed if verbose > 0. Print only if pb)
+    if ((args.verbose == 0) and (ok != 0)):
+        print(testStr, end='')
     if (args.verbose > 0) and (ok == 0):
         print(BOLD()+GREEN()+'ok'+ENDC())
     if ok != 0:
@@ -582,6 +608,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Check Harmless Cortex ARM model functionnal behavior against a real target')
     parser.add_argument("-nc", "--noclean",
             help="do not remove intermediate files",
+            action="store_true", default=False)
+    parser.add_argument("-s", "--assembleOnly",
+            help="only generate the assembly test file",
             action="store_true", default=False)
     parser.add_argument("-n", "--note",
             help="show test note (if exists)",
@@ -603,44 +632,50 @@ if __name__ == '__main__':
     for filename in args.files:
         with open(filename) as jsonFile:
             inst = json.load(jsonFile)
-
         #1- generate the object file for Harmless and real target from the JSON test
         codeCases = getSourceFile(filename,inst)
         #2- compile it
         exeFile= compile(args,filename)
-        #3- get tests for runtime
-        runCases = getRuntimeTests(inst)
-        ##4- stats (if verbose mode > 2)
-        nbVal = len(codeCases)*len(runCases)
-        nbTests += nbVal
-        getStats(inst, codeCases, runCases)
-        #5- run tests on the real target (if needed)
-        testOnTargetOk = False
-        gdbOutputLines = readTargetOutputFile(filename)
-        shouldBuild, signature = targetOutputFileToBuild(gdbOutputLines) #check with md5
-        if shouldBuild:
-            testOnTargetOk = processTestOnTarget(args, filename, inst, codeCases, runCases, signature)
-            #read the output file (maybe again…)
+        if not args.assembleOnly:
+            #3- get tests for runtime
+            runCases = getRuntimeTests(inst)
+            ##4- stats (if verbose mode > 2)
+            nbVal = len(codeCases)*len(runCases)
+            nbTests += nbVal
+            getStats(inst, codeCases, runCases)
+            #4.5- print the instruction string
+            if (args.verbose > 0):
+                testStr = getCurrentTestString(args, inst, nbInstructions, filename, nbVal)
+                print(testStr, end='')
+            #5- run tests on the real target (if needed)
+            testOnTargetOk = False
             gdbOutputLines = readTargetOutputFile(filename)
-        else:
-            testOnTargetOk = True
-            if args.verbose > 2:
-                print('tests on target up to date')
-        #6- run tests on Harmless
-        if testOnTargetOk:
-            processTestOnHarmless(args, filename, inst, codeCases, runCases, signature)
-        #7- compare
-        result = compare(inst, nbVal, testOnTargetOk, filename, gdbOutputLines, nbInstructions)
+            shouldBuild, signature = targetOutputFileToBuild(gdbOutputLines) #check with md5
+            if shouldBuild:
+                testOnTargetOk = processTestOnTarget(args, filename, inst, codeCases, runCases, signature, testStr)
+                #read the output file (maybe again…)
+                gdbOutputLines = readTargetOutputFile(filename)
+            else:
+                testOnTargetOk = True
+                if args.verbose > 3:
+                    print('tests on target up to date')
+            #6- run tests on Harmless
+            if testOnTargetOk:
+                processTestOnHarmless(args, filename, inst, codeCases, runCases, signature)
+            #7- compare
+            result = compare(testOnTargetOk, filename, gdbOutputLines, testStr)
 
-        #8- is there a note?
-        if args.note:
-            if 'note' in inst:
-                print("\tnote: "+inst['note'])
+            #8- is there a note?
+            if args.note:
+                if 'note' in inst:
+                    print("\tnote: "+inst['note'])
 
-        ##8- clean (remove tmp files)
-        if not args.noclean:
-            clean(filename, gdbOutputLines, result)
-        nbInstructions += 1
+            ##8- clean (remove tmp files)
+            if not args.noclean:
+                clean(filename, gdbOutputLines, result)
+            nbInstructions += 1
+        else: # assembly only
+            subprocess.call(["arm-none-eabi-objdump", "-d", filename+'.elf'],)
     if args.verbose > 0:
         print(str(nbTests)+' tests done for '+str(nbInstructions)+' instructions in '+
                 str(time.clock()-timeStart)+'s\n')

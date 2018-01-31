@@ -38,7 +38,7 @@ override getter @expIdf getIdf
       #2 - analysis of the instruction list backward (=> this is the processStaticInfo)
       #3 - add the assignements from the function call to remove internal idf.
 
-      message "traitement:"+[self string]+"\n"
+      #message "traitement:"+[self string]+"\n"
 
       @instructionList instList = [idfStruct.componentMap getInstList !idfList]
       @parameterDefList paramDef = [idfStruct.componentMap getParamDefList !idfList]
@@ -55,12 +55,12 @@ override getter @expIdf getIdf
                                   !idfStruct !?nextIdfStruct
                                   ?@instructionList instListCall]
       @instructionList fullInstList = instListCall+instList
-      message [fullInstList harmlessCode !0 !false]
+      #message [fullInstList harmlessCode !0 !false]
       @symbolValueMap symbolValueMap = .emptyMap
       @staticInfoMapRegWrite regWriteAccessMap = .emptyMap
       @stringset memSpaceWriteAccess = .emptySet 
       [fullInstList processStaticInfo !idfStruct !?symbolValueMap !?regWriteAccessMap !?memSpaceWriteAccess !true]
-      message [regWriteAccessMap debug]
+      #message [regWriteAccessMap debug]
       
 
  #     @instructionList instList = [idfStruct.componentMap getInstList !idfList]

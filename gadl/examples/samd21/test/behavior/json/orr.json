@@ -1,5 +1,5 @@
 {
-	"instruction": "orrs",
+	"instruction": "orrs Rd, Rm",
 	"src":
 	{
 		"Rm" : {
