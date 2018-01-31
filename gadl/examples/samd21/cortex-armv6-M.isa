@@ -540,6 +540,35 @@ behavior rev #rev
 end behavior
 
 behavior loadStoreMultipleWord #multipleWord
+  field u3  Rn  #Rn
+  field u8 regList
+  do u32 addr := gpr.read32(Rn) end do
+  select
+    case #store
+      do
+        if regList{0} then mem.write32(addr, gpr.read32(0)) addr := addr + 4 end if
+        if regList{1} then mem.write32(addr, gpr.read32(1)) addr := addr + 4 end if
+        if regList{2} then mem.write32(addr, gpr.read32(2)) addr := addr + 4 end if
+        if regList{3} then mem.write32(addr, gpr.read32(3)) addr := addr + 4 end if
+        if regList{4} then mem.write32(addr, gpr.read32(4)) addr := addr + 4 end if
+        if regList{5} then mem.write32(addr, gpr.read32(5)) addr := addr + 4 end if
+        if regList{6} then mem.write32(addr, gpr.read32(6)) addr := addr + 4 end if
+        if regList{7} then mem.write32(addr, gpr.read32(7)) addr := addr + 4 end if
+				gpr.write32(Rn,addr) --write back
+      end do
+    case #load
+      do
+        if regList{0} then gpr.write32(0, mem.read32(addr)) addr := addr + 4 end if
+        if regList{1} then gpr.write32(1, mem.read32(addr)) addr := addr + 4 end if
+        if regList{2} then gpr.write32(2, mem.read32(addr)) addr := addr + 4 end if
+        if regList{3} then gpr.write32(3, mem.read32(addr)) addr := addr + 4 end if
+        if regList{4} then gpr.write32(4, mem.read32(addr)) addr := addr + 4 end if
+        if regList{5} then gpr.write32(5, mem.read32(addr)) addr := addr + 4 end if
+        if regList{6} then gpr.write32(6, mem.read32(addr)) addr := addr + 4 end if
+        if regList{7} then gpr.write32(7, mem.read32(addr)) addr := addr + 4 end if
+				if regList{Rn} != 1 then gpr.write32(Rn,addr) end if--write back
+      end do
+  end select
 end behavior
 --##==================================================
 --## Format description
