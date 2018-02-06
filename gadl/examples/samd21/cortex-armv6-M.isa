@@ -41,6 +41,22 @@ component alu {
     end if
     return result{31..0}
   }
+
+  u1 conditionPassed(u4 cond)
+  {
+    u1 result
+    if     cond{3..1} = \b000 then result := CPSR.Z
+    elseif cond{3..1} = \b001 then result := CPSR.C
+    elseif cond{3..1} = \b010 then result := CPSR.N
+    elseif cond{3..1} = \b011 then result := CPSR.V
+    elseif cond{3..1} = \b100 then result := (CPSR.C & !CPSR.Z)
+    elseif cond{3..1} = \b101 then result := (CPSR.N = CPSR.V)
+    elseif cond{3..1} = \b110 then result := (CPSR.N = CPSR.V) & !CPSR.Z
+    elseif cond{3..1} = \b111 then result := true
+    end if
+    if cond{0} & cond != \xf then result := !result end if
+    return result
+  }
 }
 
 component gpr {
@@ -570,6 +586,32 @@ behavior loadStoreMultipleWord #multipleWord
       end do
   end select
 end behavior
+
+behavior branch #branch #cond #imm9
+  field u4 cond
+  field s9 imm9
+  do if alu.conditionPassed(cond) then
+    PC := (u32)((s32)(PC) + imm9 + 2s)
+  end if end do
+end behavior
+
+behavior branchAlways #branch #always #imm12
+  field s12 imm12
+  do PC := (u32)((s32)(PC) + imm12 + 2s) end do
+end behavior
+
+behavior udf #udf #imm8
+  field u8 imm8
+  do print "undefined instruction 'udf': "
+     print (u32)(imm8)
+     print ".\n"
+  end do
+end behavior
+
+behavior svc #svc #imm8
+  field s9 imm9
+end behavior
+
 --##==================================================
 --## Format description
 --##==================================================
@@ -586,7 +628,7 @@ format Instruction16	 -- p A5.127 (ARM DDI 0403E.b)
     case \m11000- is #store #multipleWord lstm
     case \m11001- is #load  #multipleWord lstm
     case \m1101-- is condBranchAndSupervisorCall
---    case \m11100- is unconditionnalBranch
+    case \m11100- is #branch #always #imm12 imm12 := signed slice{10..0} << 1
   end select
 end format
 
@@ -1938,6 +1980,10 @@ syntax branch #branch #cond
   "b" cond ".n\t" label9
 end syntax
 
+syntax branchAlways #branch #always
+  "b.n\t" label12
+end syntax
+
 syntax udf #udf "udf\t" imm8 end syntax
 syntax svc #svc #imm8 field u8 imm8 "svc\t\d",imm8 end syntax
 
@@ -1946,6 +1992,13 @@ syntax label9 #imm9
   "\x",(s32)(instruction address) + imm9 + 4s 
   -- show label information as in objdump
   " <" function "+0x\x>",((s32)(instruction address) + imm9 + 4s - (s32)(function address))
+end syntax
+
+syntax label12 #imm12
+  field s12 imm12
+  "\x",(s32)(instruction address) + imm12 + 4s 
+  -- show label information as in objdump
+  " <" function "+0x\x>",((s32)(instruction address) + imm12 + 4s - (s32)(function address))
 end syntax
 
 syntax label7 #imm7

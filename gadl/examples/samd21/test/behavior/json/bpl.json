@@ -1,0 +1,21 @@
+{
+	"instruction": "bpl label" ,
+	"codeData": {
+		"pre":  ["0", "0x23456789", "0xffffffff"],
+		"post": ["0", "0x23456789", "0xffffffff"]
+	},
+	"dest": {
+		"cpsr": {
+			"val": ["0x81000000","0x91000000", "0xA1000000", "0xB1000000"
+			       ,"0xC1000000","0xD1000000", "0xE1000000", "0xF1000000"
+			       ,"0xF9000000"
+			]
+		}
+	},
+	"init": {
+		"sp": "0x8",
+		"lr": "0xdead" 
+	},
+	"mnemo": "bpl {label}",
+	"size": 2
+}
