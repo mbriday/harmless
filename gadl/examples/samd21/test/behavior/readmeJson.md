@@ -7,14 +7,16 @@
 
 ## init
 
-The init section gives default values for registers only once at startup:
+The init section gives default values for registers (or memory location) only once at startup:
 
 ```JSON
 "init": {
   "sp": "0x8",
   "lr": "0xdead"
+  "0x0800002c": "0x20000100"
 }
 ```
+
 ## test execution
 Test generation is based on both the simulation and real execution of one instruction with different cases. The 2 main properties are `src` and `dest`, which gives register value (no difference between `src` and `dest`):
 

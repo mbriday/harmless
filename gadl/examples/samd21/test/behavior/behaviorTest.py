@@ -321,7 +321,12 @@ def generateGdbScript(filename, inst, codeCases, runCases):
 
         try:
             for reg in inst['init']:
-                gdb.write('set $'+reg+'='+str(inst['init'][reg])+'\n')
+                if reg in regDict:
+                    gdb.write('set $'+reg+'='+str(inst['init'][reg])+'\n')
+                else:
+                    addr = getInt(reg)
+                    val = inst['init'][reg]
+                    gdb.write('set {int}'+hex(addr)+' = '+str(val)+'\n')
         except KeyError:
             pass
 
@@ -480,7 +485,15 @@ def harmlessInit(regDict, core,filename):
     #set init sequence
     try:
         for reg in inst['init']:
-            core.gpr_write32(regDict[reg], getInt(inst['init'][reg]))
+            if reg in regDict:
+                core.gpr_write32(regDict[reg], getInt(inst['init'][reg]))
+            else: #memory?
+                addr = getInt(reg)
+                val = inst['init'][reg]
+                #print('address '+str(addr)+', val:'+str(val))
+                core.mem_write32(addr,val)
+
+
     except KeyError:
         pass #no 'init' section in JSON file, skip
 
