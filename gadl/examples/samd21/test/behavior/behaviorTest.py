@@ -489,7 +489,7 @@ def harmlessInit(regDict, core,filename):
                 core.gpr_write32(regDict[reg], getInt(inst['init'][reg]))
             else: #memory?
                 addr = getInt(reg)
-                val = inst['init'][reg]
+                val = getInt(inst['init'][reg])
                 #print('address '+str(addr)+', val:'+str(val))
                 core.mem_write32(addr,val)
 

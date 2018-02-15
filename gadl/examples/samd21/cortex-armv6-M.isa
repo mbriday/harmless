@@ -101,6 +101,17 @@ component gpr {
     PC := newPC & \xfffffffe
     CPSR.T := newPC{0}
   }
+
+  void push(u32 data) {
+    SP := SP - 4
+    mem.write32(SP, data)
+  }
+
+  u32 pop() {
+    u32 result := mem.read32(SP)
+    SP := SP + 4
+    return result
+  }
 }
 
 
@@ -510,14 +521,14 @@ behavior push #push
   field u8 regList
   do
     if M then SP := SP - 4 mem.write32(SP, LR) end if
-    if regList{7} then SP := SP - 4 mem.write32(SP, gpr.read32(7)) end if
-    if regList{6} then SP := SP - 4 mem.write32(SP, gpr.read32(6)) end if
-    if regList{5} then SP := SP - 4 mem.write32(SP, gpr.read32(5)) end if
-    if regList{4} then SP := SP - 4 mem.write32(SP, gpr.read32(4)) end if
-    if regList{3} then SP := SP - 4 mem.write32(SP, gpr.read32(3)) end if
-    if regList{2} then SP := SP - 4 mem.write32(SP, gpr.read32(2)) end if
-    if regList{1} then SP := SP - 4 mem.write32(SP, gpr.read32(1)) end if
-    if regList{0} then SP := SP - 4 mem.write32(SP, gpr.read32(0)) end if
+    if regList{7} then gpr.push(gpr.read32(7)) end if
+    if regList{6} then gpr.push(gpr.read32(6)) end if
+    if regList{5} then gpr.push(gpr.read32(5)) end if
+    if regList{4} then gpr.push(gpr.read32(4)) end if
+    if regList{3} then gpr.push(gpr.read32(3)) end if
+    if regList{2} then gpr.push(gpr.read32(2)) end if
+    if regList{1} then gpr.push(gpr.read32(1)) end if
+    if regList{0} then gpr.push(gpr.read32(0)) end if
   end do
 end behavior
 
@@ -525,14 +536,14 @@ behavior pop #pop
   field u1 P
   field u8 regList
   do
-    if regList{0} then gpr.write32(0, mem.read32(SP)) SP := SP + 4 end if
-    if regList{1} then gpr.write32(1, mem.read32(SP)) SP := SP + 4 end if
-    if regList{2} then gpr.write32(2, mem.read32(SP)) SP := SP + 4 end if
-    if regList{3} then gpr.write32(3, mem.read32(SP)) SP := SP + 4 end if
-    if regList{4} then gpr.write32(4, mem.read32(SP)) SP := SP + 4 end if
-    if regList{5} then gpr.write32(5, mem.read32(SP)) SP := SP + 4 end if
-    if regList{6} then gpr.write32(6, mem.read32(SP)) SP := SP + 4 end if
-    if regList{7} then gpr.write32(7, mem.read32(SP)) SP := SP + 4 end if
+    if regList{0} then gpr.write32(0, gpr.pop()) end if
+    if regList{1} then gpr.write32(1, gpr.pop()) end if
+    if regList{2} then gpr.write32(2, gpr.pop()) end if
+    if regList{3} then gpr.write32(3, gpr.pop()) end if
+    if regList{4} then gpr.write32(4, gpr.pop()) end if
+    if regList{5} then gpr.write32(5, gpr.pop()) end if
+    if regList{6} then gpr.write32(6, gpr.pop()) end if
+    if regList{7} then gpr.write32(7, gpr.pop()) end if
     if P then gpr.branch(mem.read32(SP)) SP := SP + 4 end if
   end do
 end behavior
@@ -609,7 +620,20 @@ behavior udf #udf #imm8
 end behavior
 
 behavior svc #svc #imm8
-  field s9 imm9
+  field u8 imm8
+  do
+    gpr.push(CPSR)
+    CPSR{3..0} := 11
+    gpr.push(PC+2)
+    gpr.push(LR)
+    gpr.push(gpr.read32(12))
+    gpr.push(gpr.read32(3))
+    gpr.push(gpr.read32(2))
+    gpr.push(gpr.read32(1))
+    gpr.push(gpr.read32(0))
+    PC := (11 << 2) + \x08000000; -- specific stm32f303
+    LR := \xfffffff1
+  end do
 end behavior
 
 --##==================================================
