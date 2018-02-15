@@ -71,6 +71,10 @@ def getInt(txt):
             print("error in integer conversion: "+txt)
             return 0
 
+def debugStr(args, level, msg):
+    if args.verbose > level:
+        print(msg)
+
 def getRegCombinationsForCode(inst,group,key):
     # for each reg, get the possible combinaisons
     # that may update the assembly code.
@@ -118,7 +122,7 @@ def getRegCombinationsForRuntime(inst,group,key):
                 group.append({regName:case})
     return group
 
-def debug(group,name):
+def debugComb(group,name):
     print(str(len(group))+' entries:')
     print(group)
     with open(name+".json", "w") as outfile:
@@ -134,10 +138,10 @@ def combinations(inst, forCode):
     for key in ['src', 'dest', 'codeData']:
         if forCode:
             getRegCombinationsForCode(inst,group,key)
-            #debug(group, 'debugCode')
+            #debugComb(group, 'debugCode')
         else:
             getRegCombinationsForRuntime(inst,group,key)
-            #debug(group, 'debugRuntime')
+            #debugComb(group, 'debugRuntime')
 
     #Then combine each register with the others
 
@@ -218,8 +222,7 @@ def getSourceFile(filename, inst):
 
 def compile(args,sourceFile):
     #asm
-    if args.verbose > 3:
-        print("compile file "+sourceFile+'.s')
+    debugStr(args,3,'compile file '+sourceFile+'.s')
     objFile = sourceFile+".o"
     try:
         returnCode = subprocess.call(["arm-none-eabi-as", "-mthumb", "-mcpu=cortex-m4", sourceFile+'.s', "-o", objFile])
@@ -232,9 +235,8 @@ def compile(args,sourceFile):
         sys.exit(returnCode)
     #link
     exeFile = sourceFile+".elf"
-    if args.verbose > 3:
-        print("link file to "+exeFile)
-    returnCode = subprocess.call(["arm-none-eabi-ld", objFile, "-o", exeFile, "-Tscript.ld"],)
+    debugStr(args,3,"link file to "+exeFile)
+    returnCode = subprocess.call(["arm-none-eabi-ld", objFile, "-o", exeFile, "-Tinternal/script.ld"],)
     if returnCode != 0:
         print("*** Linking, error " + str(returnCode) + " ***\n")
         sys.exit(returnCode)
@@ -423,12 +425,39 @@ def outputFilePreamble(outfile, signature, nbVal,inst):
             outfile.write("0x{mem:08x}\t".format(mem=getInt(memAddr)))
     outfile.write('\n')
 
+import re
+def bootCodeInFlash():
+    #print('check boot\n')
+    ### arm-none-eabi-gdb --eval-command="tar extended-remote :4242" --command=bootTest.gdb | grep bootKey
+    remote=''
+    if debugger == 'st-util':
+        remote = 'tar extended-remote :4242'   #st-util
+    else:# 'openocd'
+        remote = 'tar extended-remote :3333'    #openocd
+    try:
+        process = subprocess.Popen(['arm-none-eabi-gdb','--eval-command='+remote, '--command=internal/bootTest.gdb'], stdout=subprocess.PIPE, bufsize=0)
+    except OSError:
+        print("The cross-debugger is not found (arm-none-eabi-gdb) -> cannot test on target. Exit…")
+        sys.exit(1)
+    process.wait()
+    found = False
+    p=re.compile('bootKey\s+([0-9a-fA-F]+)$')
+    for line in process.stdout:
+        m=p.match(line)
+        if m:
+            #print('boot line matching!')
+            if m.groups()[0] == 'feeddeb0':
+                found = True
+            else:
+                pass
+                #print('wrong code: '+m.groups()[0])
+    return found 
+
 def processTestOnTarget(args, filename, inst, codeCases, runCases, signature, testStr):
     testOnTargetOk = False
     nbVal = len(codeCases)*len(runCases)
     #we have to do the test
-    if args.verbose > 3:
-        print('tests on target should be done')
+    debugStr(args,3,'tests on target should be done')
     if args.target:
         #1- generate the gdb script
         generateGdbScript(filename, inst, codeCases, runCases)
@@ -438,8 +467,7 @@ def processTestOnTarget(args, filename, inst, codeCases, runCases, signature, te
             outputFilePreamble(outfile, signature, nbVal,inst)
         #3- run the test on target
         #arm-none-eabi-gdb beh_lsl.json.elf -q -x beh_lsl.json.gdb
-        if args.verbose > 3:
-            print('run test on target…')
+        debugStr(args,3,'run test on target…')
         try:
             process = subprocess.Popen(['arm-none-eabi-gdb','-q', filename+'.elf','-x',filename+'.gdb'], stdout=subprocess.PIPE, bufsize=0)
         except OSError:
@@ -453,8 +481,7 @@ def processTestOnTarget(args, filename, inst, codeCases, runCases, signature, te
                 gdbWaitVal = gdbWaitVal + 1
         process.wait()
         print(testStr, end = '')
-        if args.verbose > 3:
-            print('\ndone!\n')
+        debugStr(args,3,'\ndone!\n')
         testOnTargetOk = True
         #4- zip the generated file
         if os.path.isfile(outputFile):
@@ -462,8 +489,7 @@ def processTestOnTarget(args, filename, inst, codeCases, runCases, signature, te
             zf.write(outputFile, compress_type=zipfile.ZIP_DEFLATED)
             zf.close()
     else:
-        if args.verbose > 3:
-            print("test on target cancelled (no command line option)")
+        debugStr(args,3,"test on target cancelled (no command line option)")
     return testOnTargetOk
 
 def harmlessPrintReg(inst,core,out):
@@ -642,6 +668,7 @@ if __name__ == '__main__':
     import json
     nbTests = 0
     nbInstructions = 0
+    bootCodeChecked = False
     for filename in args.files:
         with open(filename) as jsonFile:
             inst = json.load(jsonFile)
@@ -664,17 +691,27 @@ if __name__ == '__main__':
             testOnTargetOk = False
             gdbOutputLines = readTargetOutputFile(filename)
             shouldBuild, signature = targetOutputFileToBuild(gdbOutputLines) #check with md5
-            if shouldBuild:
-                testOnTargetOk = processTestOnTarget(args, filename, inst, codeCases, runCases, signature, testStr)
-                #read the output file (maybe again…)
-                gdbOutputLines = readTargetOutputFile(filename)
+            if shouldBuild and not bootCodeChecked:
+                #first: check code in flash (for svc…)
+                if not bootCodeInFlash():
+                    print('boot code not in flash')
+                    print(' -> run make in dir internal/')
+                    print(' -> then flash the target')
+                    print(' -> and re-run the test suite')
+                    testOnTargetOk = False
+                    sys.exit(1)
+                else:
+                    bootCodeChecked = True #check boot code only once.
+                    testOnTargetOk = processTestOnTarget(args, filename, inst, codeCases, runCases, signature, testStr)
+                    #read the output file (maybe again…)
+                    gdbOutputLines = readTargetOutputFile(filename)
             else:
                 testOnTargetOk = True
-                if args.verbose > 3:
-                    print('tests on target up to date')
+                debugStr(args,3,'tests on target up to date')
             #6- run tests on Harmless
             if testOnTargetOk:
-                processTestOnHarmless(args, filename, inst, codeCases, runCases, signature)
+                #processTestOnHarmless(args, filename, inst, codeCases, runCases, signature)
+                print('test on harmless…')
             #7- compare
             result = compare(testOnTargetOk, filename, gdbOutputLines, testStr)
 
@@ -689,6 +726,5 @@ if __name__ == '__main__':
             nbInstructions += 1
         else: # assembly only
             subprocess.call(["arm-none-eabi-objdump", "-d", filename+'.elf'],)
-    if args.verbose > 0:
-        print(str(nbTests)+' tests done for '+str(nbInstructions)+' instructions in '+
+    debugStr(args,0,str(nbTests)+' tests done for '+str(nbInstructions)+' instructions in '+
                 str(time.clock()-timeStart)+'s\n')
