@@ -453,12 +453,20 @@ def bootCodeInFlash():
                 #print('wrong code: '+m.groups()[0])
     return found 
 
-def processTestOnTarget(args, filename, inst, codeCases, runCases, signature, testStr):
+def processTestOnTarget(args, filename, inst, codeCases, runCases, signature, testStr, bootCodeChecked):
     testOnTargetOk = False
     nbVal = len(codeCases)*len(runCases)
     #we have to do the test
     debugStr(args,3,'tests on target should be done')
     if args.target:
+        #0- check that the code in ROM is Ok.
+        if not bootCodeChecked:
+            if not bootCodeInFlash():
+                print('boot code not in flash')
+                print(' -> run make in dir internal/')
+                print(' -> then flash the target with internal/boot.elf')
+                print(' -> and re-run the test suite')
+                sys.exit(1)
         #1- generate the gdb script
         generateGdbScript(filename, inst, codeCases, runCases)
         #2- create the output file (starting with md5)
@@ -507,7 +515,8 @@ def harmlessInit(regDict, core,filename):
     core.setCPSR(0x01000000) # Thumb bit in cpsr required!
     core.setITSTATE(0)
     #load program
-    core.readCodeFile(filename+".elf")
+    core.readCodeFile("internal/boot.elf",True) #code for vectors (in flash)
+    core.readCodeFile(filename+".elf",True)
     #set init sequence
     try:
         for reg in inst['init']:
@@ -518,8 +527,6 @@ def harmlessInit(regDict, core,filename):
                 val = getInt(inst['init'][reg])
                 #print('address '+str(addr)+', val:'+str(val))
                 core.mem_write32(addr,val)
-
-
     except KeyError:
         pass #no 'init' section in JSON file, skip
 
@@ -691,27 +698,18 @@ if __name__ == '__main__':
             testOnTargetOk = False
             gdbOutputLines = readTargetOutputFile(filename)
             shouldBuild, signature = targetOutputFileToBuild(gdbOutputLines) #check with md5
-            if shouldBuild and not bootCodeChecked:
-                #first: check code in flash (for svc…)
-                if not bootCodeInFlash():
-                    print('boot code not in flash')
-                    print(' -> run make in dir internal/')
-                    print(' -> then flash the target')
-                    print(' -> and re-run the test suite')
-                    testOnTargetOk = False
-                    sys.exit(1)
-                else:
-                    bootCodeChecked = True #check boot code only once.
-                    testOnTargetOk = processTestOnTarget(args, filename, inst, codeCases, runCases, signature, testStr)
-                    #read the output file (maybe again…)
-                    gdbOutputLines = readTargetOutputFile(filename)
+            if shouldBuild:
+                testOnTargetOk = processTestOnTarget(args, filename, inst, codeCases, runCases, signature, testStr, bootCodeChecked)
+                bootCodeChecked = True #check boot code only once.
+                #read the output file (maybe again…)
+                gdbOutputLines = readTargetOutputFile(filename)
             else:
                 testOnTargetOk = True
                 debugStr(args,3,'tests on target up to date')
             #6- run tests on Harmless
-            if testOnTargetOk:
-                #processTestOnHarmless(args, filename, inst, codeCases, runCases, signature)
-                print('test on harmless…')
+            if True:#testOnTargetOk:
+                processTestOnHarmless(args, filename, inst, codeCases, runCases, signature)
+                #print('test on harmless…')
             #7- compare
             result = compare(testOnTargetOk, filename, gdbOutputLines, testStr)
 
