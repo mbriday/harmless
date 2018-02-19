@@ -39,7 +39,7 @@ import time
 # test sur cible avec openocd ou st-util
 # -> voir  generateGdbScript
 # avec openocd, il faut lancer le serveur: openocd -f board/st_nucleo_f3.cfg
-debugger = 'st-util' #either st-util or openocd
+debugger = 'openocd' #either st-util or openocd
 
 #verbose mode:
 # - 0 => nothing, except for errors
@@ -350,7 +350,15 @@ def generateGdbScript(filename, inst, codeCases, runCases):
                 gdb.write('set logging on\n')
                 #and get back register state.
                 gdb.write('dumpRegs()\n')
-                gdb.write('printf "B\\n"\n\n')
+                gdb.write('printf "B\\n"\n')
+                #svc?
+                gdb.write('if $pc==0x08000168\n')
+                gdb.write('\tset logging off\n')
+                gdb.write('\tsi\n')
+                gdb.write('\tset logging on\n')
+                gdb.write('\tdumpRegs()\n')
+                gdb.write('\tprintf "C\\n"\n')
+                gdb.write('end\n\n')
                 #always
                 gdb.write('set $pc = $oldpc\n')
             #pc is set before the current instruction
@@ -395,7 +403,8 @@ def targetOutputFileToBuild(gdbOutputLines):
                 sig = line.split()
             n += 1
         firstCond = jsonMd5 == sig[0] #md5 is ok
-        secondCond =  n == int(sig[1])*2+2 #number of tests = 2 lines/test +preamble
+        #number of tests = 2 lines/test +preamble
+        secondCond =  (n == int(sig[1])*2+2) or (n == int(sig[1])*3+2)  #3 lines if svc
         return not(firstCond and secondCond) , jsonMd5
     except TypeError: #gdbOutputLines is None
         return True, jsonMd5
@@ -515,8 +524,8 @@ def harmlessInit(regDict, core,filename):
     core.setCPSR(0x01000000) # Thumb bit in cpsr required!
     core.setITSTATE(0)
     #load program
-    core.readCodeFile("internal/boot.elf",True) #code for vectors (in flash)
-    core.readCodeFile(filename+".elf",True)
+    core.readCodeFile("internal/boot.elf") #code for vectors (in flash)
+    core.readCodeFile(filename+".elf")
     #set init sequence
     try:
         for reg in inst['init']:
@@ -567,10 +576,16 @@ def processTestOnHarmless(args, filename, inst, codeCases, runCases, signature):
                 #exec one instruction
                 harmlessPrintReg(inst,core,out)
                 out.write('A\n')
+                #print('before instruction : '+core.disassemble(core.gpr_read32(15),1,True))
                 core.execInst(1)
                 #print registers
                 harmlessPrintReg(inst,core,out)
                 out.write('B\n')
+                #special case for svc… 2 instructions
+                if core.gpr_read32(15) == 0x08000168:
+                    core.execInst(1)
+                    harmlessPrintReg(inst,core,out)
+                    out.write('C\n')
                 #get back…
                 core.setProgramCounter(oldPC)
             core.setProgramCounter(core.programCounter()+getInt(inst['size']))
@@ -707,7 +722,7 @@ if __name__ == '__main__':
                 testOnTargetOk = True
                 debugStr(args,3,'tests on target up to date')
             #6- run tests on Harmless
-            if True:#testOnTargetOk:
+            if testOnTargetOk:
                 processTestOnHarmless(args, filename, inst, codeCases, runCases, signature)
                 #print('test on harmless…')
             #7- compare

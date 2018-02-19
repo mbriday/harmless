@@ -2,11 +2,14 @@
 -- ARMv6-M ISA description (used in the Cortex M0/M0+/M1 core).
 -- This is the little endian version 
 -- 
--- CURRENTLY MODELLED: nothing :-/
+-- CURRENTLY MODELLED: 16 bits instructions
 -- 
--- TODO : 
+-- TODO : 32-bits instructions
 -- 
 -- NOT MODELLED: 
+-- for 16-btis instructions
+--	- if then.. instructions
+--	- wfe, wfi, sev, yield, nop
 -- 
 isa {
 
@@ -391,8 +394,19 @@ behavior special16BitInst
       case #link do LR := PC | 1 end do
       end select
       do
-        gpr.write32(15, src1)
-        CPSR.T := (src1 & 1) 
+				if Rm = 14 && src1{31..4} = \xfffffff && CPSR{3..0} > 0 then -- get back from it. not really sure
+						gpr.write32(0, gpr.pop())
+						gpr.write32(1, gpr.pop())
+						gpr.write32(2, gpr.pop())
+						gpr.write32(3, gpr.pop())
+						gpr.write32(12, gpr.pop())
+						LR := gpr.pop()
+						PC := gpr.pop()
+						CPSR := gpr.pop()
+				else
+						gpr.write32(15, src1)
+		        CPSR.T := (src1 & 1) 
+				end if
       end do
   end select
 end behavior
@@ -624,15 +638,16 @@ behavior svc #svc #imm8
   do
     gpr.push(CPSR)
     CPSR{3..0} := 11
-    gpr.push(PC+2)
+    gpr.push(PC)
     gpr.push(LR)
     gpr.push(gpr.read32(12))
     gpr.push(gpr.read32(3))
     gpr.push(gpr.read32(2))
     gpr.push(gpr.read32(1))
     gpr.push(gpr.read32(0))
-    PC := (11 << 2) + \x08000000; -- specific stm32f303
-    LR := \xfffffff1
+    u32 itVectorEntry := (11 << 2) + \x08000000 -- specific stm32f303
+    gpr.branch(mem.read32(itVectorEntry))
+    LR := \xfffffff9
   end do
 end behavior
 

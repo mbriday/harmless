@@ -128,7 +128,11 @@ bool core::getSymbolObjectAddress(const char *symbolName, u32 &v_addr, u32 &size
 /** read an Intel .H86, a Freescale Srecord file or an elf file */
 bool core::readCodeFile(const char *filename, const bool verbose)
 {	
-
+	if(m_reader) //a program has already been loaded (maybe a bootloader...)
+	{
+		delete m_reader;
+		m_reader = NULL;
+	}
 	#ifdef USE_LIBELF
 		if(!m_reader)
 		{
