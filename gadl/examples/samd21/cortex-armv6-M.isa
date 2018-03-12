@@ -117,7 +117,28 @@ component gpr {
   }
 }
 
+-- memory related methods
+component memAccess {
+  register u16 UFSR{ -- Usage Fault Status Register
+    UNDEFINSTR := slice{0}
+    INVSTATE   := slice{1}
+    INVPC      := slice{2}
+    NOCP       := slice{3}
+    UNALIGNED  := slice{8}
+    DIVBYZERO  := slice{9}
+  }
+  u1 exclusiveMonitorsPass(u32 addr, u3 memSize) { --this part is implementation defined.
+    u1 result := 1
+    if addr % memSize != 0 then -- exception -- unaligned
+      UFSR.UNALIGNED := 1
+    end if
+    return result
+  }
+  void setExclusiveMonitors(u32 addr, u3 memSize) --this part is implementation defined.
+  {}
+}
 
+-- interrupts
 component int {
   register u8 ITSTATE {
     IT := slice{7..0}
@@ -649,14 +670,14 @@ behavior loadStoreMultipleWord32 #multiple
   select
     case #store
       select
-        case #incrementAfter #emptyAscending --stmia
+        case #incrementAfter --stmia
           do
             loop 16 do
               if regList{i} then mem.write32(addr, gpr.read32(i)) addr := addr + 4 end if
               i := i+1
             end loop
           end do
-        case #decrementBefore #fullDescending --stmdb
+        case #decrementBefore --stmdb
           do
             loop 16 do
               if regList{15-i} then addr := addr - 4  mem.write32(addr, gpr.read32(15-i)) end if
@@ -667,14 +688,14 @@ behavior loadStoreMultipleWord32 #multiple
 			do if W then gpr.write32(Rn,addr) end if end do
     case #load
       select
-        case #incrementAfter #fullDescending --ldmia
+        case #incrementAfter --ldmia
           do
             loop 16 do
               if regList{i} then gpr.write32(i, mem.read32(addr)) addr := addr + 4 end if
               i := i+1
             end loop
           end do
-        case #decrementBefore #emptyAscending --ldmdb
+        case #decrementBefore --ldmdb
           do
             loop 16 do
               if regList{i} then addr := addr - 4 gpr.write32(i, mem.read32(addr)) end if
@@ -684,6 +705,91 @@ behavior loadStoreMultipleWord32 #multiple
         end select
       do if W then gpr.write32(Rn,addr) end if end do--write back 
   end select
+end behavior
+
+-- #Rn #exclusive #Rt #Rd #imm10 (#store / #load) (#word / #byte / #halfword) 
+-- => strex, ldrex, strexb, ldrexb, strexh, ldrexh
+-- => non testé
+behavior loadStoreExclusive #exclusive
+  field u4 Rt #Rt
+  field u4 Rn #Rn
+  field u4 Rd #Rd
+  field u10 imm10 #imm10
+  u3 memSize
+  do u32 addr := gpr.iread32(Rn) + imm10 end do
+  select
+     case #word     do memSize := 4 end do
+     case #halfword do memSize := 2 end do
+     case #byte     do memSize := 1 end do
+  end select
+  select
+    case #store do 
+        if memAccess.exclusiveMonitorsPass(addr, memSize) then
+          if     memSize = 1 then mem.write8( addr, gpr.iread32(Rt) & \xff)
+          elseif memSize = 2 then mem.write16(addr, gpr.iread32(Rt) & \xffff)
+          elseif memSize = 4 then mem.write32(addr, gpr.iread32(Rt))
+          end if
+          gpr.write32(Rd,0)
+        else
+          gpr.write32(Rd,1)
+        end if
+      end do
+    case #load do
+        memAccess.setExclusiveMonitors(addr, memSize)
+        if     memSize = 1 then gpr.write32(Rt, mem.read8( addr)) -- 0 extend to 32 bit reg
+        elseif memSize = 2 then gpr.write32(Rt, mem.read16(addr)) -- 0 extend to 32 bit reg
+        elseif memSize = 4 then gpr.write32(Rt, mem.read32(addr))
+        end if
+      end do
+  end select
+end behavior
+
+-- #Rn #dual (#store / #load) #Rt #Rt2 #imm10
+-- => strd, ldrd
+-- => non testé
+behavior loadStoreDual #dual
+  field u4 Rn  #Rn
+  field u4 Rt  #Rt
+  field u4 Rt2 #Rt2
+  field u10 imm10 #imm10
+  field u1 wb
+  field u1 idx
+  field u1 addi
+  do
+    u32 addr
+    u32 offset_addr
+    if addi then offset_addr := gpr.iread32(Rn)+imm10 -- with plus
+    else offset_addr := gpr.iread32(Rn)-imm10         -- or minus
+    end if
+    if idx then addr := offset_addr-- use indexing?
+    else addr := gpr.iread32(Rn)
+    end if
+  end do
+  select
+    case #load do
+        gpr.write32(Rt , mem.read32(addr  ))
+        gpr.write32(Rt2, mem.read32(addr+4))
+      end do
+    case #store do
+        mem.write32(addr  ,gpr.iread32(Rt))
+        mem.write32(addr+4,gpr.iread32(Rt2))
+      end do
+  end select
+  do if wb then gpr.write32(Rn, offset_addr) end if end do
+end behavior
+
+-- #Rn #table #branch (#byte / #halfword) #Rm
+-- => tbb, tbh
+-- => non testé
+behavior tableBranch #table #branch
+  field u4 Rm  #Rm
+  field u4 Rn  #Rn
+  u32 halfword
+  select
+    case #byte     do halfword := mem.read8( gpr.iread32(Rn)+ gpr.iread32(Rm)    ) end do
+    case #halfword do halfword := mem.read16(gpr.iread32(Rn)+(gpr.iread32(Rm)<<1)) end do
+  end select
+  do gpr.branch((u32)(PC+(halfword<<1))) end do 
 end behavior
 
 --##==================================================
@@ -1176,10 +1282,10 @@ format loadStoreMultiple #multiple
   regList := slice{-}{15..0}
   W := slice{5}{-}
   select slice{8..7,4}{-}
-    case \m01_0 is #store #emptyAscending #incrementAfter
-    case \m01_1 is #load  #fullDescending #incrementAfter
-    case \m10_0 is #store #fullDescending #decrementBefore
-    case \m10_1 is #load  #emptyAscending #decrementBefore
+    case \m01_0 is #store #incrementAfter
+    case \m01_1 is #load  #incrementAfter
+    case \m10_0 is #store #decrementBefore
+    case \m10_1 is #load  #decrementBefore
   end select
 end format
 
@@ -1218,7 +1324,6 @@ format loadStoreDualOrExclusive
             case 0 is #byte
             case 1 is #halfword
           end select
-          H  := slice{-}{4}
           Rm := slice{-}{3..0} #Rm
       end select
   end select
@@ -1339,10 +1444,6 @@ syntax loadStoreMultiple #multiple
     case #decrementBefore
       "db\t"
   end select
-  select -- depends on load/store.
-    case #emptyAscending
-    case #fullDescending
-  end select
   Rn4 wback ", " regList
 end syntax
 
@@ -1393,8 +1494,10 @@ syntax tableBranch #table #branch
   end select 
   "\t["
   Rn4 ", " Rm4
-  field u1 H
-  if H then ", lsl #1]" else "]" end if
+  select 
+    case #byte "]"
+    case #halfword ", lsl #1]"
+  end select 
 end syntax
 
 syntax dataProcessingShifted #dataProcessingSR
