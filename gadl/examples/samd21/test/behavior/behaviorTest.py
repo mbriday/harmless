@@ -39,7 +39,8 @@ import time
 # test sur cible avec openocd ou st-util
 # -> voir  generateGdbScript
 # avec openocd, il faut lancer le serveur: openocd -f board/st_nucleo_f3.cfg
-debugger = 'openocd' #either st-util or openocd
+#debugger = 'openocd' #either st-util or openocd
+debugger = 'st-util' #either st-util or openocd
 
 #verbose mode:
 # - 0 => nothing, except for errors
@@ -628,7 +629,7 @@ def ENDC () :
   return '\033[0m'
 
 def getCurrentTestString(args, inst, instructionIndex, filename, nbVal):
-    s = max(0,20-len(inst['instruction']))
+    s = max(0,23-len(inst['instruction']))
     result = '[{0:3d}'.format(instructionIndex+1)
     if args.verbose > 2:
         result += ' - {filen:30}'.format(filen=filename)
