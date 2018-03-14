@@ -294,7 +294,7 @@ def prepareTestCaseForGdb(codeCase, runCase, gdb):
             if regName != 'pc': #do not update pc, as it won't work.
                 gdb.write('set $'+regName+'='+str(runCase[reg]['val'])+'\n')
 
-def generateGdbScript(filename, inst, codeCases, runCases):
+def generateGdbScript(args, filename, inst, codeCases, runCases):
     if debugger != 'st-util' and debugger != 'openocd':
         print('error: no debugger specified : use st-link or openocd')
         print('assuming st-link')
@@ -337,34 +337,42 @@ def generateGdbScript(filename, inst, codeCases, runCases):
         gdb.write('set logging redirect on\n')
         gdb.write('set logging on\n\n')
 
+        testId = 0
+        endTest = False
         for codeCase in codeCases:
             #first time
-            gdb.write('set $oldpc = $pc\n')
+            if not endTest:
+                gdb.write('set $oldpc = $pc\n')
             #prepare the case, with run time info
             for runCase in runCases:
-                prepareTestCaseForGdb(codeCase, runCase, gdb)
-                gdb.write('dumpRegs()\n')
-                gdb.write('printf "A\\n"\n')
-                #then run the case
-                gdb.write('set logging off\n')
-                gdb.write('si\n')
-                gdb.write('set logging on\n')
-                #and get back register state.
-                gdb.write('dumpRegs()\n')
-                gdb.write('printf "B\\n"\n')
-                #svc?
-                gdb.write('if $pc==0x08000168\n')
-                gdb.write('\tset logging off\n')
-                gdb.write('\tsi\n')
-                gdb.write('\tset logging on\n')
-                gdb.write('\tdumpRegs()\n')
-                gdb.write('\tprintf "C\\n"\n')
-                gdb.write('end\n\n')
-                #always
-                gdb.write('set $pc = $oldpc\n')
+                testId+=1
+                #for early debug, only run 100 tests ('quick' CLI argument)
+                endTest = args.quick and testId > 100
+                if not(endTest) :
+                    prepareTestCaseForGdb(codeCase, runCase, gdb)
+                    gdb.write('dumpRegs()\n')
+                    gdb.write('printf "A\\n"\n')
+                    #then run the case
+                    gdb.write('set logging off\n')
+                    gdb.write('si\n')
+                    gdb.write('set logging on\n')
+                    #and get back register state.
+                    gdb.write('dumpRegs()\n')
+                    gdb.write('printf "B\\n"\n')
+                    #svc?
+                    gdb.write('if $pc==0x08000168\n')
+                    gdb.write('\tset logging off\n')
+                    gdb.write('\tsi\n')
+                    gdb.write('\tset logging on\n')
+                    gdb.write('\tdumpRegs()\n')
+                    gdb.write('\tprintf "C\\n"\n')
+                    gdb.write('end\n\n')
+                    #always
+                    gdb.write('set $pc = $oldpc\n')
             #pc is set before the current instruction
             #we have to point to the next instruction
-            gdb.write('set $pc=$pc+'+str(inst['size'])+'\n\n')
+            if not(endTest) :
+                gdb.write('set $pc=$pc+'+str(inst['size'])+'\n\n')
         gdb.write('set logging off\n')
         gdb.write('quit\n')
 
@@ -478,7 +486,7 @@ def processTestOnTarget(args, filename, inst, codeCases, runCases, signature, te
                 print(' -> and re-run the test suite')
                 sys.exit(1)
         #1- generate the gdb script
-        generateGdbScript(filename, inst, codeCases, runCases)
+        generateGdbScript(args, filename, inst, codeCases, runCases)
         #2- create the output file (starting with md5)
         outputFile = filename+'_output.gdb'
         with open(outputFile, "w") as outfile:
@@ -559,36 +567,41 @@ def processTestOnHarmless(args, filename, inst, codeCases, runCases, signature):
     with open(harmlessFile,'w') as out:
         nbVal = len(codeCases)*len(runCases)
         outputFilePreamble(out, signature, nbVal,inst)
+        testId = 0
         for codeCase in codeCases:
             oldPC = core.programCounter()
             for runCase in runCases:
-                #init
-                for reg in runCase:
-                    if reg == 'mem': #this is not a reg…
-                        for memLocation in runCase[reg]:
-                            #print('maj mem '+hex(memLocation['addr'])+' -> '+hex(memLocation['val']))
-                            core.mem_write32(memLocation['addr'],memLocation['val'])
-                    elif reg == "cpsr":
-                        core.setCPSR(getInt(runCase[reg]['val']))
-                    else:
-                        regName = codeCase[reg]['idx']
-                        if regName != 'pc': #do not update pc, as it won't work.
-                            core.gpr_write32(regDict[codeCase[reg]['idx']], getInt(runCase[reg]['val']))
-                #exec one instruction
-                harmlessPrintReg(inst,core,out)
-                out.write('A\n')
-                #print('before instruction : '+core.disassemble(core.gpr_read32(15),1,True))
-                core.execInst(1)
-                #print registers
-                harmlessPrintReg(inst,core,out)
-                out.write('B\n')
-                #special case for svc… 2 instructions
-                if core.gpr_read32(15) == 0x08000168:
-                    core.execInst(1)
+                testId+=1
+                #for early debug, only run 100 tests ('quick' CLI argument)
+                endTest = args.quick and testId > 100
+                if not endTest:
+                    #init
+                    for reg in runCase:
+                        if reg == 'mem': #this is not a reg…
+                            for memLocation in runCase[reg]:
+                                #print('maj mem '+hex(memLocation['addr'])+' -> '+hex(memLocation['val']))
+                                core.mem_write32(memLocation['addr'],memLocation['val'])
+                        elif reg == "cpsr":
+                            core.setCPSR(getInt(runCase[reg]['val']))
+                        else:
+                            regName = codeCase[reg]['idx']
+                            if regName != 'pc': #do not update pc, as it won't work.
+                                core.gpr_write32(regDict[codeCase[reg]['idx']], getInt(runCase[reg]['val']))
+                    #exec one instruction
                     harmlessPrintReg(inst,core,out)
-                    out.write('C\n')
-                #get back…
-                core.setProgramCounter(oldPC)
+                    out.write('A\n')
+                    #print('before instruction : '+core.disassemble(core.gpr_read32(15),1,True))
+                    core.execInst(1)
+                    #print registers
+                    harmlessPrintReg(inst,core,out)
+                    out.write('B\n')
+                    #special case for svc… 2 instructions
+                    if core.gpr_read32(15) == 0x08000168:
+                        core.execInst(1)
+                        harmlessPrintReg(inst,core,out)
+                        out.write('C\n')
+                    #get back…
+                    core.setProgramCounter(oldPC)
             core.setProgramCounter(core.programCounter()+getInt(inst['size']))
 import zipfile
 
@@ -629,7 +642,7 @@ def ENDC () :
   return '\033[0m'
 
 def getCurrentTestString(args, inst, instructionIndex, filename, nbVal):
-    s = max(0,23-len(inst['instruction']))
+    s = max(0,25-len(inst['instruction']))
     result = '[{0:3d}'.format(instructionIndex+1)
     if args.verbose > 2:
         result += ' - {filen:30}'.format(filen=filename)
@@ -669,16 +682,16 @@ if __name__ == '__main__':
     #arguments
     parser = argparse.ArgumentParser(description='Check Harmless Cortex ARM model functionnal behavior against a real target')
     parser.add_argument("-nc", "--noclean",
-            help="do not remove intermediate files",
+            help="do not remove intermediate files (asm, .elf, …)",
             action="store_true", default=False)
     parser.add_argument("-s", "--assembleOnly",
             help="only generate the assembly test file",
             action="store_true", default=False)
-    parser.add_argument("-n", "--note",
-            help="show test note (if exists)",
-            action="store_true", default=False)
     parser.add_argument('-v','--verbose', const=1, default=1, type=int,
-              help='The verbose level 0 to 3 (default 1)', nargs='?')
+              help='The verbose level 0 to 3 (higher => more debug information), default 1', nargs='?')
+    parser.add_argument("-q", "--quick",
+            help="short test on only 100 test cases for early debug",
+            action="store_true", default=False)
     parser.add_argument("-t", "--target",
             help="run test on target (if required)",
             action="store_true", default=False)
@@ -729,12 +742,7 @@ if __name__ == '__main__':
             #7- compare
             result = compare(testOnTargetOk, filename, gdbOutputLines, testStr)
 
-            #8- is there a note?
-            if args.note:
-                if 'note' in inst:
-                    print("\tnote: "+inst['note'])
-
-            ##8- clean (remove tmp files)
+            #8- clean (remove tmp files)
             if not args.noclean:
                 clean(filename, gdbOutputLines, result)
             nbInstructions += 1
