@@ -2,11 +2,11 @@
 	"instruction": "strex Rd, Rt, [Rn, #imm8]",
 	"src": {
 		"Rn" : {
-			"idx": ["r1", "r13"],
+			"idx": ["r1", "sp"],
 			"val": ["0x20000100", "0x20001000"]
 		},
 		"Rt" : {
-			"idx": ["r0", "r12","r14"],
+			"idx": ["r0", "r12","lr"],
 			"val": ["0", "0x349d21ea", "0xf49ab3cd"]
 		},
 		"imm8": {

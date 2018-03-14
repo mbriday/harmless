@@ -1,9 +1,9 @@
 {
-	"instruction": "strexb Rd, Rt, [Rn]",
+	"instruction": "strexh Rd, Rt, [Rn]",
 	"src": {
 		"Rn" : {
 			"idx": ["r1", "sp"],
-			"val": ["0x20000100", "0x20001001"]
+			"val": ["0x20000100", "0x20001002"]
 		},
 		"Rt" : {
 			"idx": ["r0", "r12","lr"],
@@ -21,13 +21,13 @@
 	},
 	"mem" : {
 		"addr": ["0x20000100",
-		         "0x20001001"],
+		         "0x20001002"],
 		"val": ["0x0", "0xffffffff", "0xaacc5555"]
 	},
 	"init": {
 		"sp": "0x8",
 		"lr": "0xdead"
 	},
-	"mnemo": "strexb {Rd}, {Rt}, [{Rn}]",
+	"mnemo": "strexh {Rd}, {Rt}, [{Rn}]",
 	"size": 4
 }

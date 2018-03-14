@@ -128,7 +128,7 @@ component memAccess {
     DIVBYZERO  := slice{9}
   }
   u1 exclusiveMonitorsPass(u32 addr, u3 memSize) { --this part is implementation defined.
-    u1 result := 1
+    u1 result := 0	-- note: no exclusive memory on STM32F303...
     if addr % memSize != 0 then -- exception -- unaligned
       UFSR.UNALIGNED := 1
     end if
@@ -660,7 +660,7 @@ behavior svc #svc #imm8
 end behavior
 
 -- ldmia, ldmdb, stmia, stmdb
--- store en cours de test. load non testé.
+-- load en cours de test.
 behavior loadStoreMultipleWord32 #multiple
   field u16 regList
   field u1  W -- write back
@@ -698,7 +698,7 @@ behavior loadStoreMultipleWord32 #multiple
         case #decrementBefore --ldmdb
           do
             loop 16 do
-              if regList{i} then addr := addr - 4 gpr.write32(i, mem.read32(addr)) end if
+              if regList{15-i} then addr := addr - 4 gpr.write32(15-i, mem.read32(addr)) end if
               i := i+1
             end loop
           end do
@@ -714,33 +714,45 @@ behavior loadStoreExclusive #exclusive
   field u4 Rt #Rt
   field u4 Rn #Rn
   field u4 Rd #Rd
-  field u10 imm10 #imm10
   u3 memSize
-  do u32 addr := gpr.iread32(Rn) + imm10 end do
+  do u32 addr := gpr.iread32(Rn) end do
   select
-     case #word     do memSize := 4 end do
-     case #halfword do memSize := 2 end do
-     case #byte     do memSize := 1 end do
-  end select
-  select
-    case #store do 
-        if memAccess.exclusiveMonitorsPass(addr, memSize) then
-          if     memSize = 1 then mem.write8( addr, gpr.iread32(Rt) & \xff)
-          elseif memSize = 2 then mem.write16(addr, gpr.iread32(Rt) & \xffff)
-          elseif memSize = 4 then mem.write32(addr, gpr.iread32(Rt))
-          end if
-          gpr.write32(Rd,0)
-        else
-          gpr.write32(Rd,1)
-        end if
-      end do
-    case #load do
-        memAccess.setExclusiveMonitors(addr, memSize)
-        if     memSize = 1 then gpr.write32(Rt, mem.read8( addr)) -- 0 extend to 32 bit reg
-        elseif memSize = 2 then gpr.write32(Rt, mem.read16(addr)) -- 0 extend to 32 bit reg
-        elseif memSize = 4 then gpr.write32(Rt, mem.read32(addr))
-        end if
-      end do
+    case #store
+      select
+        case #word
+          field u10 imm10 #imm10
+          do 
+            addr := addr + imm10
+            if memAccess.exclusiveMonitorsPass(addr, 4) then
+              mem.write32(addr, gpr.iread32(Rt))
+              gpr.write32(Rd,0)
+            else
+              gpr.write32(Rd,1)
+            end if
+          end do
+        case #halfword do 
+            if memAccess.exclusiveMonitorsPass(addr, 2) then
+              mem.write16(addr, gpr.iread32(Rt) & \xffff)
+              gpr.write32(Rd,0)
+            else
+              gpr.write32(Rd,1)
+            end if
+          end do
+        case #byte do
+            if memAccess.exclusiveMonitorsPass(addr, 1) then
+              mem.write8(addr, gpr.iread32(Rt) & \xff)
+              gpr.write32(Rd,0)
+            else
+              gpr.write32(Rd,1)
+            end if
+          end do
+      end select
+    case #load do memAccess.setExclusiveMonitors(addr, memSize) end do
+      select
+        case #word     do gpr.write32(Rt, mem.read32(addr)) end do
+        case #halfword do gpr.write32(Rt, mem.read16(addr)) end do -- 0 extend to 32 bit reg
+        case #byte     do gpr.write32(Rt, mem.read8( addr)) end do -- 0 extend to 32 bit reg
+      end select
   end select
 end behavior
 
@@ -1295,16 +1307,18 @@ format loadStoreDualOrExclusive
     case \m00_0-_---- or
          \m01_0-_010- is #exclusive
       Rt   := slice{-}{15..12} #Rt
-      Rd   := slice{-}{11..8}  #Rd
-      imm10 := slice{-}{7..0} << 2   #imm10
       select slice{4}{-}
         case 0 is #store
         case 1 is #load
       end select
       select slice{8..7,5}{7..4}
-        case \m00_0_---- is #word
+        case \m00_0_---- is #word 
+          imm10 := slice{-}{7..0} << 2 #imm10
+          Rd    := slice{-}{11..8}     #Rd
         case \m01_0_0100 is #byte
+          Rd    := slice{-}{3..0}     #Rd
         case \m01_0_0101 is #halfword
+          Rd    := slice{-}{3..0}     #Rd
       end select
     case \m0-_1-_---- or \m1-_--_---- is #dual
       select slice{4}{-}
@@ -1447,18 +1461,16 @@ syntax loadStoreMultiple #multiple
   Rn4 wback ", " regList
 end syntax
 
-syntax loadStoreExclusive #exclusive #word
+syntax loadStoreExclusive #exclusive
   select
     case #load  "ldrex"
     case #store "strex"
   end select
   select
-    case #word
-    case #halfword "h"
-    case #byte     "b"
+    case #word      "\t" Rd4 ", " Rt4 regImm10
+    case #halfword "h\t" Rd4 ", " Rt4 ", [" Rn4 "]"
+    case #byte     "b\t" Rd4 ", " Rt4 ", [" Rn4 "]"
   end select
-  "\t"
-  Rd4 ", " Rt4 regImm10
 end syntax
 
 
@@ -2256,8 +2268,7 @@ syntax regImm5reg2Rt  Rt  ", [" Rn ", " imm5      "]" end syntax
 syntax regImm6reg2Rt  Rt  ", [" Rn ", " imm6      "]" end syntax 
 syntax regImm7reg2Rt  Rt  ", [" Rn ", " imm7      "]" end syntax 
 syntax regImm10 
-		#imm10
-    field u10 imm10
+    field u10 imm10 #imm10
 		", [" Rn4
 		if imm10 != 0 then 
 				", #\d",imm10
