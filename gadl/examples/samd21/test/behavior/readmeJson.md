@@ -55,9 +55,6 @@ The mnemonic should be recognized by the assembler:
 ```JSON
 "mnemo": "asrs {Rd}, {Rm}, #{imm5}"
 ```
-## Comments
-the `note` keyword allows to add a text that may be displayed during the execution of tests.
-
 ## Memory
 ### data embbeded in code (i.e. to a label)
 

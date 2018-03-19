@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 import sys
 sys.path.append("./samd21")
 try:

@@ -105,6 +105,11 @@ component gpr {
     CPSR.T := newPC{0}
   }
 
+  void BranchWritePC(u32 newPC)
+  {
+    PC := newPC & \xfffffffe
+  }
+
   void push(u32 data) {
     SP := SP - 4
     mem.write32(SP, data)
@@ -660,7 +665,6 @@ behavior svc #svc #imm8
 end behavior
 
 -- ldmia, ldmdb, stmia, stmdb
--- load en cours de test.
 behavior loadStoreMultipleWord32 #multiple
   field u16 regList
   field u1  W -- write back
@@ -709,12 +713,11 @@ end behavior
 
 -- #Rn #exclusive #Rt #Rd #imm10 (#store / #load) (#word / #byte / #halfword) 
 -- => strex, ldrex, strexb, ldrexb, strexh, ldrexh
--- => non testé
+-- => testé avec réponse non!
 behavior loadStoreExclusive #exclusive
   field u4 Rt #Rt
   field u4 Rn #Rn
   field u4 Rd #Rd
-  u3 memSize
   do u32 addr := gpr.iread32(Rn) end do
   select
     case #store
@@ -747,11 +750,23 @@ behavior loadStoreExclusive #exclusive
             end if
           end do
       end select
-    case #load do memAccess.setExclusiveMonitors(addr, memSize) end do
+    case #load
       select
-        case #word     do gpr.write32(Rt, mem.read32(addr)) end do
-        case #halfword do gpr.write32(Rt, mem.read16(addr)) end do -- 0 extend to 32 bit reg
-        case #byte     do gpr.write32(Rt, mem.read8( addr)) end do -- 0 extend to 32 bit reg
+        case #word
+          field u10 imm10 #imm10
+          do 
+            addr := addr + imm10
+            memAccess.setExclusiveMonitors(addr, 4)
+            gpr.write32(Rt, mem.read32(addr))
+          end do
+        case #halfword do 
+            memAccess.setExclusiveMonitors(addr, 2)
+            gpr.write32(Rt, mem.read16(addr)) -- 0 extend to 32 bit reg
+				  end do 
+        case #byte do
+            memAccess.setExclusiveMonitors(addr, 1)
+            gpr.write32(Rt, mem.read8(addr))  -- 0 extend to 32 bit reg
+				  end do 
       end select
   end select
 end behavior
@@ -801,9 +816,22 @@ behavior tableBranch #table #branch
     case #byte     do halfword := mem.read8( gpr.iread32(Rn)+ gpr.iread32(Rm)    ) end do
     case #halfword do halfword := mem.read16(gpr.iread32(Rn)+(gpr.iread32(Rm)<<1)) end do
   end select
-  do gpr.branch((u32)(PC+(halfword<<1))) end do 
+  do gpr.BranchWritePC((u32)(PC+(halfword<<1))) end do 
 end behavior
 
+
+-- #dataProcessingSR #Rm #adc #shType #Rn #Rd
+-- behavior dataProcessingSR #dataProcessingSR
+--   field u4 Rm #Rm
+--   field u4 Rn #Rn
+--   field u4 Rd #Rd
+-- 
+-- end behavior
+-- 
+-- 
+-- behavior shType #shType
+-- 
+-- end behavior
 --##==================================================
 --## Format description
 --##==================================================
