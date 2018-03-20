@@ -48,7 +48,7 @@ def compile(args,sourceFile):
     exeFile = sourceFile+".elf"
     if args.verbose:
         print("link file to "+exeFile)
-    returnCode = subprocess.call(["arm-none-eabi-ld", objFile, "-o", exeFile])
+    returnCode = subprocess.call(["arm-none-eabi-ld", objFile, "-o", exeFile, "-Tscript.ld"],)
     if returnCode != 0:
         print("*** Linking, error " + str(returnCode) + " ***\n")
         sys.exit(returnCode)

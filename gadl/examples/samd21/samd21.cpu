@@ -8,7 +8,7 @@ cpu samd21 {
   -- pour les essais...
   memory ram {
     width  := 32
-    size   := 12kb
+    size   := 1mb --12kb.. but 1M required for test/assembly.
     type   := RAM
   } maps to mem:\x20000000
 
