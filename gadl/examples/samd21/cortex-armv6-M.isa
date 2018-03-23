@@ -819,6 +819,23 @@ behavior tableBranch #table #branch
   do gpr.BranchWritePC((u32)(PC+(halfword<<1))) end do 
 end behavior
 
+-----------------
+
+-- (#byte #halfword #word) #Rn #Rt #store #imm12 > strb (encoding t2), strh (encoding t2), str (encoding t3)
+behavior storeSingleDataItem32 #store
+  field u4 Rn  #Rn
+  field u4 Rt  #Rt                                             							
+  field u12 imm12 #imm12
+  do
+    u32 addr 
+    addr := gpr.iread32(Rn)+imm12
+  end do
+  select
+    case #byte     do mem.write8( addr,gpr.iread32(Rt){ 7..0}) end do
+    case #halfword do mem.write16(addr,gpr.iread32(Rt){15..0}) end do
+    case #word     do mem.write32(addr,gpr.iread32(Rt){32..0}) end do
+  end select 
+end behavior
 
 -- #dataProcessingSR #Rm #adc #shType #Rn #Rd
 -- behavior dataProcessingSR #dataProcessingSR
@@ -832,6 +849,9 @@ end behavior
 -- behavior shType #shType
 -- 
 -- end behavior
+
+
+
 --##==================================================
 --## Format description
 --##==================================================
@@ -1135,6 +1155,35 @@ format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
     case \m10_-1-----_0 is dataProcessingPlainImm		--A5-139
     case \m10_-------_1 is branchAndMiscCtrl				--A5-140
     case \m11_000---0_- is storeSingleDateItem      --A5-147
+--    case \m11_00--001_- is loadByteMemHints         --A5-146
+  end select
+end format
+
+-- format loadByteMemHints
+--   select slice{8..7,3..0}{15..12,11..6} -- careful: order op1 Rn Rt op2 
+--     case \m0-_1111_----_------ is Rt4not15 ldrbLitteral
+--     case \m01_----_----_------ or
+--          \m00_----_----_1--1-- or
+--          \m00_----_----_1100-- is Rt4not15 Rn4not15 -- to be done...
+--     
+--   end select
+-- end format
+-- 
+-- format ldrbLitteral #ldr #byte
+--   imm12 := slice{-}{11..0} #imm12
+-- end format
+-- 
+-- format Rt4not15 --Rt, but not with 15
+--   select slice{-}{15..12} -- Rt 
+--     case \m0---- or \m-0-- or \m--0- or \m---0 is
+--       Rt := slice{-}{15..12} #Rt
+--   end select
+-- end format
+-- 
+format Rn4not15 --Rn, but not with 15
+  select slice{3..0}{-} -- Rn 
+    case \m0--- or \m-0-- or \m--0- or \m---0 is
+      Rn := slice{3..0}{-} #Rn
   end select
 end format
 
@@ -1144,7 +1193,7 @@ format storeSingleDateItem
     case \m-01 is #halfword
     case \m-10 is #word
   end select
-  Rn4
+  Rn4not15
   Rt    := slice{-}{15..12} #Rt
   select slice{7..4}{11..6} --op1 0 op2, p147 (A5.3.10)
     case \m1--0_------ is #store -- encoding T2. p.430 3..0, 15..0
