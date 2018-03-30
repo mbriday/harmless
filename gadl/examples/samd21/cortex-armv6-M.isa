@@ -64,16 +64,18 @@ component alu {
   u33 ThumbExpandImmWithCarry(u12 imm12)
   {
     u32 result
+    u1 carryOut 
     u32 imm8 := imm12{7..0}
     if imm12{11..10} = 0 then
-      if     imm12{9..8} == 0 then result := (u32)(imm8)
-      elseif imm12{9..8} == 1 then result := imm8 << 16 | imm8
-      elseif imm12{9..8} == 2 then result := imm8 << 24 | imm8 << 8
+      if     imm12{9..8} = 0 then result := (u32)(imm8)
+      elseif imm12{9..8} = 1 then result := imm8 << 16 | imm8
+      elseif imm12{9..8} = 2 then result := imm8 << 24 | imm8 << 8
       else   result := imm8 << 24 | imm8 << 16 | imm8 << 8 | imm8
       end if
-    else
-       --- to do.
+      carryOut := CPSR.C
+    --else -- to do.
     end if
+    return result cat carryOut
   }
 }
 
