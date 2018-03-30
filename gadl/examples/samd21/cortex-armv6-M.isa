@@ -60,6 +60,21 @@ component alu {
     if cond{0} & cond != \xf then result := !result end if
     return result
   }
+
+  u33 ThumbExpandImmWithCarry(u12 imm12)
+  {
+    u32 result
+    u32 imm8 := imm12{7..0}
+    if imm12{11..10} = 0 then
+      if     imm12{9..8} == 0 then result := (u32)(imm8)
+      elseif imm12{9..8} == 1 then result := imm8 << 16 | imm8
+      elseif imm12{9..8} == 2 then result := imm8 << 24 | imm8 << 8
+      else   result := imm8 << 24 | imm8 << 16 | imm8 << 8 | imm8
+      end if
+    else
+       --- to do.
+    end if
+  }
 }
 
 component gpr {
@@ -1155,38 +1170,38 @@ format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
     case \m10_-1-----_0 is dataProcessingPlainImm		--A5-139
     case \m10_-------_1 is branchAndMiscCtrl				--A5-140
     case \m11_000---0_- is storeSingleDateItem      --A5-147
---    case \m11_00--001_- is loadByteMemHints         --A5-146
+    case \m11_00--001_- is loadByteMemHints         --A5-146
   end select
 end format
 
--- format loadByteMemHints
---   select slice{8..7,3..0}{15..12,11..6} -- careful: order op1 Rn Rt op2 
---     case \m0-_1111_----_------ is Rt4not15 ldrbLitteral
---     case \m01_----_----_------ or
---          \m00_----_----_1--1-- or
---          \m00_----_----_1100-- is Rt4not15 Rn4not15 -- to be done...
---     
---   end select
--- end format
--- 
--- format ldrbLitteral #ldr #byte
---   imm12 := slice{-}{11..0} #imm12
--- end format
--- 
--- format Rt4not15 --Rt, but not with 15
---   select slice{-}{15..12} -- Rt 
---     case \m0---- or \m-0-- or \m--0- or \m---0 is
---       Rt := slice{-}{15..12} #Rt
---   end select
--- end format
--- 
-format Rn4not15 --Rn, but not with 15
-  select slice{3..0}{-} -- Rn 
-    case \m0--- or \m-0-- or \m--0- or \m---0 is
-      Rn := slice{3..0}{-} #Rn
+--
+
+format loadByteMemHints
+  select slice{8..7,3..0}{15..12,11..6} -- careful: order op1 Rn Rt op2 
+    --    op1 Rn   Rt   op2
+    case \m0-_1111_----_------ is #ldr #byte ldrLitteral Rt4not15
+    case \m01_----_----_------ is #ldr #byte #imm12 imm12 := slice{-}{11..0} Rn4not15 Rt4not15 -- encoding T2
+    case \m00_----_----_1--1-- or
+         \m00_----_----_1100-- is #imm8 imm8 := slice{-}{7..0} ldrImm  --encoding T3
+    case \m00_----_----_1110-- is #ldrbt  Rn4not15 Rt4not15 imm8 := slice{-}{7..0} #imm8
+    case \m0-_1111_1111_------ is #pld ldrLitteral 
+    case \m00_----_----_000000 is #ldr #byte Rn4not15 Rt4not15 Rm4LslImm2
   end select
 end format
 
+format ldrLitteral
+  U := slice{7}{-} --up
+  imm12 := slice{-}{11..0} #imm12
+end format
+
+format ldrImm #ldr #byte 
+  Rn4not15 Rt4not15
+  W := slice{-}{8}
+  U := slice{-}{9}
+  P := slice{-}{10}
+end format
+
+-- 
 format storeSingleDateItem
   select slice{7..5}{-}
     case \m-00 is #byte
@@ -1203,9 +1218,7 @@ format storeSingleDateItem
       wb     := slice{-}{8} -- or W
       idx    := slice{-}{10} -- or P
       addi   := slice{-}{9}  -- or U
-    case \m0--0_0000-- is #store -- encoding T2
-      imm2 := slice{-}{5..4} #imm2
-      Rm   := slice{-}{3..0} #Rm
+    case \m0--0_0000-- is #store Rm4LslImm2 -- encoding T2
   end select
 end format
 
@@ -1441,6 +1454,29 @@ format dataProcImm16
   imm16 := slice{3..0,10}{14..12,7..0} #imm16
 end format
 
+-- format Rt4 --Rt
+--   Rt := slice{-}{15..12} #Rt
+-- end format
+
+format Rt4not15 --Rt, but not with 15
+  select slice{-}{15..12} -- Rt 
+    case \m0--- or \m-0-- or \m--0- or \m---0 is
+      Rt := slice{-}{15..12} #Rt
+  end select
+end format
+
+format Rn4not15 --Rn, but not with 15
+  select slice{3..0}{-} -- Rn 
+    case \m0--- or \m-0-- or \m--0- or \m---0 is
+      Rn := slice{3..0}{-} #Rn
+  end select
+end format
+
+format Rm4LslImm2
+  imm2 := slice{-}{5..4} #imm2
+  Rm   := slice{-}{3..0} #Rm
+end format
+
 
 format dataProcessingShifted #dataProcessingSR -- shifted register
   S  := slice{4}{-}
@@ -1522,6 +1558,73 @@ syntax regList
 end syntax
 
 syntax wback field u1 W if W then "!" end if end syntax -- Write back
+
+syntax pldLitteral #pld
+  field u12 imm12 #imm12
+  field u1  U
+  "pld\t"
+  if U then
+      if imm12 != 0 then
+  		  "[pc, #\d]",imm12
+      else
+  		  "[pc]"
+      end if
+  else
+		  "[pc, #-\d]",imm12
+  end if
+
+end syntax
+
+syntax ldrb32Litteral #ldr #byte #Rt
+  field u12 imm12 #imm12
+  field u1  U
+  "ldrb.w\t" Rt4
+  if U then
+      if imm12 != 0 then
+  		  ", [pc, #\d]",imm12
+      else
+  		  ", [pc]"
+      end if
+  else
+		  ", [pc, #-\d]",imm12
+  end if
+end syntax
+
+syntax ldrbt32 #ldrbt #Rt #Rn #imm8
+  "ldrbt\t" Rt4 ", [" Rn4 
+  field u8 imm8
+  if imm8 then ", #\d",imm8 end if
+  "]"
+end syntax
+
+syntax ldrbImm #ldr #byte #Rt #Rn
+  "ldrb.w\t" Rt4 ", [" Rn4
+  select 
+    case #imm12 
+      field u12 imm12
+      ", #\d]",imm12
+    case #imm8
+      field u1 P
+      field u1 U
+      field u1 W
+      field u8 imm8
+      if P then
+        if imm8 != 0 then
+          ", #"
+          if !U then "-" end if
+          "\d",imm8
+        end if "]"
+        if W then "!" end if
+      elseif !P & W then
+        "], #"
+        if !U then "-" end if
+        "\d",imm8
+      end if
+    case #Rm #imm2
+      
+  end select
+end syntax
+
 
 syntax loadStoreMultiple #multiple
   field u1 W
@@ -2240,6 +2343,12 @@ syntax storeSingleDateItem #store
       if imm2 then ", lsl #\d",imm2 end if
       "]"
   end select
+end syntax
+
+syntax RmImm2 #Rm #imm2
+  field u2 imm2
+  Rm4
+  if imm2 then ", lsl #\d",imm2 end if
 end syntax
 
 syntax branch #branch #cond
