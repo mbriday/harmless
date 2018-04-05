@@ -854,18 +854,6 @@ behavior storeSingleDataItem32 #store
   end select 
 end behavior
 
--- #dataProcessingSR #Rm #adc #shType #Rn #Rd
--- behavior dataProcessingSR #dataProcessingSR
---   field u4 Rm #Rm
---   field u4 Rn #Rn
---   field u4 Rd #Rd
--- 
--- end behavior
--- 
--- 
--- behavior shType #shType
--- 
--- end behavior
 
 
 
@@ -1178,28 +1166,52 @@ end format
 
 --
 
-format loadByteMemHints
+format loadByteMemHints --A5.146
   select slice{8..7,3..0}{15..12,11..6} -- careful: order op1 Rn Rt op2 
     --    op1 Rn   Rt   op2
-    case \m0-_1111_----_------ is #ldr #byte ldrLitteral Rt4not15
-    case \m01_----_----_------ is #ldr #byte #imm12 imm12 := slice{-}{11..0} Rn4not15 Rt4not15 -- encoding T2
-    case \m00_----_----_1--1-- or
-         \m00_----_----_1100-- is #imm8 imm8 := slice{-}{7..0} ldrImm  --encoding T3
-    case \m00_----_----_1110-- is #ldrbt  Rn4not15 Rt4not15 imm8 := slice{-}{7..0} #imm8
-    case \m0-_1111_1111_------ is #pld ldrLitteral 
-    case \m00_----_----_000000 is #ldr #byte Rn4not15 Rt4not15 Rm4LslImm2
+    case \m--_1111_----_------ is ldrSign #ldr #byte ldrLiteral Rt4not15 -- ldrb literral
+    case \m-1_----_----_------ is ldrSign #ldr #byte #imm12 #add imm12 := slice{-}{11..0} Rn4not15 Rt4not15 -- ldrb imm: encoding T2
+    case \m-0_----_----_1--1-- or
+         \m-0_----_----_1100-- is ldrSign #ldr #byte #imm8 imm8 := slice{-}{7..0} ldrImm  --ldrb imm: encoding T3
+    case \m-0_----_----_1110-- is ldrSign #ldrt #byte Rn4not15 Rt4not15 imm8 := slice{-}{7..0} #imm8 -- ldrbt
+    case \m-0_----_----_0000-- is ldrSign #ldr #byte Rn4not15 Rt4not15 Rm4LslImm2 --ldrb reg
+
+    case \m--_1111_1111_------ is plipld #pc ldrLiteral --pld litteral: i.e. relative to PC
+    case \m-0_----_1111_0000-- is plipld #add Rn4not15 Rm4LslImm2 --pld reg, objdump deasm if op2{1..0} != 0
+    case \m-0_----_1111_1100-- is plipld #sub Rn4not15 imm8  := slice{-}{7..0}  #imm8  --pld imm: encoding T2
+    case \m-1_----_1111_------ is plipld #add Rn4not15 imm12 := slice{-}{11..0} #imm12 --pld imm: encoding T1
   end select
 end format
 
-format ldrLitteral
-  U := slice{7}{-} --up
+format plipld
+  select slice{8}{-}
+    case 0 is #pld -- preload data
+    case 1 is #pli -- preload instruction
+  end select
+end format
+
+format ldrSign
+  select slice{8}{-}
+    case 0 is #unsigned
+    case 1 is #signed
+  end select
+end format
+
+format ldrLiteral #pc
+  select slice{7}{-}
+    case 0 is #sub
+    case 1 is #add
+  end select
   imm12 := slice{-}{11..0} #imm12
 end format
 
-format ldrImm #ldr #byte 
+format ldrImm 
   Rn4not15 Rt4not15
   W := slice{-}{8}
-  U := slice{-}{9}
+  select slice{-}{9} -- U hardcoded.
+    case 0 is #sub
+    case 1 is #add
+  end select
   P := slice{-}{10}
 end format
 
@@ -1320,7 +1332,7 @@ format dataProcessingModImm #dataProcessingMI
     case \m1000- is Rn4
       select slice{4}{11..8} -- S and Rd
         case \m1_1111 is #cmn
-        others        is Rd4 #add
+        others        is Rd4 #add -- encoding T3.
       end select
     case \m1010- is Rd4 Rn4 #adc
     case \m1011- is Rd4 Rn4 #sbc
@@ -1561,69 +1573,89 @@ end syntax
 
 syntax wback field u1 W if W then "!" end if end syntax -- Write back
 
-syntax pldLitteral #pld
-  field u12 imm12 #imm12
-  field u1  U
-  "pld\t"
-  if U then
-      if imm12 != 0 then
-  		  "[pc, #\d]",imm12
-      else
-  		  "[pc]"
-      end if
-  else
-		  "[pc, #-\d]",imm12
-  end if
-
+syntax pldpliLiteral
+  select
+    case #pld "pld\t["
+    case #pli "pli\t["
+  end select
+  select
+    case #pc "pc"
+    case #Rn Rn4
+  end select
+  select 
+    case #imm12
+      field u12 imm12 
+      select
+        case #sub if imm12 != 0 then ", #-\d",imm12 end if
+        case #add if imm12 != 0 then ", #\d", imm12 end if
+      end select
+    case #imm8 #sub
+      field u8 imm8
+      if imm8 != 0 then ", #-\d",imm8 end if
+    case #add ", " RmImm2
+  end select
+  "]"
 end syntax
 
-syntax ldrb32Litteral #ldr #byte #Rt
+syntax ldrb32Literal #ldr #byte #Rt #pc
   field u12 imm12 #imm12
-  field u1  U
-  "ldrb.w\t" Rt4
-  if U then
+  "ldr"
+  select case #signed "s" case #unsigned end select
+  "b.w\t" Rt4
+  select
+    case #add
       if imm12 != 0 then
   		  ", [pc, #\d]",imm12
       else
   		  ", [pc]"
       end if
-  else
-		  ", [pc, #-\d]",imm12
-  end if
+    case #sub
+      if imm12 != 0 then
+		    ", [pc, #-\d]",imm12
+      else
+  		  ", [pc]"
+      end if
+  end select
 end syntax
 
-syntax ldrbt32 #ldrbt #Rt #Rn #imm8
-  "ldrbt\t" Rt4 ", [" Rn4 
+syntax ldrbt32 #ldrt #byte #Rt #Rn #imm8
+  "ldr"
+  select case #signed "s" case #unsigned end select
+  "bt\t" Rt4 ", [" Rn4 
   field u8 imm8
   if imm8 then ", #\d",imm8 end if
   "]"
 end syntax
 
 syntax ldrbImm #ldr #byte #Rt #Rn
-  "ldrb.w\t" Rt4 ", [" Rn4
+  "ldr"
+  select case #signed "s" case #unsigned end select
+  "b.w\t" Rt4 ", [" Rn4
   select 
-    case #imm12 
+    case #imm12 #add
       field u12 imm12
-      ", #\d]",imm12
+      if imm12 then ", #\d",imm12 end if "]"
     case #imm8
       field u1 P
-      field u1 U
       field u1 W
       field u8 imm8
-      if P then
-        if imm8 != 0 then
-          ", #"
-          if !U then "-" end if
-          "\d",imm8
-        end if "]"
-        if W then "!" end if
-      elseif !P & W then
-        "], #"
-        if !U then "-" end if
-        "\d",imm8
-      end if
-    case #Rm #imm2
-      
+      select
+        case #sub
+          if P then
+            if imm8 != 0 then ", #-\d",imm8 end if "]"
+            if W then "!" end if
+          elseif !P & W then "], #"
+            if imm8 then "-" end if
+				    "\d",imm8
+          end if
+        case #add
+          if P then
+            if imm8 != 0 then ", #\d",imm8 end if "]"
+            if W then "!" end if
+          elseif !P & W then "], #\d",imm8
+          end if
+      end select
+    case #Rm ", " RmImm2 "]"
   end select
 end syntax
 
@@ -2339,11 +2371,9 @@ syntax storeSingleDateItem #store
         if !addi && imm8 !=0 then "-" end if
         "\d",imm8
       end if
-    case #imm2 -- reg, encoding T2
+    case  -- reg, encoding T2
       field u2 imm2
-      ".w\t" Rt4 ", [" Rn4 ", " Rm4
-      if imm2 then ", lsl #\d",imm2 end if
-      "]"
+      ".w\t" Rt4 ", [" Rn4 ", " RmImm2 "]"
   end select
 end syntax
 

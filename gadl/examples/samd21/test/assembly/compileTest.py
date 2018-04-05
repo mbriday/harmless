@@ -109,7 +109,7 @@ def getIntOpcode(string):
 
 def isException(dataO, dataH):
     exception = 0;
-    opcode = getIntOpcode(dataH[0]) #convert opcode into an int.
+    opcode = getIntOpcode(dataO[0]) #convert opcode into an int.
     #print 't',opcode
     if dataO[1] == "" and dataH[1][0:5] == "Stall": #no mnemonic for that code.
         exception = 1
@@ -138,6 +138,15 @@ def isException(dataO, dataH):
         exception = 9
     elif dataO[1].find("UNDEF") >= 0:
         exception = 10
+    elif ((opcode > 0xffff) and (opcode & 0xffff0f00 == 0xf81f0e00)): #ldrbt should have Rn!=15
+        #ldrbt impose that Rn != 15 (this is a ldrb.w in that case), but objdump does not
+        exception = 11
+    elif ((opcode > 0xffff) and (opcode & 0xfff0f900 == 0xf810f900)): #p.A5.146 => op1=0, op2=1xx1xx unpredictable
+        #but objdump understand it as a pld [rn], #imm instruction.
+        exception = 12
+    elif ((opcode > 0xffff) and (opcode & 0xfff0fe00 == 0xf810fe00)): #p.A5.146 => op1=0, op2=1110xx unpredictable
+        exception = 13
+    #print('opcode: '+hex(opcode)+', '+str(exception))
     return (exception != 0)
 
 import re
