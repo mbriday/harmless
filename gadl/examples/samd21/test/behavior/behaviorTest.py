@@ -60,7 +60,7 @@ def getInt(txt):
     # - a unicode string that represent:
     #   - an hexadecimal value (starting with '0x')
     #   - a decimal value
-    if type(txt) is types.IntType:
+    if type(txt) is int:
         return txt
     else:
         try:
