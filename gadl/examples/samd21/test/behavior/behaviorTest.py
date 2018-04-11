@@ -379,7 +379,7 @@ def generateGdbScript(args, filename, inst, codeCases, runCases):
 import hashlib
 def getJSONFileSignature(filename):
     with open(filename) as jsonFile:
-        data=jsonFile.read()
+        data=jsonFile.read().encode('utf-8')
         return hashlib.md5(data).hexdigest()
 
 def readTargetOutputFile(filename):
