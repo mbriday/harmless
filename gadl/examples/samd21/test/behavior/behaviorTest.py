@@ -411,7 +411,7 @@ def targetOutputFileToBuild(gdbOutputLines):
             if n == 0: #signature in the first line
                 sig = line.split()
             n += 1
-        firstCond = jsonMd5 == sig[0] #md5 is ok
+        firstCond = jsonMd5.encode('utf-8') == sig[0] #md5 is ok
         #number of tests = 2 lines/test +preamble
         secondCond =  (n == int(sig[1])*2+2) or (n == int(sig[1])*3+2)  #3 lines if svc
         return not(firstCond and secondCond) , jsonMd5
