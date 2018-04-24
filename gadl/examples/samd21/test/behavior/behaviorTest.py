@@ -8,34 +8,6 @@ import argparse
 import shutil
 import time
 
-# d'abord on crée un fichier avec les instructions à tester:
-#Exemple pour lsl: lsl Rd, Rm, #imm5
-# => toutes les valeurs de Rd, Rm, imm5 ? => soit 2048 instructions.
-# il faut une taille contenue, car flashage sur vraie carte.
-# c'est fait une seule fois.
-
-#ensuite, on va faire une execution sur la cible
-#on flashe
-# on donne des pattern pour les registres utilisés: Rm, imm5
-# ici, Rm: 10 valeurs au hasard, ainsi que 0, ffffffff, 0xaaaaaaaa, 0x55555555, 0x12345678, 0xfedcba98
-# => les valeurs au hasard doivent être memorisées, car on fait le test sur la flash une seule fois.
-# de même pour le imm5
-# valeur de APSR au début, 3 bits
-# en tout: 8 (APSR) * 8 (Rm) * 32 (imm5) *2048 instructions => 4M tests. C'est trop
-
-#en sortie, on stocke l'état des variables de sortie: Rd, APSR.
-
-#definition directement avec des structures Python? => plus simple. Ou du JSON?
-# lsl{
-#     src:
-#        reg Rm {idx: {0,2,7}, val = {0, ffffffff, 0xaaaaaaaa…}}
-#        imm imm5 {val = {…}}
-#     dst:
-#        APSR --connu => tout à 0, et tout à 1 si sortie uniquement.
-#        Rd {idx = {0, 2, 7}
-#     mnemo "lsls Rd, Rm, #imm5" -- pour générer le code
-# }
-
 # test sur cible avec openocd ou st-util
 # -> voir  generateGdbScript
 # avec openocd, il faut lancer le serveur: openocd -f board/st_nucleo_f3.cfg
@@ -80,20 +52,22 @@ def getRegCombinationsForCode(inst,group,key):
     # for each reg, get the possible combinaisons
     # that may update the assembly code.
     if key in inst:
+        sortedInstItemKeys = list(inst[key].keys())
+        sortedInstItemKeys.sort()
         if key == 'codeData':
             #data structure for labels is not optimal
             #but it can be handled in the same way as register values
             #when calculating test combinations.
             labelId = 0
             case = []
-            for access in inst[key]: #either 'pre' or 'post'
+            for access in sortedInstItemKeys: #either 'pre' or 'post'
                 for data in inst[key][access]:
                     case.append({'label':'.Label'+str(labelId)})
                     labelId += 1
             if case:
                 group.append({'label':case})
         else:
-            for regName in inst[key]:
+            for regName in sortedInstItemKeys:
                 reg = inst[key][regName]
                 case = []
                 if 'idx' in reg:
@@ -112,7 +86,9 @@ def getRegCombinationsForRuntime(inst,group,key):
     # for each reg, get the possible combinaisons
     # that do not depends on the assembly code.
     if key in inst:
-        for regName in inst[key]:
+        sortedRegKeys = list(inst[key].keys())
+        sortedRegKeys.sort()
+        for regName in sortedRegKeys:
             reg = inst[key][regName]
             case = []
             if 'val' in reg:
@@ -145,15 +121,16 @@ def combinations(inst, forCode):
             #debugComb(group, 'debugRuntime')
 
     #Then combine each register with the others
-
     keys = ['']*len(group) #we need an order
     index = {}  #the current index for each register
     size  = {}  #the maximum value
     cases = 1   #give the number of cases
 
     i = 0
-    for entry in group:
-        for key in entry: #only one...
+    for entry in group: #list
+        sortedEntryKeys = list(entry.keys())
+        sortedEntryKeys.sort()
+        for key in sortedEntryKeys: #only one...
             keys[i] = key
             nb = len(entry[key])
             size[key] = nb
@@ -164,8 +141,10 @@ def combinations(inst, forCode):
     while True:
         result = {}
         #get one entry
-        for entry in group:
-            for key in entry: #only one...
+        for entry in group: #group is a list
+            sortedEntryKeys = list(entry.keys())
+            sortedEntryKeys.sort()
+            for key in sortedEntryKeys: #only one...
                 result[key] = entry[key][index[key]]
         #send it
         yield result
@@ -280,7 +259,9 @@ def getRuntimeTests(inst):
     return runCases
 
 def prepareTestCaseForGdb(codeCase, runCase, gdb):
-    for reg in runCase:
+    sortedRunCasesKeys = list(runCase.keys())
+    sortedRunCasesKeys.sort()
+    for reg in sortedRunCasesKeys:
         if reg == 'mem': #this is not a reg…
             for memLocation in runCase[reg]:
                 gdb.write('set {int}'+hex(memLocation['addr'])+' = '+str(memLocation['val'])+'\n')
@@ -339,12 +320,12 @@ def generateGdbScript(args, filename, inst, codeCases, runCases):
 
         testId = 0
         endTest = False
-        for codeCase in codeCases:
+        for codeCase in codeCases: #list
             #first time
             if not endTest:
                 gdb.write('set $oldpc = $pc\n')
             #prepare the case, with run time info
-            for runCase in runCases:
+            for runCase in runCases: #list
                 testId+=1
                 #for early debug, only run 100 tests ('quick' CLI argument)
                 endTest = args.quick and testId > 100
@@ -409,9 +390,9 @@ def targetOutputFileToBuild(gdbOutputLines):
     try:
         for line in gdbOutputLines:
             if n == 0: #signature in the first line
-                sig = line.split()
+                sig = line.decode('utf-8').split()
             n += 1
-        firstCond = jsonMd5.encode('utf-8') == sig[0] #md5 is ok
+        firstCond = jsonMd5 == sig[0] #md5 is ok
         #number of tests = 2 lines/test +preamble
         secondCond =  (n == int(sig[1])*2+2) or (n == int(sig[1])*3+2)  #3 lines if svc
         return not(firstCond and secondCond) , jsonMd5
@@ -568,15 +549,17 @@ def processTestOnHarmless(args, filename, inst, codeCases, runCases, signature):
         nbVal = len(codeCases)*len(runCases)
         outputFilePreamble(out, signature, nbVal,inst)
         testId = 0
-        for codeCase in codeCases:
+        for codeCase in codeCases: #list
             oldPC = core.programCounter()
-            for runCase in runCases:
+            for runCase in runCases: #list
                 testId+=1
                 #for early debug, only run 100 tests ('quick' CLI argument)
                 endTest = args.quick and testId > 100
                 if not endTest:
                     #init
-                    for reg in runCase:
+                    sortedRunCasesKeys = list(runCase.keys())
+                    sortedRunCasesKeys.sort()
+                    for reg in sortedRunCasesKeys:
                         if reg == 'mem': #this is not a reg…
                             for memLocation in runCase[reg]:
                                 #print('maj mem '+hex(memLocation['addr'])+' -> '+hex(memLocation['val']))
@@ -587,6 +570,8 @@ def processTestOnHarmless(args, filename, inst, codeCases, runCases, signature):
                             regName = codeCase[reg]['idx']
                             if regName != 'pc': #do not update pc, as it won't work.
                                 core.gpr_write32(regDict[codeCase[reg]['idx']], getInt(runCase[reg]['val']))
+                                #print('reg '+str(regDict[codeCase[reg]['idx']])+' -> 0x{val:08x}'.format(val=getInt(runCase[reg]['val'])))
+                    #print('---')
                     #exec one instruction
                     harmlessPrintReg(inst,core,out)
                     out.write('A\n')
@@ -616,7 +601,7 @@ def clean(filename, gdbOutputLines, result):
         if not os.path.isfile(filename+'_output.gdb'):
             with open(filename+'_output.gdb', "w") as outfile:
                 for line in gdbOutputLines:
-                    outfile.write(line)
+                    outfile.write(str(line.decode('utf-8')))
     for ext in exts:
         try:
             os.remove(filename+ext)
@@ -657,7 +642,7 @@ def compare(testOnTargetOk, filename, gdbOutputLines, testStr):
         try:
             with open(filename+'_output.harmless') as harmless:
                 for line in zip(gdbOutputLines, harmless): #line[0] gdb, line[1] harmless
-                    if line[0] != line[1]:
+                    if line[0].decode('utf-8') != line[1]:
                         ok = 1
         except IOError:
             ok = 2
@@ -678,6 +663,24 @@ def compare(testOnTargetOk, filename, gdbOutputLines, testStr):
             print(BOLD()+YELLOW()+'impossible (no target file)'+ENDC())
     return ok
 
+def debugRuntimeTests(runCases):
+    nb=0
+    for runCase in runCases: #list
+        print(str(nb), end='\t')
+        sortedRunCasesKeys = list(runCase.keys())
+        sortedRunCasesKeys.sort()
+        for reg in sortedRunCasesKeys:
+            if reg == 'mem': #this is not a reg…
+                for memLocation in runCase[reg]:
+                    print('mem '+hex(memLocation['addr'])+' -> '+hex(memLocation['val']),end='\t')
+            elif reg == "cpsr":
+                print('cpsr:'+str(getInt(runCase[reg]['val'])),end='\t')
+            else:
+                print('reg 0x{reg:08x}'.format(reg=getInt(runCase[reg]['val'])),end='\t')
+        print()
+        nb += 1
+
+import json
 if __name__ == '__main__':
     #arguments
     parser = argparse.ArgumentParser(description='Check Harmless Cortex ARM model functionnal behavior against a real target')
@@ -701,7 +704,6 @@ if __name__ == '__main__':
 
     timeStart = time.clock()
     #0 - read the JSON instruction test
-    import json
     nbTests = 0
     nbInstructions = 0
     bootCodeChecked = False
@@ -715,6 +717,7 @@ if __name__ == '__main__':
         if not args.assembleOnly:
             #3- get tests for runtime
             runCases = getRuntimeTests(inst)
+            #debugRuntimeTests(runCases)
             ##4- stats (if verbose mode > 2)
             nbVal = len(codeCases)*len(runCases)
             nbTests += nbVal
@@ -748,5 +751,5 @@ if __name__ == '__main__':
             nbInstructions += 1
         else: # assembly only
             subprocess.call(["arm-none-eabi-objdump", "-d", filename+'.elf'],)
-    debugStr(args,0,str(nbTests)+' tests done for '+str(nbInstructions)+' instructions in '+
-                str(time.clock()-timeStart)+'s\n')
+    debugStr(args,0,str(nbTests)+' tests done for '+str(nbInstructions)+' instructions in {t:.2f}s\n'.format(t=(time.clock()-timeStart)))
+
