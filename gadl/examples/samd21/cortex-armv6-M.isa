@@ -1161,11 +1161,26 @@ format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
     case \m10_-------_1 is branchAndMiscCtrl				--A5-140
     case \m11_000---0_- is storeSingleDateItem      --A5-147
     case \m11_00----1_- is loadMemHints             --A5-146 (byte) A5-145 (half)
+    case \m11_010----_- is dataProcReg              --A5-150
   end select
 end format
 
 --
 
+format dataProcReg
+  restrict slice{-}{15..12} to \m1111
+  select slice{7..4}{7..4} -- op1/op2
+    case \m0---_0000 is Rn4 setFlags := slice{4}{-} Rd4 Rm4
+      select slice {6..5}{-}
+        case \m00 is #lsl 
+        case \m01 is #lsr
+        case \m10 is #asr
+        case \m11 is #ror
+		  end select
+  end select
+end format
+
+--
 format loadMemHints --A5.145, A5.146
   select slice{8..7,6..5,3..0}{15..12,11..6} -- careful: order op1 sign Rn Rt op2 => sign:00 byte, 01 hw, 10 word 
     --    op1 Rn   Rt   op2
@@ -1457,6 +1472,10 @@ end format
 format immShift
 	imm5 := slice{-}{14..12,7..6} 
   shiftType := slice{-}{5..4} #shType
+end format
+
+format Rm4
+  Rm := slice{-}{3..0} #Rm
 end format
 
 format Rn4
