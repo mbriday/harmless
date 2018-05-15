@@ -14,7 +14,7 @@ USE_IO_STUBS = 1
 #GADL_WITH_PIPELINE_TRACE=1
 
 #Python interpreter.
-PYTHON_BIN=python2.7
+PYTHON_BIN=python3.5
 
 DEFINES  = -DHOST_IS_LITTLE_ENDIAN 
 #DEFINES += -DINST_DECODER_CACHE_STATS
@@ -43,7 +43,7 @@ IMAGES_DOC=$(IMAGES_DOT:.dot=.svg)
 # see http://www.swig.org
 PYTHON_LIB = _%!CPUNAME%.so #where %!CPUNAME% should be the module name defined in %!CPUNAME%.i
 # swig understang -Dflags for conditional compilation (DEFINES)
-SWIG=swig -python -c++ -classic
+SWIG=swig -python -c++
 PYTHON_CONFIG_BIN = $(PYTHON_BIN)-config
 #python configuration: we use python-config tool
 #PYTHON_INCLUDE=$(shell $(PYTHON_CONFIG_BIN) --includes)

@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
 from __future__ import print_function
@@ -11,8 +11,11 @@ import time
 # test sur cible avec openocd ou st-util
 # -> voir  generateGdbScript
 # avec openocd, il faut lancer le serveur: openocd -f board/st_nucleo_f3.cfg
-#debugger = 'openocd' #either st-util or openocd
-debugger = 'st-util' #either st-util or openocd
+# avec jlink: JLinkGDBServer -device ATSAMD21J18 -if SWD -speed 4000 -autoconnect 1 
+#             Warning: tests available only on st Nucleo F303 (Memory mapping…)
+debugger = 'openocd' #either st-util, openocd or jlink
+#debugger = 'jlink'
+#debugger = 'st-util' 
 
 #verbose mode:
 # - 0 => nothing, except for errors
@@ -259,6 +262,7 @@ def getRuntimeTests(inst):
     return runCases
 
 def prepareTestCaseForGdb(codeCase, runCase, gdb):
+    global debugger
     sortedRunCasesKeys = list(runCase.keys())
     sortedRunCasesKeys.sort()
     for reg in sortedRunCasesKeys:
@@ -276,15 +280,16 @@ def prepareTestCaseForGdb(codeCase, runCase, gdb):
                 gdb.write('set $'+regName+'='+str(runCase[reg]['val'])+'\n')
 
 def generateGdbScript(args, filename, inst, codeCases, runCases):
-    if debugger != 'st-util' and debugger != 'openocd':
-        print('error: no debugger specified : use st-link or openocd')
+    global debugger
+    debugPort = {'st-util':4242,'openocd':3333,'jlink':2331}
+    debugPSR  = {'st-util':'cpsr','openocd':'xPSR','jlink':'xpsr'}
+    if debugger not in ['st-util', 'openocd', 'jlink']:
+        print('error: no debugger specified : use st-link, openocd or jlink')
         print('assuming st-link')
-        debugger == 'st-link'
+        debugger = 'st-link'
     with open(filename+'.gdb',"w") as gdb:
-        if debugger == 'st-util':
-            gdb.write("tar extended-remote :4242\n")   #st-util
-        else:# 'openocd'
-            gdb.write("tar extended-remote :3333\n")    #openocd
+        gdb.write("tar extended-remote :{port}\n".format(port=debugPort[debugger]))
+        if debugger == 'openocd':
             gdb.write("monitor reset halt\n")           #openocd
         gdb.write("set interactive-mode off\n")
         gdb.write("load\n")
@@ -294,10 +299,7 @@ def generateGdbScript(args, filename, inst, codeCases, runCases):
         gdb.write('\tprintf "0x%08x\\t",$sp\n')
         gdb.write('\tprintf "0x%08x\\t",$lr\n')
         gdb.write('\tprintf "0x%08x\\t",$pc\n')
-        if debugger == 'st-util':
-            gdb.write('\tprintf "0x%08x\\t",$cpsr\n')
-        else:
-            gdb.write('\tprintf "0x%08x\\t",$xPSR\n')
+        gdb.write('\tprintf "0x%08x\\t",${psr}\n'.format(psr=debugPSR[debugger]))
         if 'mem' in inst:
             for memAddr in inst['mem']['addr']:  #list of memory addresses
                 gdb.write('\tprintf "0x%08x\\t",{int}'+memAddr+'\n')
@@ -426,13 +428,11 @@ def outputFilePreamble(outfile, signature, nbVal,inst):
 
 import re
 def bootCodeInFlash():
+    global debugger
+    debugPort = {'st-util':4242,'openocd':3333,'jlink':2331}
     #print('check boot\n')
     ### arm-none-eabi-gdb --eval-command="tar extended-remote :4242" --command=bootTest.gdb | grep bootKey
-    remote=''
-    if debugger == 'st-util':
-        remote = 'tar extended-remote :4242'   #st-util
-    else:# 'openocd'
-        remote = 'tar extended-remote :3333'    #openocd
+    remote = "tar extended-remote :{port}\n".format(port=debugPort[debugger])
     try:
         process = subprocess.Popen(['arm-none-eabi-gdb','--eval-command='+remote, '--command=internal/bootTest.gdb'], stdout=subprocess.PIPE, bufsize=0)
     except OSError:
@@ -442,7 +442,7 @@ def bootCodeInFlash():
     found = False
     p=re.compile('bootKey\s+([0-9a-fA-F]+)$')
     for line in process.stdout:
-        m=p.match(line)
+        m=p.match(line.decode('utf-8'))
         if m:
             #print('boot line matching!')
             if m.groups()[0] == 'feeddeb0':
@@ -705,6 +705,7 @@ if __name__ == '__main__':
     timeStart = time.clock()
     #0 - read the JSON instruction test
     nbTests = 0
+    nbTestsDone = 0
     nbInstructions = 0
     bootCodeChecked = False
     for filename in args.files:
@@ -744,6 +745,8 @@ if __name__ == '__main__':
                 #print('test on harmless…')
             #7- compare
             result = compare(testOnTargetOk, filename, gdbOutputLines, testStr)
+            if result == 0:
+                nbTestsDone += nbVal
 
             #8- clean (remove tmp files)
             if not args.noclean:
@@ -751,5 +754,5 @@ if __name__ == '__main__':
             nbInstructions += 1
         else: # assembly only
             subprocess.call(["arm-none-eabi-objdump", "-d", filename+'.elf'],)
-    debugStr(args,0,str(nbTests)+' tests done for '+str(nbInstructions)+' instructions in {t:.2f}s\n'.format(t=(time.clock()-timeStart)))
+    debugStr(args,0,str(nbTestsDone)+' tests done for '+str(nbInstructions)+' instructions in {t:.2f}s, ok at {p:.1f}%.\n'.format(t=(time.clock()-timeStart),p=(100*nbTestsDone)/nbTests))
 
