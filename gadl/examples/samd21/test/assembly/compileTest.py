@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
 import sys, os
@@ -180,7 +180,7 @@ def compare(args, objdumpFile, harmlessFile):
     miss = 0
     exceptions = 0
     total = 0
-    for address,dataH in dictHarmless.iteritems():
+    for address,dataH in dictHarmless.items():#iteritems in python 2.xx
         if address in dictObjdump:
             total = total+1
             #ok, address are matching.
