@@ -1160,26 +1160,26 @@ format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
     case \m10_-1-----_0 is dataProcessingPlainImm		--A5-139
     case \m10_-------_1 is branchAndMiscCtrl				--A5-140
     case \m11_000---0_- is storeSingleDateItem      --A5-147
-    case \m11_00--001_- is loadByteMemHints         --A5-146
+    case \m11_00----1_- is loadMemHints             --A5-146 (byte) A5-145 (half)
   end select
 end format
 
 --
 
-format loadByteMemHints --A5.146
-  select slice{8..7,3..0}{15..12,11..6} -- careful: order op1 Rn Rt op2 
+format loadMemHints --A5.145, A5.146
+  select slice{8..7,6..5,3..0}{15..12,11..6} -- careful: order op1 sign Rn Rt op2 => sign:00 byte, 01 hw, 10 word 
     --    op1 Rn   Rt   op2
-    case \m--_1111_----_------ is ldrSign #ldr #byte ldrLiteral Rt4not15 -- ldrb literral
-    case \m-1_----_----_------ is ldrSign #ldr #byte #imm12 #add imm12 := slice{-}{11..0} Rn4not15 Rt4not15 -- ldrb imm: encoding T2
-    case \m-0_----_----_1--1-- or
-         \m-0_----_----_1100-- is ldrSign #ldr #byte #imm8 imm8 := slice{-}{7..0} ldrImm  --ldrb imm: encoding T3
-    case \m-0_----_----_1110-- is ldrSign #ldrt #byte Rn4not15 Rt4not15 imm8 := slice{-}{7..0} #imm8 -- ldrbt
-    case \m-0_----_----_0000-- is ldrSign #ldr #byte Rn4not15 Rt4not15 Rm4LslImm2 --ldrb reg
+    case \m--_--_1111_----_------ is ldrSign ldrSize #ldr ldrLiteral Rt4not15 -- ldrb literral
+    case \m-1_--_----_----_------ is ldrSign ldrSize #ldr #imm12 #add imm12 := slice{-}{11..0} Rn4not15 Rt4not15 -- ldrb imm: encoding T2
+    case \m-0_--_----_----_1--1-- or
+         \m-0_--_----_----_1100-- is ldrSign ldrSize #ldr #imm8 imm8 := slice{-}{7..0} ldrImm  --ldrb imm: encoding T3
+    case \m-0_--_----_----_1110-- is ldrSign ldrSize #ldrt Rn4not15 Rt4not15 imm8 := slice{-}{7..0} #imm8 -- ldrbt
+    case \m-0_--_----_----_0000-- is ldrSign ldrSize #ldr  Rn4not15 Rt4not15 Rm4LslImm2 --ldrb reg
 
-    case \m--_1111_1111_------ is plipld #pc ldrLiteral --pld litteral: i.e. relative to PC
-    case \m-0_----_1111_0000-- is plipld #add Rn4not15 Rm4LslImm2 --pld reg, objdump deasm if op2{1..0} != 0
-    case \m-0_----_1111_1100-- is plipld #sub Rn4not15 imm8  := slice{-}{7..0}  #imm8  --pld imm: encoding T2
-    case \m-1_----_1111_------ is plipld #add Rn4not15 imm12 := slice{-}{11..0} #imm12 --pld imm: encoding T1
+    case \m--_00_1111_1111_------ is plipld #pc ldrLiteral --pld litteral: i.e. relative to PC
+    case \m-0_00_----_1111_0000-- is plipld #add Rn4not15 Rm4LslImm2 --pld reg, objdump deasm if op2{1..0} != 0
+    case \m-0_00_----_1111_1100-- is plipld #sub Rn4not15 imm8  := slice{-}{7..0}  #imm8  --pld imm: encoding T2
+    case \m-1_00_----_1111_------ is plipld #add Rn4not15 imm12 := slice{-}{11..0} #imm12 --pld imm: encoding T1
   end select
 end format
 
@@ -1194,6 +1194,14 @@ format ldrSign
   select slice{8}{-}
     case 0 is #unsigned
     case 1 is #signed
+  end select
+end format
+
+format ldrSize
+  select slice{6..5}{-}
+    case 0 is #byte
+    case 1 is #halfword
+    case 2 is #word
   end select
 end format
 
@@ -1597,11 +1605,20 @@ syntax pldpliLiteral
   "]"
 end syntax
 
-syntax ldrb32Literal #ldr #byte #Rt #pc
+syntax ldrSize
+  select
+    case #byte     "b"
+    case #halfword "h"
+    case #word
+  end select
+end syntax
+
+syntax ldrb32Literal #ldr #Rt #pc
   field u12 imm12 #imm12
   "ldr"
   select case #signed "s" case #unsigned end select
-  "b.w\t" Rt4
+  ldrSize
+  ".w\t" Rt4
   select
     case #add
       if imm12 != 0 then
@@ -1618,19 +1635,21 @@ syntax ldrb32Literal #ldr #byte #Rt #pc
   end select
 end syntax
 
-syntax ldrbt32 #ldrt #byte #Rt #Rn #imm8
+syntax ldrbt32 #ldrt #Rt #Rn #imm8
   "ldr"
   select case #signed "s" case #unsigned end select
-  "bt\t" Rt4 ", [" Rn4 
+  ldrSize
+  "t\t" Rt4 ", [" Rn4 
   field u8 imm8
   if imm8 then ", #\d",imm8 end if
   "]"
 end syntax
 
-syntax ldrbImm #ldr #byte #Rt #Rn
+syntax ldrbImm #ldr #Rt #Rn
   "ldr"
   select case #signed "s" case #unsigned end select
-  "b.w\t" Rt4 ", [" Rn4
+  ldrSize
+  ".w\t" Rt4 ", [" Rn4
   select 
     case #imm12 #add
       field u12 imm12

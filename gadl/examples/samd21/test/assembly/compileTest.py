@@ -138,7 +138,7 @@ def isException(dataO, dataH):
         exception = 9
     elif dataO[1].find("UNDEF") >= 0:
         exception = 10
-    elif ((opcode > 0xffff) and (opcode & 0xffff0f00 == 0xf81f0e00)): #ldrbt should have Rn!=15
+    elif ((opcode > 0xffff) and (opcode & 0xfedf0f00 == 0xf81f0e00)): #ldr(s)(b|h)t should have Rn!=15
         #ldrbt impose that Rn != 15 (this is a ldrb.w in that case), but objdump does not
         exception = 11
     elif ((opcode > 0xffff) and (opcode & 0xfff0f900 == 0xf810f900)): #p.A5.146 => op1=0, op2=1xx1xx unpredictable
@@ -146,10 +146,16 @@ def isException(dataO, dataH):
         exception = 12
     elif ((opcode > 0xffff) and (opcode & 0xfef0ff00 == 0xf810fe00)): #p.A5.146 => op1=x0, op2=1110xx unpredictable
         exception = 13
-    elif ((opcode > 0xffff) and (opcode & 0xfef0f900 == 0xf810f900)): #p.A5.146 => op1=x0, op2=1xx1xx unpredictable
+    elif ((opcode > 0xffff) and (opcode & 0xfed0f900 == 0xf810f900)): #p.A5.146 => op1=x0, op2=1xx1xx unpredictable (byte+half)
         exception = 14
-    elif ((opcode > 0xffff) and (opcode & 0xffff0f00 == 0xf91f0e00)): #p.A5.146 => ldrsb not decoded correctly by objdump when op2=1110xx (ldrsbt): op1=10, op2=1110xx, Rn=1111
+    elif ((opcode > 0xffff) and (opcode & 0xfe70f000 == 0xf830f000)): #p.A5.146 => Rt never set to 0xF => unpredictable.
         exception = 15
+#    elif ((opcode > 0xffff) and (opcode & 0xfff0f000 == 0xf830f000)): #p.A5.145 =>  no pldw with halfwords
+#        exception = 15
+#    elif ((opcode > 0xffff) and (opcode & 0xfff0f000 == 0xf8b0f000)): #p.A5.145 =>  no pldw with halfwords
+#        exception = 15
+#    elif ((opcode > 0xffff) and (opcode & 0xfff0ff00 == 0xf930fc00)): #p.A5.145 => op1=10, op2=1100xx Rt=f unpredictable (byte+half)
+#        exception = 16
     #print('opcode: '+hex(opcode)+', '+str(exception))
     return (exception != 0)
 

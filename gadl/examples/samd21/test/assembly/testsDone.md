@@ -45,15 +45,26 @@ Les loads/store exclusives ne sont pas complets!!!
 h:'no syntax for cortexM0Plus_Rd_Rn_Rt_byte_exclusive_imm10_load'	o:'ldrexb	r2, [r0]' => opcode e8d0 2f4f
 ```
 
-# En cours (30 mars 2018)
+# Ok
 
 Load byte memory hints. A5-146
 
-4 lignes pour 4 valeurs de op1.
-Actuellement, pas de pli (5/4/18)
+4 lignes pour 4 valeurs de op1 => Ok (15/5/18)
 ```
  ./manyTests.py -v -fr 0xf8100000 -tr 0xf81fffff
  ./manyTests.py -v -fr 0xf8900000 -tr 0xf89fffff
- ./manyTests.py -v -fr 0xf9100000 -tr 0xf91fffff => FAIL!
+ ./manyTests.py -v -fr 0xf9100000 -tr 0xf91fffff
  ./manyTests.py -v -fr 0xf9900000 -tr 0xf99fffff
 ```
+
+Load half memory hints. A5-146
+
+4 lignes pour 4 valeurs de op1 (00 à 11) => Ok (15/5/18)
+```
+ ./manyTests.py -v -fr 0xf8300000 -tr 0xf83fffff
+ ./manyTests.py -v -fr 0xf8b00000 -tr 0xf8bfffff
+ ./manyTests.py -v -fr 0xf9300000 -tr 0xf93fffff
+ ./manyTests.py -v -fr 0xf9b00000 -tr 0xf9bfffff
+```
+
+#En cours
