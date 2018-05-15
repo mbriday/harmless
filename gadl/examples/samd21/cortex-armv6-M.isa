@@ -1169,12 +1169,12 @@ end format
 format loadMemHints --A5.145, A5.146
   select slice{8..7,6..5,3..0}{15..12,11..6} -- careful: order op1 sign Rn Rt op2 => sign:00 byte, 01 hw, 10 word 
     --    op1 Rn   Rt   op2
-    case \m--_--_1111_----_------ is ldrSign ldrSize #ldr ldrLiteral Rt4not15 -- ldrb literral
-    case \m-1_--_----_----_------ is ldrSign ldrSize #ldr #imm12 #add imm12 := slice{-}{11..0} Rn4not15 Rt4not15 -- ldrb imm: encoding T2
+    case \m--_--_1111_----_------ is ldrSign ldrSize #ldr ldrLiteral -- ldrb literral
+    case \m-1_--_----_----_------ is ldrSign ldrSize #ldr #imm12 #add imm12 := slice{-}{11..0} Rn4not15 -- ldrb imm: encoding T2
     case \m-0_--_----_----_1--1-- or
-         \m-0_--_----_----_1100-- is ldrSign ldrSize #ldr #imm8 imm8 := slice{-}{7..0} ldrImm  --ldrb imm: encoding T3
-    case \m-0_--_----_----_1110-- is ldrSign ldrSize #ldrt Rn4not15 Rt4not15 imm8 := slice{-}{7..0} #imm8 -- ldrbt
-    case \m-0_--_----_----_0000-- is ldrSign ldrSize #ldr  Rn4not15 Rt4not15 Rm4LslImm2 --ldrb reg
+         \m-0_--_----_----_1100-- is ldrSign ldrSize #ldr #imm8 imm8 := slice{-}{7..0} ldrImm Rn4not15  --ldrb imm: encoding T3
+    case \m-0_--_----_----_1110-- is ldrSign ldrSize #ldrt Rn4not15 imm8 := slice{-}{7..0} #imm8 -- ldrbt
+    case \m-0_--_----_----_0000-- is ldrSign ldrSize #ldr  Rn4not15 Rm4LslImm2 --ldrb reg
 
     case \m--_00_1111_1111_------ is plipld #pc ldrLiteral --pld litteral: i.e. relative to PC
     case \m-0_00_----_1111_0000-- is plipld #add Rn4not15 Rm4LslImm2 --pld reg, objdump deasm if op2{1..0} != 0
@@ -1199,9 +1199,9 @@ end format
 
 format ldrSize
   select slice{6..5}{-}
-    case 0 is #byte
-    case 1 is #halfword
-    case 2 is #word
+    case 0 is #byte     Rt4not15
+    case 1 is #halfword Rt4not15
+    case 2 is #word     Rt4 restrict slice{8..7}{-} to \m0- -- op1 = 0 or 1.
   end select
 end format
 
@@ -1214,7 +1214,6 @@ format ldrLiteral #pc
 end format
 
 format ldrImm 
-  Rn4not15 Rt4not15
   W := slice{-}{8}
   select slice{-}{9} -- U hardcoded.
     case 0 is #sub
@@ -1476,9 +1475,9 @@ format dataProcImm16
   imm16 := slice{3..0,10}{14..12,7..0} #imm16
 end format
 
--- format Rt4 --Rt
---   Rt := slice{-}{15..12} #Rt
--- end format
+format Rt4 --Rt
+  Rt := slice{-}{15..12} #Rt
+end format
 
 format Rt4not15 --Rt, but not with 15
   select slice{-}{15..12} -- Rt 

@@ -150,6 +150,10 @@ def isException(dataO, dataH):
         exception = 14
     elif ((opcode > 0xffff) and (opcode & 0xfe70f000 == 0xf830f000)): #p.A5.146 => Rt never set to 0xF => unpredictable.
         exception = 15
+    elif ((opcode > 0xffff) and (opcode & 0xffff0000 == 0xf85f0000)): #p.A5.144 => ldrt without Rn=0xf (objdump error)
+        exception = 16
+    elif ((opcode > 0xffff) and (opcode & 0xff700000 == 0xf9500000)): #p.A5.144 => ldr with op1 > 1 => unpredictable.
+        exception = 16
 #    elif ((opcode > 0xffff) and (opcode & 0xfff0f000 == 0xf830f000)): #p.A5.145 =>  no pldw with halfwords
 #        exception = 15
 #    elif ((opcode > 0xffff) and (opcode & 0xfff0f000 == 0xf8b0f000)): #p.A5.145 =>  no pldw with halfwords

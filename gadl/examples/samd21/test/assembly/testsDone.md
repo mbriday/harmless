@@ -67,4 +67,16 @@ Load half memory hints. A5-146
  ./manyTests.py -v -fr 0xf9b00000 -tr 0xf9bfffff
 ```
 
+Load memory hints. A5-146
+
+4 lignes pour 4 valeurs de op1 (00 à 11)
+(pour op1=2 et op1= 3 => unpredictable => filtrage dans script.)
+Ok le 15/5/18.
+```
+ ./manyTests.py -v -fr 0xf8500000 -tr 0xf85fffff
+ ./manyTests.py -v -fr 0xf9500000 -tr 0xf95fffff
+ ./manyTests.py -v -fr 0xf8d00000 -tr 0xf8dfffff
+ ./manyTests.py -v -fr 0xf9d00000 -tr 0xf9dfffff
+```
+
 #En cours
