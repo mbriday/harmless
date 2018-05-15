@@ -144,8 +144,12 @@ def isException(dataO, dataH):
     elif ((opcode > 0xffff) and (opcode & 0xfff0f900 == 0xf810f900)): #p.A5.146 => op1=0, op2=1xx1xx unpredictable
         #but objdump understand it as a pld [rn], #imm instruction.
         exception = 12
-    elif ((opcode > 0xffff) and (opcode & 0xfff0fe00 == 0xf810fe00)): #p.A5.146 => op1=0, op2=1110xx unpredictable
+    elif ((opcode > 0xffff) and (opcode & 0xfef0ff00 == 0xf810fe00)): #p.A5.146 => op1=x0, op2=1110xx unpredictable
         exception = 13
+    elif ((opcode > 0xffff) and (opcode & 0xfef0f900 == 0xf810f900)): #p.A5.146 => op1=x0, op2=1xx1xx unpredictable
+        exception = 14
+    elif ((opcode > 0xffff) and (opcode & 0xffff0f00 == 0xf91f0e00)): #p.A5.146 => ldrsb not decoded correctly by objdump when op2=1110xx (ldrsbt): op1=10, op2=1110xx, Rn=1111
+        exception = 15
     #print('opcode: '+hex(opcode)+', '+str(exception))
     return (exception != 0)
 
