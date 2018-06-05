@@ -77,6 +77,31 @@ component alu {
     end if
     return result cat carryOut
   }
+  
+  -- warning => not the same shift instruction as in reference manual (DDI0403E)
+  u32 shift(u32 val, u2 typeShift, u5 imm5, u1 carry)
+  {
+    u32 result
+    if     typeShift = 0  then result := val << imm5 -- lsl
+    elseif typeShift = 1  then -- lsr
+      if imm5 > 0  then 
+        result := val >> imm5
+      else result := 0
+      end if
+    elseif typeShift = 2  then --asr
+      if(imm5 > 0) then 
+        result := (u32)((s32)(val) >> imm5)
+      else if result{31} then result := \xffffffff else result := 0 end if
+      end if
+    elseif typeShift = 3  then
+      if imm5 = 0 then -- rrx
+        result := carry cat (val >> 1)
+      else --ror
+        result := val ror imm5
+      end if
+    end if
+    return result
+  }
 }
 
 component gpr {
@@ -855,6 +880,28 @@ behavior storeSingleDataItem32 #store
 end behavior
 
 
+
+
+behavior addCmnReg #dataProcessingSR #shType
+  field u4 Rm #Rm
+  field u4 Rn #Rn
+  field u2 shiftType
+  field u5 imm5
+  field u1 S -- setFlags
+  do 
+    u32 shifted := alu.shift(gpr.iread32(Rm),shiftType,imm5, CPSR.C)
+  end do
+  select
+    case #add
+      field u4 Rd #Rd
+      do
+				u32 result := alu.addSub(gpr.iread32(Rn),shifted,S & Rd != 15)
+        gpr.write32(Rd, result)
+      end do
+    case #cmn
+      do alu.addSub(gpr.iread32(Rn),shifted,S) end do
+  end select
+end behavior
 
 
 --##==================================================
