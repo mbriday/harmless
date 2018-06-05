@@ -309,6 +309,9 @@ def generateGdbScript(args, filename, inst, codeCases, runCases):
             for reg in inst['init']:
                 if reg in regDict:
                     gdb.write('set $'+reg+'='+str(inst['init'][reg])+'\n')
+                    gdb.write('set $'+reg+'='+str(inst['init'][reg])+'\n')
+                    gdb.write('set $'+reg+'='+str(inst['init'][reg])+'\n')
+                    gdb.write('set $'+reg+'='+str(inst['init'][reg])+'\n')
                 else:
                     addr = getInt(reg)
                     val = inst['init'][reg]
