@@ -2,14 +2,14 @@
 	"instruction": "add.w Rd, Rn, Rm, shift ",
 	"src":
 	{
-               "Rn" : {
+            "Rn" : {
 			"idx": ["r0","r7"],
-			"val": ["0", "0xffffffff", "0x2aaa5555"]
+			"val": ["0", "0xffffffff", "0x2aaa5555", "0xb29c7f2a"]
 		},
 
-               "Rm" : {
+            "Rm" : {
 			"idx": ["r1","r9"],
-			"val": ["0", "0xffffffff", "0xacb53c5a"]
+			"val": ["0", "0xffffffff", "0xacb53c5a", "0x29c5a1bf"]
 		},
 		            
                

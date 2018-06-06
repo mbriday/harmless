@@ -13,9 +13,9 @@ import time
 # avec openocd, il faut lancer le serveur: openocd -f board/st_nucleo_f3.cfg
 # avec jlink: JLinkGDBServer -device ATSAMD21J18 -if SWD -speed 4000 -autoconnect 1 
 #             Warning: tests available only on st Nucleo F303 (Memory mapping…)
-debugger = 'openocd' #either st-util, openocd or jlink
+#debugger = 'openocd' #either st-util, openocd or jlink
 #debugger = 'jlink'
-#debugger = 'st-util' 
+debugger = 'st-util' 
 
 #verbose mode:
 # - 0 => nothing, except for errors
