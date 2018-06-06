@@ -18,9 +18,10 @@
 		},
 		"shift" : {
 			"imm": [0, 4, 31]
+		},
+		"flags" : {
+			"idx": ["s", ""]
 		}
-		
-
 	},
 	
 	"dest":
@@ -40,7 +41,7 @@
 		"sp": "0x20003000",
 		"lr": "0xdead"
 	},
-	"mnemo": "add.w {Rd}, {Rn}, {Rm}, {type} #{shift}",
+	"mnemo": "add{flags}.w {Rd}, {Rn}, {Rm}, {type} #{shift}",
 	"size": 4
 }
 
