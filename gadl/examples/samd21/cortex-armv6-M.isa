@@ -33,9 +33,9 @@ component alu {
     GE := slice{19..16}
   }
   
-  u32 addSub(u32 src1, u33 src2, u1 updateFlags)
+  u32 addWithCarry(u32 src1, u32 src2, u1 carry, u1 updateFlags)
   {
-    u33 result := src1+src2
+    u33 result := src1+src2+carry
     if updateFlags then
       CPSR.N := result{31}
       CPSR.Z := result{31..0} = 0
@@ -287,15 +287,15 @@ behavior arithAddSub16 #Rd
   u32 result
   select
     case #add do
-        result := alu.addSub(src1,src2,setFlags) 
+        result := alu.addWithCarry(src1,src2,0,setFlags) 
         gpr.write32(Rd,result) 
       end do
     case #sub do
-        result := alu.addSub(src1,~src2+1,setFlags)
+        result := alu.addWithCarry(src1,~src2,1,setFlags)
         gpr.write32(Rd,result) 
       end do
     case #compare do
-        result := alu.addSub(src1,~src2+1,setFlags)
+        result := alu.addWithCarry(src1,~src2,1,setFlags)
       end do
   end select
 end behavior
@@ -329,7 +329,7 @@ behavior dataProcAddSub #Rm #Rd
   end do
   select
     case #adc do
-        dst := alu.addSub(src1,src2+CPSR.C,setFlags) 
+        dst := alu.addWithCarry(src1,src2,CPSR.C,setFlags) 
         gpr.write32(Rd, dst)
       end do
     case #sbc do
@@ -344,10 +344,10 @@ behavior dataProcAddSub #Rm #Rd
         gpr.write32(Rd, dst)
       end do
     case #cmp do
-        dst := alu.addSub(src1,~src2+1,setFlags) 
+        dst := alu.addWithCarry(src1,~src2,1,setFlags) 
       end do
     case #cmn do
-        dst := alu.addSub(src1,src2,setFlags) 
+        dst := alu.addWithCarry(src1,src2,0,setFlags) 
       end do
   end select
 end behavior
@@ -452,8 +452,8 @@ behavior special16BitInst
       field u4 Rd #Rd
       do u32 src2 := gpr.iread32(Rd) end do
       select
-        case #add     do gpr.write32(Rd, alu.addSub(src2, src1, false)) end do
-        case #compare do alu.addSub(src2, ~src1+1, true) end do
+        case #add     do gpr.write32(Rd, alu.addWithCarry(src2, src1,0, false)) end do
+        case #compare do alu.addWithCarry(src2, ~src1,1, true) end do
       end select
     case #mov #Rd field u4 Rd do gpr.write32(Rd, src1) end do
     case #bex #nons
@@ -549,14 +549,14 @@ behavior adr16
     case #ADR     do src1 := (PC+2) & \xFFFFFFFC end do --align 32 bits
     case #AddRdSP do src1 := SP   end do
   end select
-  do gpr.write32(Rd,alu.addSub(src1,imm10,false)) end do
+  do gpr.write32(Rd,alu.addWithCarry(src1,imm10,0,false)) end do
 end behavior
 
 behavior addTosp
   field u9 imm9 #imm9
   select
-    case #AddSP do SP := alu.addSub(SP,imm9,false)    end do
-    case #SubSP do SP := alu.addSub(SP,~(u32)(imm9)+1,false) end do
+    case #AddSP do SP := alu.addWithCarry(SP,imm9,0,false)    end do
+    case #SubSP do SP := alu.addWithCarry(SP,~(u32)(imm9),1,false) end do
   end select
 end behavior
 
@@ -882,7 +882,7 @@ end behavior
 
 
 
-behavior addCmnReg #dataProcessingSR #shType
+behavior addSubCmnCmp #dataProcessingSR #shType
   field u4 Rm #Rm
   field u4 Rn #Rn
   field u2 shiftType
@@ -895,11 +895,38 @@ behavior addCmnReg #dataProcessingSR #shType
     case #add
       field u4 Rd #Rd
       do
-				u32 result := alu.addSub(gpr.iread32(Rn),shifted,S & Rd != 15)
+				u32 result := alu.addWithCarry(gpr.iread32(Rn),shifted,0,S & Rd != 15)
         gpr.write32(Rd, result)
       end do
+     case #adc
+      field u4 Rd #Rd
+      do
+				u32 result := alu.addWithCarry(gpr.iread32(Rn),shifted,CPSR.C, S)
+        gpr.write32(Rd, result)
+      end do    
     case #cmn
-      do alu.addSub(gpr.iread32(Rn),shifted,S) end do
+      do alu.addWithCarry(gpr.iread32(Rn),shifted,0,S) end do
+    case #sub 
+      field u4 Rd #Rd
+      do
+				u32 result := alu.addWithCarry(gpr.iread32(Rn),~shifted,1,S)
+        gpr.write32(Rd, result)
+      end do
+    case #cmp
+       do	alu.addWithCarry(gpr.iread32(Rn),~shifted,1,S) end do
+    case #sbc 
+      field u4 Rd #Rd
+      do
+				u32 result := alu.addWithCarry(gpr.iread32(Rn),~shifted,CPSR.C,S)
+        gpr.write32(Rd, result)
+      end do
+    case #rsb 
+      field u4 Rd #Rd
+      do
+				u32 result := alu.addWithCarry(~(gpr.iread32(Rn)),shifted,1,S)
+        gpr.write32(Rd, result)
+      end do
+
   end select
 end behavior
 
