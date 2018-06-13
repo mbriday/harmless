@@ -1,0 +1,42 @@
+{
+	"instruction": "orn Rd, Rn, Rm, shift",
+	"src":
+	{
+		"Rm" : {
+			"idx": ["r1","r9"],
+			"val": ["0", "0xffffffff", "0xacb53c5a", "0x29c5a1bf"]
+		},
+		"Rn" : {
+                        "idx": ["r0", "r7"],			
+                        "val": ["0", "0xffffffff", "0xac533c5a", "0xaaaa5555"]
+		},
+		"type" : {
+			"idx": ["lsl", "lsr", "asr", "ror"]
+		},
+		"shift" : {
+			"imm": [0, 4, 31]
+		},
+		"flags" : {
+			"idx": ["s", ""]
+		}  
+	},
+	"dest":
+	{
+		"cpsr": {
+			"val": ["0x41000000","0x01000000", "0xF9000000"]
+		},
+		"Rd": {
+			"idx": ["r2","r10"],
+			"val": [0, "0xffffffff"]		
+		}
+	},
+	"init":
+	{
+		"sp": "0x20003000",
+		"lr": "0xdead"
+	},
+
+	"mnemo": "orn{flags} {Rd}, {Rn}, {Rm},{type} #{shift}",
+	"size": 4
+
+}
