@@ -713,7 +713,11 @@ if __name__ == '__main__':
     bootCodeChecked = False
     for filename in args.files:
         with open(filename) as jsonFile:
-            inst = json.load(jsonFile)
+            try:
+                inst = json.load(jsonFile)
+            except json.decoder.JSONDecodeError:
+                print("The JSON test file '"+filename+'" is not well formed.')
+                continue #do not handle this file.
         #1- generate the object file for Harmless and real target from the JSON test
         codeCases = getSourceFile(filename,inst)
         #2- compile it
