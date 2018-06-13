@@ -69,6 +69,7 @@ h2 {
 <h1>Static information</h1>
 %
 #let staticDataMap := mapOf core::staticData by instID
+if exists core::staticData then 
 foreach staticInst in core::staticData do
 %<h2>%!staticInst::instID%</h2>\n%
 %<h3>Code (in Harmless language)</h3>\n%
@@ -142,3 +143,4 @@ end foreach
 
 
 end foreach #instruction
+end if #exists core::staticData

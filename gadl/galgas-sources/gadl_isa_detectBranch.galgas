@@ -488,6 +488,10 @@ proc functionCallProcessStaticInfo
   @parameterDefList paramDef  = [idfStruct.componentMap getParamDefList ![exp idfList]]
   @expressionlist   paramList = [[exp idfList] paramListAtIndex !1]
   @varIdfStruct nextIdfStruct = idfStruct 
+
+  #TODO: There is a bug -> the idfStruct should embeds local vars before calling 'getInlinedInsts'
+  #      see proc handleBehBody in gadl_semantics_behavior.galgas
+
   #convert component call into a list of definitions+assigments
   [paramDef getInlinedInsts !paramList !@expressionContext.component 
                               !@location.here !@location.here #TODO

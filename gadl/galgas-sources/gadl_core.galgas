@@ -53,8 +53,11 @@ method @ASTCoreMap coreSemantic
     ###########################################################################
     # Static analysis
     ###########################################################################
-    @staticInfoMap staticInfoMap = [[isa decodedBehaviorMap] getStaticInfo !idfStruct !memChunk]
-    setStaticInfoTemplates(![isa decodedBehaviorMap] !idfStruct !staticInfoMap !?coreTplBody)
+
+    # bug found (13/6/18)  => see line 492 of gadl_isa_detect_branch.galgas
+
+    #@staticInfoMap staticInfoMap = [[isa decodedBehaviorMap] getStaticInfo !idfStruct !memChunk]
+    #setStaticInfoTemplates(![isa decodedBehaviorMap] !idfStruct !staticInfoMap !?coreTplBody)
 
     ###########################################################################
     # Architecture (defined in core), for a CAS version.
