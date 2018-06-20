@@ -1,0 +1,37 @@
+{
+	"instruction": "ssat Rd, #imm5, Rn, shift ",
+	"src":
+	{            	
+		"imm5": {
+			"imm": ["0x01", "0x17", "0x1f"]
+		},
+        "Rn" : {
+			"idx": ["r0","r7"],
+			"val": ["0", "0xffffffff", "0x2aaa5555"]
+		}, 
+        "type" : {
+			"idx": ["lsl", "asr"]
+		},
+        "shift" : {
+			"imm": [1, 4, 31]
+		}		
+	},
+	"dest":
+	{
+		"cpsr": {
+			"val": ["0x41000000","0x01000000", "0xF9000000"]
+		},
+		"Rd": {
+			"idx": ["r1","r9"],
+			"val": [0, 12334, "0xffffffff"]
+		}
+	},
+	"init":
+	{
+		"sp": "0x20003000",
+		"lr": "0xdead"
+	},
+	"mnemo": "ssat {Rd}, #{imm5}, {Rn},{type} #{shift} ",
+	"size": 4
+}
+
