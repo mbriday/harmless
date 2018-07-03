@@ -1,0 +1,32 @@
+{
+	"instruction": "mov.w Rd, #const",
+	"src":
+	{                   
+		"const" : {	
+			"imm": ["0x0", "0x7a007a00", "0xbc00bc00", "0xff00ff00"]
+        },
+		"flags" : {
+			"idx": ["s", ""]
+		}
+	},
+	
+	"dest":
+	{
+        "cpsr": {
+			"val": ["0x41000000","0x01000000", "0xF9000000"]
+		},
+		 "Rd" : {
+			"idx": ["r1","r9"],
+			"val": ["0", "0xffffffff", "0xbc43385a"]
+		}		
+	},
+
+	"init":
+	{
+		"sp": "0x20003000",
+		"lr": "0xdead"
+	},
+	"mnemo": "mov{flags}.w {Rd}, #{const} ",
+	"size": 4
+}
+

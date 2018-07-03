@@ -1,0 +1,42 @@
+{
+	"instruction": "sub.w Rd, Rn, #const",
+	"src":
+	{      
+                
+		"Rn" : {
+			
+                        "idx": ["r0","r7"],			
+                        "val": ["0", "0xffffffff", "0xac533c5a"]
+		},                
+                
+
+                "const" : {
+			
+			"imm": ["0","0x0000007a","0x007a007a" ,"0x7a007a00","0x7a7a7a7a","0xfa000000","0x7d000000", "0x3e800000","0x1f400000","0x000007d0","0x000003e8","0x000001f4"]
+                },
+		"flags" : {
+			"idx": ["s", ""]
+		}
+	},
+	
+	"dest":
+	{
+                "cpsr": {
+			"val": ["0x41000000","0x01000000", "0xF9000000"]
+		},
+		 "Rd" : {
+			"idx": ["r1","r9"],
+			"val": ["0", "0xffffffff", "0xbc43385a"]
+		}
+
+                			
+	},
+
+	"init":
+	{
+		"sp": "0x20003000",
+		"lr": "0xdead"
+	},
+	"mnemo": "sub{flags}.w {Rd}, {Rn}, #{const} ",
+	"size": 4
+}
