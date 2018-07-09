@@ -1236,10 +1236,47 @@ format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
     case \m11_000---0_- is storeSingleDateItem      --A5-147
     case \m11_00----1_- is loadMemHints             --A5-146 (byte) A5-145 (half)
     case \m11_010----_- is dataProcReg              --A5-150
+    case \m11_0110---_- is multiplyOps              --A5-154
   end select
 end format
 
 --
+format multiplyOps
+  restrict slice {-}{7..6} to \m00
+  select slice{6..4}{5..4} -- op1/op2
+    case \m000_00 is #mul Rd4 Rn4 Rm4 mulAccRa15
+    case \m000_01 is #mul #sub #acc Rd4 Rn4 Rm4 Ra4
+    case \m001_-- is #mul #signed #halfword 
+      Rn4 Rd4 Rm4 mulAccRa15
+      select slice{-}{5} --N
+        case 0 is #NB -- Rn: bottom halfword
+        case 1 is #NT -- Rn: top halfword
+      end select
+      select slice{-}{4} --M
+        case 0 is #MB -- Rm: bottom halfword
+        case 1 is #MT -- Rm: top halfword
+      end select
+    case \m010_0- is #mul #signed #dual
+      Rn4 Rd4 Rm4 mulAccRa15
+      select slice{-}{4} --M
+        case 0 is #noSwap
+        case 1 is #Swap
+      end select
+    case \m011_0- is #mul #signed #word #halfword
+      select slice{-}{4} --M
+        case 0 is #MB -- Rm: bottom halfword
+        case 1 is #MT -- Rm: top halfword
+      end select
+      Rn4 Rd4 Rm4 mulAccRa15
+  end select
+end format
+
+format mulAccRa15 -- accumulate on mul instruction if Ra=15
+  select slice{-}{15..12} --Ra
+    case \b1111 is #noAcc
+    others      is #acc    Ra4
+  end select
+end format
 
 format dataProcReg
   restrict slice{-}{15..12} to \m1111
@@ -1615,6 +1652,10 @@ format Rd4
   Rd := slice{-}{11..8} #Rd
 end format
 
+format Ra4
+  Ra := slice{-}{15..12} #Ra
+end format
+
 format dataProcImm12
   imm12 := slice{10}{14..12,7..0} #imm12
 end format
@@ -1724,6 +1765,53 @@ syntax regList
   if regList{14} then "lr"  if regList{15..15} != 0 then ", " end if end if 
   if regList{15} then "pc"  end if
   "}"
+end syntax
+
+-- mla, mul, mls
+-- smlabb, smlabt, smlatb, smlatt
+-- smulbb, smulbt, smultb, smultt
+syntax mul
+  select
+    case #mul #acc       "mla"
+    case #mul #noAcc     "mul.w"
+    case #mul #sub #acc  "mls"
+    case #mul #signed #halfword "s"
+      select
+        case #acc   "mla"
+        case #noAcc "mul"
+      end select
+      select
+        case #NB "b"
+        case #NT "t"
+      end select
+      select
+        case #MB "b"
+        case #MT "t"
+      end select
+    case #mul #signed #dual "s"
+      select
+        case #acc   "mlad"
+        case #noAcc "muad"
+      end select
+      select
+        case #noSwap
+        case #Swap   "x"
+      end select
+    case #mul #signed #word #halfword "s"
+      select
+        case #acc   "mlaw"
+        case #noAcc "mulw"
+      end select
+      select
+        case #MB "b"
+        case #MT "t"
+      end select
+  end select
+  "\t"   Rd4 ", " Rn4 ", " Rm4
+  select
+    case #acc   ", " Ra4
+    case #noAcc 
+  end select
 end syntax
 
 --clz
@@ -2740,9 +2828,18 @@ syntax Rt2_4  #Rt2
     end if
 end syntax
 
+syntax Ra4  #Ra 
+		field u4 Ra
+		if     Ra=15 then "pc" 
+		elseif Ra=14 then "lr"
+		elseif Ra=13 then "sp"
+		else   "r\d",Ra
+    end if
+end syntax
+
 syntax Rd4  #Rd 
 		field u4 Rd 
-		if    Rd =15 then "pc" 
+		if     Rd=15 then "pc" 
 		elseif Rd=14 then "lr"
 		elseif Rd=13 then "sp"
 		else   "r\d",Rd
