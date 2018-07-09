@@ -98,22 +98,15 @@ Data processing (register) p.150
 Multiply
 
  * mla, mul, mls
-```
-./manyTests.py -v -fr 0xfb000000 -tr 0xfb0fffff
-```
-
  * smlabb, smlabt, smlatb, smlatt
  * smulbb, smulbt, smultb, smultt
-```
-./manyTests.py -v -fr 0xfb100000 -tr 0xfb1fffff
-```
-
  * smlad, smladx, smuad, smuadx
+ * smlawb, smlawt, smulwb, smulwt
+ * smlsd, smlsdx, smusd, smusdx
+ * smmla, smmlar, smmul, smmulr
+ * smmls, smmlsr
+ * usada8, usad8
 ```
-./manyTests.py -v -fr 0xfb200000 -tr 0xfb2fffff
+./manyTests.py -v -fr 0xfb000000 -tr 0xfb7fffff
 ```
 
- * smlawb, smlawt, smulwb, smulwt
-```
-./manyTests.py -v -fr 0xfb300000 -tr 0xfb3fffff
-```

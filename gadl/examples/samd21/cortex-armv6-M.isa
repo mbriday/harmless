@@ -1268,6 +1268,26 @@ format multiplyOps
         case 1 is #MT -- Rm: top halfword
       end select
       Rn4 Rd4 Rm4 mulAccRa15
+    case \m100_0- is #mul #signed #sub #dual
+      Rn4 Rd4 Rm4 mulAccRa15
+      select slice{-}{4} --M
+        case 0 is #noSwap
+        case 1 is #Swap
+      end select
+    case \m101_0- is #mul #signed #msw
+      Rn4 Rd4 Rm4 mulAccRa15
+      select slice{-}{4} --R
+        case 0 is #noRound
+        case 1 is #round
+      end select
+    case \m110_0- is #mul #signed #sub #acc #msw
+      Rn4 Rd4 Rm4 Ra4
+      select slice{-}{4} --R
+        case 0 is #noRound
+        case 1 is #round
+      end select
+    case \m111_00 is #unsigned #sum #diff
+      Rn4 Rd4 Rm4 mulAccRa15
   end select
 end format
 
@@ -1805,6 +1825,34 @@ syntax mul
       select
         case #MB "b"
         case #MT "t"
+      end select
+    case #mul #signed #sub #dual "s"
+      select
+        case #acc   "mlsd"
+        case #noAcc "musd"
+      end select
+      select
+        case #noSwap
+        case #Swap   "x"
+      end select
+    case #mul #signed #msw "s"
+      select
+        case #acc   "mmla"
+        case #noAcc "mmul"
+      end select
+      select
+        case #noRound
+        case #round   "r"
+      end select
+    case #mul #signed #sub #acc #msw "smmls"
+      select
+        case #noRound
+        case #round   "r"
+      end select
+    case #unsigned #sum #diff
+      select
+        case #acc   "usada8"
+        case #noAcc "usad8"
       end select
   end select
   "\t"   Rd4 ", " Rn4 ", " Rm4
