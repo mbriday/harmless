@@ -1251,7 +1251,62 @@ format dataProcReg
         case \m10 is #asr
         case \m11 is #ror
 		  end select
+    case \m0---_1--- is #extend
+      select slice {4}{-}
+        case 0 is #signed
+        case 1 is #unsigned
+      end select
+      select slice {6..5}{-}
+        case 0 is #halfword
+        case 1 is #byte16
+        case 2 is #byte
+      end select
+      select slice {3..0}{-}
+        case \b1111 is #noAdd
+        others      is #add
+      end select
+      Rn4 Rd4 Rm4 
+      restrict slice{-}{6} to \m0
+      rotate := slice{-}{5..4} << 3
+    case \m1---_0--- is parallelAddSub
+    case \m10--_10-- is miscops
   end select
+end format
+
+format miscops
+  select slice{5..4}{5..4} -- op1/op2
+    case \b0000 is #saturate #add #noDouble Rd4 Rn4 Rm4
+    case \b0001 is #saturate #add #double   Rd4 Rn4 Rm4
+    case \b0010 is #saturate #sub #noDouble Rd4 Rn4 Rm4
+    case \b0011 is #saturate #sub #double   Rd4 Rn4 Rm4
+    case \b0100 is #reverse #word             Rd4 Rn4 --Rn4 should be equal to Rm4 :/
+    case \b0101 is #reverse #halfword #packed Rd4 Rn4 --Rn4 should be equal to Rm4 :/
+    case \b0110 is #reverse #bits             Rd4 Rn4 --Rn4 should be equal to Rm4 :/
+    case \b0111 is #reverse #halfword #signed Rd4 Rn4 --Rn4 should be equal to Rm4 :/
+    case \b1000 is #sel Rd4 Rn4 Rm4
+    case \b1100 is #clz Rd4 Rn4 --Rn4 should be equal to Rm4 :/
+  end select
+end format
+
+format parallelAddSub #parallel
+  select slice {-}{6}
+    case 0 is #signed
+    case 1 is #unsigned
+  end select
+  select slice{6..4}{-} -- op1
+    case \m001 is #add16
+    case \m010 is #addsub
+    case \m110 is #subadd
+    case \m101 is #sub16
+    case \m000 is #add8
+    case \m100 is #sub8
+  end select
+  select slice{-}{5..4} -- op2
+    case 0 is #normal
+    case 1 is #saturate
+    case 2 is #halving
+  end select
+  Rd4 Rn4 Rm4
 end format
 
 --
@@ -1669,6 +1724,116 @@ syntax regList
   if regList{14} then "lr"  if regList{15..15} != 0 then ", " end if end if 
   if regList{15} then "pc"  end if
   "}"
+end syntax
+
+--clz
+syntax miscOpsCLZ #clz
+  "clz\t" Rd4 ", " Rn4
+end syntax
+
+--sel
+syntax miscOpsSEL #sel
+  "sel\t" Rd4 ", " Rn4 ", " Rm4
+end syntax
+
+-- rev, rev16, rbit, revsh
+syntax miscOpsRev #reverse
+  select
+    case #word             "rev.w"
+    case #halfword #packed "rev16.w"
+    case #bits             "rbit"
+    case #halfword #signed "revsh.w"
+  end select
+  "\t" Rd4 ", " Rn4
+end syntax
+
+--qadd, qdadd, qsub, qdsub
+syntax miscOpsSat #saturate
+  "q"
+  select
+    case #double "d"
+    case #noDouble
+  end select
+  select
+    case #add "add"
+    case #sub "sub"
+  end select
+  "\t" Rd4 ", " Rm4 ", " Rn4
+end syntax
+
+-- p.151: 
+-- sadd16 , sasx , ssax , ssub16 , sadd8 , ssub8 ,
+-- qadd16 , qasx , qsax , qsub16 , qadd8 , qsub8 ,
+-- shadd16, shasx, shsax, shsub16, shadd8, shsub8,
+syntax parallelAddSub #parallel
+  select
+    case #signed   #normal   "s"
+    case #signed   #saturate "q"
+    case #signed   #halving  "sh"
+    case #unsigned #normal   "u"
+    case #unsigned #saturate "uq"
+    case #unsigned #halving  "uh"
+  end select
+  select
+    case #add16  "add16"
+    case #addsub "asx"
+    case #subadd "sax"
+    case #sub16  "sub16"
+    case #add8   "add8"
+    case #sub8   "sub8"
+  end select
+  "\t" Rd4 ", " Rn4 ", " Rm4
+end syntax
+
+-- sxtah, sxth, uxtah, uxth, sxtab16, sxtb16, uxtab16, uxtb16, sxtab, sxtb, uxtab, uxtb
+syntax extendDataProcRegister #extend
+  select
+    case #unsigned "uxt"
+    case #signed   "sxt"
+  end select
+  select
+    case #add     "a"
+    case #noAdd   --nothing
+  end select
+  select
+    case #halfword "h"
+    case #byte16   "b16"
+    case #byte     "b"
+  end select
+  -- objdump restriction ('.w' not added all the time) 
+  select 
+    case #unsigned #add   #halfword "\t"
+    case #unsigned #add   #byte16   "\t"
+    case #unsigned #add   #byte     "\t"
+    case #unsigned #noAdd #halfword ".w\t"
+    case #unsigned #noAdd #byte16   "\t"
+    case #unsigned #noAdd #byte     ".w\t"
+    case #signed   #add   #halfword "\t"
+    case #signed   #add   #byte16   "\t"
+    case #signed   #add   #byte     "\t"
+    case #signed   #noAdd #halfword ".w\t"
+    case #signed   #noAdd #byte16   "\t"
+    case #signed   #noAdd #byte     ".w\t"
+  end select
+  Rd4
+  select --Rn only in case of addition.
+    case #add     ", " Rn4
+    case #noAdd   #Rn 
+  end select
+  ", " Rm4
+  field u5 rotate
+  if rotate != 0 then ", ror #\d",rotate end if
+end syntax
+
+syntax logicalOpDataProcRegister -- lsl.w, lsr.w, ...
+  select
+    case #lsl "lsl"
+    case #lsr "lsr"
+    case #asr "asr"
+    case #ror "ror"
+  end select
+  field u1 setFlags if setFlags then "s" end if
+  ".w\t" Rd4 ", " Rn4 ", " Rm4
 end syntax
 
 syntax wback field u1 W if W then "!" end if end syntax -- Write back

@@ -80,3 +80,18 @@ Ok le 15/5/18.
 ```
 
 #En cours
+
+Data processing (register) p.150
+
+ * lsl, lsr, asr, ror
+ * sxtah, sxth, uxtah, uxth, sxtab16, sxtb16, uxtab16, uxtb16, sxtab, sxtb, uxtab, uxtb
+ * parallel addtion ans subtraction (signed/unsigned)
+ * misc saturating
+ * misc rev
+ * misc sel, clz
+**not all tested: this should be 0xfaf.. instead of 0xfab.. because of crc32 related instructions.**
+
+```
+./manyTests.py -v -fr 0xfa000000 -tr 0xfabfffff
+```
+
