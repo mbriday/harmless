@@ -154,6 +154,9 @@ def isException(dataO, dataH):
         exception = 16
     elif ((opcode > 0xffff) and (opcode & 0xff700000 == 0xf9500000)): #p.A5.144 => ldr with op1 > 1 => unpredictable.
         exception = 16
+    elif ((opcode > 0xffff) and (opcode & 0xff800000 == 0xe8000000)): 
+        #p.A5.142 => op should not be 00 => objdump deasm as srsdb/rfedb => extension?
+        exception = 17
 #    elif ((opcode > 0xffff) and (opcode & 0xfff0f000 == 0xf830f000)): #p.A5.145 =>  no pldw with halfwords
 #        exception = 15
 #    elif ((opcode > 0xffff) and (opcode & 0xfff0f000 == 0xf8b0f000)): #p.A5.145 =>  no pldw with halfwords
