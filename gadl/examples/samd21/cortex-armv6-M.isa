@@ -1252,7 +1252,9 @@ format longMultiplyOps
     case \m100_10-- is #long #acc #mul #signed #halfword
       halfwordPartRm halfwordPartRn
       Rn4 Rm4 Rd4 Ra4 --Rd4 <-> RdHi, Ra4 <-> RdLo
-    case \m100_110- is #long #acc #mul #signed #dual mulSwap Rn4 Rm4 Rd4 Ra4 --Rd4 <-> RdHi, Ra4 <-> RdLo
+    case \m100_110- is #long #acc #mul #signed #dual      mulSwap Rn4 Rm4 Rd4 Ra4 --Rd4 <-> RdHi, Ra4 <-> RdLo
+    case \m101_110- is #long #acc #mul #signed #dual #sub mulSwap Rn4 Rm4 Rd4 Ra4 --Rd4 <-> RdHi, Ra4 <-> RdLo
+    case \m110_0110 is #long #acc #mul #unsigned #acc2    Rn4 Rm4 Rd4 Ra4 --Rd4 <-> RdHi, Ra4 <-> RdLo
   end select
   select slice {5}{-}
     case 0 is #signed
@@ -1818,6 +1820,8 @@ syntax longMul
     case #long #mul #acc "mlal\t" Ra4 ", " Rd4 ", " Rn4 ", " Rm4
     case #long #mul #acc #halfword "mlal" halfwordPartRn halfwordPartRm "\t" Ra4 ", " Rd4 ", " Rn4 ", " Rm4
     case #long #mul #acc #dual "mlald" mulSwap "\t" Ra4 ", " Rd4 ", " Rn4 ", " Rm4
+    case #long #mul #acc #dual #sub "mlsld" mulSwap "\t" Ra4 ", " Rd4 ", " Rn4 ", " Rm4
+    case #long #mul #acc #acc2 "maal\t" Ra4 ", " Rd4 ", " Rn4 ", " Rm4
   end select
   
 end syntax
