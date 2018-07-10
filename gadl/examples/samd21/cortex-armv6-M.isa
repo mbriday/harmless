@@ -1520,6 +1520,7 @@ format branchAndMiscCtrl
       mask := slice{-}{11..10}
       sysm := slice{-}{7..0}
     case \m011111-_0-0 is #mrs Rd4
+      restrict slice{4..0}{13} to \m01111_0
       sysm := slice{-}{7..0}
     case \m0111010_0-0 is #hint32
       select slice{-}{10..0}
@@ -1641,17 +1642,28 @@ format loadStoreDualOrExclusive
          \m01_0-_010- is #exclusive
       Rt   := slice{-}{15..12} #Rt
       select slice{4}{-}
-        case 0 is #store
+        case 0 is #store -- store and loads are not symetric :/
+         select slice{8..7,5}{7..4}
+           case \m00_0_---- is #word 
+             imm10 := slice{-}{7..0} << 2 #imm10
+             Rd    := slice{-}{11..8}     #Rd
+           case \m01_0_0100 is #byte
+             restrict slice {-}{11..8} to \m1111
+             Rd    := slice{-}{3..0}     #Rd
+           case \m01_0_0101 is #halfword
+             restrict slice {-}{11..8} to \m1111
+             Rd    := slice{-}{3..0}     #Rd
+         end select
         case 1 is #load
-      end select
-      select slice{8..7,5}{7..4}
-        case \m00_0_---- is #word 
-          imm10 := slice{-}{7..0} << 2 #imm10
-          Rd    := slice{-}{11..8}     #Rd
-        case \m01_0_0100 is #byte
-          Rd    := slice{-}{3..0}     #Rd
-        case \m01_0_0101 is #halfword
-          Rd    := slice{-}{3..0}     #Rd
+         select slice{8..7,5}{7..4}
+           case \m00_0_---- is #word 
+             imm10 := slice{-}{7..0} << 2 #imm10
+             restrict slice {-}{11..8} to \m1111
+           case \m01_0_0100 is #byte
+             restrict slice {-}{11..8,3..0} to \m1111_1111
+           case \m01_0_0101 is #halfword
+             restrict slice {-}{11..8,3..0} to \m1111_1111
+         end select
       end select
     case \m0-_1-_---- or \m1-_--_---- is #dual
       select slice{4}{-}
@@ -2135,12 +2147,17 @@ end syntax
 syntax loadStoreExclusive #exclusive
   select
     case #load  "ldrex"
+      select
+        case #word      "\t" Rt4 regImm10
+        case #halfword "h\t" Rt4 ", [" Rn4 "]"
+        case #byte     "b\t" Rt4 ", [" Rn4 "]"
+      end select
     case #store "strex"
-  end select
-  select
-    case #word      "\t" Rd4 ", " Rt4 regImm10
-    case #halfword "h\t" Rd4 ", " Rt4 ", [" Rn4 "]"
-    case #byte     "b\t" Rd4 ", " Rt4 ", [" Rn4 "]"
+      select
+        case #word      "\t" Rd4 ", " Rt4 regImm10
+        case #halfword "h\t" Rd4 ", " Rt4 ", [" Rn4 "]"
+        case #byte     "b\t" Rd4 ", " Rt4 ", [" Rn4 "]"
+      end select
   end select
 end syntax
 
@@ -2284,7 +2301,7 @@ end syntax
 syntax dataProcBitFieldExtract #dataProcessingPI #ubfx
   field u5 lsb
   field u5 widthm1
-  "ubfx\t" Rd4 ", " Rn4 ", #\d, #\d",lsb,widthm1 
+  "ubfx\t" Rd4 ", " Rn4 ", #\d, #\d",lsb,widthm1+1
 end syntax
 
 syntax dataProcSSAT #dataProcessingPI 
@@ -2292,8 +2309,8 @@ syntax dataProcSSAT #dataProcessingPI
   select
     case #ssat   "ssat\t"   Rd4 ", #\d, ",sat_imm5+1 Rn4 shiftType
     case #ssat16 "ssat16\t" Rd4 ", #\d, ",sat_imm5+1 Rn4
-    case #usat   "usat\t"   Rd4 ", #\d, ",sat_imm5+1 Rn4 shiftType
-    case #usat16 "usat16\t" Rd4 ", #\d, ",sat_imm5+1 Rn4
+    case #usat   "usat\t"   Rd4 ", #\d, ",sat_imm5 Rn4 shiftType
+    case #usat16 "usat16\t" Rd4 ", #\d, ",sat_imm5 Rn4
   end select
 end syntax
 
@@ -2396,6 +2413,7 @@ syntax specRegMRS --ugly, but objdump compatible.
   elseif sysm{6..0} = \x13  then "FAULTMASK"
   elseif sysm{6..0} = \x14  then "CONTROL"
   elseif sysm{5..4} = \x3  then "SP_hyp"
+  elseif sysm{5..4} = \x2  then "LR_usr"
   end if
   
   if sysm >= \x80 && sysm < \x98 then "_NS" end if 

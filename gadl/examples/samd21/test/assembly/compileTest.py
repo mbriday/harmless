@@ -138,6 +138,8 @@ def isException(dataO, dataH):
         exception = 9
     elif dataO[1].find("UNDEF") >= 0:
         exception = 10
+    elif dataO[1].find("_und") >= 0: # found on registers of mrs instructions.
+        exception = 10
     elif ((opcode > 0xffff) and (opcode & 0xfedf0f00 == 0xf81f0e00)): #ldr(s)(b|h)t should have Rn!=15
         #ldrbt impose that Rn != 15 (this is a ldrb.w in that case), but objdump does not
         exception = 11
@@ -157,6 +159,31 @@ def isException(dataO, dataH):
     elif ((opcode > 0xffff) and (opcode & 0xff800000 == 0xe8000000)): 
         #p.A5.142 => op should not be 00 => objdump deasm as srsdb/rfedb => extension?
         exception = 17
+    elif ((opcode > 0xffff) and (opcode & 0xff800000 == 0xe9800000)): 
+        #p.A5.142 => op should not be 11 => objdump deasm as srsia/rfeia => extension?
+        exception = 18
+    elif ((opcode > 0xffff) and (opcode & 0xfff00070 == 0xe8d00070)): 
+        #p.A5.143 => op1 = 01, op2=01, op3=0,1,4,5 => remove 7 (ldrexd, .. not in armv7)
+        exception = 19
+    elif ((opcode > 0xffff) and (opcode & 0xfff00080 == 0xe8d00080)): 
+        #p.A5.143 => op1 = 01, op2=01, op3=0,1,4,5 => remove 8+ (ldrexd, .. not in armv7)
+        exception = 20
+    elif ((opcode > 0xffff) and (opcode & 0xfff00000 == 0xe8c00000) and (opcode & 0x000000e0 != 0x40)):
+        #p.A5.143 => op1 = 01, op2=00, op3=4,5 => remove 8+ (strexd, .. not in armv7)
+        exception = 21
+    elif ((opcode > 0xffff) and (opcode & 0xfc000000 == 0xec000000)): 
+        #p.A5.156 => -- remove coprocessor instructions (part1) --
+        exception = 22
+    elif ((opcode > 0xffff) and (opcode & 0xfc000000 == 0xfc000000)): 
+        #p.A5.156 => -- remove coprocessor instructions (part2) --
+        exception = 23
+    elif ((opcode > 0xffff) and (opcode == 0xe97fe97f)): 
+        #p.A7.268 => objdump does not decode only this opcode!!!
+        exception = 23
+#    elif ((opcode > 0xffff) and (opcode & 0xfc000000 == 0xfc000000)): 
+#        #p.A7.268 => objdump does not decode only this opcode!!!
+#        exception = 24
+
 #    elif ((opcode > 0xffff) and (opcode & 0xfff0f000 == 0xf830f000)): #p.A5.145 =>  no pldw with halfwords
 #        exception = 15
 #    elif ((opcode > 0xffff) and (opcode & 0xfff0f000 == 0xf8b0f000)): #p.A5.145 =>  no pldw with halfwords
