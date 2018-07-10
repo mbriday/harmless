@@ -110,3 +110,10 @@ Multiply
 ./manyTests.py -v -fr 0xfb000000 -tr 0xfb7fffff
 ```
 
+Long multiply
+
+ * smull, sdiv, umull, udiv
+ * smlal, smlalbb smlalbt, smlaltb, smlaltt, smlald, smlaldx
+```
+./manyTests.py -v -fr 0xfb800000 -tr 0xfbcfffff
+```
