@@ -192,7 +192,7 @@ def installGalgas(verbose,scriptWorkingDir):
 			
 def buildFailed(step):
     print('*'*80)
-    print("build failed at step"+step)
+    print("build failed at step"+str(step))
     print("You may contact harmless@irccyn.ec-nantes.fr")
     print('*'*80)
     sys.exit(step)

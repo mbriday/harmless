@@ -38,3 +38,4 @@
 	"mnemo": "adc{flags}.w {Rd}, {Rn}, {Rm},{type} #{shift}",
 	"size": 4
 }
+

@@ -13,9 +13,9 @@ import time
 # avec openocd, il faut lancer le serveur: openocd -f board/st_nucleo_f3.cfg
 # avec jlink: JLinkGDBServer -device ATSAMD21J18 -if SWD -speed 4000 -autoconnect 1 
 #             Warning: tests available only on st Nucleo F303 (Memory mapping…)
-#debugger = 'openocd' #either st-util, openocd or jlink
+debugger = 'openocd' #either st-util, openocd or jlink
 #debugger = 'jlink'
-debugger = 'st-util' 
+#debugger = 'st-util' 
 
 #verbose mode:
 # - 0 => nothing, except for errors
@@ -761,6 +761,8 @@ if __name__ == '__main__':
             nbInstructions += 1
         else: # assembly only
             subprocess.call(["arm-none-eabi-objdump", "-d", filename+'.elf'],)
+
     if nbTests != 0:
         debugStr(args,0,str(nbTestsDone)+' tests done for '+str(nbInstructions)+' instructions in {t:.2f}s, ok at {p:.1f}%.\n'.format(t=(time.clock()-timeStart),p=(100*nbTestsDone)/nbTests))
+
 
