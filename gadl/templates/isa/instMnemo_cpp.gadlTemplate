@@ -2,11 +2,12 @@
 #include "%!core::NAME%_instruction.h" //first for precompiled headers
 #include <stdio.h>
 #include "macro.h"
+#include "%!core::NAME%_core.h"
 #include "utils.h"
 
 //instructions with a mnemo.
 %foreach inst in instMnemoListTmp do
-  %const char* const %!inst::name%::mnemo(){\n%
+  %const char* const %!inst::name%::mnemo(%!core::NAME%_core *_core){\n%
   !inst::mnemo
   %}\n%
   between %\n%

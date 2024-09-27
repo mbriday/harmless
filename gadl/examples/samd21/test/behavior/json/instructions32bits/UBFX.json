@@ -1,0 +1,40 @@
+{
+	"instruction": "UBFX Rd, Rn, #lsb, #width",
+	"src":
+	{            	
+                "Rn" : {
+			"idx": ["r0","r2","r7"],
+			"val": ["0", "0xffffffff", "0xac533c5a", "0xaaaa5555"]
+		},                
+
+                "lsb" : {
+			
+			"imm": ["0", "5", "11"]
+                },
+
+
+                "width" : {
+                      
+			"imm": ["1", "9", "17"]
+                 
+		}		
+
+	},
+	
+	"dest":
+	{
+		"Rd": {
+			"idx": ["r1","r5","r9"],
+			"val": [0, 12334, "0xffffffff"]
+		}
+	},
+
+	"init":
+	{
+		"sp": "0x8",
+		"lr": "0xdead"
+	},
+	"mnemo": "UBFX {Rd}, {Rn}, #{lsb}, #{width} ",
+	"size": 4
+}
+

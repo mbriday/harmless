@@ -10,12 +10,12 @@ using namespace std;
  *  * size (in bytes)
  */
 
-string %!core::NAME%_instruction::getStaticInfo() {
+string %!core::NAME%_instruction::getStaticInfo(%!core::NAME%_core *_core) {
 	ostringstream oss;
 	string sep = "@";
 	//values written in decimal.
 	oss << dec << m_pc << sep;
-	oss << this->mnemo() << sep;
+	oss << this->mnemo(_core) << sep;
 	oss << (int)(this->chunks()) << sep;
 
 	//u64 maskWrite = 0;

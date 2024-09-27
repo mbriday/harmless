@@ -406,7 +406,7 @@ int handle_exception(core & corei, int sigval)
 				}
 
 #ifdef DEBUG
-				printf("\%s", (corei.disassemble(corei.programCounter(), 2)).c_str());	/* print instruction to execute */
+				printf("\%s", (corei.disassemble(corei.programCounter(), 1)).c_str());	/* print instruction to execute */
 #endif
 				printf("{\%d}", corei.execInst(1));
 				writeTPacket(remcomOutBuffer, corei, 5);

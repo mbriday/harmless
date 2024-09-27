@@ -1,0 +1,31 @@
+{
+	"instruction": "add Rd, sp, #imm10",
+	"src":
+	{
+		"sp" : {
+			"idx": ["sp"],
+			"val": ["0x20001000", "0x20000100"]
+		},		
+		"imm10": {
+			"imm": [0, "0x134", "0x2ec", "0x3fc"]
+		}
+	},
+	"dest":
+	{
+		"cpsr": {
+			"val": ["0x41000000","0x01000000", "0xF9000000"]
+		},
+		"Rd": {
+			"idx": ["r0","r5","r7"],
+			"val": [0, 12334, "0xffffffff"]
+		}
+	},
+	"init":
+	{
+		"sp": "0x20001000",
+		"lr": "0xdead"
+	},
+	"mnemo": "add {Rd}, sp, #{imm10}",
+	"size": 2
+}
+

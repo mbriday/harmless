@@ -91,7 +91,7 @@ rule <fieldDeclaration>
   @lstring idf
   $idf$ ?idf
   @instDeclaration instDec = @instDeclaration. new { !@location.here !typeBase !idf !@varClass. localVar !""}
-  [!?fieldMap insertKey !idf !typeBase !true !@varClass. localVar !instDec]
+  [!?fieldMap insertKey !idf !typeBase !true !@varClass.localVar !true !instDec]
 }
 
 rule <syntaxString>
@@ -165,6 +165,19 @@ rule <syntaxBody>
     <syntaxString> ?print !fieldMap
     @printChunk pChunk = @printChunk. new { !print}
     chunkList += !pChunk
+  or
+    $function$;
+    @functionChunk f
+    @ASTExpression ASTexp
+    select
+      ASTexp = @ASTIntConst.new {!@location.here !1L !false !@varKind.unsigned} #dummy value
+      f = @functionChunk.new{!false !ASTexp}
+    or
+      $at$;
+      <expression> ?ASTexp
+      f = @functionChunk.new{!true !ASTexp}
+    end
+    chunkList += !f
   or
     <selectSyntax> !?syntaxMap !fieldMap !?chunkList !?internalSyntaxId
   end

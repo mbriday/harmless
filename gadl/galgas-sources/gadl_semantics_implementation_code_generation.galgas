@@ -10,9 +10,9 @@
 # reader @fieldList getAssignCode
 
 abstract getter @instruction generateCode
-  ?let  @uint unused nbTabulation        ## input init tabulation (only to get candy ouput C code)
+  ?let  @uint unused nbTabulation        ## input init tabulation (only to get candy output C code)
   ?let  @codeCtx unused cgc              ## generation code context (C, Uppaal, ..)
-  -> @string code
+  -> @string
 
 func tabs 
   ?let  @uint nbTabulation

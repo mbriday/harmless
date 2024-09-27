@@ -1,0 +1,29 @@
+{
+	"instruction": "ldrexh Rt, [Rn]",
+	"src": {
+		"Rn" : {
+			"idx": ["r1", "sp"],
+			"val": ["0x20000100", "0x20001002"]
+		}
+	},
+	"dest": {
+		"cpsr": {
+			"val": ["0x41000000","0x01000000", "0xF9000000"]
+		},
+		"Rt" : {
+			"idx": ["r0","r12", "lr"],
+			"val": ["0", "0x349d21ea", "0xf49ab3cd"]
+		}
+	},
+	"mem" : {
+		"addr": ["0x20000100",
+		         "0x20001000"],
+		"val": ["0x0", "0xffffffff", "0xaaaa5555", "0x23456789"]
+	},
+	"init": {
+		"sp": "0x8",
+		"lr": "0xdead"
+	},
+	"mnemo": "ldrexh {Rt},[{Rn}]",
+	"size": 4
+}

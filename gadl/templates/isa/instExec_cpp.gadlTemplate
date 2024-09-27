@@ -45,6 +45,6 @@ using namespace std;
 		%\t_core->getDDCReg%!DDCReg::id%AccessMask(this->m_DDCReg%!DDCReg::id%MaskRead, this->m_DDCReg%!DDCReg::id%MaskWrite);\n%
 		end foreach
     end if
-  %}\n%
+  %\n}\n%
   between %\n%
 end foreach

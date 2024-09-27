@@ -1,0 +1,27 @@
+{
+	"instruction": "add Rd, sp, #imm9",
+	"src":
+	{
+		"sp" : {
+			"idx": ["sp"],
+			"val": ["0x20001000", "0x20000100"]
+		},		
+		"imm9": {
+			"imm": [0, "0x134", "0x1dc", "0x1fc"]
+		}
+	},
+	"dest":
+	{
+		"cpsr": {
+			"val": ["0x41000000","0x01000000", "0xF9000000"]
+		}
+	},
+	"init":
+	{
+		"sp": "0x20001000",
+		"lr": "0xdead"
+	},
+	"mnemo": "add sp, sp, #{imm9}",
+	"size": 2
+}
+

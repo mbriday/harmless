@@ -2,11 +2,14 @@
 -- ARMv6-M ISA description (used in the Cortex M0/M0+/M1 core).
 -- This is the little endian version 
 -- 
--- CURRENTLY MODELLED: nothing :-/
+-- CURRENTLY MODELLED: 16 bits instructions
 -- 
--- TODO : 
+-- TODO : 32-bits instructions
 -- 
 -- NOT MODELLED: 
+-- for 16-btis instructions
+--	- if then.. instructions
+--	- wfe, wfi, sev, yield, nop
 -- 
 isa {
 
@@ -18,20 +21,676 @@ default {
 --##==================================================
 --## Components
 --##==================================================
+ 
+component alu {
+  register u32 CPSR{
+    N  := slice{31}
+    Z  := slice{30}
+    C  := slice{29}
+    V  := slice{28}
+    Q  := slice{27}
+    T  := slice{24} 
+    GE := slice{19..16}
+  }
+  
+  u32 addWithCarry(u32 src1, u32 src2, u1 carry, u1 updateFlags)
+  {
+    u33 result := src1+src2+carry
+    if updateFlags then
+      CPSR.N := result{31}
+      CPSR.Z := result{31..0} = 0
+			CPSR.C := result{32}
+      CPSR.V := (!result{31} & src1{31} & src2{31}) | (result{31} & !src1{31} & !src2{31})
+    end if
+    return result{31..0}
+  }
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+--zeros 
+u32 zeros(u32 integer)  
+{ 
+	u32 resultat 
+	resultat:= 0<<integer-1
+	return resultat 
+}
+-------------------------------------------------------------------------------
+--BitCount
+u32 BitCount (u32 x)
+{
+u32 i:=0
+u32 result:=0
+loop 32 do 
+if x{i}=1 then
+result:=result+1
+end if  
+i:=i+1
+end loop
+return result  
+}
+--------------------------------------------------------------------------------
+--SInt
+u32 SInt(u32 x)
+{
+return x
+}
+-------------------------------------------------------------------------------
+--UInt
+u32 UInt (u32 x)
+{
+	return x
+}
+-------------------------------------------------------------------------------
+s32 SignInvert (s32 x) 
+{ 
+u32 i:=0
+s32 a
+loop 32 
+while (u1)(x{i}) != 1 do 
+i:=i+1
+end loop
+a:=x{i..0}
 
-component fetcher {
-  program counter u32 PC
+i:=i+1
+loop 32-i do 
+a:=(~x{i}) cat a 
+i:=i+1
+end loop 
 
-  void reset() {
-    -- SP <- contenu adresse 0
-    PC := 0 -- en fait PC <- (contenu adresse 4) - 1
+return a
+}
+-------------------------------------------------------------------------------
+--LSL_C
+u33 LSL_C(u32 x, u32 shift)
+
+{ u32 result 
+  u1 carry_out
+  u32 extended_x
+  --u32 a
+	u32 n 
+--shift>0?
+	
+	--a:=alu.zeros(shift) --zeros 
+
+	extended_x:= x<<shift 
+	result:= extended_x{31..0}
+	carry_out:=extended_x{32}
+
+return result cat carry_out
+} 
+-------------------------------------------------------------------------------
+--LSL
+u32 LSL(u32 x, u32 shift)
+
+{ u32 result 
+  u32 a
+	
+--shift>0?
+	if shift=0 then result:=x 
+	else result:= alu.LSL_C(x, shift){32..1}
+	end if 
+
+return result 
+} 
+------------------------------------------------------------------------------
+--LSR_C
+u33 LSR_C(u32 x, u32 shift)
+{ u32 result 
+  u1 carry_out
+  u64 extended_x:= x
+
+ loop shift do 	
+ extended_x:= extended_x cat (u1)(0)
+ end loop 		
+ result:= extended_x{shift+31..shift}
+ carry_out:=extended_x{shift-1}
+
+ return result cat carry_out
+}
+------------------------------------------------------------------------------
+--LSR
+u32 LSR(u32 x, u32 shift)
+{ u32 result 
+    --shift>0?
+if shift=0 then result:=x
+else
+result:=alu.LSR_C(x,shift){32..1}
+end if 	
+return result 
+}
+------------------------------------------------------------------------------
+--ASR_C
+u33 ASR_C(u32 x, u32 shift)
+{ u32 result 
+  u1 carry_out
+  u64 extended_x --comment peut-on fixer la longueur de cette opérande 
+  --shift>0?
+ u32 a:=x{32}
+ u32 b  
+ loop shift do 
+ b:=b cat a 
+ end loop   
+ extended_x:= b cat x --X considéré comme unsigned 
+ result:= extended_x{shift+31..shift}
+ carry_out:=extended_x{shift-1}
+
+return result cat carry_out
+}
+------------------------------------------------------------------------------
+--ASR
+u32 ASR(u32 x, u32 shift)
+{ u32 result 
+    --shift>0?
+if shift=0 then result:=x
+else
+result:=alu.ASR_C(x,shift){32..1}
+end if 	
+return result 
+}
+-------------------------------------------------------------------------------
+--ROR_C
+u33 ROR_C(u32 x, u32 shift)
+{ 
+ u32 m
+ u1 carry_out 
+ u32 result  
+
+	m:=shift % 32
+ result:= alu.LSR(x,m) | alu.LSL(x,32-m)
+ carry_out:=result{31}
+
+return result cat carry_out
+
+}
+-------------------------------------------------------------------------------
+--ROR
+u32 ROR(u32 x, u32 shift)
+{ 
+ u32 result  
+if shift=0 then 
+result:=x
+else 
+result:=alu.ROR_C(x,shift){32..1}
+end if 
+return result
+}
+------------------------------------------------------------------------------ 
+--RRX_C
+u33 RRX_C(u32 x, u1 carry_in)
+{ u32 result
+  u1 carry_out
+  
+result:= carry_in cat x{31..1}
+carry_out:=x{0}
+
+return result cat carry_out
+}
+-------------------------------------------------------------------------------
+--RRX
+u32 RRX(u32 x, u1 carry_in)
+{ u32 result
+  
+result:= alu.RRX_C(x,carry_in)
+
+return result
+}
+------------------------------------------------------------------------------
+--SignedSatQ
+s32 SignedSatQ(s32 i, u32 n)
+{  
+ u1 saturated
+ s32 result
+ s32 a:= (s1)(1) << (n-1) 
+ if i>a-(s1)(1) then 
+ result:= a-(s1)(1)
+ saturated:= 1
+
+ elseif i< alu.SignInvert(a) then 
+ result:= alu.SignInvert(a)
+ saturated:=1 
+
+ else  
+ result:=i 
+ saturated:=0
+ end if 
+
+  if saturated=1 then 
+  CPSR.Q:=1
+  end if 
+ 
+ return result
+}
+------------------------------------------------------------------------------
+--SignedSatQ16
+s16 SignedSatQ16(s16 i, u16 n)
+{  
+ u1 saturated
+ s16 result
+ s16 a:= (s1)(1) << (n-1) 
+ if i>a-(s1)(1) then 
+ result:= a-(s1)(1)
+ saturated:=1
+
+ elseif i< alu.SignInvert(a) then 
+ result:= alu.SignInvert(a)
+ saturated:=1 
+
+ else  
+ result:=i 
+ saturated:=0
+ end if  
+ 
+	if saturated then 
+	CPSR.Q:=1
+	end if 
+
+ return result 
+}
+------------------------------------------------------------------------------
+--UnsignedSatQ  
+u32 UnsignedSatQ(u32 i, u32 n)
+{  
+ u1 saturated
+ u32 result
+ u32 a:= 1<< n
+ if i>(a-1) then 
+ result:= a-1
+ saturated:= true
+
+ elseif i<0 then 
+ result:=0
+ saturated:=true 
+
+ else  
+ result:=i 
+ saturated:=false
+ end if  
+
+ if saturated then 
+	CPSR.Q:=1
+	end if
+
+ 
+ return result
+}
+------------------------------------------------------------------------------
+--UnsignedSatQ16  
+u16 UnsignedSatQ16(u16 i, u16 n)
+{  
+ u1 saturated
+ u16 result
+ u16 a:= 1<< n
+ if i>(a-1) then 
+ result:= a-1
+ saturated:= true
+
+ elseif i<0 then 
+ result:=0
+ saturated:=true 
+
+ else  
+ result:=i 
+ saturated:=false
+ end if  
+
+	if saturated then 
+	CPSR.Q:=1
+	end if
+
+ return result
+}
+------------------------------------------------------------------------------
+--UnsignedSat16
+u16 UnsignedSat16(u16 i, u16 n)
+{
+u16 result 
+result:= alu.UnsignedSatQ16(i,n)
+return result
+} 
+------------------------------------------------------------------------------
+--ThumbExpandImm
+u32 ThumbExpandImm(u12 imm12)
+{
+u32 imm32
+imm32:=alu.ThumbExpandImmWithCarry(imm12){33..1}
+return imm32
+}
+---------------------------------------------------------------------------
+--DecodeImmShift
+
+u34 DecodeImmShift (u2 t , u5 imm5)
+{
+u2 shift_t
+u32 shift_n
+ if t=0 then 
+  shift_t:=0
+  shift_n:=alu.UInt(imm5)
+ elseif t=1 then 
+  shift_t:= 1
+  if imm5=0 then 
+  shift_n:=32 
+  else shift_n:=alu.UInt(imm5) 
+  end if
+  
+ elseif t=2 then 
+  shift_t:=2
+  if imm5=0 then 
+  shift_n:=32 
+  else shift_n:=alu.UInt(imm5) 
+  end if
+ elseif t=3 then 
+  if imm5=0 then 
+  shift_t:=3
+  shift_n:=1
+  else 
+  shift_t:=4 
+  shift_n:=alu.UInt(imm5)
+  end if 
+ end if 
+
+return shift_t cat shift_n
+}
+------------------------------------------------------------------------------
+--Shift_C
+u33 Shift_C(u32 value, u2 typ, u32 amount, u1 carry_in)
+{
+u32 result 
+u1 carry_out 
+
+if amount=0 then 
+result:= value 
+carry_out:= carry_in
+else 
+ if typ=0 then 
+ result := alu.LSL_C(value, amount){32..1}
+ carry_out:= alu.LSL_C(value, amount){0}
+ elseif typ=1 then 
+ result:= alu.LSR_C(value, amount){32..1}
+ carry_out:= alu.LSR_C(value, amount){0}
+ elseif typ=2 then 
+ result:= alu.ASR_C(value, amount){32..1}
+ carry_out:= alu.ASR_C(value, amount){0}
+ elseif typ=3 then 
+ result:= alu.ROR_C(value, amount){32..1}
+ carry_out:= alu.ROR_C(value, amount){0}
+ elseif typ=4 then 
+ result:= alu.RRX_C(value,carry_in){32..1}
+ carry_out:= alu.RRX_C(value,carry_in){0}
+ end if 
+end if 
+
+return result cat carry_out
+
+}
+------------------------------------------------------------------------------
+--Shift 
+u32 Shift(u32 value, u2 typ, u32 amount, u1 carry_in)
+{u32 result
+result:=alu.Shift_C(value, typ, amount, carry_in){32..1}
+return result 
+}
+------------------------------------------------------------------------------
+--AddWithCarry
+u34 AddWithCarry(u32 x, u32 y, u1 carry_in)
+{
+u32 unsigned_sum
+u32 signed_sum
+u32 result
+u1 carry_out
+u1 overflow  
+
+ unsigned_sum:= x + y + carry_in
+ signed_sum:=(u32)((s32)(x) + (s32)(y) + (s1)(carry_in))
+ result:= unsigned_sum{31..0}
+
+ if alu.UInt(result)=unsigned_sum then 
+ carry_out:=0
+ else
+ carry_out:=1
+ end if 
+
+ if alu.SInt(result)=signed_sum then 
+ overflow:=0
+ else  
+ overflow:=1
+ end if 
+
+return result cat carry_out cat overflow
+}
+------------------------------------------------------------------------------
+--Align
+u32 Align(u32 x, u32 y)
+{
+u32 result 
+result:=y * (alu.UInt(x) % alu.UInt(y)){31..0}
+return result
+}
+-----------------------------------------------------------------------------
+--InEndianReverse 
+u32 InEndianReverse(u32 value, u32 n)
+{
+u32 result
+if n=1 then 
+result{7..0}:=value{7..0}
+
+elseif n=2 then 
+result{15..8}:=value{7..0}
+result{7..0}:=value{15..8}
+elseif n=4 then 
+result{31..24}:=value{7..0}
+result{23..16}:=value{15..8}
+result{15..8}:=value{23..16}
+result{7..0}:=value{31..24}
+end if 
+
+return result
+}
+
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+  u1 conditionPassed(u4 cond)
+  {
+    u1 result
+    if     cond{3..1} = \b000 then result := CPSR.Z
+    elseif cond{3..1} = \b001 then result := CPSR.C
+    elseif cond{3..1} = \b010 then result := CPSR.N
+    elseif cond{3..1} = \b011 then result := CPSR.V
+    elseif cond{3..1} = \b100 then result := (CPSR.C & !CPSR.Z)
+    elseif cond{3..1} = \b101 then result := (CPSR.N = CPSR.V)
+    elseif cond{3..1} = \b110 then result := (CPSR.N = CPSR.V) & !CPSR.Z
+    elseif cond{3..1} = \b111 then result := true
+    end if
+    if cond{0} & cond != \xf then result := !result end if
+    return result
   }
 
-  void absBranch(u32 newPC, u1 cond)
+
+  u33 ThumbExpandImmWithCarry(u12 imm12)
   {
-    if (cond) then 
-      PC := newPC 
-    end if   
+    u32 result := 0
+    u1 carryOut := 0
+    u32 imm8 := imm12{7..0}
+    if imm12{11..10} = 0 then
+      if     imm12{9..8} = 0 then result := (u32)(imm8)
+      elseif imm12{9..8} = 1 then result := imm8 << 16 | imm8
+      elseif imm12{9..8} = 2 then result := imm8 << 24 | imm8 << 8
+      else   result := imm8 << 24 | imm8 << 16 | imm8 << 8 | imm8
+      end if
+      carryOut := CPSR.C
+    --else -- to do.
+    end if
+    return result cat carryOut
+  }
+  -- warning => not the same shift instruction as in reference manual (DDI0403E)
+  u32 shift(u32 val, u2 typeShift, u5 imm5, u1 carry)
+  {
+    u32 result
+    if     typeShift = 0  then result := val << imm5 -- lsl
+      --carryOut:=result{32}
+
+    elseif typeShift = 1  then -- lsr
+      if imm5 > 0  then 
+        result := val >> imm5
+     else result := 0
+  --carryOut:=result{imm5-1}
+      end if
+    elseif typeShift = 2  then --asr
+      if(imm5 > 0) then 
+        result := (u32)((s32)(val) >> imm5)
+      else if result{31} then result := \xffffffff else result := 0 end if
+   --carryOut:=result{imm5-1}
+      end if
+   --carryOut:=result{imm5-1}
+
+    elseif typeShift = 3  then
+      if imm5 = 0 then -- rrx
+        result := carry cat (val >> 1)
+    --carryOut:=result{0}
+
+      else --ror
+        result := val ror imm5
+     --carryOut:=result{31}
+
+      end if
+    end if
+
+    return result --catcarryout 
+  }
+------------------------------------------------------------------------
+  u32 shiftWithCarry(u32 val, u2 typeShift, u5 imm5, u1 carry, out u1 carryOut)
+  {
+    u32 result
+    if  typeShift = 0  then result := val << imm5 -- lsl
+    carryOut:=result{32}
+    elseif typeShift = 1  then -- lsr
+      if imm5 > 0  then 
+      result := val >> imm5
+      else result := 0
+      carryOut:=result{imm5-1}
+      end if
+    elseif typeShift = 2  then --asr
+      if(imm5 > 0) then 
+      result := (u32)((s32)(val) >> imm5)
+      else if result{31} then result := \xffffffff else result := 0 end if
+      carryOut:=result{imm5-1}
+      end if
+      carryOut:=result{imm5-1}
+
+    elseif typeShift = 3  then
+      if imm5 = 0 then -- rrx
+        result := carry cat (val >> 1)
+        carryOut:=val{0}
+
+      else --ror
+        result := val ror imm5
+        carryOut:=result{31}
+
+      end if
+    end if
+
+    return result 
+  }
+------------------------------------------------------------------------
+}
+
+component gpr {
+  register        u32 SP -- Stack pointer   r13
+  register        u32 LR -- Link register   r14
+  program counter u32 PC -- program counter r15
+
+  -- method used as interface (for python for instance)
+  u32 read32(u4 num)
+  {
+    u32 result := 0
+    if(num < 13)     then result := reg.read32(num)
+    elseif(num = 13) then result := SP
+    elseif(num = 14) then result := LR
+    elseif(num = 15) then result := PC
+    end if
+    return result
+  }
+
+  u32 iread32(u4 num)
+  {
+    u32 result := 0
+    if(num < 13)     then result := reg.read32(num)
+    elseif(num = 13) then result := SP
+    elseif(num = 14) then result := LR
+    elseif(num = 15) then result := PC+2
+    end if
+    return result
+  }
+
+  void write32(u4 num, u32 val)
+  {
+    if(num < 13)     then reg.write32(num, val)
+    elseif(num = 13) then SP := val & \xfffffffc --word aligned
+    elseif(num = 14) then LR := val
+    elseif(num = 15) then PC := val & \xfffffffe --hw aligned
+    end if
+  }
+
+  void branch(u32 newPC)
+  {
+    PC := newPC & \xfffffffe
+    CPSR.T := newPC{0}
+  }
+
+  void BranchWritePC(u32 newPC)
+  {
+    PC := newPC & \xfffffffe
+  }
+
+  void push(u32 data) {
+    SP := SP - 4
+    mem.write32(SP, data)
+  }
+
+  u32 pop() {
+    u32 result := mem.read32(SP)
+    SP := SP + 4
+    return result
+  }
+}
+
+-- memory related methods
+component memAccess {
+  register u16 UFSR{ -- Usage Fault Status Register
+    UNDEFINSTR := slice{0}
+    INVSTATE   := slice{1}
+    INVPC      := slice{2}
+    NOCP       := slice{3}
+    UNALIGNED  := slice{8}
+    DIVBYZERO  := slice{9}
+  }
+  u1 exclusiveMonitorsPass(u32 addr, u3 memSize) { --this part is implementation defined.
+    u1 result := 0	-- note: no exclusive memory on STM32F303...
+    if addr % memSize != 0 then -- exception -- unaligned
+      UFSR.UNALIGNED := 1
+    end if
+    return result
+  }
+  void setExclusiveMonitors(u32 addr, u3 memSize) --this part is implementation defined.
+  {}
+}
+
+-- interrupts
+component int {
+  register u8 ITSTATE {
+    IT := slice{7..0}
+  }
+
+  void ITAdvance() {
+    if(ITSTATE{2..0} = 0) then ITSTATE.IT := 0
+    else ITSTATE.IT{4..0} := ITSTATE.IT{4..0} << 1
+    end if
+  }
+
+  u1 inItBlock() {
+    return (ITSTATE.IT{3..0} != 0)
+  }
+
+  u1 lastInItBlock() {
+    return (ITSTATE.IT{3..0} = \b1000)
   }
 }
 
@@ -41,7 +700,1431 @@ component fetcher {
 
 --behavior nopInstruction #moveImmediate -- Page A6-154
 --end behavior
+behavior arith
+  field u5 imm5 #imm5
+  field u3 Rm #Rm
+  field u3 Rd #Rd
+  u1 setFlags := !int.inItBlock()
+  select
+    case #logicalShift #left
+    do
+      u37 result := (u37)(gpr.iread32(Rm)) << imm5
+      if setFlags then
+        CPSR.N := result{31}
+        CPSR.Z := result{31..0} = 0
+		    if imm5 != 0 then
+          CPSR.C := result{32}
+        end if
+      end if
+      gpr.write32(Rd,result{31..0})
+    end do
 
+    case #logicalShift #right
+    do
+      u32 result := gpr.iread32(Rm) >> (imm5-1) -- shift 1 less to keep the carry.
+      if setFlags then
+        CPSR.N := result{31}
+        CPSR.Z := result{31..1} = 0
+		    if imm5 != 0 then
+						CPSR.C := result{0}
+				end if
+      end if
+      gpr.write32(Rd,result{31..1})
+    end do
+    case #right #arithmeticShift
+    do
+      u32 result := (u32)((s32)(gpr.iread32(Rm)) >> imm5) -- shift 1 less to keep the carry.
+      if setFlags then
+        CPSR.N := result{31}
+        CPSR.Z := result{31..0} = 0
+				CPSR.C :=  ((u32)((s32)(gpr.iread32(Rm)) >> (imm5-1))) & 1
+      end if
+      gpr.write32(Rd,result{31..0})
+    end do
+  end select
+end behavior
+
+
+behavior arithAddSub16 #Rd 
+  field u3 Rd
+  u1 setFlags := !int.inItBlock()
+  u32 src1
+  u32 src2
+  select
+    case #imm3 #Rn
+      field u3 imm3
+      field u3 Rn
+      do 
+        src1 := gpr.iread32(Rn)
+        src2 := (u32)(imm3)
+      end do
+    case #Rm #Rn
+      field u3 Rm
+      field u3 Rn
+      do 
+        src1 := gpr.iread32(Rn) 
+        src2 := gpr.iread32(Rm)
+      end do
+    case #imm8
+      field u8 imm8
+      do 
+        src1 := gpr.iread32(Rd) 
+        src2 := (u32)(imm8)
+      end do
+  end select
+  u32 result
+  select
+    case #add do
+        result := alu.addWithCarry(src1,src2,0,setFlags) 
+        gpr.write32(Rd,result) 
+      end do
+    case #sub do
+        result := alu.addWithCarry(src1,~src2,1,setFlags)
+        gpr.write32(Rd,result) 
+      end do
+    case #compare do
+        result := alu.addWithCarry(src1,~src2,1,setFlags)
+      end do
+  end select
+end behavior
+
+behavior movsImm #Rd #imm8 #move
+  field u3 Rd
+  field u8 imm8
+  u32 dst
+  u1 setFlags := !int.inItBlock()
+  do 
+     dst := (u32)(imm8)
+     gpr.write32(Rd,dst)
+     if setFlags then
+       CPSR.N := dst{31}
+       CPSR.Z := dst{31..0} = 0
+     end if
+  end do
+end behavior
+
+behavior dataProcAddSub #Rm #Rd
+  field u3 Rm
+  field u3 Rd
+  u32 src1
+  u32 src2
+  u1 setFlags := !int.inItBlock()
+  u33 dst
+  u1 carry
+  do
+    src1 := gpr.iread32(Rd)
+    src2 := gpr.iread32(Rm)
+  end do
+  select
+    case #adc do
+        dst := alu.addWithCarry(src1,src2,CPSR.C,setFlags) 
+        gpr.write32(Rd, dst)
+      end do
+    case #sbc do
+        u33 scr2c := src2+!CPSR.C
+        dst := src1-scr2c
+				if setFlags then
+          CPSR.N := dst{31}
+          CPSR.Z := dst{31..0} = 0
+			    CPSR.C := ~dst{32}
+          CPSR.V := (!dst{31} & src1{31} & !scr2c{31}) | (dst{31} & !src1{31} & scr2c{31})
+        end if
+        gpr.write32(Rd, dst)
+      end do
+    case #cmp do
+        dst := alu.addWithCarry(src1,~src2,1,setFlags) 
+      end do
+    case #cmn do
+        dst := alu.addWithCarry(src1,src2,0,setFlags) 
+      end do
+  end select
+end behavior
+
+behavior dataProcRSB #Rn #Rd #rsb
+  field u3 Rn
+  field u3 Rd
+  u1 setFlags := !int.inItBlock()
+  u33 dst
+  u1 carry
+  do
+    u32 src2 := gpr.iread32(Rn)
+    dst := ~src2+1
+		if setFlags then
+      CPSR.N := dst{31}
+      CPSR.Z := dst{31..0} = 0
+		  CPSR.C := dst{32}
+      CPSR.V := dst{31} & src2{31}
+    end if
+    gpr.write32(Rd, dst)
+  end do
+end behavior
+
+behavior dataProc #Rm #Rd
+  field u3 Rm
+  field u3 Rd
+  u32 src1
+  u32 src2
+  u1 setFlags := !int.inItBlock()
+  u33 dst
+  u1 carry
+  do
+    src1 := gpr.iread32(Rd)
+    src2 := gpr.iread32(Rm)
+  end do
+  select
+    case -- write
+      select
+        case #and do dst := src1 & src2      end do 
+        case #mvn do dst := ~src2            end do 
+        case #bic do dst := src1 & ~src2     end do 
+        case #eor do dst := src1 ^ src2      end do 
+        case #orr do dst := src1 | src2      end do 
+        case #mul do dst := (u32)(src1*src2) end do 
+      end select
+      do
+        carry := CPSR.C
+        gpr.write32(Rd, dst)
+      end do
+    case #lsl do
+        dst := (u33)(src1) << src2{7..0} 
+        if src2{7..0} != 0 then 
+          carry := dst{32}
+        else carry := CPSR.C
+        end if
+        gpr.write32(Rd, dst)
+      end do 
+    case #lsr do 
+        u8 shift := src2{7..0}  -- strange: shift in C (and Harmless) in % 32 !?
+        if shift > 32 then dst := 0 else dst := src1 >> shift end if
+		    if shift != 0 then 
+          if shift > 32 then carry := 0
+          else carry := (src1 >> (shift{7..0}-1)) & 1 end if
+        else carry := CPSR.C
+        end if
+        gpr.write32(Rd, dst)
+      end do 
+    case #asr do
+        u8 shift := src2{7..0}  -- strange: shift in C (and Harmless) in % 32 !?
+        if shift > 32 then
+          if src1{31} then dst := \xffffffff else dst := 0 end if
+        else dst := (u32)((s32)(src1) >> shift) end if
+		    if shift != 0 then 
+          if shift > 32 then carry := src1{31}
+          else carry := (u32)(((s32)(src1) >> (shift{7..0}-1))) & 1 end if
+        else carry := CPSR.C
+        end if
+        gpr.write32(Rd, dst)
+      end do
+    case #ror do dst := src1 ror (src2 & \x1f)
+        if src2{7..0} = 0 then
+          carry := CPSR.C
+        else carry := dst{31} end if
+        gpr.write32(Rd, dst)
+      end do
+    case #tst do dst := src1 & src2  carry := CPSR.C  end do 
+  end select
+  do 
+    if setFlags then
+      CPSR.N := dst{31}
+      CPSR.Z := dst{31..0} = 0
+      CPSR.C := carry
+    end if
+  end do
+end behavior
+
+behavior special16BitInst
+  field u4 Rm #Rm
+  do u32 src1 := gpr.iread32(Rm) end do
+  select
+    case
+      field u4 Rd #Rd
+      do u32 src2 := gpr.iread32(Rd) end do
+      select
+        case #add     do gpr.write32(Rd, alu.addWithCarry(src2, src1,0, false)) end do
+        case #compare do alu.addWithCarry(src2, ~src1,1, true) end do
+      end select
+    case #mov #Rd field u4 Rd do gpr.write32(Rd, src1) end do
+    case #bex #nons
+      select
+      case #noLink
+      case #link do LR := PC | 1 end do
+      end select
+      do
+				if Rm = 14 && src1{31..4} = \xfffffff && CPSR{3..0} > 0 then -- get back from it. not really sure
+						gpr.write32(0, gpr.pop())
+						gpr.write32(1, gpr.pop())
+						gpr.write32(2, gpr.pop())
+						gpr.write32(3, gpr.pop())
+						gpr.write32(12, gpr.pop())
+						LR := gpr.pop()
+						PC := gpr.pop()
+						CPSR := gpr.pop()
+				else
+						gpr.write32(15, src1)
+		        CPSR.T := (src1 & 1) 
+				end if
+      end do
+  end select
+end behavior
+
+behavior loadFromLiteralPool #load
+  field u3 Rt #Rt
+  field u10 imm10 #imm10
+  do 
+    u32 addr := ((PC-2) & \xfffffffc)+4+imm10
+    u32 val := mem.read32(addr)
+    gpr.write32(Rt,val)
+  end do
+end behavior
+
+-- basic load/store 16 bits operations
+behavior loadStore
+  field u3 Rt #Rt
+  u32 offset 
+  u32 value
+  u32 baseAddress
+  -- offset
+  select
+    case #Rm    field u3  Rm    do offset := gpr.iread32(Rm) end do
+    case #imm5  field u5  imm5  do offset := imm5  end do	-- 32 bits imm offset
+    case #imm6  field u6  imm6  do offset := imm6  end do -- 16 bits
+    case #imm7  field u7  imm7  do offset := imm7  end do --  8 bits
+    case #imm10 field u10 imm10 do offset := imm10 end do -- imm offset with SP
+  end select
+
+  -- base address
+  select
+    case field u3 Rn #Rn do baseAddress := gpr.iread32(Rn) end do
+    case #SP do baseAddress := gpr.iread32(13) end do
+  end select
+  do u32 addr := baseAddress+offset end do
+
+  select
+    case #store
+    do value := gpr.iread32(Rt) end do
+      select
+        case #reg32 do mem.write32(addr,value) end do
+        case #reg16 do mem.write16(addr,value) end do
+        case #reg8  do mem.write8(addr,value)  end do
+      end select
+    case #load
+      select
+        case #reg32 do value := mem.read32(addr) end do
+        case #reg16 
+          do value := mem.read16(addr) end do
+          select
+            case #unsigned
+            case #signed   do if (s16)(value) < 0s then value{31..16} := \xffff end if end do
+            case -- with immediat, no sign
+          end select
+        case #reg8
+          do value := mem.read8(addr) end do
+          select
+            case #unsigned
+            case #signed   do if (s8)(value) < 0s then value{31..8} := \xffffff end if end do
+            case -- with immediat, no sign
+          end select
+      end select
+      do gpr.write32(Rt, value) end do
+  end select
+end behavior
+
+behavior adr16
+  field u10 imm10 #imm10
+  field u3  Rd    #Rd
+  u32 src1
+  select
+    case #ADR     do src1 := (PC+2) & \xFFFFFFFC end do --align 32 bits
+    case #AddRdSP do src1 := SP   end do
+  end select
+  do gpr.write32(Rd,alu.addWithCarry(src1,imm10,0,false)) end do
+end behavior
+
+behavior addTosp
+  field u9 imm9 #imm9
+  select
+    case #AddSP do SP := alu.addWithCarry(SP,imm9,0,false)    end do
+    case #SubSP do SP := alu.addWithCarry(SP,~(u32)(imm9),1,false) end do
+  end select
+end behavior
+
+behavior cps
+  field u7 imm7 #imm7
+  field u3  Rn  #Rn
+  do u32 value := gpr.iread32(Rn) end do
+  select
+    case #CBZ  do if value  = 0 then PC := PC + imm7 + 2 end if end do
+    case #CBNZ do if value != 0 then PC := PC + imm7 + 2 end if end do
+  end select
+end behavior
+
+behavior extend #XT
+  field u3  Rm  #Rm
+  field u3  Rd  #Rd
+  u32 value
+  u1  msb
+  select
+    case #reg8
+      do value := gpr.read32(Rm) end do
+		  select
+  	    case #signed 
+         do if value{7} then value{31..8} := \xffffff 
+         else value{31..8} := 0 end if 
+         end do
+  	    case #unsigned do value{31..8} := 0 end do
+  	  end select
+    case #reg16
+      do value := gpr.read32(Rm) end do
+		  select
+  	    case #signed
+         do if value{15} then value{31..16} := \xffff 
+         else value{31..16} := 0 end if 
+         end do
+  	    case #unsigned do value{31..16} := 0 end do
+  	  end select
+  end select
+  do gpr.write32(Rd,value) end do
+end behavior
+
+behavior push #push
+  field u1 M
+  field u8 regList
+  u8 i := 7
+  do
+    if M then SP := SP - 4 mem.write32(SP, LR) end if
+    loop 8 do
+      if regList{i} then gpr.push(gpr.read32(i)) end if
+      i := i-1
+    end loop
+  end do
+end behavior
+
+behavior pop #pop
+  field u1 P
+  field u8 regList
+  u8 i := 0
+  do
+    loop 8 do
+      if regList{i} then gpr.write32(i, gpr.pop()) end if
+      i := i+1
+    end loop
+    if P then gpr.branch(mem.read32(SP)) SP := SP + 4 end if
+  end do
+end behavior
+
+behavior rev #rev
+  field u3  Rm  #Rm
+  field u3  Rd  #Rd
+  do u32 value := gpr.read32(Rm) end do
+  select
+    case #reg32 do gpr.write32(Rd, value{7..0} cat value{15..8} cat value{23..16} cat value{31..24}) end do
+    case #reg16
+      select
+        case #unsigned 
+          do gpr.write32(Rd, value{23..16} cat value{31..24} cat value{7..0} cat value{15..8}) end do
+        case #signed 
+          do if value{7} then gpr.write32(Rd, (u16)(\xffff) cat value{7..0} cat value{15..8})
+          else gpr.write32(Rd, value{7..0} cat value{15..8}) 
+          end if end do
+      end select
+  end select
+end behavior
+
+behavior loadStoreMultipleWord #multipleWord
+  field u3  Rn  #Rn
+  field u8 regList
+  u8 i := 0
+  do u32 addr := gpr.read32(Rn) end do
+  select
+    case #store
+      do
+        loop 8 do
+          if regList{i} then mem.write32(addr, gpr.read32(i)) addr := addr + 4 end if
+          i := i+1
+        end loop
+				gpr.write32(Rn,addr) --write back
+      end do
+    case #load
+      do
+        loop 8 do
+          if regList{i} then gpr.write32(i, mem.read32(addr)) addr := addr + 4 end if
+          i := i+1
+        end loop
+				if regList{Rn} != 1 then gpr.write32(Rn,addr) end if--write back
+      end do
+  end select
+end behavior
+
+behavior branch #branch #cond #imm9
+  field u4 cond
+  field s9 imm9
+  do if alu.conditionPassed(cond) then
+    PC := (u32)((s32)(PC) + imm9 + 2s)
+  end if end do
+end behavior
+
+behavior branchAlways #branch #always #imm12
+  field s12 imm12
+  do PC := (u32)((s32)(PC) + imm12 + 2s) end do
+end behavior
+
+behavior udf #udf #imm8
+  field u8 imm8
+  do print "undefined instruction 'udf': "
+     print (u32)(imm8)
+     print ".\n"
+  end do
+end behavior
+
+behavior svc #svc #imm8
+  field u8 imm8
+  do
+    gpr.push(CPSR)
+    CPSR{3..0} := 11
+    gpr.push(PC)
+    gpr.push(LR)
+    gpr.push(gpr.read32(12))
+    gpr.push(gpr.read32(3))
+    gpr.push(gpr.read32(2))
+    gpr.push(gpr.read32(1))
+    gpr.push(gpr.read32(0))
+    u32 itVectorEntry := (11 << 2) + \x08000000 -- specific stm32f303
+    gpr.branch(mem.read32(itVectorEntry))
+    LR := \xfffffff9
+  end do
+end behavior
+
+-- ldmia, ldmdb, stmia, stmdb
+behavior loadStoreMultipleWord32 #multiple
+  field u16 regList
+  field u1  W -- write back
+  field u4 Rn #Rn
+  u8 i := 0
+  do u32 addr := gpr.read32(Rn) end do
+  select
+    case #store
+      select
+        case #incrementAfter --stmia
+          do
+            loop 16 do
+              if regList{i} then mem.write32(addr, gpr.read32(i)) addr := addr + 4 end if
+              i := i+1
+            end loop
+          end do
+        case #decrementBefore --stmdb
+          do
+            loop 16 do
+              if regList{15-i} then addr := addr - 4  mem.write32(addr, gpr.read32(15-i)) end if
+              i := i+1
+            end loop
+          end do
+      end select
+			do if W then gpr.write32(Rn,addr) end if end do
+    case #load
+      select
+        case #incrementAfter --ldmia
+          do
+            loop 16 do
+              if regList{i} then gpr.write32(i, mem.read32(addr)) addr := addr + 4 end if
+              i := i+1
+            end loop
+          end do
+        case #decrementBefore --ldmdb
+          do
+            loop 16 do
+              if regList{15-i} then addr := addr - 4 gpr.write32(15-i, mem.read32(addr)) end if
+              i := i+1
+            end loop
+          end do
+        end select
+      do if W then gpr.write32(Rn,addr) end if end do--write back 
+  end select
+end behavior
+
+-- #Rn #exclusive #Rt #Rd #imm10 (#store / #load) (#word / #byte / #halfword) 
+-- => strex, ldrex, strexb, ldrexb, strexh, ldrexh
+-- => testé avec réponse non!
+behavior loadStoreExclusive #exclusive
+  field u4 Rt #Rt
+  field u4 Rn #Rn
+  field u4 Rd #Rd
+  do u32 addr := gpr.iread32(Rn) end do
+  select
+    case #store
+      select
+        case #word
+          field u10 imm10 #imm10
+          do 
+            addr := addr + imm10
+            if memAccess.exclusiveMonitorsPass(addr, 4) then
+              mem.write32(addr, gpr.iread32(Rt))
+              gpr.write32(Rd,0)
+            else
+              gpr.write32(Rd,1)
+            end if
+          end do
+        case #halfword do 
+            if memAccess.exclusiveMonitorsPass(addr, 2) then
+              mem.write16(addr, gpr.iread32(Rt) & \xffff)
+              gpr.write32(Rd,0)
+            else
+              gpr.write32(Rd,1)
+            end if
+          end do
+        case #byte do
+            if memAccess.exclusiveMonitorsPass(addr, 1) then
+              mem.write8(addr, gpr.iread32(Rt) & \xff)
+              gpr.write32(Rd,0)
+            else
+              gpr.write32(Rd,1)
+            end if
+          end do
+      end select
+    case #load
+      select
+        case #word
+          field u10 imm10 #imm10
+          do 
+            addr := addr + imm10
+            memAccess.setExclusiveMonitors(addr, 4)
+            gpr.write32(Rt, mem.read32(addr))
+          end do
+        case #halfword do 
+            memAccess.setExclusiveMonitors(addr, 2)
+            gpr.write32(Rt, mem.read16(addr)) -- 0 extend to 32 bit reg
+				  end do 
+        case #byte do
+            memAccess.setExclusiveMonitors(addr, 1)
+            gpr.write32(Rt, mem.read8(addr))  -- 0 extend to 32 bit reg
+				  end do 
+      end select
+  end select
+end behavior
+
+-- #Rn #dual (#store / #load) #Rt #Rt2 #imm10
+-- => strd, ldrd
+-- => non testé
+behavior loadStoreDual #dual
+  field u4 Rn  #Rn
+  field u4 Rt  #Rt
+  field u4 Rt2 #Rt2
+  field u10 imm10 #imm10
+  field u1 wb
+  field u1 idx
+  field u1 addi
+  do
+    u32 addr
+    u32 offset_addr
+    if addi then offset_addr := gpr.iread32(Rn)+imm10 -- with plus
+    else offset_addr := gpr.iread32(Rn)-imm10         -- or minus
+    end if
+    if idx then addr := offset_addr-- use indexing?
+    else addr := gpr.iread32(Rn)
+    end if
+  end do
+  select
+    case #load do
+        gpr.write32(Rt , mem.read32(addr  ))
+        gpr.write32(Rt2, mem.read32(addr+4))
+      end do
+    case #store do
+        mem.write32(addr  ,gpr.iread32(Rt))
+        mem.write32(addr+4,gpr.iread32(Rt2))
+      end do
+  end select
+  do if wb then gpr.write32(Rn, offset_addr) end if end do
+end behavior
+
+-- #Rn #table #branch (#byte / #halfword) #Rm
+-- => tbb, tbh
+-- => non testé
+behavior tableBranch #table #branch
+  field u4 Rm  #Rm
+  field u4 Rn  #Rn
+  u32 halfword
+  select
+    case #byte     do halfword := mem.read8( gpr.iread32(Rn)+ gpr.iread32(Rm)    ) end do
+    case #halfword do halfword := mem.read16(gpr.iread32(Rn)+(gpr.iread32(Rm)<<1)) end do
+  end select
+  do gpr.BranchWritePC((u32)(PC+(halfword<<1))) end do 
+end behavior
+
+-- (#byte #halfword #word) #Rn #Rt #store #imm12 > strb (encoding t2), strh (encoding t2), str (encoding t3)
+behavior storeSingleDataItem32 #store
+  field u4 Rn  #Rn
+  field u4 Rt  #Rt                                             							
+  field u12 imm12 #imm12
+  do
+    u32 addr 
+    addr := gpr.iread32(Rn)+imm12
+  end do
+  select
+    case #byte     do mem.write8( addr,gpr.iread32(Rt){ 7..0}) end do
+    case #halfword do mem.write16(addr,gpr.iread32(Rt){15..0}) end do
+    case #word     do mem.write32(addr,gpr.iread32(Rt){32..0}) end do
+  end select 
+end behavior
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+behavior Branch32 #branch 
+  field u1 J1
+  field u1 J2
+  field u1 S
+  field u11 imm11
+  field s32 target
+  select 
+    case #link
+      field u10 imm10
+      do
+        LR:=PC | 1 --set lsb to 1
+        gpr.BranchWritePC ((u32)((s32)(PC)+target)) end do
+    case #unlink
+      field u10 imm10
+      do gpr.BranchWritePC ((u32)((s32)(PC)+target)) end do
+    case #cond 
+      field u4 cond 
+      field u6 imm6
+      do if alu.conditionPassed(cond) then  
+             gpr.BranchWritePC ((u32)((s32)(PC)+target))
+         end if       
+      end do
+  end select 
+end behavior
+-----------------------------------------------------------------
+behavior addSubimm #dataProcessingPI 
+ field u12 imm12 #imm12
+ field u4 Rd #Rd
+ field u4 Rn #Rn  
+ u32 imm32
+ u32 result
+  
+do 
+  imm32:=(u32)(imm12)
+end do 
+select 
+	case #add --t4
+		do 
+  		result:=alu.addWithCarry(gpr.iread32(Rn),imm32, 0 , 0)
+		end do 
+	case #sub --t4
+		do 
+  		result:=alu.addWithCarry(gpr.iread32(Rn),~imm32, 1 , 0)
+		end do  
+end select 
+do 
+	gpr.write32(Rd,result)
+end do 
+end behavior
+-----------------------------------------------------------------
+--moveimm (encoding t3)
+behavior moveimm #move #dataProcessingPI
+ field u16 imm16 #imm16
+ field u4 Rd #Rd
+ u32 result
+
+do 
+ result:=(u32)(imm16)
+ gpr.write32(Rd , result)  
+end do 
+
+end behavior 
+-----------------------------------------------------------------
+--movereg
+behavior movereg #move #dataProcessingSR
+ field u4 Rd #Rd
+ field u1 S 
+ field u4 Rm #Rm
+ field u5 imm5  
+ field u2 shiftType #shType  
+
+ u32 result
+
+do 
+ result:=gpr.iread32(Rm)
+ if (alu.UInt(Rd)=15) then 
+ gpr.BranchWritePC(result)
+ else 
+  gpr.write32(Rd, result)
+  if S then
+    CPSR.N:=result{31}
+    CPSR.Z:=(alu.BitCount(result)=0)
+  end if 
+ end if 
+
+end do  
+end behavior 
+
+-----------------------------------------------------------------
+--movtimm
+behavior movtimm #dataProcessingPI #movt 
+ field u4 Rd #Rd
+ field u16 imm16 #imm16
+ u32 result 
+do 
+--u32 a:=gpr.iread32(Rd)
+--u16 b:=\xffff
+--u32 c:=a & (u32)(b)
+--u32 d:=imm16 << 16
+--result:= d | c
+--gpr.write32(Rd,result)
+
+	u32 a:= gpr.iread32(Rd)
+	a{31..16}:= imm16
+	gpr.write32(Rd,a) 
+
+end do 
+
+end behavior
+-----------------------------------------------------------------
+--dataProcSSAT 
+behavior dataProcSSAT #dataProcessingPI
+ field u4 Rn #Rn
+ field u4 Rd #Rd
+ field u5 imm5 
+ field u2 shiftType #shType 
+ field u5 sat_imm5
+ u32 saturate_t0 
+
+ u2 shift_t
+ u32 shift_n 
+ u34 src1
+ u33 src3
+
+do 
+ u32 operand := alu.shift(gpr.iread32(Rn),shiftType,imm5, CPSR.C)
+end do
+
+select 
+case #ssat do 
+ saturate_t0:=alu.UInt(sat_imm5)+1
+ s32 result:=alu.SignedSatQ((s32)(operand),saturate_t0)
+end do 
+
+case #usat do  --?signExtend
+ saturate_t0:=alu.UInt(sat_imm5)
+ u32 result:=alu.UnsignedSatQ(operand,saturate_t0)
+end do 
+
+do
+ gpr.write32(Rd,result)
+end do 
+
+end select 
+end behavior 
+--------------------------------------------------------------------------
+--dataProcSSAT16
+behavior dataProcSSAT16 #dataProcessingPI
+ field u4 Rn #Rn
+ field u4 Rd #Rd
+ field u5 sat_imm5
+ --field u4 sat_imm
+ u16 saturate_t0 
+ u16 result 
+ u16 result1
+ u16 result2
+
+select 
+case #ssat16 do  
+ saturate_t0:=alu.UInt(sat_imm5)+1
+ result1:=(u16)(alu.SignedSatQ16((s16)(gpr.iread32(Rn){15..0}),saturate_t0))
+ result2:=(u16)(alu.SignedSatQ16((s16)(gpr.iread32(Rn){31..16}),saturate_t0))
+end do 
+ 
+case #usat16 do 
+ saturate_t0:=alu.UInt(sat_imm5)
+ result1:=(u17)(alu.UnsignedSatQ16(gpr.iread32(Rn){15..0},saturate_t0)) 
+ result2:=(u17)(alu.UnsignedSatQ16(gpr.iread32(Rn){31..16},saturate_t0))
+end do 
+end select 
+
+do 
+ result:= result2 cat result1 --?signExtend
+ gpr.write32(Rd,result) 
+end do 
+
+end behavior
+-----------------------------------------------------------------
+--bfcbfiimm 
+behavior bfcbfiimm #dataProcessiongPI
+ field u4 Rd #Rd  
+ field u3 imm5 #imm5
+ field u5 msb 
+ u32 lsbit:= alu.UInt(imm5)
+ u32 msbit:= alu.UInt(msb)
+ u32 src1
+ u32 src2
+ u32 a
+ u32 src
+
+select 
+case #bfc do 
+ src:=gpr.iread32(Rd)
+  if msbit>=lsbit then 
+   a:= 0<<msbit-lsbit+1
+   src{msbit..lsbit}:=a
+   gpr.write32(Rd,src)
+  end if
+end do 
+
+case #bfi  
+ field u4 Rn #Rn
+do  
+ src1:=gpr.iread32(Rd)
+ src2:=gpr.iread32(Rn)
+  if msbit>=lsbit then 
+   src1{msbit..lsbit}:=src2{msbit-lsbit..0}
+   gpr.write32(Rd,src1)
+  end if
+end do 
+
+end select 
+end behavior 
+-----------------------------------------------------------------
+--ubfximm 
+behavior ubfximm #dataProcessiongPI #ubfx 
+ field u4 Rd #Rd
+ field u4 Rn #Rn
+ field u5 lsb 
+ field u5 widthm1 
+ u32 lsbit:=alu.UInt(lsb)
+ u32 widthminus1
+ u32 msbit 
+do 
+ widthminus1:=alu.UInt(widthm1)
+ msbit:=lsbit+widthminus1
+ if msbit <= 31 then 
+ gpr.write32 (Rd, (u32)(gpr.iread32(Rn){msbit..lsbit}))
+ end if 
+end do 
+end behavior
+------------------------------------------------------------------
+--Sbfximm
+behavior sbfximm #dataProcessiongPI #sbfx 
+ field u5 imm5 #imm5
+ field u4 Rd #Rd
+ field u4 Rn #Rn
+ field u5 widthm1 #widthm1 
+ u32 lsbit:=alu.UInt(imm5)
+ u32 widthminus1:=alu.UInt(widthm1)
+ u32 msbit 
+ u32 a:=0
+ u32 b 
+ u32 i:=0
+
+do 
+ msbit:=lsbit+widthminus1
+ a:=msbit << widthminus1 + i
+ b:= gpr.iread32(Rn) 
+ if msbit <= 31 then 
+  loop (31-msbit+1) do    
+   a:=0   
+   a:=msbit<<widthminus1 +i
+   i:=i+1
+   b:= b | a  
+ end loop 
+ end if 
+gpr.write32 (Rd, b)
+end do 
+end behavior
+------------------------------------------------------------------
+--andtstimm
+behavior andtstimm #dataProcessingMI 
+ field u4 Rn #Rn
+ field u12 imm12 #imm12
+ field u1 S 
+ u33 src1
+ u32 result
+ u32 imm32
+ u1 carry 
+do
+ src1:=alu.ThumbExpandImmWithCarry(imm12)
+ imm32:=src1{32..1}
+ carry:=src1{0}
+end do 
+
+select 
+case #tst do
+ result:= (gpr.iread32(Rn) & imm32)
+end do 
+
+case #and
+ field u4 Rd #Rd 
+ do
+ result:= (gpr.iread32(Rn) & imm32)
+ gpr.write32(Rd, result)
+end do
+end select  
+
+do 
+ CPSR.N:=result{31}
+ CPSR.Z:=(result=0)
+ CPSR.C:=carry 
+end do 
+
+end behavior
+------------------------------------------------------------------
+--bicimm
+behavior bicimm #dataProcessingMI #bic   
+ field u4 Rd #Rd 
+ field u4 Rn #Rn
+ field u12 imm12 #imm12
+ field u1 S  
+ u1 result
+ u32 imm32
+ u1 carry 
+ u32 shift_n
+ u2 shift_t
+ u32 shifted 
+ u33 src1
+
+ do
+ src1:=alu.ThumbExpandImmWithCarry(imm12)
+ imm32:=src1{32..1}
+ carry:=src1{0}
+ 
+ result:=(gpr.iread32(Rn) & ~(imm32))
+ gpr.write32(Rd, result)
+
+ CPSR.N:=result{31}
+ CPSR.Z:=(result=0)
+ CPSR.C:=carry
+ end do 
+end behavior 
+------------------------------------------------------------------
+--orrmovimm
+behavior orrmovimm #dataProcessingMI 
+ field u4 Rd #Rd 
+ field u4 Rn #Rn
+ field u12 imm12 #imm12
+ field u1 S 
+ u33 src1
+ u32 result
+ u32 imm32
+ u1 carry 
+
+do
+ src1:= alu.ThumbExpandImmWithCarry(imm12)
+ imm32:=src1{32..1}
+ carry:=src1{0}
+end do 
+
+select 
+case #orr do 
+ result:= (gpr.iread32(Rn) | imm32)
+end do 
+
+case #mov do 
+ result:= imm32
+end do 
+end select 
+
+do
+ gpr.write32(Rd, result)
+
+ CPSR.N:=result{31}
+ CPSR.Z:=(result=0)
+ CPSR.C:=carry
+end do 
+end behavior 
+
+------------------------------------------------------------------
+--ornmvnimm
+behavior ornmvnimm #dataProcessingMI 
+ field u4 Rd #Rd 
+ field u4 Rn #Rn
+ field u12 imm12 #imm12
+ field u1 S 
+ u32 result
+ u32 imm32
+ u1 carry 
+ u33 src1 
+ 
+do
+ src1:=alu.ThumbExpandImmWithCarry(imm12)  
+ imm32:=src1{32..1}
+ carry:=src1{0}
+end do 
+
+select 
+case #orn do  
+ result:= gpr.iread32(Rn) | ~(imm32) 
+end do
+ 
+case #mvn do 
+result:=~(imm32)
+end do
+end select   
+
+do 
+ gpr.write32(Rd, result)
+ CPSR.N:=result{31}
+ CPSR.Z:=(result=0)
+ CPSR.C:=carry
+ end do 
+end behavior 
+
+------------------------------------------------------------------
+--ornmvnreg
+behavior ornmvnreg #dataProcessingSR 
+ field u4 Rd #Rd 
+ field u4 Rn #Rn
+ field u4 Rm #Rm
+ field u5 imm5 #imm5
+ field u1 S 
+ field u2 shiftType #shType
+ u1 result
+ u32 imm32
+ u1 carry 
+ u32 shift_n
+ u2 shift_t
+ u32 shifted
+ u34 src2
+ u33 src3
+
+do 
+ src2:= alu.DecodeImmShift(shiftType, imm5)
+ shift_t:=src2{33..32} 
+ shift_n:=src2{31..0} 
+
+ src3:=alu.Shift_C(gpr.iread32(Rm), shift_t, shift_n, CPSR.C) 
+ shifted:=src3{32..1}
+ carry:=src3{0}
+end do 
+
+select 
+case #orn do 
+ result:=gpr.iread32(Rn) | ~shifted 
+end do 
+case #mvn do
+ result:= ~ shifted
+end do  
+end select 
+
+do 
+ gpr.write32(Rd, result) 
+ if S then 
+ CPSR.N:=result{31}
+ CPSR.Z:=(result=0)
+ CPSR.C:=carry 
+ end if 
+end do 
+
+end behavior 
+--------------------------------------------------------------------------
+--eorteqimm 
+behavior eorteqimm #dataProcessingMI 
+ field u4 Rd #Rd 
+ field u4 Rn #Rn
+ field u12 imm12 #imm12
+ field u1 S #S
+ u32 result
+ u32 imm32
+ u1 carry 
+ u33 src1 
+do 
+ src1:=alu.ThumbExpandImmWithCarry(imm12)
+ imm32:=src1{32..1}
+ carry:=src1{0}
+end do 
+
+select 
+case #eor do  
+result:=(gpr.iread32(Rn)) ^ imm32 
+ gpr.write32(Rd, result)
+end do 
+
+case #teq do
+ result:=(gpr.iread32(Rn)) ^ imm32 
+end do 
+
+do 
+ CPSR.N:=result{31}
+ CPSR.Z:=(result=0)
+ CPSR.C:=carry
+end do
+
+end select 
+end behavior 
+------------------------------------------------------------------
+--addcmnimm
+behavior addcmnimm #dataProcessingMI
+ field u4 Rn #Rn
+ field u12 imm12 #imm12
+ field u1 S 
+ u1 result
+ u32 imm32
+ u1 carry 
+ u1 overflow 
+ u34 src1 
+
+
+do 
+  imm32:= alu.ThumbExpandImm(imm12)
+
+  src1:=alu.AddWithCarry(gpr.iread32(Rn),imm32,0)
+  result:=src1{33..2}
+  carry:=src1{1}
+  overflow:=src1{0} 
+  if S then 
+    CPSR.N:=result{31}
+    CPSR.Z:=(result=0)
+    CPSR.C:=carry
+    CPSR.V:=overflow
+  end if  
+end do
+ 
+select
+  case #add --encording t3
+    field u4 Rd #Rd
+    do 
+      gpr.write32(Rd,result)
+    end do
+  case #cmn --nothing
+end select 
+
+end behavior 
+-------------------------------------------------------------------
+--adcimm 
+behavior adcimm #adc #dataProcessingMI 
+ field u4 Rd #Rd 
+ field u4 Rn #Rn
+ field u12 imm12 #imm12
+ field u1 S 
+ u32 result
+ u32 imm32
+ u1 carry 
+ u1 overflow 
+ u34 src1
+do  
+ imm32:= alu.ThumbExpandImm(imm12)
+
+ src1:=alu.AddWithCarry(gpr.iread32(Rn),imm32,0)
+ result:=src1{33..2}
+ carry:=src1{1}
+ overflow:=src1{0}
+
+ gpr.write32(Rd, result)
+
+ CPSR.N:=result{31}
+ CPSR.Z:=(result=0)
+ CPSR.C:=carry
+ CPSR.C:=overflow
+end do 
+end behavior 
+-------------------------------------------------------------------------
+--sbcimm 
+behavior sbcimm #sbc #dataProcessingMI
+ field u4 Rd #Rd 
+ field u4 Rn #Rn
+ field u12 imm12 #imm12
+ field u2 shiftType #shType 
+ field u1 S 
+ u32 result
+ u32 imm32
+ u1 carry 
+ u32 shifted
+ u1 overflow  
+ u34 src1 
+
+do 
+ imm32:= alu.ThumbExpandImm(imm12)
+ src1:= alu.AddWithCarry(gpr.iread32(Rn),~imm32,0)
+ result:= src1{33..2}
+ carry:= src1{1}
+ overflow:= src1{0}
+
+ gpr.write32(Rd, result)
+
+ CPSR.N:=result{31}
+ CPSR.Z:=(result=0)
+ CPSR.C:=carry
+ CPSR.C:=overflow
+end do 
+end behavior 
+--------------------------------------------------------------------------
+--cmpsubimm
+behavior cmpsubimm #dataProcessingMI
+ field u4 Rn #Rn
+ field u12 imm12 #imm12
+ field u1 S 
+ u32 result
+ u32 imm32
+ u1 carry 
+ u32 shift_n
+ u2 shift_t
+ u32 shifted
+ u1 overflow  
+ u34 src1
+
+do --sub encording T3 
+ imm32:= alu.ThumbExpandImm(imm12)
+
+ src1:=alu.AddWithCarry(gpr.iread32(Rn),~ imm32,1)
+ result:=src1{33..2}
+ carry:=src1{1}
+ overflow:=src1{0}
+
+ if S then 
+ CPSR.N:=result{31}
+ CPSR.Z:=(result=0)
+ CPSR.C:=carry
+ CPSR.V:=overflow
+ end if 
+end do 
+
+select
+case #sub 
+field u4 Rd #Rd
+do
+ gpr.write32(Rd, result)
+end do
+
+case #cmp 
+end select 
+end behavior
+
+--------------------------------------------------------------------------
+--rsbimm 
+behavior rsbimm #rsb #dataProcesingMI  
+ field u4 Rd #Rd 
+ field u4 Rn #Rn
+ field u12 imm12 #imm12
+ u32 result
+ u32 imm32
+ u1 carry 
+ u32 shifted 
+ u1 overflow
+ u34 src1
+
+do 
+ imm32:= alu.ThumbExpandImm(imm12)
+
+ src1:=alu.AddWithCarry(~ gpr.iread32(Rn),imm32,1)
+ result:=src1{33..2}
+ carry:=src1{1}
+ overflow:=src1{0}
+
+ gpr.write32(Rd, result)
+
+ CPSR.N:=result{31}
+ CPSR.Z:=(result=0)
+ CPSR.C:=carry
+ CPSR.V:=overflow
+end do 
+end behavior
+ 
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+behavior addSubCmnCmp #dataProcessingSR
+  field u4 Rm #Rm
+  field u4 Rn #Rn
+  field u2 shiftType #shType
+  field u5 imm5
+  field u1 S -- setFlags
+  do 
+    u32 shifted := alu.shift(gpr.iread32(Rm),shiftType,imm5, CPSR.C)
+  end do
+  select
+    case #add
+      field u4 Rd #Rd
+      do
+				u32 result := alu.addWithCarry(gpr.iread32(Rn),shifted,0,S & Rd != 15)
+        gpr.write32(Rd, result)
+      end do
+     case #adc
+      field u4 Rd #Rd
+      do
+				u32 result := alu.addWithCarry(gpr.iread32(Rn),shifted,CPSR.C, S)
+        gpr.write32(Rd, result)
+      end do    
+    case #cmn
+      do alu.addWithCarry(gpr.iread32(Rn),shifted,0,S) end do
+    case #sub 
+      field u4 Rd #Rd
+      do
+				u32 result := alu.addWithCarry(gpr.iread32(Rn),~shifted,1,S)
+        gpr.write32(Rd, result)
+      end do
+    case #cmp
+       do	alu.addWithCarry(gpr.iread32(Rn),~shifted,1,S) end do
+    case #sbc 
+      field u4 Rd #Rd
+      do
+				u32 result := alu.addWithCarry(gpr.iread32(Rn),~shifted,CPSR.C,S)
+
+        gpr.write32(Rd, result)
+      end do
+    case #rsb 
+      field u4 Rd #Rd
+      do
+				u32 result := alu.addWithCarry(~(gpr.iread32(Rn)),shifted,1,S)
+        gpr.write32(Rd, result)
+      end do
+  end select
+end behavior
+-------------------------------------------------------------------------
+--behavior andOrrOrnMvn #dataProcessingSR
+--  field u4 Rm #Rm
+--  field u4 Rn #Rn
+--  field u2 shiftType #shType
+--  field u5 imm5
+--  field u1 S -- setFlags
+--  u32 result
+--  u1 carryOut
+--	u32 shifted
+--  do shifted := alu.shiftWithCarry(gpr.iread32(Rm),shiftType,imm5, CPSR.C, carryOut)
+--  end do
+--  select
+--    case #and
+--      field u4 Rd #Rd
+--      do
+--				result := gpr.iread32(Rn) & shifted 
+--       gpr.write32(Rd, result)
+--      end do  
+--    case #tst  
+--    case #bic
+--       field u4 Rd #Rd
+--       do 
+--        result := gpr.iread32(Rn) & ~shifted 
+--       gpr.write32(Rd, result)
+--				end do 
+--    case #orr
+--       field u4 Rd #Rd
+--        do 
+--        result := gpr.iread32(Rn) | shifted 
+--        gpr.write32(Rd, result)
+--        end do 
+--  	case #orn 
+--       field u4 Rd #Rd
+--        do 
+--        result := gpr.iread32(Rn) | ~shifted 
+--        gpr.write32(Rd, result)
+--				end do   
+--    case #mvn 
+--       field u4 Rd #Rd
+--        do 
+--        result := ~shifted 
+--        gpr.write32(Rd, result)
+--				end do 
+--		case #eor 
+--        field u4 Rd #Rd
+--				do  
+--      	result:=(gpr.iread32(Rn)) ^ shifted 
+--			  gpr.write32(Rd, result)
+-- 				end do 
+--		case #teq 
+--				do  
+--      	result:=(gpr.iread32(Rn)) ^ shifted 
+--        end do 
+--	end select 
+--       do 
+--        if S then
+--        CPSR.N:=result{31}
+--         CPSR.Z:=(result=0)
+--         CPSR.C:=carryOut
+--        end if       
+--       end do
+--  end behavior 
 --##==================================================
 --## Format description
 --##==================================================
@@ -52,13 +2135,13 @@ format Instruction16	 -- p A5.127 (ARM DDI 0403E.b)
     case \m010001 is specialAndBex
     case \m01001- is loadFromLiteralPool --A7.254
     case \m0101-- or \m011--- or \m100--- is loadStore -- A5.131
-    case \m10100- is #ADR imm8reg1  -- A7.197
-    case \m10101- is #ADDSP imm8reg1 --A7.193
+    case \m10100- is #ADR imm10reg1  -- A7.197
+    case \m10101- is #AddRdSP imm10reg1 --A7.193
     case \m1011-- is misc16
     case \m11000- is #store #multipleWord lstm
     case \m11001- is #load  #multipleWord lstm
     case \m1101-- is condBranchAndSupervisorCall
---    case \m11100- is unconditionnalBranch
+    case \m11100- is #branch #always #imm12 imm12 := signed slice{10..0} << 1
   end select
 end format
 
@@ -66,7 +2149,7 @@ format condBranchAndSupervisorCall
   select slice{11..8}
     case \m0--- or
          \m10-- or
-         \m110- is branch #branch #cond
+         \m110- is branch #branch
     case \m1110 is imm8 #udf
     case \m1111 is imm8 #svc
   end select  
@@ -76,12 +2159,12 @@ format imm8 #imm8
   imm8 := slice{7..0}
 end format
 
-format branch
+format branch #cond #imm9
   cond := slice{11..8}
-  imm8 := slice{7..0}
+  imm9 := signed slice{7..0} << 1
 end format
 
-format lstm -- load/store multipl word
+format lstm #Rn -- load/store multiple word
   regList := slice{7..0}
   Rn := slice{10..8}
 end format
@@ -89,21 +2172,34 @@ end format
 format misc16 -- A7.132
   select slice{11..5}
     case \m0110011 is CPS
-    case \m00000-- is #ADDSP #imm7 imm7 := slice{6..0}
-    case \m00001-- is #SUBSP #imm7 imm7 := slice{6..0}
-    case \m-0-1--- is compareBranch
+    case \m00000-- is #AddSP #imm9 imm9 := slice{6..0} << 2
+    case \m00001-- is #SubSP #imm9 imm9 := slice{6..0} << 2
+    case \m-0-1--- is compareAndBranch
     case \m001000- is #XT #signed #reg16   reg2 --sxth
     case \m001001- is #XT #signed #reg8    reg2 --sxtb
     case \m001010- is #XT #unsigned #reg16 reg2 --uxth
     case \m001011- is #XT #unsigned #reg8  reg2 --uxtb
     case \m010---- is push 
+    case \m0110010 is setEnd
+    case \m0110000 is setPan
     case \m101000- is #rev #reg32 reg2
     case \m101001- is #rev #reg16 #unsigned reg2
     case \m101011- is #rev #reg16 #signed reg2
+    case \m101010- is #hlt imm6 := slice{5..0}
     case \m110---- is pop
     case \m1110--- is #bkpt imm8 
     case \m1111--- is ifThenElseAndHint
   end select
+end format
+
+format setEnd #setEnd  -- set endianess
+  restrict slice{4,2..0} to \m1_000
+  E := slice{3}
+end format
+
+format setPan #setPan -- set priviledge access never
+  restrict slice{4,2..0} to \m1_000
+  imm1 := slice{3}
 end format
 
 format ifThenElseAndHint
@@ -117,11 +2213,13 @@ format ifThenElseAndHint
     case \m0010_0000 is #wfe
     case \m0011_0000 is #wfi
     case \m0100_0000 is #sev
+    case \m011-_0000 or
+         \m1---_0000 is #nop #hint cond := slice{7..4}
   end select
 end format
 
-format ifThen #ifThen
-  firstCond := slice{7..4}
+format ifThen #ifThen #cond
+  cond := slice{7..4}
   mask := slice{3..0}
 end format
 
@@ -135,20 +2233,21 @@ format push #push
   M := slice{8}
 end format
 
-format compareBranch
+format compareAndBranch
   select slice{11}
     case 0 is #CBZ
     case 1 is #CBNZ
   end select
-  imm6 := slice{9,7..3}
-  Rn := slice{2..0}
+  imm7 := slice{9,7..3} << 1 #imm7
+  Rn := slice{2..0} #Rn
 end format
 
-format CPS
-  select slice{3..0}
-    case \m0001 or \m001- is #CPS
-  end select
+format CPS #CPS
+  -- bits 3..2 should be set to '0', but are always decoded in objdump
+	-- bits 1..0 should not be set as 0, but objdump decode it.
+  restrict slice{3} to \m0
   Im := slice{4}
+  A  := slice{2} -- A not defined in ARMv8...
   I  := slice{1}
   F  := slice{0}
 end format
@@ -163,33 +2262,39 @@ format loadStore
     case \m0101_101 is reg3Rt #load  #reg16 #unsigned
     case \m0101_110 is reg3Rt #load  #reg8  #unsigned
     case \m0101_111 is reg3Rt #load  #reg16 #signed
-    case \m0110_0-- is #store #reg32 regImm5reg2Rt
-    case \m0110_1-- is #load  #reg32 regImm5reg2Rt
+    case \m0110_0-- is #store #reg32 regImm7reg2Rt
+    case \m0110_1-- is #load  #reg32 regImm7reg2Rt
     case \m0111_0-- is #store #reg8  regImm5reg2Rt
     case \m0111_1-- is #load  #reg8  regImm5reg2Rt
-    case \m1000_0-- is #store #reg16 regImm5reg2Rt
-    case \m1000_1-- is #load  #reg16 regImm5reg2Rt
-    case \m1001_0-- is #store #SP imm8reg1Rt
-    case \m1001_1-- is #load  #SP imm8reg1Rt
+    case \m1000_0-- is #store #reg16 regImm6reg2Rt
+    case \m1000_1-- is #load  #reg16 regImm6reg2Rt
+    case \m1001_0-- is #store #reg32 #SP imm10reg1Rt
+    case \m1001_1-- is #load  #reg32 #SP imm10reg1Rt
   end select
 end format
 
-format loadFromLiteralPool #Rt #imm8
+format loadFromLiteralPool #load #Rt #imm10
   Rt := slice{10..8}
-  imm8 := slice{7..0}
+  imm10 := slice{7..0} << 2
 end format
 
 format specialAndBex
   select slice {9..6} -- from A5.130
     case \m00-- is #add reg2_4bits
-    case \m0101 or \m011- or \b0110 is #compare reg2_4bits
+    -- case 0100 is said UNPREDICTABLE, but objdump understand it as a cmp instruction.
+    case \m010- or \m011- or \b0110 is #compare reg2_4bits
     case \m10-- is #mov reg2_4bits
     case \m11-- is #bex
-      select slice {7,2..0}
-        case \b0_000 is 
-        case \b1_000 is #link
+      select slice {7} 
+        case \b0 is #noLink
+        case \b1 is #link
       end select
-      Rm := slice{6..3}
+      -- bits 1..0 should be set to 0, but objdump interprets instruction as bx (but not with blx!)
+      select slice {7,2..0} --C2.2.3
+        case \m-100 is #ns   -- non secure => ARMv8-M
+        case \m0_0-- or \m0_11- or \m0_101 or \m1_000 is #nons -- no ns
+      end select
+      Rm := slice{6..3} #Rm
   end select
 end format
 
@@ -225,14 +2330,14 @@ format arith
       #logicalShift --A7.298/302
 		  Imm5Reg2
     case \m010-- is #right #arithmeticShift Imm5Reg2 -- A7.203
-    case \m01100 is #add reg3         --A7.191
-    case \m01101 is #sub reg3         --A7.350
-    case \m01110 is #add imm3reg2     --A7.189
-    case \m01111 is #sub imm3reg2		  --A7.448
-    case \m100-- is #move imm8reg1    --A7.312
+    case \m01100 is #add     reg3     --A7.191
+    case \m01101 is #sub     reg3     --A7.350
+    case \m01110 is #add     imm3reg2 --A7.189
+    case \m01111 is #sub     imm3reg2	--A7.448
+    case \m100-- is #move    imm8reg1 --A7.312
     case \m101-- is #compare imm8reg1 --A7.229
-    case \m110-- is #add imm8reg1     --A7.189
-    case \m111-- is #sub imm8reg1     --A7.448
+    case \m110-- is #add     imm8reg1 --A7.189
+    case \m111-- is #sub     imm8reg1 --A7.448
   end select
 end format
 
@@ -252,58 +2357,951 @@ format reg2 #Rm #Rd
   Rd := slice{2..0}
 end format
 
-format reg2Rn #Rm #Rd
+format reg2Rn #Rn #Rd
   Rn := slice{5..3}
   Rd := slice{2..0}
 end format
 
-format regImm5reg2Rt #imm5 #Rn #Rt
+format reg2Rt
+  Rn   := slice{5..3} #Rn
+  Rt   := slice{2..0} #Rt
+end format
+
+format regImm7reg2Rt #imm7
+  imm7 := slice{10..6} << 2
+  reg2Rt
+end format
+
+format regImm6reg2Rt #imm6
+  imm6 := slice{10..6} << 1
+  reg2Rt
+end format
+
+format regImm5reg2Rt #imm5
   imm5 := slice{10..6}
-  Rn   := slice{5..3}
-  Rt   := slice{2..0}
+  reg2Rt
 end format
 
-format reg3Rt #Rm #Rn #Rt
-  Rm := slice{8..6}
-  Rn := slice{5..3}
-  Rt := slice{2..0}
+format reg3Rt
+  reg2Rt
+  Rm := slice{8..6} #Rm
 end format
 
-format reg3 #Rm #Rn #Rd
-  Rm := slice{8..6}
-  Rn := slice{5..3}
-  Rd := slice{2..0}
+format reg3
+  Rm := slice{8..6} #Rm
+  Rn := slice{5..3} #Rn
+  Rd := slice{2..0} #Rd
 end format
 
-format imm3reg2 #imm3 #Rn #Rd
-  imm3 := slice{8..6}
-  Rn := slice{5..3}
-  Rd := slice{2..0}
+format imm3reg2
+  imm3 := slice{8..6} #imm3
+  Rn := slice{5..3} #Rn
+  Rd := slice{2..0} #Rd
 end format
 
-format imm8reg1 #imm8 #Rd
-  imm8 := slice{7..0}
+format imm8reg1
+  imm8 := slice{7..0} #imm8
+  Rd := slice{10..8}  #Rd
+end format
+
+format imm10reg1 #imm10 #Rd
+  imm10 := slice{7..0} << 2
   Rd := slice{10..8}
 end format
 
-format imm8reg1Rt #imm8 #Rt
-  imm8 := slice{7..0}
+format imm10reg1Rt #imm10 #Rt
+  imm10 := slice{7..0} << 2
   Rt := slice{10..8}
 end format
 
---- Fomat 32 bits
--- format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
---   select slice{15..4}+{15}
---     case \m111_01_00--0--_- is loadStoreMultiple
---   end select
--- end format
+--##==================================================
+--- Format 32 bits
+--##==================================================
+format Instruction32	 -- p A5.135 (ARM DDI 0403E.b)
+  restrict slice{15..13} to \m111 -- all 32 bits instructions start with '111'
+	select slice{12..4}+{15} -- select op1/op2/op
+    case \m01_00--0--_- is loadStoreMultiple				--A5-142
+    case \m01_00--1--_- is loadStoreDualOrExclusive --A5-143
+    case \m01_01-----_- is dataProcessingShifted		--A5-148
+    case \m01_1------_- is coprocessorInstruction		--A5-156 --not complete!
+    case \m10_-0-----_0 is dataProcessingModImm			--A5-136
+    case \m10_-1-----_0 is dataProcessingPlainImm		--A5-139
+    case \m10_-------_1 is branchAndMiscCtrl				--A5-140
+    case \m11_000---0_- is storeSingleDateItem      --A5-147
+    case \m11_00----1_- is loadMemHints             --A5-146 (byte) A5-145 (half)
+    case \m11_010----_- is dataProcReg              --A5-150
+  end select
+end format
+
+--
+
+format dataProcReg
+  restrict slice{-}{15..12} to \m1111
+  select slice{7..4}{7..4} -- op1/op2
+    case \m0---_0000 is Rn4 setFlags := slice{4}{-} Rd4 Rm4
+      select slice {6..5}{-}
+        case \m00 is #lsl 
+        case \m01 is #lsr
+        case \m10 is #asr
+        case \m11 is #ror
+		  end select
+  end select
+end format
+
+--
+format loadMemHints --A5.145, A5.146
+  select slice{8..7,6..5,3..0}{15..12,11..6} -- careful: order op1 sign Rn Rt op2 => sign:00 byte, 01 hw, 10 word 
+    --    op1 Rn   Rt   op2
+    case \m--_--_1111_----_------ is ldrSign ldrSize #ldr ldrLiteral -- ldrb literral
+    case \m-1_--_----_----_------ is ldrSign ldrSize #ldr #imm12 #add imm12 := slice{-}{11..0} Rn4not15 -- ldrb imm: encoding T2
+    case \m-0_--_----_----_1--1-- or
+         \m-0_--_----_----_1100-- is ldrSign ldrSize #ldr #imm8 imm8 := slice{-}{7..0} ldrImm Rn4not15  --ldrb imm: encoding T3
+    case \m-0_--_----_----_1110-- is ldrSign ldrSize #ldrt Rn4not15 imm8 := slice{-}{7..0} #imm8 -- ldrbt
+    case \m-0_--_----_----_0000-- is ldrSign ldrSize #ldr  Rn4not15 Rm4LslImm2 --ldrb reg
+
+    case \m--_00_1111_1111_------ is plipld #pc ldrLiteral --pld litteral: i.e. relative to PC
+    case \m-0_00_----_1111_0000-- is plipld #add Rn4not15 Rm4LslImm2 --pld reg, objdump deasm if op2{1..0} != 0
+    case \m-0_00_----_1111_1100-- is plipld #sub Rn4not15 imm8  := slice{-}{7..0}  #imm8  --pld imm: encoding T2
+    case \m-1_00_----_1111_------ is plipld #add Rn4not15 imm12 := slice{-}{11..0} #imm12 --pld imm: encoding T1
+  end select
+end format
+
+format plipld
+  select slice{8}{-}
+    case 0 is #pld -- preload data
+    case 1 is #pli -- preload instruction
+  end select
+end format
+
+format ldrSign
+  select slice{8}{-}
+    case 0 is #unsigned
+    case 1 is #signed
+  end select
+end format
+
+format ldrSize
+  select slice{6..5}{-}
+    case 0 is #byte     Rt4not15
+    case 1 is #halfword Rt4not15
+    case 2 is #word     Rt4 restrict slice{8..7}{-} to \m0- -- op1 = 0 or 1.
+  end select
+end format
+
+format ldrLiteral #pc
+  select slice{7}{-}
+    case 0 is #sub
+    case 1 is #add
+  end select
+  imm12 := slice{-}{11..0} #imm12
+end format
+
+format ldrImm 
+  W := slice{-}{8}
+  select slice{-}{9} -- U hardcoded.
+    case 0 is #sub
+    case 1 is #add
+  end select
+  P := slice{-}{10}
+end format
+
 -- 
--- format loadStoreMultiple #multiple
---   select slice{8..7,4}{-}
---     case \m01_0 is #store #emptyAscending
---     case \m01_1 is #load  #fullDescending
---   end select
--- end format
+format storeSingleDateItem
+  select slice{7..5}{-}
+    case \m-00 is #byte
+    case \m-01 is #halfword
+    case \m-10 is #word
+  end select
+  Rn4not15
+  Rt    := slice{-}{15..12} #Rt
+  select slice{7..4}{11..6} --op1 0 op2, p147 (A5.3.10)
+    case \m1--0_------ is #store -- encoding T2. p.430 3..0, 15..0
+      imm12 := slice{-}{11..0} #imm12
+    case \m0--0_1----- is #store -- encoding T3
+      imm8 := slice{-}{7..0}   #imm8
+      wb     := slice{-}{8} -- or W
+      idx    := slice{-}{10} -- or P
+      addi   := slice{-}{9}  -- or U
+    case \m0--0_0000-- is #store Rm4LslImm2 -- encoding T2
+  end select
+end format
+
+format coprocessorInstruction #coproc
+  select slice{9..4}{4,11..8} --op1 op coproc
+    case \m01----_-_---- or 
+         \m0-1---_-_---- or
+         \m0---1-_-_---- is -- not 000x0x
+      P := slice{8}{-}
+      U := slice{7}{-}
+      N := slice{6}{-}
+      W := slice{5}{-}
+      Rn4
+      coproc := slice{-}{11..8}
+      CRd    := slice{-}{15..12}
+      imm10  := slice{-}{7..0} << 2
+      select slice{4}{-}
+        case 0 is #store
+        case 1 is #load
+      end select
+  end select
+end format
+
+format branchAndMiscCtrl
+  select slice{10..4}{14..12} --op,op1
+    case \m-------_--1 is #branch
+      select slice{-}{14}
+        case \m1 is #link
+        case \m0 is #nolink
+      end select
+      imm10 := slice{9..0}{-}
+      imm11 := slice{-}{10..0}
+      J1    := slice{-}{13}
+      J2    := slice{-}{11}
+      S     := slice{10}{-}
+      target := (s32)((s25)(S cat ~(J1^S) cat ~(J2^S) cat imm10 cat imm11 cat (u1)(0)))
+    case \m-0-----_0-0 or -- bits 9..7 should not be 111
+         \m-10----_0-0 or
+         \m-110---_0-0 is #branch #cond
+      J1    := slice{-}{13}
+      J2    := slice{-}{11}
+      S     := slice{10}{-}
+      cond  := slice{9..6}{-}
+      imm6  := slice{5..0}{-}
+      imm11 := slice{-}{10..0}
+      target := (s32)((s25)(S cat J2 cat J1 cat imm6 cat imm11 cat (u1)(0)))
+    case \m-------_1-0 is #link #branch #bex -- blx => not in datasheet, but decoded by objdump!?
+      imm10 := slice{9..0}{-}
+      imm11 := slice{-}{10..0}
+      J1    := slice{-}{13}
+      J2    := slice{-}{11}
+      S     := slice{10}{-}
+      target := (s32)((s25)(S cat ~(J1^S) cat ~(J2^S) cat imm10 cat imm11 cat (u1)(0)))
+      restrict slice{-}{0} to \m0
+    case \m011100-_0-0 is #msr Rn4
+      mask := slice{-}{11..10}
+      sysm := slice{-}{7..0}
+    case \m011111-_0-0 is #mrs Rd4
+      sysm := slice{-}{7..0}
+    case \m0111010_0-0 is #hint32
+      select slice{-}{10..0}
+        case \m000_00000001 is #yield
+        case \m000_00000010 is #wfe
+        case \m000_00000011 is #wfi
+        case \m000_00000100 is #sev
+        case \m000_00000101 is #sev #long
+        case \m000_1111---- is #dbg opt := slice{-}{3..0}
+        others is #nop opt := slice{-}{7..0} -- datasheet allows only 0, but objdump is more permissive.
+      end select
+  end select
+end format
+
+format dataProcessingModImm #dataProcessingMI
+  dataProcImm12 setFlags
+  select slice{8..4}{-} --op
+    case \m0000- is Rn4 
+      select slice{4}{11..8} -- S and Rd
+        case \m1_1111 is #tst
+        others      is Rd4 #and
+      end select
+    case \m0001- is Rn4 Rd4 #bic
+    case \m0010- is     
+      select slice{3..0}{-} --Rn
+        case \m1111 is #mov Rd4 
+        others      is #orr Rd4 Rn4 
+      end select
+    case \m0011- is
+      select slice{3..0}{-} --Rn
+        case \m1111 is #mvn Rd4 
+        others      is #orn Rd4 Rn4 
+      end select
+    case \m0100- is Rn4
+      select slice{4}{11..8} -- S and Rd
+        case \m1_1111 is #teq
+        others        is Rd4 #eor
+      end select
+    case \m1000- is Rn4
+      select slice{4}{11..8} -- S and Rd
+        case \m1_1111 is #cmn
+        others        is Rd4 #add -- encoding T3.
+      end select
+    case \m1010- is Rd4 Rn4 #adc
+    case \m1011- is Rd4 Rn4 #sbc
+    case \m1101- is Rn4
+      select slice{4}{11..8} -- S and Rd
+        case \m1_1111 is #cmp
+        others        is Rd4 #sub
+      end select
+    case \m1110- is Rd4 Rn4 #rsb
+  end select
+end format
+
+format setFlags
+  S := slice{4}{-}
+end format
+
+format dataProcessingPlainImm #dataProcessingPI -- plain immediat
+  select slice{8..4}{-} -- op
+    case \m00000 is #add  Rd4 Rn4 dataProcImm12 -- no special case for Rn=0xf => 'adr' instruction.
+    case \m00100 is #move Rd4 dataProcImm16
+    case \m01010 is #sub  Rd4 Rn4 dataProcImm12 -- no special case for Rn=0xf => 'adr' instruction.
+    case \m01100 is #movt Rd4 dataProcImm16
+    case \m100-0 is
+      restrict slice{10,4}{5} to \m000
+      sat_imm5 := slice{-}{4..0}
+      select slice{5}{14..12,7..6}
+        case \b1_00000 is #ssat16 Rd4 Rn4 -- sh=1 et imm=0 => ssat16
+        others         is #ssat Rd4 Rn4
+        	imm5 := slice{-}{14..12,7..6} 
+          shiftType := slice{5}{-} << 1 #shType
+      end select
+    case \m10100 is #sbfx Rn4 Rd4
+      restrict slice{10}{5} to \m00
+      imm5 := slice{-}{14..12,7..6} 
+      widthm1 := slice{4..0}
+    case \m10110 is 
+      restrict slice{10}{5} to \m00
+      lsb := slice{-}{14..12,7..6} 
+      msb := slice{-}{4..0}
+      Rd4
+      select slice{3..0}{-}
+        case \m1111 is #bfc
+        others      is #bfi Rn4
+      end select
+    case \m110-0 is
+      restrict slice{10,4}{5} to \m000
+      sat_imm5 := slice{-}{4..0}
+      select slice{5}{14..12,7..6}
+        case \b1_00000 is #usat16 Rd4 Rn4 -- sh=1 et imm=0 => ssat16
+        others         is #usat Rd4 Rn4
+        	imm5 := slice{-}{14..12,7..6} 
+          shiftType := slice{5}{-} << 1 #shType
+      end select
+    case \m11100 is Rn4 Rd4 #ubfx
+      restrict slice{10,4}{5} to \m000
+      widthm1 := slice{-}{4..0}
+      lsb := slice{-}{14..12,7..6}
+  end select
+end format
+
+format loadStoreMultiple #multiple
+  Rn4
+  regList := slice{-}{15..0}
+  W := slice{5}{-}
+  select slice{8..7,4}{-}
+    case \m01_0 is #store #incrementAfter
+    case \m01_1 is #load  #incrementAfter
+    case \m10_0 is #store #decrementBefore
+    case \m10_1 is #load  #decrementBefore
+  end select
+end format
+
+format loadStoreDualOrExclusive
+  Rn4
+  select slice{8..7,5..4}{7..4} -- op1, op2, op3
+    case \m00_0-_---- or
+         \m01_0-_010- is #exclusive
+      Rt   := slice{-}{15..12} #Rt
+      select slice{4}{-}
+        case 0 is #store
+        case 1 is #load
+      end select
+      select slice{8..7,5}{7..4}
+        case \m00_0_---- is #word 
+          imm10 := slice{-}{7..0} << 2 #imm10
+          Rd    := slice{-}{11..8}     #Rd
+        case \m01_0_0100 is #byte
+          Rd    := slice{-}{3..0}     #Rd
+        case \m01_0_0101 is #halfword
+          Rd    := slice{-}{3..0}     #Rd
+      end select
+    case \m0-_1-_---- or \m1-_--_---- is #dual
+      select slice{4}{-}
+        case 0 is #store
+        case 1 is #load
+      end select
+      Rt     := slice{-}{15..12} #Rt
+      Rt2    := slice{-}{11..8}  #Rt2
+      imm10  := slice{-}{7..0} << 2   #imm10
+      wb     := slice{5}{-} -- or W
+      idx    := slice{8}{-} -- or P
+      addi   := slice{7}{-} -- or U
+    case \m01_01_000- is 
+      select slice{-}{15..5}
+        case \m11110000000 is #table #branch
+          select slice{4}
+            case 0 is #byte
+            case 1 is #halfword
+          end select
+          Rm := slice{-}{3..0} #Rm
+      end select
+  end select
+end format
+
+format immShift
+	imm5 := slice{-}{14..12,7..6} 
+  shiftType := slice{-}{5..4} #shType
+end format
+
+format Rm4
+  Rm := slice{-}{3..0} #Rm
+end format
+
+format Rn4
+  Rn := slice{3..0}{-} #Rn
+end format
+
+format Rd4
+  Rd := slice{-}{11..8} #Rd
+end format
+
+format dataProcImm12
+  imm12 := slice{10}{14..12,7..0} #imm12
+end format
+
+format dataProcImm16
+  imm16 := slice{3..0,10}{14..12,7..0} #imm16
+end format
+
+format Rt4 --Rt
+  Rt := slice{-}{15..12} #Rt
+end format
+
+format Rt4not15 --Rt, but not with 15
+  select slice{-}{15..12} -- Rt 
+    case \m0--- or \m-0-- or \m--0- or \m---0 is
+      Rt := slice{-}{15..12} #Rt
+  end select
+end format
+
+format Rn4not15 --Rn, but not with 15
+  select slice{3..0}{-} -- Rn 
+    case \m0--- or \m-0-- or \m--0- or \m---0 is
+      Rn := slice{3..0}{-} #Rn
+  end select
+end format
+
+format Rm4LslImm2
+  imm2 := slice{-}{5..4} #imm2
+  Rm   := slice{-}{3..0} #Rm
+end format
+
+
+format dataProcessingShifted #dataProcessingSR -- shifted register
+  S  := slice{4}{-}
+  Rm   := slice{-}{3..0} #Rm
+  select slice{8..5}{15} --op + bit 15
+    case \m0000_0 is immShift Rn4
+      select slice{4}{11..8}
+        case \m1_1111 is #tst
+				others        is #and Rd4
+      end select
+    case \m0001_0 is immShift Rn4 Rd4 #bic
+    case \m0010_0 is  
+      select slice{3..0}{-}
+        case \m1111 is immShift Rd4 #move
+ 				others is  immShift Rn4 Rd4 #orr
+--        case \m0--- or \m10-- or \m110- or \m1110 is Rn4 Rd4 dataProcImm5 #orr
+      end select
+    case \m0011_0 is immShift Rd4 
+      select slice{3..0}{-}
+        case \m1111 is #mvn
+        others      is Rn4 #orn
+      end select
+    case \m0100_0 is immShift Rn4 
+      select slice{4}{11..8}
+        case \m1_1111 is #teq
+        others is Rd4 #eor
+      end select
+    case \m0110_- is Rn4 Rd4 packHW 
+    case \m1000_0 is immShift Rn4 
+      select slice{4}{11..8}
+        case \m1_1111 is #cmn
+  			others      is Rd4 #add
+      end select
+    case \m1010_0 is immShift Rn4 Rd4 #adc
+    case \m1011_0 is immShift Rn4 Rd4 #sbc
+    case \m1101_0 is immShift Rn4 
+      select slice{4}{11..8}
+        case \m1_1111 is #cmp
+  			others      is Rd4 #sub
+      end select
+    case \m1110_0 is immShift Rn4 Rd4 #rsb
+  end select
+end format
+
+format packHW #pack16
+  shiftType := slice{-}{5} << 1 #shType
+	imm5 := slice{-}{14..12,7..6} 
+  select slice {4}{15,5,4} -- S and T should be set to 0.
+    case \m0_0_0_0 is #hbt
+    case \m0_0_1_0 is #htb
+  end select
+end format
+
+--##==================================================
+--## Syntax 32 bits description
+--##==================================================
+
+syntax regList
+  "{"
+  field u16 regList;
+  -- this is particularly ugly because of the lack of expressions and loops...
+  if regList{00} then "r0"  if regList{15..01} != 0 then ", " end if end if 
+  if regList{01} then "r1"  if regList{15..02} != 0 then ", " end if end if 
+  if regList{02} then "r2"  if regList{15..03} != 0 then ", " end if end if 
+  if regList{03} then "r3"  if regList{15..04} != 0 then ", " end if end if 
+  if regList{04} then "r4"  if regList{15..05} != 0 then ", " end if end if 
+  if regList{05} then "r5"  if regList{15..06} != 0 then ", " end if end if 
+  if regList{06} then "r6"  if regList{15..07} != 0 then ", " end if end if 
+  if regList{07} then "r7"  if regList{15..08} != 0 then ", " end if end if 
+  if regList{08} then "r8"  if regList{15..09} != 0 then ", " end if end if 
+  if regList{09} then "r9"  if regList{15..10} != 0 then ", " end if end if 
+  if regList{10} then "r10" if regList{15..11} != 0 then ", " end if end if 
+  if regList{11} then "r11" if regList{15..12} != 0 then ", " end if end if 
+  if regList{12} then "r12" if regList{15..13} != 0 then ", " end if end if 
+  if regList{13} then "sp"  if regList{15..14} != 0 then ", " end if end if 
+  if regList{14} then "lr"  if regList{15..15} != 0 then ", " end if end if 
+  if regList{15} then "pc"  end if
+  "}"
+end syntax
+
+syntax wback field u1 W if W then "!" end if end syntax -- Write back
+
+syntax pldpliLiteral
+  select
+    case #pld "pld\t["
+    case #pli "pli\t["
+  end select
+  select
+    case #pc "pc"
+    case #Rn Rn4
+  end select
+  select 
+    case #imm12
+      field u12 imm12 
+      select
+        case #sub if imm12 != 0 then ", #-\d",imm12 end if
+        case #add if imm12 != 0 then ", #\d", imm12 end if
+      end select
+    case #imm8 #sub
+      field u8 imm8
+      if imm8 != 0 then ", #-\d",imm8 end if
+    case #add ", " RmImm2
+  end select
+  "]"
+end syntax
+
+syntax ldrSize
+  select
+    case #byte     "b"
+    case #halfword "h"
+    case #word
+  end select
+end syntax
+
+syntax ldrb32Literal #ldr #Rt #pc
+  field u12 imm12 #imm12
+  "ldr"
+  select case #signed "s" case #unsigned end select
+  ldrSize
+  ".w\t" Rt4
+  select
+    case #add
+      if imm12 != 0 then
+  		  ", [pc, #\d]",imm12
+      else
+  		  ", [pc]"
+      end if
+    case #sub
+      if imm12 != 0 then
+		    ", [pc, #-\d]",imm12
+      else
+  		  ", [pc]"
+      end if
+  end select
+end syntax
+
+syntax ldrbt32 #ldrt #Rt #Rn #imm8
+  "ldr"
+  select case #signed "s" case #unsigned end select
+  ldrSize
+  "t\t" Rt4 ", [" Rn4 
+  field u8 imm8
+  if imm8 then ", #\d",imm8 end if
+  "]"
+end syntax
+
+syntax ldrbImm #ldr #Rt #Rn
+  "ldr"
+  select case #signed "s" case #unsigned end select
+  ldrSize
+  ".w\t" Rt4 ", [" Rn4
+  select 
+    case #imm12 #add
+      field u12 imm12
+      if imm12 then ", #\d",imm12 end if "]"
+    case #imm8
+      field u1 P
+      field u1 W
+      field u8 imm8
+      select
+        case #sub
+          if P then
+            if imm8 != 0 then ", #-\d",imm8 end if "]"
+            if W then "!" end if
+          elseif !P & W then "], #"
+            if imm8 then "-" end if
+				    "\d",imm8
+          end if
+        case #add
+          if P then
+            if imm8 != 0 then ", #\d",imm8 end if "]"
+            if W then "!" end if
+          elseif !P & W then "], #\d",imm8
+          end if
+      end select
+    case #Rm ", " RmImm2 "]"
+  end select
+end syntax
+
+
+syntax loadStoreMultiple #multiple
+  field u1 W
+  select
+  case #store "stm"
+  case #load "ldm"
+  end select
+  select
+    case #incrementAfter
+      "ia.w\t" 
+    case #decrementBefore
+      "db\t"
+  end select
+  Rn4 wback ", " regList
+end syntax
+
+syntax loadStoreExclusive #exclusive
+  select
+    case #load  "ldrex"
+    case #store "strex"
+  end select
+  select
+    case #word      "\t" Rd4 ", " Rt4 regImm10
+    case #halfword "h\t" Rd4 ", " Rt4 ", [" Rn4 "]"
+    case #byte     "b\t" Rd4 ", " Rt4 ", [" Rn4 "]"
+  end select
+end syntax
+
+
+syntax loadStoreDual #dual
+  field u1 idx
+  field u1 addi
+  field u1 wb
+  select
+    case #store "strd"
+    case #load  "ldrd"
+  end select
+  "\t"
+  field u10 imm10 #imm10
+  Rt4 ", " Rt2_4 
+  ", [" Rn4
+  if idx then
+    ", #"
+    if !addi then "-" end if
+    "\d]",imm10
+    if wb then "!" end if
+  elseif !idx & wb then
+    "], #"
+    if !addi then "-" end if
+    "\d",imm10
+  end if
+end syntax
+
+syntax tableBranch #table #branch
+  "tb"
+  select 
+    case #byte "b"
+    case #halfword "h"
+  end select 
+  "\t["
+  Rn4 ", " Rm4
+  select 
+    case #byte "]"
+    case #halfword ", lsl #1]"
+  end select 
+end syntax
+
+syntax dataProcessingShifted #dataProcessingSR
+  select
+    case
+      select
+        case #and "and"
+        case #bic "bic"
+        case #orr "orr"
+        case #eor "eor"
+        case #add "add"
+        case #adc "adc"
+        case #sbc "sbc"
+        case #sub "sub"
+      end select
+      setFlags
+      ".w\t" Rd4 ", " Rn4
+    case #rsb "rsb" setFlags "\t" Rd4 ", " Rn4 -- no '.w'
+    case #orn "orn" setFlags "\t" Rd4 ", " Rn4 -- no '.w'
+    case #mvn "mvn" setFlags ".w\t" Rd4
+    case #tst "tst.w\t" Rn4
+    case #teq "teq\t"   Rn4
+    case #cmn "cmn.w\t" Rn4
+    case #cmp "cmp.w\t" Rn4
+  end select
+  ", " Rm4 shiftType
+end syntax
+
+syntax pack #pack16 #dataProcessingSR
+  select
+    case #hbt "pkhbt\t"
+    case #htb "pkhtb\t"
+  end select
+  Rd4 ", " Rn4 ", " Rm4 shiftType
+end syntax
+
+syntax dataProcMoveShift #dataProcessingSR #move
+  field u1 S
+  "mov" setFlags ".w\t"
+  Rd4 ", " Rm4 shiftType
+end syntax
+
+syntax shiftType #shType
+  field u2 shiftType
+  field u5 imm5
+  if     shiftType = 0 then 
+    if imm5 then ", lsl #\d",imm5 end if
+  elseif shiftType = 1 then
+    if imm5 then ", lsr #\d",imm5
+    else ", lsr #32" end if
+  elseif shiftType = 2 then 
+    if imm5 then ", asr #\d",imm5
+    else ", asr #32" end if
+  else   
+    if imm5 = 0 then
+      ", rrx"
+    else
+      ", ror #\d",imm5
+    end if
+  end if
+end syntax
+
+syntax dataProcessingPlainImm #dataProcessingPI
+  field u12 imm12 #imm12
+  select
+    case #add "addw\t"
+    case #sub "subw\t"
+  end select
+  Rd4 ", " Rn4 ", #\d",imm12
+end syntax
+
+syntax moveImm16 #dataProcessingPI
+  field u16 imm16 #imm16
+  select
+    case #move "movw\t" Rd4 ", #\d",imm16
+    case #movt "movt\t" Rd4 ", #\d",imm16
+  end select
+end syntax
+
+syntax dataProcSbfx #dataProcessingPI #sbfx
+  field u5 imm5
+  field u5 widthm1
+  "sbfx\t" Rd4 ", " Rn4 ", #\d, #\d",imm5,widthm1+1
+end syntax
+
+syntax dataProcBitFieldSetClear #dataProcessingPI
+  field u5 lsb
+  field u5 msb
+  select
+    case #bfi "bfi\t" Rd4 ", " Rn4
+    case #bfc "bfc\t" Rd4
+  end select
+  ", #\d",lsb
+  if msb+1 < lsb then
+    ", <invalid>"
+  else
+    ", #\d",msb+1-lsb
+  end if
+end syntax
+
+syntax dataProcBitFieldExtract #dataProcessingPI #ubfx
+  field u5 lsb
+  field u5 widthm1
+  "ubfx\t" Rd4 ", " Rn4 ", #\d, #\d",lsb,widthm1 
+end syntax
+
+syntax dataProcSSAT #dataProcessingPI 
+  field u5 sat_imm5
+  select
+    case #ssat   "ssat\t"   Rd4 ", #\d, ",sat_imm5+1 Rn4 shiftType
+    case #ssat16 "ssat16\t" Rd4 ", #\d, ",sat_imm5+1 Rn4
+    case #usat   "usat\t"   Rd4 ", #\d, ",sat_imm5+1 Rn4 shiftType
+    case #usat16 "usat16\t" Rd4 ", #\d, ",sat_imm5+1 Rn4
+  end select
+end syntax
+
+syntax dataProcessingModImm #dataProcessingMI 
+  select
+    case #and "and" setFlags ".w\t" Rd4 ", " Rn4
+    case #tst "tst.w\t"                      Rn4
+    case #bic "bic" setFlags ".w\t" Rd4 ", " Rn4
+    case #mov "mov" setFlags ".w\t" Rd4         
+    case #orr "orr" setFlags ".w\t" Rd4 ", " Rn4
+    case #mvn "mvn" setFlags ".w\t" Rd4         
+    case #orn "orn" setFlags "\t"   Rd4 ", " Rn4
+    case #eor "eor" setFlags ".w\t" Rd4 ", " Rn4
+    case #teq "teq\t"                      Rn4
+    case #add "add" setFlags ".w\t" Rd4 ", " Rn4
+    case #cmn "cmn.w\t"                      Rn4
+    case #adc "adc" setFlags ".w\t" Rd4 ", " Rn4
+    case #sbc "sbc" setFlags ".w\t" Rd4 ", " Rn4
+    case #cmp "cmp.w\t"                      Rn4
+    case #sub "sub" setFlags ".w\t" Rd4 ", " Rn4
+    case #rsb "rsb" setFlags   "\t" Rd4 ", " Rn4
+  end select
+  ", " ThumbExpandImm
+end syntax
+
+syntax ThumbExpandImm --algo A5.p.138
+  field u12 imm12 #imm12
+  if imm12{11..10} = 0 then
+    if     imm12{9..8} = 0 then
+      "#\d",imm12 -- 8 bits value
+    elseif imm12{9..8} = 1 then
+      "#\d",imm12{7..0} cat (u8)(0) cat imm12{7..0}
+    elseif imm12{9..8} = 2 then
+      "#\d",imm12{7..0} cat (u8)(0) cat imm12{7..0} cat (u8)(0)
+    elseif imm12{9..8} = 3 then
+      "#\d",imm12{7..0} cat imm12{7..0} cat imm12{7..0} cat imm12{7..0}
+    end if
+  else
+    "#\d",((u32)(1 cat imm12{6..0})) ror imm12{11..7}
+  end if
+end syntax
+
+syntax setFlags
+  field u1 S
+  if S then "s" end if
+end syntax
+
+syntax branch32Cond #branch
+  field s32 target
+  "b"cond".w\t"
+  "\x",(s32)(instruction address)+target+4s
+  -- show label information as in objdump: UGLYYYYYY!
+  " <" function at (s32)(instruction address)+target+4s
+  if (instruction address+(u32)(target)+4 - function at (instruction address+(u32)(target)+4) address) != 0 then
+    "+0x\x",    instruction address+(u32)(target)+4 - 
+    function at (instruction address+(u32)(target)+4) address
+  end if
+  ">"
+end syntax
+
+syntax branch32 #branch
+  field s32 target
+  select
+    case #link   "bl\t"
+    case #nolink "b.w\t"
+    case #link #bex "blx\t"
+  end select
+  "\x",(s32)(instruction address)+target+4s
+  " <" function at (s32)(instruction address)+target+4s
+  if (instruction address+(u32)(target)+4 - function at (instruction address+(u32)(target)+4) address) != 0 then
+    "+0x\x",         instruction address+(u32)(target)+4 - 
+    function at      (instruction address+(u32)(target)+4) address
+  end if
+  ">"
+end syntax
+
+syntax msr
+  select
+    case  #msr "msr\t" specRegMSR ", " Rn4
+    case  #mrs "mrs\t" Rd4 ", " specRegMRS
+  end select
+end syntax
+
+syntax specRegMRS --ugly, but objdump compatible.
+  field u8 sysm
+  if     sysm = \x00  then "CPSR"
+  elseif sysm = \x01  then "IAPSR"
+  elseif sysm = \x02  then "EAPSR"
+  elseif sysm = \x03  then "PSR"
+  elseif sysm = \x05  then "IPSR"
+  elseif sysm = \x06  then "EPSR"
+  elseif sysm = \x07  then "IEPSR"
+  elseif sysm{6..0} = \x08  then "MSP"
+  elseif sysm{6..0} = \x09  then "PSP"
+  elseif sysm{6..0} = \x0a  then "MSPLIM"
+  elseif sysm{6..0} = \x0b  then "PSPLIM"
+  elseif sysm{6..0} = \x10  then "PRIMASK"
+  elseif sysm{6..0} = \x11  then "BASEPRI"
+  elseif sysm{6..0} = \x12  then "BASEPRI_MAX"
+  elseif sysm{6..0} = \x13  then "FAULTMASK"
+  elseif sysm{6..0} = \x14  then "CONTROL"
+  elseif sysm{5..4} = \x3  then "SP_hyp"
+  end if
+  
+  if sysm >= \x80 && sysm < \x98 then "_NS" end if 
+  if sysm = \x98  then "SP_NS" end if
+end syntax
+
+syntax specRegMSR
+  field u8 sysm
+  field u2 mask
+  if     sysm = \x0  then 
+    if mask = 0 then "CPSR_"
+    elseif mask = 1 then "CPSR_s"
+    elseif mask = 2 then "CPSR_f"
+    elseif mask = 3 then "CPSR_fs"
+    end if
+  elseif sysm = \x1  then "IAPSR"
+  elseif sysm = \x2  then "EAPSR"
+  elseif sysm = \x3  then "PSR"
+  elseif sysm = \x5  then "IPSR"
+  elseif sysm = \x6  then "EPSR"
+  elseif sysm = \x7  then "IEPSR"
+  elseif sysm{6..0} = \x8  then "MSP"
+  elseif sysm{6..0} = \x9  then "PSP"
+  elseif sysm{6..0} = \xa  then "MSPLIM"
+  elseif sysm{6..0} = \xb  then "PSPLIM"
+  elseif sysm{6..0} = \x10 then "PRIMASK"
+  elseif sysm{6..0} = \x11 then "BASEPRI"
+  elseif sysm{6..0} = \x12 then "BASEPRI_MAX"
+  elseif sysm{6..0} = \x13 then "FAULTMASK"
+  elseif sysm{6..0} = \x14 then "CONTROL"
+  elseif sysm{5..4} = 2 then 
+    if     mask = 0 then "R8_usr"
+    elseif mask = 1 then "R12_usr"
+    elseif mask = 2 then "R8_fiq"
+    elseif mask = 3 then "R12_fiq"
+    end if
+  elseif sysm{5..4} = 3 then
+    if     mask = 0 then "LR_irq"
+    elseif mask = 1 then "LR_abt"
+    elseif mask = 2 then "<invalid>"
+    elseif mask = 3 then "LR_mon"
+    end if
+  end if
+  if     sysm = \x98        then  "SP_NS"
+  elseif sysm{7..5} = \b100 then "_NS" end if -- same as MSP..CONTROL
+end syntax
+
+syntax hint32 #hint32
+  select
+    case #nop field u8 opt "nop.w" if opt != 0 then "\t{\d}",opt end if
+    case #yield "yield.w"
+    case #wfe "wfe.w"
+    case #wfi "wfi.w"
+    case #sev "sev.w"
+    case #sev #long "sevl.w"
+    case #dbg field u4 opt "dbg\t#\d",opt
+  end select
+end syntax
 
 
 --##==================================================
@@ -312,29 +3310,523 @@ end format
 
 syntax arith
   select
-    case #logicalShift "ls" 
-      select 
-        case #left "l"
-        case #right "r"
-      end select
-      "s " Imm5Reg2	--TODO mov if imm5=0
-    case #right #arithmeticShift "asrs " Imm5Reg2
-    case #add "adds " reg3
-    case #sub "subs " reg3
-    case #add "adds " imm3reg2
-    case #sub "subs " imm3reg2
+    case #logicalShift #left
+				field u5 imm5 #imm5
+				field u3 Rm   #Rm
+				field u3 Rd   #Rd
+				if imm5 = 0 then "movs\tr\d, r\d",Rd,Rm 
+				else "lsls\tr\d, r\d, #\d", Rd, Rm, imm5
+				end if
+		case #logicalShift #right "lsrs\t" Imm5Reg2Shift
+    case #right #arithmeticShift "asrs\t" Imm5Reg2Shift
+    case #add "adds\t" reg3
+    case #sub "subs\t" reg3
+    case #add "adds\t" imm3reg2
+    case #sub "subs\t" imm3reg2
+		case #move "movs\t" imm8reg
+		case #compare "cmp\t" imm8reg
+		case #add "adds\t" imm8reg
+		case #sub "subs\t" imm8reg
   end select
 end syntax
 
-syntax imm5 #imm5 field u5 imm5 "#\d",imm5 end syntax
-syntax imm3 #imm3 field u3 imm3 "#\d",imm3 end syntax
-syntax Rm   #Rm   field u3 Rm   "R\d",Rm  end syntax
-syntax Rd   #Rd   field u3 Rd   "R\d",Rd  end syntax
-syntax Rn   #Rn   field u3 Rn   "R\d",Rn  end syntax
+-- Data processing
+syntax dataProc
+  select
+    case #and "ands\t" reg2
+    case #eor "eors\t" reg2
+    case #lsl "lsls\t" reg2
+    case #lsr "lsrs\t" reg2
+    case #asr "asrs\t" reg2
+    case #adc "adcs\t" reg2
+    case #sbc "sbcs\t" reg2
+    case #ror "rors\t" reg2
+    case #tst "tst\t"  reg2
+    case #rsb "negs\t" reg2Rn -- rsb in ARM, negs in objdump.
+    case #cmp "cmp\t"  reg2
+    case #cmn "cmn\t"  reg2
+    case #orr "orrs\t" reg2
+    case #mul "muls\t" reg2
+    case #bic "bics\t" reg2
+    case #mvn "mvns\t" reg2
+  end select
+end syntax
 
-syntax Imm5Reg2 Rd "," Rm "," imm5 end syntax
-syntax reg3 Rd "," Rn "," Rm end syntax
-syntax imm3reg2 Rd "," Rn "," imm3 end syntax
+syntax specialAndBex
+  select
+    case #add     "add\t" reg2_4bits
+    case #mov mov
+    case #compare "cmp\t" reg2_4bits
+    case #bex "b"
+		  select case #link "lx" case #noLink "x" end select
+		  select case #ns "ns" case #nons end select
+      "\t"  Rm4
+  end select
+end syntax
+
+-- mov is a special case, as mov r8,r8 is interpreted as a 'nop' in objdump.
+-- due to limitation of the 'if', we could not call other chunks.
+syntax mov #mov #Rm #Rd
+  field u4 Rd
+  field u4 Rm
+  if Rd = 8 & Rm = 8 then "nop"
+  else
+    --"mov\t" reg2_4bits
+    "mov\t"
+		if    Rd =15 then "pc" 
+		elseif Rd=14 then "lr"
+		elseif Rd=13 then "sp"
+		else   "r\d",Rd
+    end if
+    ", "
+		if    Rm =15 then "pc" 
+		elseif Rm=14 then "lr"
+		elseif Rm=13 then "sp"
+		else   "r\d",Rm
+    end if
+  end if
+end syntax
+
+syntax loadFromLiteralPool #load
+  "ldr\t" Rt ", [pc, " imm10 "]"
+end syntax
+
+syntax loadStore
+  select
+    case #load  "ldr"
+    case #store "str"
+  end select
+  select
+    case #signed "s"
+    case #unsigned
+    case
+  end select
+  select
+    case #reg32 "\t"
+    case #reg16 "h\t"
+    case #reg8  "b\t"
+  end select
+  select
+    case reg3Rt
+    case regImm7reg2Rt
+    case regImm6reg2Rt
+    case regImm5reg2Rt
+  end select
+end syntax
+
+syntax loadStoreSP #SP #reg32
+  select
+    case #load  "ldr\t"
+    case #store "str\t"
+  end select
+  Rt ", [sp, " imm10 "]"
+end syntax
+
+syntax adr #ADR
+  "add\t" Rd ", pc, " imm10 --objdump uses 'add', while ARM DDI 0403E.b uses 'adr'...
+end syntax
+
+syntax addsp #AddRdSP
+  "add\t" Rd ", sp, " imm10
+end syntax
+
+syntax addTosp
+  select
+    case #AddSP "add\t"
+    case #SubSP "sub\t"
+  end select
+  "sp, " imm9
+end syntax
+
+syntax endianess #setEnd
+  "setend\t"
+  field u1 E
+  if E then "be" else "le" end if
+end syntax
+
+syntax privAccess #setPan
+  field u1 imm1
+  "setpan\t#\d",imm1
+end syntax
+
+syntax hlt #hlt
+  field u6 imm6
+  "hlt\t0x00"
+  if imm6 < 16 then "0" end if
+  "\x",imm6
+end syntax
+
+syntax hint
+  select
+    case #nop    "nop"
+    case #yield  "yield" -- strange mnemo from objdump
+    case #wfe    "wfe"   -- strange mnemo from objdump
+    case #wfi    "wfi"   -- strange mnemo from objdump
+    case #sev    "sev"
+		case #nop #hint field u4 cond "nop\t{\d}",cond
+  end select
+end syntax
+
+syntax ifThen #ifThen
+  "it"
+  field u4 mask
+  field u4 cond
+  if mask{2..0} != 0 then
+    if mask{3} = cond{0} then "t" else "e" end if
+    if mask{1..0} != 0 then
+      if mask{2} =cond{0} then "t" else "e" end if
+      if mask{0} != 0 then
+        if mask{1} =cond{0} then "t" else "e" end if
+      end if
+    end if
+  end if
+  "\t"
+  condWithAl
+end syntax
+
+syntax bkpt #bkpt #imm8
+  field u8 imm8
+  "bkpt\t0x00"
+  if imm8 < 16 then "0" end if
+  "\x",imm8
+end syntax
+
+syntax rev #rev 
+  "rev"
+  select 
+    case #reg32 "\t"
+    case #reg16 #unsigned "16\t"
+    case #reg16 #signed   "sh\t"
+  end select
+  reg2
+end syntax
+
+syntax CPS #CPS --change processor state
+  "cps"
+  field u1 Im
+  field u1 A
+  field u1 I
+  field u1 F
+  if Im then "id" else "ie" end if
+  if A | I | F then "\t" end if
+  if A then "a" end if
+  if I then "i" end if
+  if F then "f" end if
+end syntax
+
+syntax pushPop 
+  select
+    case #push "push\t" reglistM
+    case #pop "pop\t" reglistP
+  end select
+end syntax
+
+syntax reglist
+  field u8 regList
+  "{"
+  -- this is particularly ugly because of the lack of expressions and loops...
+  if regList{0} then "r0" if regList{7..1} then ", " end if end if 
+  if regList{1} then "r1" if regList{7..2} then ", " end if end if 
+  if regList{2} then "r2" if regList{7..3} then ", " end if end if 
+  if regList{3} then "r3" if regList{7..4} then ", " end if end if 
+  if regList{4} then "r4" if regList{7..5} then ", " end if end if 
+  if regList{5} then "r5" if regList{7..6} then ", " end if end if 
+  if regList{6} then "r6" if regList{7..7} then ", " end if end if 
+  if regList{7} then "r7"                                   end if 
+  "}"
+end syntax
+
+syntax reglistP
+  field u1 P
+  field u8 regList
+  "{"
+  -- this is particularly ugly because of the lack of expressions and loops...
+  if regList{0} then "r0" if regList{7..1} cat P != 0 then ", " end if end if 
+  if regList{1} then "r1" if regList{7..2} cat P != 0 then ", " end if end if 
+  if regList{2} then "r2" if regList{7..3} cat P != 0 then ", " end if end if 
+  if regList{3} then "r3" if regList{7..4} cat P != 0 then ", " end if end if 
+  if regList{4} then "r4" if regList{7..5} cat P != 0 then ", " end if end if 
+  if regList{5} then "r5" if regList{7..6} cat P != 0 then ", " end if end if 
+  if regList{6} then "r6" if regList{7..7} cat P != 0 then ", " end if end if 
+  if regList{7} then "r7" if                   P != 0 then ", " end if end if 
+  if P          then "pc" end if 
+  "}"
+end syntax
+
+syntax reglistM
+  field u1 M
+  field u8 regList
+  "{"
+  -- this is particularly ugly because of the lack of expressions and loops...
+  if regList{0} then "r0" if regList{7..1} cat M != 0 then ", " end if end if 
+  if regList{1} then "r1" if regList{7..2} cat M != 0 then ", " end if end if 
+  if regList{2} then "r2" if regList{7..3} cat M != 0 then ", " end if end if 
+  if regList{3} then "r3" if regList{7..4} cat M != 0 then ", " end if end if 
+  if regList{4} then "r4" if regList{7..5} cat M != 0 then ", " end if end if 
+  if regList{5} then "r5" if regList{7..6} cat M != 0 then ", " end if end if 
+  if regList{6} then "r6" if regList{7..7} cat M != 0 then ", " end if end if 
+  if regList{7} then "r7" if                   M != 0 then ", " end if end if 
+  if M          then "lr" end if 
+  "}"
+end syntax
+
+syntax extend #XT
+  select
+    case #signed   "s"
+    case #unsigned "u"
+  end select
+  "xt"
+  select
+    case #reg8  "b\t"
+    case #reg16 "h\t"
+  end select
+  reg2
+end syntax
+
+syntax compareAndBranch
+  select
+    case #CBZ  "cbz\t"
+    case #CBNZ "cbnz\t"
+  end select
+  Rn ", " label7
+end syntax
+
+syntax loadStoreMulti #multipleWord
+  select 
+    case #load  "ldmia\t" Rn 
+    field u3 Rn
+		field u8 regList
+		if regList{Rn} != 1 then "!" end if
+    ", "
+    case #store "stmia\t" Rn "!, "
+  end select
+  reglist
+end syntax
+
+-- opcode ed23 4867 => 'stc	8, cr4, [r3, #-412]!'
+-- ./compileTest.py -fr 0xEc234000 -tr 0xEc234fff => passe
+-- TODO: mettre les autres valeurs de CRd => C'ets le bazar => il faut trouver une autre approche.
+syntax coprocessorInstruction #coproc #store
+  field u1 P
+  field u1 U
+  field u1 N
+  field u1 W
+  field u4 coproc
+  field u4 CRd
+  field u10 imm10
+  if     coproc = 1 then "stf"
+    if CRd > 7 then "d" else "s" end if
+    "\tf\d",CRd & 7
+  elseif coproc = 2 then "sfm	f\d, ",CRd & 7
+    if CRd > 7 then "1" else "4" end if
+  elseif coproc = 4 then "cfstrs\tmvf\d",CRd
+  elseif coproc = 5 then "cfstr32\tmvfx\d",CRd
+  elseif CRd = 0 & coproc = 10 & imm10 = 0 then "vlstm\t"
+  else
+    "stc\t\d, cr\d",coproc,CRd
+  end if
+  if !(CRd = 0 & coproc = 10 & imm10 = 0) then ", [" end if
+  Rn4
+
+  if !(CRd = 0 & coproc = 10 & imm10 = 0) then
+    if !P then "]" end if
+    ", " if !U then "#-\d",imm10 else "{\d}", imm10>>2 end if
+    if P then "]" end if
+    if W & P then "!" end if
+  end if
+end syntax
+
+syntax storeSingleDateItem #store
+  "str"
+  select
+    case #byte "b"
+    case #halfword "h"
+    case #word
+  end select
+  select  
+    case -- encoding T2
+      ".w\t"
+      #imm12
+  		field u12 imm12
+      Rt4 ", [" Rn4 
+      if imm12 != 0 then 
+        ", #\d",imm12
+      end if
+      "]"
+    case #imm8 --encoding T3
+      field u1 idx
+      field u1 addi
+      field u1 wb 
+      field u8 imm8
+      if idx & addi & !wb then "t\t"
+      else ".w\t"
+      end if
+      Rt4 ", [" Rn4
+      field u4 Rn if Rn=15 then "<invalid>" end if --no pc.
+      if idx then
+        if imm8 then
+          ", #"
+          if !addi then "-" end if
+          "\d",imm8
+        end if
+        "]"
+        if wb then "!" end if
+      elseif !idx & wb then
+        "], #"
+        if !addi && imm8 !=0 then "-" end if
+        "\d",imm8
+      end if
+    case  -- reg, encoding T2
+      field u2 imm2
+      ".w\t" Rt4 ", [" Rn4 ", " RmImm2 "]"
+  end select
+end syntax
+
+syntax RmImm2 #Rm #imm2
+  field u2 imm2
+  Rm4
+  if imm2 then ", lsl #\d",imm2 end if
+end syntax
+
+syntax branch #branch #cond
+  "b" cond ".n\t" label9
+end syntax
+
+syntax branchAlways #branch #always
+  "b.n\t" label12
+end syntax
+
+syntax udf #udf "udf\t" imm8 end syntax
+syntax svc #svc #imm8 field u8 imm8 "svc\t\d",imm8 end syntax
+
+syntax label9 #imm9 
+  field s9 imm9 
+  "\x",(s32)(instruction address) + imm9 + 4s 
+  -- show label information as in objdump
+  " <" function "+0x\x>",((s32)(instruction address) + imm9 + 4s - (s32)(function address))
+end syntax
+
+syntax label12 #imm12
+  field s12 imm12
+  "\x",(s32)(instruction address) + imm12 + 4s 
+  -- show label information as in objdump
+  " <" function "+0x\x>",((s32)(instruction address) + imm12 + 4s - (s32)(function address))
+end syntax
+
+syntax label7 #imm7
+  field u7 imm7
+  "\x",(instruction address) + imm7 + 4 
+  -- show label information as in objdump
+  " <" function "+0x\x>",(instruction address+ imm7 + 4 -function address)
+end syntax
+
+syntax imm10     #imm10 field u10 imm10 "#\d",imm10 end syntax -- value used as an addres (x4)
+syntax imm9      #imm9  field u9  imm9  "#\d",imm9  end syntax -- value used as an addres (x4)
+syntax imm8      #imm8  field u8  imm8  "#\d",imm8  end syntax
+syntax imm7      #imm7  field u7  imm7  "#\d",imm7  end syntax -- value used as an addres (x4)
+syntax imm6      #imm6  field u7  imm6  "#\d",imm6  end syntax -- value used as an addres (x2)
+syntax imm5      #imm5  field u5  imm5  "#\d",imm5  end syntax
+syntax imm3      #imm3  field u3  imm3  "#\d",imm3  end syntax
+syntax Rm        #Rm    field u3  Rm    "r\d",Rm    end syntax
+syntax Rd        #Rd    field u3  Rd    "r\d",Rd    end syntax
+syntax Rn        #Rn    field u3  Rn    "r\d",Rn    end syntax
+syntax Rt        #Rt    field u3  Rt    "r\d",Rt    end syntax
+syntax imm5Shift #imm5  field u5  imm5 if imm5 = 0 then "#32" else "#\d",imm5 end if end syntax
+
+syntax Rm4  #Rm 
+		field u4 Rm 
+		if    Rm =15 then "pc" 
+		elseif Rm=14 then "lr"
+		elseif Rm=13 then "sp"
+		else   "r\d",Rm
+    end if
+end syntax
+
+syntax Rn4  #Rn 
+		field u4 Rn 
+		if    Rn =15 then "pc" 
+		elseif Rn=14 then "lr"
+		elseif Rn=13 then "sp"
+		else   "r\d",Rn
+    end if
+end syntax
+
+syntax Rt4  #Rt 
+		field u4 Rt 
+		if    Rt =15 then "pc" 
+		elseif Rt=14 then "lr"
+		elseif Rt=13 then "sp"
+		else   "r\d",Rt
+    end if
+end syntax
+
+syntax Rt2_4  #Rt2
+		field u4 Rt2 
+		if    Rt2 =15 then "pc" 
+		elseif Rt2=14 then "lr"
+		elseif Rt2=13 then "sp"
+		else   "r\d",Rt2
+    end if
+end syntax
+
+syntax Rd4  #Rd 
+		field u4 Rd 
+		if    Rd =15 then "pc" 
+		elseif Rd=14 then "lr"
+		elseif Rd=13 then "sp"
+		else   "r\d",Rd
+    end if
+end syntax
+
+syntax Imm5Reg2       Rd  ", "  Rm ", " imm5          end syntax
+syntax Imm5Reg2Shift  Rd  ", "  Rm ", " imm5Shift     end syntax -- replace if imm5 = 0, value is 32.
+syntax reg3           Rd  ", "  Rn ", " Rm            end syntax
+syntax reg2           Rd  ", "  Rm                    end syntax
+syntax reg2Rn         Rd  ", "  Rn                    end syntax
+syntax imm3reg2       Rd  ", "  Rn ", " imm3          end syntax
+syntax imm8reg        Rd  ", "  imm8                  end syntax
+syntax reg2_4bits     Rd4 ", "  Rm4                   end syntax
+syntax reg3Rt         Rt  ", [" Rn ", " Rm        "]" end syntax 
+syntax regImm5reg2Rt  Rt  ", [" Rn ", " imm5      "]" end syntax 
+syntax regImm6reg2Rt  Rt  ", [" Rn ", " imm6      "]" end syntax 
+syntax regImm7reg2Rt  Rt  ", [" Rn ", " imm7      "]" end syntax 
+syntax regImm10 
+    field u10 imm10 #imm10
+		", [" Rn4
+		if imm10 != 0 then 
+				", #\d",imm10
+		end if
+    "]" 
+end syntax -- 32 bits only
+
+syntax condWithAl #cond -- version of cond that prints the 'al' condition.
+		field u4 cond
+		cond
+		if cond = 14 then "al" end if
+		if cond = 15 then "<und>" end if
+end syntax
+
+syntax cond #cond
+  field u4 cond
+  if     cond = 0  then "eq"
+  elseif cond = 1  then "ne"
+  elseif cond = 2  then "cs"
+  elseif cond = 3  then "cc"
+  elseif cond = 4  then "mi"
+  elseif cond = 5  then "pl"
+  elseif cond = 6  then "vs"
+  elseif cond = 7  then "vc"
+  elseif cond = 8  then "hi"
+  elseif cond = 9  then "ls"
+  elseif cond = 10 then "ge"
+  elseif cond = 11 then "lt"
+  elseif cond = 12 then "gt"
+  elseif cond = 13 then "le"
+  end if
+  -- 14 is 'always but do not have a mnemonic
+  -- 15 should not happen.
+end syntax
+
 }
 -- errorformat=%f:%l:%c:%m
 -- makeprg=gadl\ \%

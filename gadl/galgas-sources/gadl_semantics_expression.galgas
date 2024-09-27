@@ -20,6 +20,9 @@
 # * string that returns the debug itemList string.
 # * lstring (same as string, with location of the first item)
 # * getLocalVar: check that it is an expIdf, and then refers to a local var.
+# * getter getMemSpaceName: return the mem space name (if this is a mem access obviously).
+# * getter getMemAddress -> expression: return the address for a mem access.
+# * getter getMemValue   -> expression: return the value for a mem write access.
 #
 # * reader @idfItemList string -> @string name :
 
@@ -32,6 +35,7 @@ enum @expressionContext {
   case component 
   case memory 
   case behavior 
+  case format
   case syntaxView  #syntax is a keyword :-/
   case timing 
   case instCycle  #related to the fourth view of instruction: inst cycle without pipeline.
@@ -45,6 +49,7 @@ getter @expressionContext msg -> @string outResult {
     case component      : outResult = "an expression in a component description"
     case memory         : outResult = "an expression in a memory description"
     case behavior       : outResult = "an expression in a behavior view"  
+    case format         : outResult = "an expression in a format view"  
     case syntaxView     : outResult = "an expression in a syntax view"  
     case timing         : outResult = "an expression in a timing view"
     case instCycle      : outResult = "an expression in an instruction cycle (fourth) view"
@@ -76,6 +81,9 @@ class @expInstructionSize : @expression {
 }
 
 class @expInstructionAddress : @expression {
+  @addressType addressType
+  @bool withAddr
+  @expression addrExp
 }
 
 list @idfItemList
@@ -170,7 +178,59 @@ getter @expIdf lstring -> @lstring name {
 class @expIdf : @expression {
   @idfItemList idfList  #may be idf1.idf2.idf3
   @idfType detectedType #type detected using maps (varMap, methodMap, ..)
-  @bool isConst
+  @bool shouldNotAssign #if true, an error is reported if it expIdf is written.
+  @bool isDefinedStatically #if true, value is known statically (without simulation)
+}
+
+getter @expIdf getMemSpaceName -> @string name {
+  if detectedType == @idfType.memoryAccess then
+    #ok, get the first item.
+    @lstring memSpaceName
+    [idfList first ?memSpaceName ?* ?* ?* ?* ?* ?*]
+    name = [memSpaceName string]
+  else name = ""
+  end
+}
+
+
+#it returns the value for a memory write access (the second argument of :
+# * mem.writeXX(addr, value)
+getter @expIdf getMemValue -> @expression exp {
+  if detectedType == @idfType.memoryAccess then
+    #ok, first item is memSpace => remove.
+    @idfItemList idfListTmp = idfList
+    [!?idfListTmp popFirst ?* ?* ?* ?* ?* ?* ?*]
+    #second item should be the mem access name, with 1 (read) or 2 (write) arguments
+    [idfListTmp first ?* ?* ?@expressionlist paramList ?* ?* ?* ?*]
+    if [paramList length] < 2 then
+      error [self lstring]: "internal error: memory access without any address !"
+    end
+    #the first argument is the address.
+    @expressionlist paramListTmp = paramList
+    [!?paramListTmp popFirst ?*]
+    #the second argument is the value.
+    [paramListTmp first ?exp];
+  else error [self lstring] : "internal error: cannot get memory address for a non memory access": exp
+  end
+}
+
+#it returns the address for a memory access (the first argument of either:
+# * mem.read32(addr)
+# * mem.write32(addr, value)
+getter @expIdf getMemAddress -> @expression exp {
+  if detectedType == @idfType.memoryAccess then
+    #ok, first item is memSpace => remove.
+    @idfItemList idfListTmp = idfList
+    [!?idfListTmp popFirst ?* ?* ?* ?* ?* ?* ?*]
+    #second item should be the mem access name, with 1 (read) or 2 (write) arguments
+    [idfListTmp first ?* ?* ?@expressionlist paramList ?* ?* ?* ?*]
+    if [paramList length] < 1 then
+      error [self lstring]: "internal error: memory access without any address !"
+    end
+    #the first argument is the address.
+    [paramList first ?exp];
+  else error [self lstring] : "internal error: cannot get memory address for a non memory access": exp
+  end
 }
 
 class @expCast : @expression {
@@ -238,6 +298,40 @@ override method @expIntConst getUVal
   ! @bool ok {
   val = value
   ok = true
+}
+
+###############################################################################
+# @return the list of sub expressions, to explore the tree.
+###############################################################################
+
+getter @expression getExpressionChildren
+  -> @expressionlist childrenList {
+  childrenList = @expressionlist.emptyList
+}
+
+override getter @expBinary getExpressionChildren
+  -> @expressionlist childrenList {
+  childrenList = @expressionlist.emptyList
+  childrenList += !expLeft
+  childrenList += !expRight
+}
+
+override getter @expUnary getExpressionChildren
+  -> @expressionlist childrenList {
+  childrenList = @expressionlist.emptyList
+  childrenList += !exp
+}
+
+override getter @expCast getExpressionChildren
+  -> @expressionlist childrenList {
+  childrenList = @expressionlist.emptyList
+  childrenList += !expCasted
+}
+
+override getter @expBitFieldOp getExpressionChildren
+  -> @expressionlist childrenList {
+  childrenList = @expressionlist.emptyList
+  childrenList += !expField
 }
 
 # vim:ft=galgas:ts=2:sw=2:tw=0

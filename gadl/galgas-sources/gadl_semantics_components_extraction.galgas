@@ -8,7 +8,7 @@
 method @expression getComponents 
   ?let  @graphNodeList unused nextNodeList # list of successors.
   !  @graphNodeList rootNodeList {
-  rootNodeList = @graphNodeList. emptyList
+  rootNodeList = @graphNodeList.emptyList
 }
 
 # * expDummy              -> nothing
@@ -186,7 +186,7 @@ proc getInstructionComponentGraph
       idfList += ![defaultValues fetchMethodName] !@idfItemType. functionCall !@expressionlist. emptyList !@idfItemSpecType. standard !"" !"" !false
     end
     @varBaseType dummyType = @varBaseType. new { !@varKind. unsigned !0 !@location.here}
-    @expIdf idf = @expIdf. new { !dummyType !idfList !@idfType. componentCall !false}
+    @expIdf idf = @expIdf.new { !dummyType !idfList !@idfType. componentCall !false !false}
 
     @instruction fetch = @instFunctionCall. new { !@location.here !idf}
     [!?instList insertAtIndex !fetch !0]
@@ -219,7 +219,7 @@ proc generateComponentAccessGraphViz
     #get the GraphViz output content.
     @string graphVizContent = graphNodeOutput(!nodeRoot ![instName string])
     #message "create file for ".[instName string]." (".[[graphVizContent length] string].")\n";
-    createFile ( !exportDir+"/log" ![instName string]+".dot" !graphVizContent)
+    createFile ( !exportDir+"/log/dot/" ![instName string]+".dot" !graphVizContent)
   end
 }
 

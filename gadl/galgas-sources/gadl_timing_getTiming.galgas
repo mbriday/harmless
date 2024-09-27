@@ -139,7 +139,7 @@ override method @ASTTLoop getTiming
   @varBaseType type = @varBaseType.new { !@varKind.unsigned !32 !@location.here}
   @instDeclaration instDec = @instDeclaration.new { !loc !type !idf !@varClass.localVar !""}
   #message "insert id ".[internalId string]." - ".[idf string]."\n";
-  [!?idfStruct.varMap insertKey !idf !type !false !@varClass.localVar !instDec]
+  [!?idfStruct.varMap insertKey !idf !type !false !@varClass.localVar !false !instDec]
   #add the loop var as a declaration.
   var instList = @instructionList.emptyList{}
   instList += !instDec

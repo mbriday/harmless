@@ -72,9 +72,14 @@ rule <loopBlock>
   let @location loc = @location.here
   @ASTExpression guard
   <expression> ?guard
-  $while$
   @ASTExpression expCondition
-  <expression> ?expCondition
+  select
+    $while$
+    <expression> ?expCondition
+  or
+    ##true
+    expCondition = @ASTIntConst.new{!@location.here !1L !false !@varKind. unsigned}
+  end
   $do$
   <implementation> !?loopInstList
   $end$ $loop$

@@ -20,19 +20,24 @@ proc getFormatRelatedTemplate
   @binaryset bin
   @stringlist binStrListTemp
   var binStrList =@stringlist.emptyList{}
-  getRealInstructionCode ( !binTemp !defaultInstSize !codeLength ?bin)
+  getRealInstructionCode (!binTemp !defaultInstSize !codeLength ?bin)
   binStrListTemp = [bin compressedStringValueList !defaultInstSize*codeLength]
   for (@string str) in  binStrListTemp do
     @string binStr = [str stringByReplacingStringByString !"X" !"-"]
     binStrList += !binStr
   end
   addStringlist ( !?instStruct !lstringWith(!"formatBin") !lstringWith(!"bin") !binStrList)
+#  if [instSignature hasKey !"and"] then #TODO: tmp
+#    debugBinarySet(!bin !defaultInstSize*codeLength !"bin")
+#  end
+  
   #fields
   var fieldMapList =@TfieldMapList.emptyList{}
   for (@lstring ASname @varBaseType VBtype) in  instructionFieldMap do
     var itemMap =@TfieldMap.emptyMap{}
     addLStringValue ( !?itemMap !"name" !ASname)
     addStringValue ( !?itemMap !lstringWith(!"type") ![VBtype string])
+    addStringValue ( !?itemMap !lstringWith(!"ctype") ![VBtype getCType])
     fieldMapList += !itemMap
   end
   addListValue ( !?instStruct !lstringWith(!"formatField") !fieldMapList)
@@ -53,7 +58,8 @@ proc prepareLogTemplates
                   @stringset instSignature
                   * 
                   @uint codeLength
-                  @varBaseTypeMap instructionFieldMap) in  impMap do
+                  @varBaseTypeMap instructionFieldMap
+                  *) in  impMap do
     var instStruct =@TfieldMap.emptyMap{}
     #ID
     addLStringValue ( !?instStruct !"instID" !instName)

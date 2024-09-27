@@ -27,10 +27,10 @@ rule <registerDef>
   @varClass varClass
   select
     $register$
-    varClass = @varClass. GPR
+    varClass = @varClass.GPR
   or
     $program$ $counter$
-    varClass = @varClass. programCounter
+    varClass = @varClass.programCounter
   end
   <typeDeclaration> ?var @varAbstractType type
   $idf$ ?var @lstring idf

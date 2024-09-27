@@ -1,0 +1,40 @@
+{
+	"instruction": "MOVT Rd #imm16",
+	"src":
+	{	
+               "imm8": {
+			"imm": [0, "0xa", "0x15", "0xac", "0xff"]
+		},
+
+   	 	"imm3" : {
+			"imm": [0, "0x2", "0x5", "0x6", "0x7"]
+		},
+		
+		"imm4" : {
+			"imm": [0, "0x5", "0x9", "0xa", "0xf"]
+		},
+                 
+		"i" : 
+		{ "i" : [0, 1]
+		},	
+		},
+
+
+	
+	"dest":
+	{
+		"Rd": {
+			"idx": ["r1","r5","r9"],
+			"val": [0, 12334, "0xffffffff"]
+		},
+	},
+
+	"init":
+	{
+		"sp": "0x8",
+		"lr": "0xdead"
+	},
+	"mnemo": "MOVT {Rd}, #{imm16}",
+	"size": 4
+}
+

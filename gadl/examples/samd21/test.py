@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 import sys
 sys.path.append("./samd21")
 try:
@@ -14,6 +14,6 @@ except ImportError:
     
 sam = samd21.cpu()
 core = sam.getCore(0)
-core.readCodeFile('./testIO.elf')
-print core.disassemble(0xb9e,1,True);
+core.readCodeFile('./boot.elf')
+print core.disassemble(0x20000000,1,True);
 core.printRegs()

@@ -46,9 +46,10 @@ getter @varClass id -> @uint64 outResult {
 
 map @varMap {
   #3 first arguments are redondants with instDeclaration…
-  @varAbstractType type#return type:scalar, custom or tabular.
-  @bool constant #true if the variable should not be modified.
+  @varAbstractType type #return type:scalar, custom or tabular.
+  @bool constant        #true if the variable should not be modified.
   @varClass varClass
+  @bool isDefinedStatically
   @instDeclaration inst
   insert insertKey error message "the '%K' symbol is already defined in %L" 
   search searchKey error message "the '%K' symbol is not defined"

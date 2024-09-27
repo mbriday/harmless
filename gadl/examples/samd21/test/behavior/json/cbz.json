@@ -1,0 +1,23 @@
+{
+	"instruction": "cbz Rn, label" ,
+	"codeData": {
+		"post": ["0xe7fee7fe", "0xe7fee7fe", "0xe7fee7fe"]
+	},
+	"src": {
+		"Rn" : {
+			"idx": ["r0","r2", "r7"],
+			"val": ["0", "0x12345678", "0xffffffff"]
+		}
+	},
+	"dest": {
+		"cpsr": {
+			"val": ["0x41000000","0x01000000", "0xF9000000"]
+		}
+	},
+	"init": {
+		"sp": "0x8",
+		"lr": "0xdead" 
+	},
+	"mnemo": "cbz {Rn},{label}",
+	"size": 2
+}

@@ -111,12 +111,12 @@ func graphNodeOutput
 # B gets D, E
 # D, E and C -> F.
 proc testGraph {
-  @graphNode nA = @graphNode. new { !@lstringlist. emptyList !@graphNodeList. emptyList  !"0"}
-  @graphNode nB = @graphNode. new { !@lstringlist. emptyList !@graphNodeList. emptyList  !"1"}
-  @graphNode nC = @graphNode. new { !@lstringlist. emptyList !@graphNodeList. emptyList  !"2"}
-  @graphNode nD = @graphNode. new { !@lstringlist. emptyList !@graphNodeList. emptyList  !"1"}
-  @graphNode nE = @graphNode. new { !@lstringlist. emptyList !@graphNodeList. emptyList  !"1"}
-  @graphNode nF = @graphNode. new { !@lstringlist. emptyList !@graphNodeList. emptyList  !"1"}
+  @graphNode nA = @graphNode.new { !@lstringlist.emptyList !@graphNodeList.emptyList !"0"}
+  @graphNode nB = @graphNode.new { !@lstringlist.emptyList !@graphNodeList.emptyList !"1"}
+  @graphNode nC = @graphNode.new { !@lstringlist.emptyList !@graphNodeList.emptyList !"2"}
+  @graphNode nD = @graphNode.new { !@lstringlist.emptyList !@graphNodeList.emptyList !"1"}
+  @graphNode nE = @graphNode.new { !@lstringlist.emptyList !@graphNodeList.emptyList !"1"}
+  @graphNode nF = @graphNode.new { !@lstringlist.emptyList !@graphNodeList.emptyList !"1"}
 
   nA.data += !@lstring. new { !"A" !@location.here}
   nB.data += !@lstring. new { !"B" !@location.here}

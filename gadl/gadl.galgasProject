@@ -30,7 +30,8 @@ project (0:8:1) -> "gadl" {
   "galgas-sources/gadl_semantics_GetExp.galgas"         # AST reader to get decorated expression.
   "galgas-sources/gadl_semantics_expression_eval.galgas"
   "galgas-sources/gadl_semantics_expression_code_generation.galgas"
-  "galgas-sources/gadl_semantics_expression_extract_idf.galgas"
+  "galgas-sources/gadl_semantics_expression_extract_idf.galgas" #getIdf getter.
+  "galgas-sources/gadl_semantics_mem_access.galgas"     # detect memory accesses
 
 #******************************************************
 # implementation: harmless instructions related files.
@@ -45,6 +46,12 @@ project (0:8:1) -> "gadl" {
   "galgas-sources/gadl_semantics_implementation_code_generation.galgas"
   "galgas-sources/gadl_semantics_function.galgas"         #related to functions
   "galgas-sources/gadl_semantics_templateExport.galgas"   #various template export
+
+#******************************************************
+# tools based on both instructions and expressions
+#******************************************************
+  "galgas-sources/gadl_semantics_log.galgas"            # get information for logs (harmlessCode)
+
 
 #####################################################################
 # Part related to ISA description
@@ -94,12 +101,12 @@ project (0:8:1) -> "gadl" {
 
 #******************************************************************** 
 # timing section: The timing section is used to model
-# timings of peripherals using a time-automata, associated to the 
+# timings of peripherals using a timed-automata, associated to the 
 # behavior (defined in a component).
 # Primary goal: the memory hierarchy.
 # **
 # This part does not model the pipeline.
-#******************************************************************** 
+#********************************************************************
   "galgas-sources/gadl_peripheral_grammar.galgas"
   "galgas-sources/gadl_peripheral_parser.galgas"
   "galgas-sources/gadl_peripheral_set_parser.galgas" #only for included files: define more than 1 peripheral.
@@ -186,7 +193,6 @@ project (0:8:1) -> "gadl" {
   "galgas-sources/gadl_cpu_grammar.galgas"
   "galgas-sources/gadl_cpu_syntax.galgas"
   "galgas-sources/gadl_cpu.galgas"
-
 
 #******************************************************
 # memory.

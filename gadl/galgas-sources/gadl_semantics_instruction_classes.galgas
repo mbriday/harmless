@@ -429,7 +429,7 @@ proc mapInstructionsOnArchitecture
         [!?portAccessMapForInstruction insertKey !@lstring. new { !fpsLog !@location.here} !portAccessNode]
         @string graphVizContent = graphNodeOutput(!portAccessNode ![instName string])
         @string exportFileName = [instName string]+"-dev"+nbSolution
-        createFile ( !exportDir+"/log" !exportFileName+".dot" !graphVizContent)
+        createFile ( !exportDir+"/log/dot" !exportFileName+".dot" !graphVizContent)
         addStringValue ( !?instMappingOnPipelineBody !lstringWith(!"file") !exportFileName)
         nbSolution ++
 #        message "ok\n";

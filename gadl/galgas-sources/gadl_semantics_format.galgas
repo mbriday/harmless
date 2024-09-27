@@ -27,6 +27,24 @@ list @assignSliceList {
   @luint shiftVal
 }
 
+### assign with expression ***
+list @assignFormatASPExpList
+{
+  @lstring idf
+  @ASTExpression exp
+}
+
+map @expressionMap
+{
+  @expression exp
+  insert insertKey error message "the '%K' field expression is already defined in %L" 
+  search searchKey error message "the '%K' field expression is not defined"
+}
+### restrict instruction ***
+
+list @restrictList {
+  @binaryset bin
+}
 
 ########## Format "is" (left part) #############
 
@@ -70,6 +88,8 @@ abstract class @format {
 class @aggFormat : @format
 {
   @idfOrRefFormatList formatCallList
+  @restrictList restrictList
+  @assignFormatASPExpList assignFormatASPExpList
 }
 
 class @altFormat : @format
@@ -138,6 +158,7 @@ map @instructionImplementationMap
   #nb of chunks of the instruction. The real instruction length is codeLength*instructionSize bits.
   @uint codeLength
   @varBaseTypeMap instructionFieldMap
+  @expressionMap expressionMap #expression in formats
 
   insert insertKey error message "the '%K' instruction has the same signature (same references sequence) than another one." 
   search searchKey error message "the '%K' instruction is not defined"
@@ -293,14 +314,16 @@ proc setInstructionImplementationNames
   ?let  @string modelName
   ?let  @variableInstructionCodeList variableInstructionCodeList
   !  @instructionImplementationMap instructionMap {
-  instructionMap = @instructionImplementationMap. emptyMap
-  for(@binaryset code) in  binaryCodeList, (@formatListWithSuffix fslist) in 
-          instructionList,(@lstringlist instructionSeq) in  # @stringset instructionId),
-          instructionSeqList,(@stringset instructionID) in 
-          referenceSeqList,(@instructionCodeOffset offsetList @uint codeLength) in 
-          variableInstructionCodeList do
+  instructionMap = @instructionImplementationMap.emptyMap
+  for (@binaryset code) in  binaryCodeList, 
+      (@formatListWithSuffix fslist) in instructionList,
+      (@lstringlist instructionSeq) in instructionSeqList,
+      (@stringset instructionID) in referenceSeqList,
+      (@instructionCodeOffset offsetList @uint codeLength) in variableInstructionCodeList do
     var instructionFieldMap =@varBaseTypeMap.emptyMap{}
     #one instruction
+    var fieldMap = @varMap.emptyMap{}
+    var expressionMap = @expressionMap.emptyMap{}
     for (@idfOrRefFormat idfOrRefFormat @stringlist suffixList) in  fslist do
       cast idfOrRefFormat 
       case == @idfOrRefFormatIsIdf :
@@ -326,15 +349,39 @@ proc setInstructionImplementationNames
             path += "\n"
             message path
           else
+            #add it in a std varMap (for expressions)
+            @instDeclaration instDec = @instDeclaration.new {![fieldName location] 
+                                       !AStype !fieldName !@varClass.field !""}
+            [!?fieldMap insertKey !fieldName !AStype !true !@varClass.field !true !instDec]
+            #varBaseTypeMap
             [!?instructionFieldMap insertKey !fieldName !AStype]
           end
         end
+        #expressions in formats
+        cast format
+          case == @aggFormat aggFormat:
+            for (@lstring idf @ASTExpression ASTexp) in [aggFormat assignFormatASPExpList] do
+              #message "expression : " + [idf string] + "\n"
+              #do the job...
+              var idfStruct =@varIdfStruct.default
+              idfStruct.varMap = fieldMap
+              var exp = [ASTexp getExp !@expressionContext.format 
+                        !@symbolValueMap.emptyMap !idfStruct]
+              [!?expressionMap insertKey !idf !exp]
+              [!?instructionFieldMap insertKey !idf ![[exp type] getBaseType]]
+            end
+          else #rien
+        end #end expression format
       else
       end
     end
     @string instName = getInstructionName(!instructionID !modelName)
     @lstring idf = @lstring. new { !instName !@location.here}
-    [!?instructionMap insertKey !idf !code !fslist !instructionSeq !instructionID !offsetList !codeLength !instructionFieldMap]
+    [!?instructionMap insertKey !idf !code !fslist !instructionSeq !instructionID !offsetList !codeLength !instructionFieldMap !expressionMap]
+#    if [instructionID hasKey !"and"] then #TODO: tmp
+#      debugBinarySet(!code !32 !"code in instMap")    
+#    end  
+    
   end
 }
 
@@ -352,17 +399,35 @@ proc getRealInstructionCode
   ?let  @uint instructionSize
   ?let  @uint codeLength
   !  @binaryset code {
-  code = @binaryset. fullBinarySet
-  @uint currentChunk = 0
-  loop( codeLength)
-  while currentChunk < codeLength do
-    #get the code chunk;
-    @binaryset codeChunk = codeMSByteLeft >> (currentChunk*instructionSize)
-    codeChunk = [codeChunk existOnBitIndexAndBeyond !instructionSize]
-    # add it to the new code.
-    code = code & (codeChunk << ((codeLength - currentChunk - 1)*instructionSize))
-    currentChunk = currentChunk + 1
+#  code = @binaryset. fullBinarySet
+  @uintlist vector = @uintlist.emptyList
+  @uint size = instructionSize * codeLength
+  @uint i = 0
+  loop (codeLength) while (i < codeLength) do 
+    @uint offset = (codeLength-i-1)*instructionSize
+    @uint j = 0
+    loop (instructionSize) while (j < instructionSize) do 
+      vector += {!j+offset}
+      j = j+1
+    end
+    i = i+1
   end
+  code = [codeMSByteLeft transposedBy !vector]
+#  if [instName string] == "cortexM0Plus_Rd_Rm_Rn_and_dataProcessing_shType" then #TODO: tmp
+#    log vector
+#  end
+#
+#  #old:
+#  @uint currentChunk = 0
+#  loop( codeLength)
+#  while currentChunk < codeLength do
+#    #get the code chunk;
+#    @binaryset codeChunk = codeMSByteLeft >> (currentChunk*instructionSize)
+#    codeChunk = [codeChunk existOnBitIndexAndBeyond !instructionSize]
+#    # add it to the new code.
+#    code = code & (codeChunk << ((codeLength - currentChunk - 1)*instructionSize))
+#    currentChunk = currentChunk + 1
+#  end
 }
 
 proc printInstructionId 
@@ -495,6 +560,10 @@ proc generateConditionCode
   #reform code from Most Significant Part First (at left).
   @binaryset code
   getRealInstructionCode ( !codeMSByteLeft !instructionSize !codeLength ?code)
+#  if [instName string] == "cortexM0Plus_Rd_Rm_Rn_and_dataProcessing_shType" then #TODO: tmp
+#    debugBinarySet(!codeMSByteLeft !32 !"codeMSByteLeft")
+#    debugBinarySet(!code !32 !"generateConditionCode")
+#  end  
 
   @uint nbChunks = sizeInBits/nbBitsEncodedWith32
   if sizeInBits mod nbBitsEncodedWith32 != 0 then nbChunks = nbChunks + 1 end
@@ -655,9 +724,18 @@ proc generateDecoder
   var tabCodeList =@binaryCodeList.emptyList{}
   addStringValue ( !?templateStruct !lstringWith(!"INST_SHIFT") ![shift string])
   addStringValue ( !?templateStruct !lstringWith(!"DECODER_FUNC_TABLE_SIZE_IN_BITS") ![tabNbBits string])
-  for (* @binaryset code ...) in  impMap do
+  #for (* @binaryset code ...) in  impMap do
+  for (* @binaryset code * * @stringset instructionID ...) in  impMap do
+#    if [instructionID hasKey !"and"] then #TODO: tmp
+#      debugBinarySet(!code !32 !"generateDec")    
+#    end  
     #log code;
     @binaryset tabRelatedCode = code >> shift
+#    if [instructionID hasKey !"and"] then #TODO: tmp
+#      debugBinarySet(!tabRelatedCode !32 !"tabRelatedCode")
+#      message "shift: "+[shift string]+"\n"
+#      message "tabNbBits: "+[tabNbBits string]+"\n"
+#    end  
     tabRelatedCode = [tabRelatedCode existOnBitIndexAndBeyond !tabNbBits] #mask..
     tabCodeList += !tabRelatedCode
   end
@@ -668,10 +746,12 @@ proc generateDecoder
   while i < nbCases do
     var decoderFunctionBody =@TfieldMap.emptyMap{}
     @bool found = false #at last one instruction is matching
-    @binaryset binI = @binaryset. binarySetWithEqualToConstant { !0 !tabNbBits ![i uint64]}
+    @binaryset binI = @binaryset.binarySetWithEqualToConstant{!0 !tabNbBits ![i uint64]}
     var conditionDataList =@conditionDataList.emptyList{}
-    for (@lstring name  @binaryset code 4* @uint codeLength ...) in  impMap, (@binaryset tabCode) in  tabCodeList do
+    for (@lstring name  @binaryset code 4* @uint codeLength ...) in  impMap, 
+        (@binaryset tabCode) in  tabCodeList do
       @binaryset equal = binI & tabCode
+      #@binaryset equal = binI & tabCode #code?
       if [equal isEmpty] == false then #found
         found = true
         conditionDataList += !name !code !codeLength
@@ -710,6 +790,7 @@ func basicFormatFieldCode
   code = ""
   @uint offset = 0
   #iterate in the reverse order.
+  if [fieldList length] > 1 then code += "(" end
   for >(@uint64 expFrom @uint64 expTo @location loc) in  fieldList
   do
     @uint offsetInc = 0
@@ -726,6 +807,7 @@ func basicFormatFieldCode
     offset = offset+offsetInc
   between code += "|"
   end
+  if [fieldList length] > 1 then code += ")" end
 }
 
 
@@ -754,7 +836,10 @@ func getFormatAssignString
       #put the 'or' between fields
       if not start then code += "|" end
       #get the offset.
-      @sint signedOffset = [globalOffset sint] + fetchPart
+      #message "slice size "+[[sliceList length] string]+"\n"
+      #message "globalOffset "+[[globalOffset sint] string]+"\n"
+      #message "fetchPart "+[fetchPart string]+"\n"
+      @sint signedOffset = [globalOffset sint] + fetchPart + (1s - [[sliceList length] sint])
       @uint offset = [signedOffset uint] + 1 #must be > 0. chunk idx start at 1.
       #name of idf is prefix concatened with the offset (starting at 1)
       #@varBaseType varType := [@varType new ![@varKind unsigned] !fieldSize !here];
@@ -779,13 +864,17 @@ proc constructAssign
   ?let  @format format
   ?let  @uint globalOffset
   ?let  @string suffixStr
-  ?! @string instCode {
+  ?!    @string instCode 
+{
+  #basic assignment (slice)
   @assignSliceList asList = [format asList]
+  #@varIdfStruct varIdfStruct := default
   for (@lstring name
                   @sliceList sliceList
                   @varBaseType type
                   @uint shiftType
                   @luint shiftVal) in  asList do
+    #then dedicated old code...
     @string nameWithSuffix = [name string]+suffixStr
     @string realTypeString = [type string]
     instCode += "\t// construct "+nameWithSuffix+" ("+realTypeString+")\n"
@@ -798,8 +887,9 @@ proc constructAssign
         instCode += "SIGN_EXTEND("
       end
     elsif [type kind] == @varKind. float then
-      error @location.here: "internal error: not yet imlplemented: format constructor"
+      error @location.here: "internal error: not yet implemented: format constructor"
     end
+    #message "name : " + nameWithSuffix+ "("+[[[name location] line ]string]+")\n"
     instCode += getFormatAssignString(!sliceList !globalOffset)
     #@cSliceFieldOp sliceOp := [@cSliceFieldOp new !getTypeListFrom[!type] !"chunk" !sliceList !globalOffset];
     #instCode .= [sliceOp generateCode !"" !"" ![@codeCtx C]];
@@ -824,7 +914,8 @@ proc constructAssign
 proc constructDef
   ?let  @format format
   ?let  @string suffixStr
-  ?! @string def {
+  ?! @string def 
+  {
   @assignSliceList asList = [format asList]
   for (@lstring name *
                   @varBaseType type ...) in  asList do
@@ -858,7 +949,8 @@ proc generateInstConstructorAndDef
                   @lstringlist instructionSeq
                   @stringset instructionID 
                   @instructionCodeOffset offsetList 
-                  @uint codeLength ...) in  impMap do
+                  @uint codeLength *
+                  @expressionMap expressionMap) in  impMap do
     #one instruction
     var constructorImplBody =@TfieldMap.emptyMap{}
     addLStringValue ( !?constructorImplBody !"name" !name)
@@ -867,6 +959,7 @@ proc generateInstConstructorAndDef
     @string constructorDefStr = ""
     #instruction constructor body (field assignation).
     #also used to get structure field names and types.
+    
     for (@idfOrRefFormat idfOrRefformat @stringlist suffixList) in  fslist,(@uint offset) in  offsetList do
       @string suffixStr
       getSuffixString ( !suffixList ?* ?suffixStr)
@@ -876,11 +969,20 @@ proc generateInstConstructorAndDef
         @lstring currentFormatString = [idfOrRefformat name]
         [formatMap searchKey !currentFormatString ?format]
         constructAssign ( !format !offset !suffixStr !?constructorBodyStr )
-        constructDef (    !format !suffixStr !?constructorDefStr)
+        constructDef (    !format !suffixStr !?constructorDefStr )
       case == @idfOrRefFormatIsRef :
       else error @location.here : "internal error: neither ref nor format idf ?!"
       end
     end
+    #expressions in format.
+    for (@lstring name @expression exp) in expressionMap do
+      constructorDefStr += "\t"+[[exp type] getCType]+" "+[name string]+";"
+      constructorDefStr += "  /* "+[[exp type] string]+ " */\n"
+      constructorBodyStr += "\t// construct expression "+[name string]+" ("+[[exp type] string]+")\n"
+      constructorBodyStr += "\t"+[name string]+" = "+[exp generateCode !@codeCtx.C]+";\n"
+    end
+
+
     addStringValue ( !?constructorImplBody !lstringWith(!"INST_FIELD_DEF") !constructorDefStr)
     addStringValue ( !?constructorImplBody !lstringWith(!"INST_CONSTRUCTOR_BODY") !constructorBodyStr)
 
@@ -940,9 +1042,9 @@ proc getBinaryFormat
   !  @binaryCodeList binaryCodeList {
   @alternativeIsList tempAltList = @alternativeIsList. emptyList #init not used
   binaryCodeList = @binaryCodeList. emptyList
-  for (@formatListWithSuffix fslist) in  instructionList, (@instructionCodeOffset offsetList @uint codeLength) in  
-          variableInstructionCodeList,(@stringset instructionID) in 
-          referenceSeqList do
+  for (@formatListWithSuffix fslist) in  instructionList, 
+      (@instructionCodeOffset offsetList @uint codeLength) in  variableInstructionCodeList,
+      (@stringset instructionID) in referenceSeqList do
     #one instruction
     #in the list of formats, we are looking for alternatives.
     #When we got one, we search for the following format (agg, alt or ref), which indicates
@@ -982,7 +1084,11 @@ proc getBinaryFormat
           @format altFormat
           [formatMap searchKey !currentFormatString ?altFormat]
           cast altFormat
-          case == @aggFormat :
+          case == @aggFormat aggFormat:
+            #restrict
+            for (@binaryset restrictCode) in [aggFormat restrictList] do
+              code = code & restrictCode
+            end
           case == @altFormat altFormatIsAlt :
             #ok, get the alternatives :-)
             tempAltList = [altFormatIsAlt isList]
@@ -1012,37 +1118,137 @@ proc getBinaryFormat
       printInstructionId ( !instructionID !?instID)
       message "-> instruction "+instID+" does not have a valid binary format (always false).\n"
     end
+#    if [instructionID hasKey !"and"] then #TODO: tmp
+#      debugBinarySet(!code !16*codeLength !"code")    
+#    end  
     binaryCodeList += !code
   end
+}
+
+proc debugBinarySet
+  ?let @binaryset val
+  ?let @uint size
+  ?let @string name
+{
+  for (@string str) in [val compressedStringValueList !size]
+  before message name+": "
+  do message str;
+  between message " | ";
+  after message "\n"
+  end  
 }
 
 #take into account instruction with different code sizes... but not tested with it.
 proc getRelativeBinarySet 
   ?let  @binaryset val     #base value (set by user)
-  ?let  @uint sliceSize #size of the slice considered
+  ?let  @uint unused sliceSize #size of the slice considered
   ?let  @luint defaultInstructionSize
   ?let  @sliceList sliceList      #slice list. offset may be <0
   ?let  @uint nbSlicesBeforeAPlus #used to get offset start from 0.
   !  @binaryset set {
-  # the operation, to get r=01-10, from a=01--- and b=---10 is r=a&b
-  # this routine generate the a and b parts (and the followers if any) and then compute the binary set.
-  @uint offset = sliceSize
-  set = @binaryset. fullBinarySet
-  for (@formatFieldList field @sint fetchPart) in  sliceList do 
-    #one instruction slice.
-    for (@uint64 from @uint64 to @location loc) in  field do 
-      @uint rangeSize = [from uint]-[to uint]+1
-      if offset < rangeSize then 
-        error loc : "slice size is is too small. Cannot fill with the corresponding fields..."
-      end
-      offset = offset - rangeSize
-      @binaryset chunk = val >> offset
-      chunk = [chunk existOnBitIndexAndBeyond !rangeSize] #mask..
-      @sint fetchOffset = fetchPart + [nbSlicesBeforeAPlus sint] - 1s #start at 0;
-      @uint shift =  [to uint] + ([fetchOffset uint]*[defaultInstructionSize uint])
-      set = set & (chunk << shift)
+  #message "getRelativeBinarySet\n"
+
+  #1 - get binaryset required length
+  @uint maxOffset = 0;
+  for (@formatFieldList field @sint fetchPart) in  sliceList do
+    @sint fetchOffset = fetchPart + [nbSlicesBeforeAPlus sint] - 1s #start at 0;
+    if [fetchOffset uint]  > maxOffset then
+      maxOffset = [fetchOffset uint]
     end
   end
+  @uint fullSize = (maxOffset+1)*[defaultInstructionSize uint] #size in bits.
+  
+  #2 - list of transposition
+  #2.1 - init list
+  # in vector if vector[0] = 2 => the binaryset at index 0 gets value from index 2
+  @uintlist vector = @uintlist.emptyList
+  @uint i = 0
+  loop (fullSize) while(i < fullSize) do
+    vector += {!i}
+    i = i+1
+  end
+
+  #2.2 - update list
+  @uint currentOffset = 0
+  for > (@formatFieldList field @sint fetchPart) in  sliceList do 
+    #one instruction slice.
+    @sint fetchOffset = fetchPart + [nbSlicesBeforeAPlus sint] - 1s #start at 0;
+    for > (@uint64 from @uint64 to @location loc) in  field do
+      @uint length = [from uint] - [to uint] +1
+      #message "offset "+[currentOffset string]+"\n"
+      @uint dest = [to uint] + ([fetchOffset uint]*[defaultInstructionSize uint]) #'to' is the lowest value.
+      #shift values from offset+length..offset at the right place:
+      @uint i = 0
+      loop (length) while (i < length) do
+        @uint currentDest = dest+i
+        @uint currentSrc  = currentOffset+i
+        #message "shift " + [currentSrc string] + " => " +[currentDest string]+"\n"
+        # src => dest
+        # but in dest, we have a value that should be set at index that have value 'dest+i'
+        @uint tmp = [vector mValueAtIndex !currentSrc];
+        @uint idx = 0
+        @bool found = false
+        for (@uint val) in vector while not found do
+          if val == currentDest then
+            found = true
+          else
+            idx = idx + 1
+          end
+        end
+        #message "idx : "+[currentDest string]+" gets "+[currentSrc string]+"\n"
+        [!?vector setMValueAtIndex !currentDest !currentSrc] #value, index
+        #message "idx : "+[idx string]+" gets "+[tmp string]+"\n"
+        [!?vector setMValueAtIndex !tmp !idx] #value, index
+        i=i+1
+      end
+      #offset for next loop
+      currentOffset = currentOffset + length
+    end
+  end
+
+  #3 - update the binaryset
+  set = [val transposedBy !vector]
+  #debugBinarySet(!val !sliceSize !"val")
+  #debugBinarySet(!set !32 !"set")
+  #log vector
+  
+  #end
+
+#  debugBinarySet(!val !sliceSize !"val")
+#  for (@formatFieldList field @sint fetchPart) in sliceList
+#  before message "sliceList: "
+#  do message "fetchPart:" + [fetchPart string];
+#  between message " ";
+#  after message "\n"
+#  end
+#  
+#  message "defaultInstructionSize:" + [[defaultInstructionSize uint] string]+"\n"
+#  message "nbSlicesBeforeAPlus:" + [nbSlicesBeforeAPlus string]+"\n"
+#
+#  
+#  # the operation, to get r=01-10, from a=01--- and b=---10 is r=a&b
+#  # this routine generate the a and b parts (and the followers if any) and then compute the binary set.
+#  @uint offset = sliceSize
+#  set = @binaryset. fullBinarySet
+#  for (@formatFieldList field @sint fetchPart) in  sliceList do 
+#    #one instruction slice.
+#    for (@uint64 from @uint64 to @location loc) in  field do 
+#      message [from string] + "->" + [to string] + "\n"
+#      @uint rangeSize = [from uint]-[to uint]+1
+#      if offset < rangeSize then 
+#        error loc : "slice size is is too small. Cannot fill with the corresponding fields..."
+#      end
+#      offset = offset - rangeSize
+#      message "off:" + offset +"\n"
+#      @binaryset chunk = val >> offset
+#      debugBinarySet(!chunk !32 !"chunk")  
+#      chunk = [chunk existOnBitIndexAndBeyond !rangeSize] #mask..
+#      @sint fetchOffset = fetchPart + [nbSlicesBeforeAPlus sint] - 1s #start at 0;
+#      @uint shift =  [to uint] + ([fetchOffset uint]*[defaultInstructionSize uint])
+#      set = set & (chunk << shift)
+#      debugBinarySet(!set !32 !"set")  
+#    end
+#  end
 }
 
 ############################################################################

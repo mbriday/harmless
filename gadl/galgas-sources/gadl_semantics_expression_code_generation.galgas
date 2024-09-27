@@ -12,7 +12,7 @@
 
 abstract getter @expression generateCode
   ?let  @codeCtx unused cgc
-  -> @string code
+  -> @string
 
 getter @expression hasParenthesis
   -> @bool result {
@@ -175,9 +175,19 @@ override getter @expInstructionSize generateCode
 }
 
 override getter @expInstructionAddress generateCode
-  ?let  @codeCtx unused cgc
+  ?let  @codeCtx cgc
   -> @string code {
-  code = "getInstructionPointer()"
+  switch addressType
+  case inst:     code = "getInstructionPointer()"
+  case function: 
+    if withAddr then
+      code = "_core->getFunctionAddress(_core->whichFunctionAtAddress("
+      code += [addrExp generateCode !cgc]
+      code += ").c_str())" #called only from an ISA syntax part!
+    else
+      code = "_core->getFunctionAddress(_core->whichFunctionAtAddress(getInstructionPointer()).c_str())" #called only from an ISA syntax part!
+    end
+  end
 }
 
 #internal: used by generateCode (normal way) and generateSetterCode

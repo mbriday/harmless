@@ -215,7 +215,7 @@ Internal decoder instruction cache Ratio
 
 \paragraph{\texttt{unsigned int const getNBCycles()}} Retourne le nombre de cycles depuis le début de la simulation. Cette variable n'est pas actualisée dans le cas de l'utilisation en mode ISS (simulation de jeu d'instruction).
 \paragraph{\texttt{unsigned int const getNBInstructions()}} Retourne le nombre d'instructions utilisées depuis le début de la simulation.
-\paragraph{\texttt{string disassemble(const unsigned int ipStart, const int nbBytes, bool verbose)}} Permet le désassemblage du code à partir de l'adresse \texttt{ipStart}, pour \texttt{nbBytes}. Si verbose est à \texttt{true}, l'adresse de décodage ainsi que le code binaire de l'instruction sont également affichés.
+\paragraph{\texttt{string disassemble(const unsigned int ipStart, const int nbInst, bool verbose)}} Permet le désassemblage du code à partir de l'adresse \texttt{ipStart}, pour \texttt{nbInst} instructions. Si verbose est à \texttt{true}, l'adresse de décodage ainsi que le code binaire de l'instruction sont également affichés.
 
 \subsection{Execution}
 \paragraph{\texttt{void reset()}}

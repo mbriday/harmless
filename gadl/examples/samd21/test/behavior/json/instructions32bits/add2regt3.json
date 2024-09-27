@@ -1,0 +1,44 @@
+{
+	"instruction": "ADDW Rd, Rn, #imm12",
+	"src":
+	{
+               "Rn" : {
+			"idx": ["r0","r2","r7"],
+			"val": ["0", "0x12345678", "0xffffffff",            					"0xac533c5a", "0xaaaa5555"]
+		},
+		
+               "imm8": {
+			"imm": [0, "0xa", "0x15", "0xac", "0xff"]
+		},
+                 
+               "imm3" : {
+			"imm": [0, "0x2", "0x5", "0x6", "0x7"]
+		},
+
+		"i" : 
+		{ "i" : [0, 1]
+		}
+
+	},
+	
+	"dest":
+	{
+		"cpsr": {
+			"val": ["0x41000000","0x01000000", "0xF9000000"]
+		},
+
+		"Rd": {
+			"idx": ["r1","r5","r9"],
+			"val": [0, 12334, "0xffffffff"]
+		}
+	},
+
+	"init":
+	{
+		"sp": "0x8",
+		"lr": "0xdead"
+	},
+	"mnemo": "ADD.W {Rd}, {Rm}, #{imm8}, {imm3}, {i}",
+	"size": 4
+}
+

@@ -1,0 +1,43 @@
+{
+	"instruction": "BFI Rd, Rn, #lsb, #width",
+	"src":
+	{	
+               
+               "Rn" : {
+			"idx": ["r1","r2", "r6"],
+			"val": ["0x20000100", "0x20001000",        					"0x20002000"]
+                       },
+			
+		"msb": {
+			"msb": [0, "0xa", "0x15", "0x1a", "0x1f"]
+		},
+
+   	 	"imm3" : {
+			"imm": [0, "0x2", "0x5", "0x6", "0x7"]
+		},
+		
+		"imm2" : {
+			"imm": [0, "0x1", "0x2", "0x3"]
+		},
+                 	
+		},
+
+
+	
+	"dest":
+	{
+		"Rd": {
+			"idx": ["r1","r5","r9"],
+			"val": [0, 12334, "0xffffffff"]
+		},
+	},
+
+	"init":
+	{
+		"sp": "0x8",
+		"lr": "0xdead"
+	},
+	"mnemo": "BFI {Rd},{Rn} #{lsb}, {width}",
+	"size": 4
+}
+

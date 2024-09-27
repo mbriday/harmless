@@ -1,0 +1,35 @@
+{
+	"instruction": "BFC Rd, #lsb, #width",
+	"src":
+	{            	
+                "lsb" : {
+			
+			"imm": ["0", "5", "11"]
+                },
+
+
+                "width" : {
+                      
+			"imm": ["1", "9", "17"]
+                 
+		}		
+
+	},
+	
+	"dest":
+	{
+		"Rd": {
+			"idx": ["r1","r9"],
+			"val": [0, 12334, "0xffffffff"]
+		}
+	},
+
+	"init":
+	{
+		"sp": "0x20003000",
+		"lr": "0xdead"
+	},
+	"mnemo": "BFC {Rd}, #{lsb}, #{width} ",
+	"size": 4
+}
+

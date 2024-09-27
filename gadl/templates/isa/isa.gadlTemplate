@@ -148,3 +148,10 @@ write to exportDir."/".core::NAME."_instWithoutMnemo.cpp":
   template instWithoutMnemo_cpp in "isa"
 end write
 !core::NAME%_instWithoutMnemo.cpp \\\n%
+
+#instruction branch detection
+write to exportDir."/".core::NAME."_branchDetection.cpp":
+  template instBranchDetection_cpp in "isa"
+end write
+!core::NAME%_branchDetection.cpp \\\n%
+

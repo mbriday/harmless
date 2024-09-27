@@ -45,12 +45,12 @@ class codeReader
 	 * @return false if no symbol is matching. v_addr and size are not updated.
 	 */
 	virtual bool getSymbolObjectAddress(const char *symbolName, u32 &v_addr, u32 &size) {return false;};
-	/* Find the current fontion name, corresponding to v_addr. v_addr should be the current value of 
-	 * the program counter to be informed of the current function that is executed.
-	 * @return true if a symbol have been found, and updates symbol name
-	 * @return false if no symbol is matching. no update.
+
+	/* this function search for the virtual address of the function in parameter.
+	 * \return the virtual address of the function
+	 * or -1) (=> 0xFFFFFFFF) if not found.
 	 */
-	virtual bool getFunctionName(const char *symbolName, u32 &v_addr) {return false;};
+	virtual u32 getFunctionAddress(const char *symbolName) {return 0xFFFFFFFF;};
 
 	/** print all object symbols */
 	virtual void dumpObjects() {};

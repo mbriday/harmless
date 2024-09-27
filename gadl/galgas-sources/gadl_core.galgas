@@ -34,7 +34,7 @@ method @ASTCoreMap coreSemantic
     ###########################################################################
     #constructor of the core (memory defined, and ISA not yet).
     ###########################################################################
-    @expressionContext ctx = @expressionContext. component #same ctx as a component...  
+    @expressionContext ctx = @expressionContext.component #same ctx as a component...  
     @functionMap constructorMap = [ASTCoreConstructorMap getFunctionMap !ctx !idfStruct]
     addListValue ( !?coreTplBody !lstringWith(!"coreConstructorList") 
                  ![constructorMap getFunctionTemplate])
@@ -49,6 +49,12 @@ method @ASTCoreMap coreSemantic
     ###########################################################################
     @memoryParamMap memChunk = [ASTmemChunk getMemMap]
     [memChunk setInTemplate !lstringWith(!"memInCoreList") !?coreTplBody]
+
+    ###########################################################################
+    # Static analysis
+    ###########################################################################
+    @staticInfoMap staticInfoMap = [[isa decodedBehaviorMap] getStaticInfo !idfStruct !memChunk]
+    setStaticInfoTemplates(![isa decodedBehaviorMap] !idfStruct !staticInfoMap !?coreTplBody)
 
     ###########################################################################
     # Architecture (defined in core), for a CAS version.

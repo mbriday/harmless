@@ -13,7 +13,7 @@ end if
 foreach inst in core::INST_CONSTRUCTOR do
   if not exists instWithMnemoMap[inst::name] then
     #no syntax part -> add a default one.
-    %const char* const %!inst::name%::mnemo(){\n%
+    %const char* const %!inst::name%::mnemo(%!core::NAME%_core *_core){\n%
     %\treturn "no syntax for %!inst::name%";\n%
     %}\n%
   end if

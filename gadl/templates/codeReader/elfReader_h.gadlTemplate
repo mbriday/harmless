@@ -92,12 +92,11 @@ class elfReader : public codeReader
 	 * @return false if no symbol is matching. v_addr and size are not updated.
 	 */
 	bool getSymbolObjectAddress(const char *symbolName, u32 &v_addr, u32 &size);
-	/* Find the current fontion name, corresponding to v_addr. v_addr should be the current value of 
-	 * the program counter to be informed of the current function that is executed.
-	 * @return true if a symbol have been found, and updates symbol name
-	 * @return false if no symbol is matching. no update.
+	/* this function search for the virtual address of the function in parameter.
+	 * \return the virtual address of the function
+	 * or -1) (=> 0xFFFFFFFF) if not found.
 	 */
-	bool getFunctionName(const char *symbolName, u32 &v_addr);
+	u32 getFunctionAddress(const char *symbolName);
 	/** print all object symbols */
 	void dumpObjects();
 	/** print all function symbols */

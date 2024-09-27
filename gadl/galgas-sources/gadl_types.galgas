@@ -132,7 +132,7 @@ override getter @varTabularType getFinalType
 ###############################################################################
 ## get location of type
 ###############################################################################
-abstract getter @varAbstractType loc -> @location l
+abstract getter @varAbstractType loc -> @location
 
 override getter @varBaseType loc -> @location l {
   l = location
@@ -157,7 +157,7 @@ override getter @varSignalType loc -> @location l {
 ###############################################################################
 ## update location for type.
 ###############################################################################
-abstract getter @varAbstractType changeLoc ?let  @location l -> @varAbstractType newType
+abstract getter @varAbstractType changeLoc ?let  @location l -> @varAbstractType 
 
 override getter @varBaseType changeLoc ?let  @location l -> @varAbstractType newType {
   newType = @varBaseType. new { !kind !size !l}
@@ -202,7 +202,7 @@ getter @varBaseType getCSize -> @uint Csize {
   end 
 }
 
-abstract getter @varAbstractType getCType -> @string str
+abstract getter @varAbstractType getCType -> @string
 
 override getter @varBaseType getCType
   -> @string str {
@@ -267,7 +267,7 @@ getter @varBaseType getUppaalType
 
 abstract getter @varAbstractType checkEqual
   ?let  @varAbstractType otherType
-  -> @bool ok
+  -> @bool
 
 override getter @varStructType checkEqual
   ?let  @varAbstractType otherType
@@ -321,7 +321,7 @@ override getter @varSignalType checkEqual
 abstract getter @varAbstractType getDeclaration 
   ?let  @string idf
   ?let  @codeCtx cgc  
-  -> @string code
+  -> @string
 
 override getter @varBaseType getDeclaration 
   ?let  @string idf
@@ -374,7 +374,7 @@ override getter @varSignalType getDeclaration
 ###############################################################################
 ## string -> debug or information purpose.
 ###############################################################################
-abstract getter @varAbstractType string -> @string str
+abstract getter @varAbstractType string -> @string
 override getter @varBaseType string -> @string str {
   if kind == @varKind. unsigned then 
     str = "u" 
